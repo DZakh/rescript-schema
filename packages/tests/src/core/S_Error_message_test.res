@@ -16,10 +16,10 @@ test("Error with Serializing operation", t => {
   t->Assert.is(
     U.error({
       code: OperationFailed("Should be positive"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     })->S.Error.message,
-    "Failed serializing at root. Reason: Should be positive",
+    "Failed converting reverse at root. Reason: Should be positive",
     (),
   )
 })
@@ -220,10 +220,10 @@ test("InvalidJsonSchema error", t => {
   t->Assert.is(
     U.error({
       code: InvalidJsonSchema(S.option(S.literal(true))->S.toUnknown),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     })->S.Error.message,
-    `Failed serializing at root. Reason: The Option(true) schema is not compatible with JSON`,
+    `Failed converting reverse at root. Reason: The Option(true) schema is not compatible with JSON`,
     (),
   )
 })

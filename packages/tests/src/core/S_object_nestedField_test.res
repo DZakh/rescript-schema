@@ -76,14 +76,14 @@ test("Successfully parses with nestedField used multiple times", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`)->S.parseAnyWith(schema),
-    Ok({"foo": "foo", "bar": "bar", "baz": "baz"}),
+    %raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`)->S.parseOrThrow(schema),
+    {"foo": "foo", "bar": "bar", "baz": "baz"},
     (),
   )
   t->U.assertCompiledCode(
     ~op=#Parse,
     ~schema,
-    `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["foo"],v1=i["nested"];if(typeof v0!=="string"){e[0](v0)}if(!v1||v1.constructor!==Object){e[1](v1)}let v2=v1["bar"],v3=v1["baz"];if(typeof v2!=="string"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}return {"foo":v0,"bar":v2,"baz":v3}}`,
+    `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["foo"],v1=i["nested"];if(typeof v0!=="string"){e[0](v0)}if(!v1||v1.constructor!==Object){e[1](v1)}let v2=v1["bar"],v3=v1["baz"];if(typeof v2!=="string"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}return {"foo":v0,"bar":v2,"baz":v3,}}`,
   )
 })
 
@@ -97,13 +97,13 @@ test("Successfully serializes with nestedField used multiple times", t => {
   )
 
   t->Assert.deepEqual(
-    {"foo": "foo", "bar": "bar", "baz": "baz"}->S.serializeWith(schema),
-    Ok(%raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`)),
+    {"foo": "foo", "bar": "bar", "baz": "baz"}->S.reverseConvertToJsonOrThrow(schema),
+    %raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`),
     (),
   )
   t->U.assertCompiledCode(
-    ~op=#Serialize,
+    ~op=#ReverseConvert,
     ~schema,
-    `i=>{return {"foo":i["foo"],"nested":{"bar":i["bar"],"baz":i["baz"]}}}`,
+    `i=>{return {"foo":i["foo"],"nested":{"bar":i["bar"],"baz":i["baz"],},}}`,
   )
 })

@@ -19,7 +19,26 @@ function raiseTestException() {
 }
 
 function error(param) {
-  return S$RescriptSchema.$$Error.make(param.code, param.operation, param.path);
+  var tmp;
+  switch (param.operation) {
+    case "Parse" :
+        tmp = S$RescriptSchema.Flag.typeValidation;
+        break;
+    case "ParseAsync" :
+        tmp = S$RescriptSchema.Flag.typeValidation | S$RescriptSchema.Flag.async;
+        break;
+    case "ReverseConvertToJson" :
+        tmp = S$RescriptSchema.Flag.reverse | S$RescriptSchema.Flag.jsonableOutput;
+        break;
+    case "ReverseConvert" :
+        tmp = S$RescriptSchema.Flag.reverse;
+        break;
+    case "Assert" :
+        tmp = S$RescriptSchema.Flag.typeValidation | S$RescriptSchema.Flag.assertOutput;
+        break;
+    
+  }
+  return S$RescriptSchema.$$Error.make(param.code, tmp, param.path);
 }
 
 function assertThrowsTestException(t, fn, message, param) {
@@ -38,19 +57,46 @@ function assertThrowsTestException(t, fn, message, param) {
   }
 }
 
-function assertErrorResult(t, result, errorPayload) {
-  if (result.TAG === "Ok") {
-    return t.fail("Asserted result is not Error. Recieved: " + JSON.stringify(result._0));
+function assertRaised(t, cb, errorPayload) {
+  var any;
+  try {
+    any = cb();
   }
-  t.is(S$RescriptSchema.$$Error.message(result._0), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
+  catch (raw_err){
+    var err = Caml_js_exceptions.internalToOCamlException(raw_err);
+    if (err.RE_EXN_ID === S$RescriptSchema.Raised) {
+      t.is(S$RescriptSchema.$$Error.message(err._1), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
+      return ;
+    }
+    throw err;
+  }
+  t.fail("Asserted result is not Error. Recieved: " + JSON.stringify(any));
+}
+
+async function assertRaisedAsync(t, cb, errorPayload) {
+  var any;
+  try {
+    any = await cb();
+  }
+  catch (raw_err){
+    var err = Caml_js_exceptions.internalToOCamlException(raw_err);
+    if (err.RE_EXN_ID === S$RescriptSchema.Raised) {
+      t.is(S$RescriptSchema.$$Error.message(err._1), S$RescriptSchema.$$Error.message(error(errorPayload)), undefined);
+      return ;
+    }
+    throw err;
+  }
+  return t.fail("Asserted result is not Error. Recieved: " + JSON.stringify(any));
 }
 
 function getCompiledCodeString(schema, op) {
   return (
-            op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : (
-                op === "SerializeJson" ? S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Json", "Sync", false) : (
-                    op === "Serialize" ? S$RescriptSchema.compile(S$RescriptSchema.reverse(schema), "Any", "Output", "Sync", false) : (
-                        S$RescriptSchema.isAsync(schema) ? S$RescriptSchema.compile(schema, "Any", "Output", "Async", true) : S$RescriptSchema.compile(schema, "Any", "Output", "Sync", true)
+            op === "Parse" || op === "ParseAsync" ? (
+                op === "ParseAsync" || S$RescriptSchema.isAsync(schema) ? S$RescriptSchema.compile(schema, "Any", "Value", "Async", true) : S$RescriptSchema.compile(schema, "Any", "Value", "Sync", true)
+              ) : (
+                op === "ReverseConvertToJson" ? S$RescriptSchema.compile(schema, "Value", "Json", "Sync", false) : (
+                    op === "ReverseConvert" ? S$RescriptSchema.compile(schema, "Value", "Unknown", "Sync", false) : (
+                        op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : S$RescriptSchema.compile(schema, "Value", "Unknown", "Async", false)
                       )
                   )
               )
@@ -96,7 +142,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
 }
 
 function assertReverseParsesBack(t, schema, value) {
-  t.deepEqual(S$RescriptSchema.unwrap(S$RescriptSchema.parseAnyWith(S$RescriptSchema.reverseConvertWith(value, schema), schema)), value, undefined);
+  t.deepEqual(S$RescriptSchema.parseOrThrow(S$RescriptSchema.reverseConvertOrThrow(value, schema), schema), value, undefined);
 }
 
 var assertEqualSchemas = unsafeAssertEqualSchemas;
@@ -107,7 +153,8 @@ export {
   raiseTestException ,
   error ,
   assertThrowsTestException ,
-  assertErrorResult ,
+  assertRaised ,
+  assertRaisedAsync ,
   getCompiledCodeString ,
   cleanUpSchema ,
   unsafeAssertEqualSchemas ,

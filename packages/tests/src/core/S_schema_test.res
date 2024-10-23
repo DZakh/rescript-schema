@@ -50,35 +50,69 @@ test("Object with embeded", t => {
     (),
   )
   t->Assert.is(
-    schema->U.getCompiledCodeString(~op=#Serialize),
-    `i=>{let v0=i["foo"];if(v0!=="bar"){e[0](v0)}return {"foo":v0,"zoo":i["zoo"]}}`,
+    schema->U.getCompiledCodeString(~op=#ReverseConvert),
+    `i=>{let v0=i["foo"];if(v0!=="bar"){e[0](v0)}return i}`,
     (),
   )
   t->Assert.is(
-    objectSchema->U.getCompiledCodeString(~op=#Serialize),
-    `i=>{return {"foo":i["foo"],"zoo":i["zoo"]}}`, // FIXME: Validate literals for S.object schemas
+    objectSchema->U.getCompiledCodeString(~op=#ReverseConvert),
+    `i=>{return {"foo":i["foo"],"zoo":i["zoo"],}}`, // FIXME: Validate literals for S.object schemas
+    (),
+  )
+})
+
+test("Strict object with embeded returns input without object recreation", t => {
+  S.setGlobalConfig({
+    defaultUnknownKeys: Strict,
+  })
+  let schema = S.schema(s =>
+    {
+      "foo": "bar",
+      "zoo": s.matches(S.int),
+    }
+  )
+  S.setGlobalConfig({})
+
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#Parse),
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["foo"],v1=i["zoo"],v2;if(v0!=="bar"){e[0](v0)}if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[1](v1)}for(v2 in i){if(v2!=="foo"&&v2!=="zoo"){e[2](v2)}}return i}`,
+    (),
+  )
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#ReverseConvert),
+    `i=>{let v0=i["foo"];if(v0!=="bar"){e[0](v0)}return i}`,
     (),
   )
 })
 
 test("Tuple with embeded", t => {
   let schema = S.schema(s => (s.matches(S.string), (), "bar"))
-  let tupleSchema = S.tuple3(S.string, S.literal(), S.literal("bar"))
+  let tupleSchema = S.tuple(s => (
+    s.item(0, S.string),
+    s.item(1, S.literal()),
+    s.item(2, S.literal("bar")),
+  ))
 
   t->U.assertEqualSchemas(schema, tupleSchema)
+  // S.schema does return i without tuple recreation
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#Parse),
+    `i=>{if(!Array.isArray(i)||i.length!==3){e[3](i)}let v0=i["0"],v1=i["1"],v2=i["2"];if(v2!=="bar"){e[2](v2)}if(v1!==undefined){e[1](v1)}if(typeof v0!=="string"){e[0](v0)}return i}`,
+    (),
+  )
+  t->Assert.is(
     tupleSchema->U.getCompiledCodeString(~op=#Parse),
+    `i=>{if(!Array.isArray(i)||i.length!==3){e[3](i)}let v0=i["0"],v1=i["1"],v2=i["2"];if(v2!=="bar"){e[2](v2)}if(v1!==undefined){e[1](v1)}if(typeof v0!=="string"){e[0](v0)}return [v0,v1,v2,]}`,
     (),
   )
   t->Assert.is(
-    schema->U.getCompiledCodeString(~op=#Serialize),
-    `i=>{let v0=i["1"],v1=i["2"];if(v1!=="bar"){e[1](v1)}if(v0!==undefined){e[0](v0)}return [i["0"],v0,v1]}`,
+    schema->U.getCompiledCodeString(~op=#ReverseConvert),
+    `i=>{let v0=i["1"],v1=i["2"];if(v1!=="bar"){e[1](v1)}if(v0!==undefined){e[0](v0)}return i}`,
     (),
   )
   t->Assert.is(
-    tupleSchema->U.getCompiledCodeString(~op=#Serialize),
-    `i=>{return [i["0"],i["1"],i["2"]]}`, // FIXME: validate literals for S.tuple schemas
+    tupleSchema->U.getCompiledCodeString(~op=#ReverseConvert),
+    `i=>{return [i["0"],i["1"],i["2"],]}`, // FIXME: validate literals for S.tuple schemas
     (),
   )
 })
@@ -114,13 +148,13 @@ test("Nested embeded object", t => {
     (),
   )
   t->Assert.is(
-    schema->U.getCompiledCodeString(~op=#Serialize),
-    `i=>{let v0=i["nested"];let v1=v0["foo"];if(v1!=="bar"){e[0](v1)}return {"nested":{"foo":v1,"zoo":v0["zoo"]}}}`,
+    schema->U.getCompiledCodeString(~op=#ReverseConvert),
+    `i=>{let v0=i["nested"];let v1=v0["foo"];if(v1!=="bar"){e[0](v1)}return i}`,
     (),
   )
   t->Assert.is(
-    objectSchema->U.getCompiledCodeString(~op=#Serialize),
-    `i=>{return {"nested":{"foo":i["nested"]["foo"],"zoo":i["nested"]["zoo"]}}}`, // FIXME: validate literals for S.tuple schemas
+    objectSchema->U.getCompiledCodeString(~op=#ReverseConvert),
+    `i=>{return {"nested":{"foo":i["nested"]["foo"],"zoo":i["nested"]["zoo"],},}}`, // FIXME: validate literals for S.tuple schemas
     (),
   )
 })

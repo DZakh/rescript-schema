@@ -11,7 +11,7 @@ test("Successfully parses object with inlinable string field", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: "bar"}`)->S.parseAnyWith(schema), Ok({"field": "bar"}), ())
+  t->Assert.deepEqual(%raw(`{field: "bar"}`)->S.parseOrThrow(schema), {"field": "bar"}, ())
 })
 
 test("Fails to parse object with inlinable string field", t => {
@@ -21,8 +21,8 @@ test("Fails to parse object with inlinable string field", t => {
     }
   )
 
-  t->U.assertErrorResult(
-    %raw(`{field: 123}`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`{field: 123}`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
       operation: Parse,
@@ -40,8 +40,8 @@ test(
       }
     )
 
-    t->U.assertErrorResult(
-      %raw(`{field: ["foo"]}`)->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => %raw(`{field: ["foo"]}`)->S.parseOrThrow(schema),
       {
         code: OperationFailed("User error"),
         operation: Parse,
@@ -58,7 +58,7 @@ test("Successfully parses object with inlinable bool field", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: true}`)->S.parseAnyWith(schema), Ok({"field": true}), ())
+  t->Assert.deepEqual(%raw(`{field: true}`)->S.parseOrThrow(schema), {"field": true}, ())
 })
 
 test("Fails to parse object with inlinable bool field", t => {
@@ -68,8 +68,8 @@ test("Fails to parse object with inlinable bool field", t => {
     }
   )
 
-  t->U.assertErrorResult(
-    %raw(`{field: 123}`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`{field: 123}`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.bool->S.toUnknown, received: %raw(`123`)}),
       operation: Parse,
@@ -86,8 +86,8 @@ test("Successfully parses object with unknown field (Noop operation)", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: new Date("2015-12-12")}`)->S.parseAnyWith(schema),
-    Ok(%raw(`{field: new Date("2015-12-12")}`)),
+    %raw(`{field: new Date("2015-12-12")}`)->S.parseOrThrow(schema),
+    %raw(`{field: new Date("2015-12-12")}`),
     (),
   )
 })
@@ -100,8 +100,8 @@ test("Successfully serializes object with unknown field (Noop operation)", t => 
   )
 
   t->Assert.deepEqual(
-    %raw(`{field: new Date("2015-12-12")}`)->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{field: new Date("2015-12-12")}`)),
+    %raw(`{field: new Date("2015-12-12")}`)->S.reverseConvertOrThrow(schema),
+    %raw(`{field: new Date("2015-12-12")}`),
     (),
   )
 })
@@ -113,8 +113,8 @@ test("Fails to parse object with inlinable never field", t => {
     }
   )
 
-  t->U.assertErrorResult(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`{field: true}`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.never->S.toUnknown, received: %raw(`true`)}),
       operation: Parse,
@@ -130,7 +130,7 @@ test("Successfully parses object with inlinable float field", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseAnyWith(schema), Ok({"field": 123.}), ())
+  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseOrThrow(schema), {"field": 123.}, ())
 })
 
 test("Fails to parse object with inlinable float field", t => {
@@ -140,8 +140,8 @@ test("Fails to parse object with inlinable float field", t => {
     }
   )
 
-  t->U.assertErrorResult(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`{field: true}`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.float->S.toUnknown, received: %raw(`true`)}),
       operation: Parse,
@@ -157,7 +157,7 @@ test("Successfully parses object with inlinable int field", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseAnyWith(schema), Ok({"field": 123}), ())
+  t->Assert.deepEqual(%raw(`{field: 123}`)->S.parseOrThrow(schema), {"field": 123}, ())
 })
 
 test("Fails to parse object with inlinable int field", t => {
@@ -167,8 +167,8 @@ test("Fails to parse object with inlinable int field", t => {
     }
   )
 
-  t->U.assertErrorResult(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`{field: true}`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: S.int->S.toUnknown, received: %raw(`true`)}),
       operation: Parse,
@@ -184,7 +184,7 @@ test("Successfully parses object with not inlinable empty object field", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{field: {}}`)->S.parseAnyWith(schema), Ok({"field": ()}), ())
+  t->Assert.deepEqual(%raw(`{field: {}}`)->S.parseOrThrow(schema), {"field": ()}, ())
 })
 
 test("Fails to parse object with not inlinable empty object field", t => {
@@ -195,8 +195,8 @@ test("Fails to parse object with not inlinable empty object field", t => {
     }
   )
 
-  t->U.assertErrorResult(
-    %raw(`{field: true}`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`{field: true}`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: fieldSchema->S.toUnknown, received: %raw(`true`)}),
       operation: Parse,
@@ -212,8 +212,8 @@ test("Fails to parse object when provided invalid data", t => {
     }
   )
 
-  t->U.assertErrorResult(
-    %raw(`12`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`12`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`12`)}),
       operation: Parse,
@@ -229,11 +229,7 @@ test("Successfully serializes object with single field", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    {"field": "bar"}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{field: "bar"}`)),
-    (),
-  )
+  t->Assert.deepEqual({"field": "bar"}->S.reverseConvertOrThrow(schema), %raw(`{field: "bar"}`), ())
 })
 
 test("Successfully parses object with multiple fields", t => {
@@ -245,8 +241,8 @@ test("Successfully parses object with multiple fields", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{boo: "bar", zoo: "jee"}`)->S.parseAnyWith(schema),
-    Ok({"boo": "bar", "zoo": "jee"}),
+    %raw(`{boo: "bar", zoo: "jee"}`)->S.parseOrThrow(schema),
+    {"boo": "bar", "zoo": "jee"},
     (),
   )
 })
@@ -260,8 +256,8 @@ test("Successfully serializes object with multiple fields", t => {
   )
 
   t->Assert.deepEqual(
-    {"boo": "bar", "zoo": "jee"}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{boo: "bar", zoo: "jee"}`)),
+    {"boo": "bar", "zoo": "jee"}->S.reverseConvertOrThrow(schema),
+    %raw(`{boo: "bar", zoo: "jee"}`),
     (),
   )
 })
@@ -276,11 +272,7 @@ test("Successfully parses object with transformed field", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    %raw(`{string: "bar"}`)->S.parseAnyWith(schema),
-    Ok({"string": "barfield"}),
-    (),
-  )
+  t->Assert.deepEqual(%raw(`{string: "bar"}`)->S.parseOrThrow(schema), {"string": "barfield"}, ())
 })
 
 test("Fails to parse object when transformed field has raises error", t => {
@@ -290,8 +282,8 @@ test("Fails to parse object when transformed field has raises error", t => {
     }
   )
 
-  t->U.assertErrorResult(
-    {"field": "bar"}->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => {"field": "bar"}->S.parseOrThrow(schema),
     {
       code: OperationFailed("User error"),
       operation: Parse,
@@ -310,8 +302,8 @@ test("Shows transformed object field name in error path when fails to parse", t 
     }
   )
 
-  t->U.assertErrorResult(
-    {"originalFieldName": "bar"}->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => {"originalFieldName": "bar"}->S.parseOrThrow(schema),
     {
       code: OperationFailed("User error"),
       operation: Parse,
@@ -331,8 +323,8 @@ test("Successfully serializes object with transformed field", t => {
   )
 
   t->Assert.deepEqual(
-    {"string": "bar"}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{"string": "barfield"}`)),
+    {"string": "bar"}->S.reverseConvertOrThrow(schema),
+    %raw(`{"string": "barfield"}`),
     (),
   )
 })
@@ -347,11 +339,11 @@ test("Fails to serializes object when transformed field has raises error", t => 
     }
   )
 
-  t->U.assertErrorResult(
-    {"field": "bar"}->S.serializeToUnknownWith(schema),
+  t->U.assertRaised(
+    () => {"field": "bar"}->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("User error"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["field"]),
     },
   )
@@ -367,11 +359,11 @@ test("Shows transformed object field name in error path when fails to serializes
     }
   )
 
-  t->U.assertErrorResult(
-    {"transformedFieldName": "bar"}->S.serializeToUnknownWith(schema),
+  t->U.assertRaised(
+    () => {"transformedFieldName": "bar"}->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("User error"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["transformedFieldName"]),
     },
   )
@@ -389,15 +381,16 @@ test("Shows transformed to nested object field name in error path when fails to 
     }
   )
 
-  t->U.assertErrorResult(
-    {
-      "v1": {
-        "transformedFieldName": "bar",
-      },
-    }->S.serializeToUnknownWith(schema),
+  t->U.assertRaised(
+    () =>
+      {
+        "v1": {
+          "transformedFieldName": "bar",
+        },
+      }->S.reverseConvertOrThrow(schema),
     {
       code: OperationFailed("User error"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["v1", "transformedFieldName"]),
     },
   )
@@ -412,8 +405,8 @@ test("Successfully parses object with optional fields", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{boo: "bar"}`)->S.parseAnyWith(schema),
-    Ok({"boo": Some("bar"), "zoo": None}),
+    %raw(`{boo: "bar"}`)->S.parseOrThrow(schema),
+    {"boo": Some("bar"), "zoo": None},
     (),
   )
 })
@@ -427,8 +420,8 @@ test("Successfully serializes object with optional fields", t => {
   )
 
   t->Assert.deepEqual(
-    {"boo": Some("bar"), "zoo": None}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{boo: "bar", zoo: undefined}`)),
+    {"boo": Some("bar"), "zoo": None}->S.reverseConvertOrThrow(schema),
+    %raw(`{boo: "bar", zoo: undefined}`),
     (),
   )
 })
@@ -442,8 +435,8 @@ test("Successfully parses object with optional fields with default", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{boo: "bar"}`)->S.parseAnyWith(schema),
-    Ok({"boo": "bar", "zoo": "default zoo"}),
+    %raw(`{boo: "bar"}`)->S.parseOrThrow(schema),
+    {"boo": "bar", "zoo": "default zoo"},
     (),
   )
 })
@@ -457,8 +450,8 @@ test("Successfully serializes object with optional fields with default", t => {
   )
 
   t->Assert.deepEqual(
-    {"boo": "bar", "zoo": "baz"}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{boo: "bar", zoo: "baz"}`)),
+    {"boo": "bar", "zoo": "baz"}->S.reverseConvertOrThrow(schema),
+    %raw(`{boo: "bar", zoo: "baz"}`),
     (),
   )
 })
@@ -474,11 +467,11 @@ test(
     })
 
     t->Assert.deepEqual(
-      %raw(`{mode: 1}`)->S.parseAnyWith(optionsSchema),
-      Ok({
+      %raw(`{mode: 1}`)->S.parseOrThrow(optionsSchema),
+      {
         fast: %raw(`undefined`),
         mode: 1,
-      }),
+      },
       (),
     )
   },
@@ -493,8 +486,8 @@ test("Successfully serializes object with optional fields using (?)", t => {
   })
 
   t->Assert.deepEqual(
-    {mode: 1}->S.serializeToUnknownWith(optionsSchema),
-    Ok(%raw(`{mode: 1, fast: undefined}`)),
+    {mode: 1}->S.reverseConvertOrThrow(optionsSchema),
+    %raw(`{mode: 1, fast: undefined}`),
     (),
   )
 })
@@ -509,8 +502,8 @@ test("Successfully parses object with mapped field names", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)->S.parseAnyWith(schema),
-    Ok({"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}),
+    %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)->S.parseOrThrow(schema),
+    {"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21},
     (),
   )
 })
@@ -525,8 +518,8 @@ test("Successfully serializes object with mapped field", t => {
   )
 
   t->Assert.deepEqual(
-    {"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`)),
+    {"name": "Dmitry", "email": "dzakh.dev@gmail.com", "age": 21}->S.reverseConvertOrThrow(schema),
+    %raw(`{"Name":"Dmitry","Email":"dzakh.dev@gmail.com","Age":21}`),
     (),
   )
 })
@@ -534,13 +527,13 @@ test("Successfully serializes object with mapped field", t => {
 test("Successfully parses object transformed to tuple", t => {
   let schema = S.object(s => (s.field("boo", S.int), s.field("zoo", S.int)))
 
-  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(schema), Ok(1, 2), ())
+  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseOrThrow(schema), (1, 2), ())
 })
 
 test("Successfully serializes object transformed to tuple", t => {
   let schema = S.object(s => (s.field("boo", S.int), s.field("zoo", S.int)))
 
-  t->Assert.deepEqual((1, 2)->S.serializeToUnknownWith(schema), Ok(%raw(`{boo: 1, zoo: 2}`)), ())
+  t->Assert.deepEqual((1, 2)->S.reverseConvertOrThrow(schema), %raw(`{boo: 1, zoo: 2}`), ())
 })
 
 test("Successfully parses object transformed to nested object", t => {
@@ -554,8 +547,8 @@ test("Successfully parses object transformed to nested object", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(schema),
-    Ok({"v1": {"boo": 1, "zoo": 2}}),
+    %raw(`{boo: 1, zoo: 2}`)->S.parseOrThrow(schema),
+    {"v1": {"boo": 1, "zoo": 2}},
     (),
   )
 })
@@ -571,8 +564,8 @@ test("Successfully serializes object transformed to nested object", t => {
   )
 
   t->Assert.deepEqual(
-    {"v1": {"boo": 1, "zoo": 2}}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{boo: 1, zoo: 2}`)),
+    {"v1": {"boo": 1, "zoo": 2}}->S.reverseConvertOrThrow(schema),
+    %raw(`{boo: 1, zoo: 2}`),
     (),
   )
 })
@@ -584,7 +577,7 @@ test("Successfully parses object transformed to nested tuple", t => {
     }
   )
 
-  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseAnyWith(schema), Ok({"v1": (1, 2)}), ())
+  t->Assert.deepEqual(%raw(`{boo: 1, zoo: 2}`)->S.parseOrThrow(schema), {"v1": (1, 2)}, ())
 })
 
 test("Successfully serializes object transformed to nested tuple", t => {
@@ -594,23 +587,19 @@ test("Successfully serializes object transformed to nested tuple", t => {
     }
   )
 
-  t->Assert.deepEqual(
-    {"v1": (1, 2)}->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{boo: 1, zoo: 2}`)),
-    (),
-  )
+  t->Assert.deepEqual({"v1": (1, 2)}->S.reverseConvertOrThrow(schema), %raw(`{boo: 1, zoo: 2}`), ())
 })
 
 test("Successfully parses object with only one field returned from transformer", t => {
   let schema = S.object(s => s.field("field", S.bool))
 
-  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseAnyWith(schema), Ok(true), ())
+  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseOrThrow(schema), true, ())
 })
 
 test("Successfully serializes object with only one field returned from transformer", t => {
   let schema = S.object(s => s.field("field", S.bool))
 
-  t->Assert.deepEqual(true->S.serializeToUnknownWith(schema), Ok(%raw(`{"field": true}`)), ())
+  t->Assert.deepEqual(true->S.reverseConvertOrThrow(schema), %raw(`{"field": true}`), ())
 })
 
 test("Successfully parses object transformed to the one with hardcoded fields", t => {
@@ -622,11 +611,11 @@ test("Successfully parses object transformed to the one with hardcoded fields", 
   )
 
   t->Assert.deepEqual(
-    %raw(`{"field": true}`)->S.parseAnyWith(schema),
-    Ok({
+    %raw(`{"field": true}`)->S.parseOrThrow(schema),
+    {
       "hardcoded": false,
       "field": true,
-    }),
+    },
     (),
   )
 })
@@ -643,8 +632,8 @@ test("Successfully serializes object transformed to the one with hardcoded field
     {
       "hardcoded": false,
       "field": true,
-    }->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{"field": true}`)),
+    }->S.reverseConvertOrThrow(schema),
+    %raw(`{"field": true}`),
     (),
   )
 })
@@ -652,20 +641,16 @@ test("Successfully serializes object transformed to the one with hardcoded field
 test("Successfully parses object transformed to variant", t => {
   let schema = S.object(s => #VARIANT(s.field("field", S.bool)))
 
-  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseAnyWith(schema), Ok(#VARIANT(true)), ())
+  t->Assert.deepEqual(%raw(`{"field": true}`)->S.parseOrThrow(schema), #VARIANT(true), ())
 })
 
 test("Successfully serializes object transformed to variant", t => {
   let schema = S.object(s => #VARIANT(s.field("field", S.bool)))
 
-  t->Assert.deepEqual(
-    #VARIANT(true)->S.serializeToUnknownWith(schema),
-    Ok(%raw(`{"field": true}`)),
-    (),
-  )
+  t->Assert.deepEqual(#VARIANT(true)->S.reverseConvertOrThrow(schema), %raw(`{"field": true}`), ())
 })
 
-module Benchmark = {
+module BenchmarkWithSObject = {
   let makeTestObject = () => {
     %raw(`Object.freeze({
     number: 1,
@@ -706,27 +691,123 @@ module Benchmark = {
     )
   }
 
-  let makeAdvancedStrictObjectSchema = () => {
-    S.object(s =>
+  test("Successfully parses object from benchmark - with S.object", t => {
+    S.setGlobalConfig({
+      disableNanNumberCheck: true,
+    })
+    let schema = makeSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.parseOrThrow(schema), makeTestObject(), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[10](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"];if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"];if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9,},}}`,
+    )
+    S.setGlobalConfig({})
+  })
+
+  test("Successfully asserts object from benchmark - with S.object", t => {
+    S.setGlobalConfig({
+      disableNanNumberCheck: true,
+    })
+    let schema = makeSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.assertOrThrow(schema), (), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Assert,
+      `i=>{if(!i||i.constructor!==Object){e[10](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"];if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"];if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}return void 0}`,
+    )
+    S.setGlobalConfig({})
+  })
+
+  test("Successfully parses strict object from benchmark - with S.object", t => {
+    S.setGlobalConfig({
+      disableNanNumberCheck: true,
+      defaultUnknownKeys: Strict,
+    })
+    let schema = makeSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.parseOrThrow(schema), makeTestObject(), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9,},}}`,
+    )
+    S.setGlobalConfig({})
+  })
+
+  test("Successfully asserts strict object from benchmark - with S.object", t => {
+    S.setGlobalConfig({
+      disableNanNumberCheck: true,
+      defaultUnknownKeys: Strict,
+    })
+    let schema = makeSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.assertOrThrow(schema), (), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Assert,
+      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return void 0}`,
+    )
+    S.setGlobalConfig({})
+  })
+
+  test("Successfully serializes object from benchmark - with S.object", t => {
+    S.setGlobalConfig({
+      disableNanNumberCheck: true,
+    })
+    let schema = makeSchema()
+
+    t->Assert.deepEqual(makeTestObject()->S.reverseConvertOrThrow(schema), makeTestObject(), ())
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#ReverseConvert,
+      `i=>{return {"number":i["number"],"negNumber":i["negNumber"],"maxNumber":i["maxNumber"],"string":i["string"],"longString":i["longString"],"boolean":i["boolean"],"deeplyNested":{"foo":i["deeplyNested"]["foo"],"num":i["deeplyNested"]["num"],"bool":i["deeplyNested"]["bool"],},}}`,
+    )
+    S.setGlobalConfig({})
+  })
+}
+
+module Benchmark = {
+  let makeTestObject = () => {
+    %raw(`Object.freeze({
+    number: 1,
+    negNumber: -1,
+    maxNumber: Number.MAX_VALUE,
+    string: 'string',
+    longString:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+    boolean: true,
+    deeplyNested: {
+      foo: 'bar',
+      num: 1,
+      bool: false,
+    },
+  })`)
+  }
+
+  let makeSchema = () => {
+    S.schema(s =>
       {
-        "number": s.field("number", S.float),
-        "negNumber": s.field("negNumber", S.float),
-        "maxNumber": s.field("maxNumber", S.float),
-        "string": s.field("string", S.string),
-        "longString": s.field("longString", S.string),
-        "boolean": s.field("boolean", S.bool),
-        "deeplyNested": s.field(
-          "deeplyNested",
-          S.object(s =>
-            {
-              "foo": s.field("foo", S.string),
-              "num": s.field("num", S.float),
-              "bool": s.field("bool", S.bool),
-            }
-          )->S.Object.strict,
-        ),
+        "number": s.matches(S.float),
+        "negNumber": s.matches(S.float),
+        "maxNumber": s.matches(S.float),
+        "string": s.matches(S.string),
+        "longString": s.matches(S.string),
+        "boolean": s.matches(S.bool),
+        "deeplyNested": {
+          "foo": s.matches(S.string),
+          "num": s.matches(S.float),
+          "bool": s.matches(S.bool),
+        },
       }
-    )->S.Object.strict
+    )
   }
 
   test("Successfully parses object from benchmark", t => {
@@ -735,28 +816,12 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(
-      makeTestObject()->S.parseAnyWith(schema),
-      Ok({
-        "number": 1.,
-        "negNumber": -1.,
-        "maxNumber": %raw("Number.MAX_VALUE"),
-        "string": "string",
-        "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-        "boolean": true,
-        "deeplyNested": {
-          "foo": "bar",
-          "num": 1.,
-          "bool": false,
-        },
-      }),
-      (),
-    )
+    t->Assert.deepEqual(makeTestObject()->S.parseOrThrow(schema), makeTestObject(), ())
 
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[10](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"];if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"];if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9}}}`,
+      `i=>{if(!i||i.constructor!==Object){e[10](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"];if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"];if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9,},}}`,
     )
     S.setGlobalConfig({})
   })
@@ -767,7 +832,7 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertWith(schema), (), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertOrThrow(schema), (), ())
 
     t->U.assertCompiledCode(
       ~schema,
@@ -784,28 +849,12 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(
-      makeTestObject()->S.parseAnyWith(schema),
-      Ok({
-        "number": 1.,
-        "negNumber": -1.,
-        "maxNumber": %raw("Number.MAX_VALUE"),
-        "string": "string",
-        "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-        "boolean": true,
-        "deeplyNested": {
-          "foo": "bar",
-          "num": 1.,
-          "bool": false,
-        },
-      }),
-      (),
-    )
+    t->Assert.deepEqual(makeTestObject()->S.parseOrThrow(schema), makeTestObject(), ())
 
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9}}}`,
+      `i=>{if(!i||i.constructor!==Object){e[12](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"],v11;if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"],v10;if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}for(v10 in v6){if(v10!=="foo"&&v10!=="num"&&v10!=="bool"){e[10](v10)}}for(v11 in i){if(v11!=="number"&&v11!=="negNumber"&&v11!=="maxNumber"&&v11!=="string"&&v11!=="longString"&&v11!=="boolean"&&v11!=="deeplyNested"){e[11](v11)}}return i}`,
     )
     S.setGlobalConfig({})
   })
@@ -817,7 +866,7 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertWith(schema), (), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertOrThrow(schema), (), ())
 
     t->U.assertCompiledCode(
       ~schema,
@@ -833,44 +882,9 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(
-      {
-        "number": 1.,
-        "negNumber": -1.,
-        "maxNumber": %raw("Number.MAX_VALUE"),
-        "string": "string",
-        "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-        "boolean": true,
-        "deeplyNested": {
-          "foo": "bar",
-          "num": 1.,
-          "bool": false,
-        },
-      }->S.serializeToUnknownWith(schema),
-      Ok(
-        %raw(`{
-        number: 1,
-        negNumber: -1,
-        maxNumber: Number.MAX_VALUE,
-        string: 'string',
-        longString:
-          'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Vivendum intellegat et qui, ei denique consequuntur vix. Semper aeterno percipit ut his, sea ex utinam referrentur repudiandae. No epicuri hendrerit consetetur sit, sit dicta adipiscing ex, in facete detracto deterruisset duo. Quot populo ad qui. Sit fugit nostrum et. Ad per diam dicant interesset, lorem iusto sensibus ut sed. No dicam aperiam vis. Pri posse graeco definitiones cu, id eam populo quaestio adipiscing, usu quod malorum te. Ex nam agam veri, dicunt efficiantur ad qui, ad legere adversarium sit. Commune platonem mel id, brute adipiscing duo an. Vivendum intellegat et qui, ei denique consequuntur vix. Offendit eleifend moderatius ex vix, quem odio mazim et qui, purto expetendis cotidieque quo cu, veri persius vituperata ei nec. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
-        boolean: true,
-        deeplyNested: {
-          foo: 'bar',
-          num: 1,
-          bool: false,
-        },
-      }`),
-      ),
-      (),
-    )
+    t->Assert.deepEqual(makeTestObject()->S.reverseConvertOrThrow(schema), makeTestObject(), ())
 
-    t->U.assertCompiledCode(
-      ~schema,
-      ~op=#Serialize,
-      `i=>{return {"number":i["number"],"negNumber":i["negNumber"],"maxNumber":i["maxNumber"],"string":i["string"],"longString":i["longString"],"boolean":i["boolean"],"deeplyNested":{"foo":i["deeplyNested"]["foo"],"num":i["deeplyNested"]["num"],"bool":i["deeplyNested"]["bool"]}}}`,
-    )
+    t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{let v0=i["deeplyNested"];return i}`)
     S.setGlobalConfig({})
   })
 }
@@ -886,11 +900,7 @@ test("Successfully parses object and serializes it back to the initial data", t 
     }
   )
 
-  t->Assert.deepEqual(
-    any->S.parseAnyWith(schema)->Result.map(object => object->S.serializeToUnknownWith(schema)),
-    Ok(Ok(any)),
-    (),
-  )
+  t->Assert.deepEqual(any->S.parseOrThrow(schema)->S.reverseConvertOrThrow(schema), any, ())
 })
 
 test("Allows to create object schema with unused fields", t => {
@@ -902,8 +912,8 @@ test("Allows to create object schema with unused fields", t => {
   })
 
   t->Assert.deepEqual(
-    %raw(`{"field": "foo", "unused": "bar"}`)->S.parseAnyWith(schema),
-    Ok({"field": "foo"}),
+    %raw(`{"field": "foo", "unused": "bar"}`)->S.parseOrThrow(schema),
+    {"field": "foo"},
     (),
   )
 })
@@ -935,8 +945,8 @@ test("Successfully parses object schema with single field registered multiple ti
     }
   })
   t->Assert.deepEqual(
-    %raw(`{"field": "foo"}`)->S.parseAnyWith(schema),
-    Ok({"field1": "foo", "field2": "foo"}),
+    %raw(`{"field": "foo"}`)->S.parseOrThrow(schema),
+    {"field1": "foo", "field2": "foo"},
     (),
   )
 })
@@ -953,22 +963,22 @@ test("Reverse convert of object schema with single field registered multiple tim
 
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
-    `i=>{let v0=i["field1"],v1=i["field2"],v2=i["field3"];if(v0!==v1){e[0]()}if(v0!==v2){e[1]()}return {"field":v0}}`,
+    ~op=#ReverseConvert,
+    `i=>{let v0=i["field1"],v1=i["field2"],v2=i["field3"];if(v0!==v1){e[0]()}if(v0!==v2){e[1]()}return {"field":v0,}}`,
   )
 
   t->Assert.deepEqual(
-    {"field1": "foo", "field2": "foo", "field3": "foo"}->S.reverseConvertWith(schema),
+    {"field1": "foo", "field2": "foo", "field3": "foo"}->S.reverseConvertOrThrow(schema),
     %raw(`{"field": "foo"}`),
     (),
   )
-  t->U.assertErrorResult(
-    {"field1": "foo", "field2": "foo", "field3": "foz"}->S.serializeToUnknownWith(schema),
+  t->U.assertRaised(
+    () => {"field1": "foo", "field2": "foo", "field3": "foz"}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
         description: `Multiple sources provided not equal data for "field"`,
       }),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -992,25 +1002,25 @@ test("Can destructure fields of simple nested objects", t => {
     }
   })
   t->Assert.deepEqual(
-    %raw(`{"nested": {"foo": "foo", "bar": "bar"}}`)->S.parseAnyWith(schema),
-    Ok({"baz": "bar", "foz": "foo"}),
+    %raw(`{"nested": {"foo": "foo", "bar": "bar"}}`)->S.parseOrThrow(schema),
+    {"baz": "bar", "foz": "foo"},
     (),
   )
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2=v0["bar"];if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}return {"baz":v2,"foz":v1}}`,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2=v0["bar"];if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}return {"baz":v2,"foz":v1,}}`,
   )
 
   t->Assert.deepEqual(
-    {"baz": "bar", "foz": "foo"}->S.serializeWith(schema),
-    Ok(%raw(`{"nested": {"foo": "foo", "bar": "bar"}}`)),
+    {"baz": "bar", "foz": "foo"}->S.reverseConvertToJsonOrThrow(schema),
+    %raw(`{"nested": {"foo": "foo", "bar": "bar"}}`),
     (),
   )
   t->U.assertCompiledCode(
     ~schema,
-    ~op=#Serialize,
-    `i=>{return {"nested":{"foo":i["foz"],"bar":i["baz"]}}}`,
+    ~op=#ReverseConvert,
+    `i=>{return {"nested":{"foo":i["foz"],"bar":i["baz"],},}}`,
   )
 })
 
@@ -1023,8 +1033,8 @@ test("Object schema parsing checks order", t => {
   })->S.Object.strict
 
   // Type check should be the first
-  t->U.assertErrorResult(
-    %raw(`"foo"`)->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => %raw(`"foo"`)->S.parseOrThrow(schema),
     {
       code: InvalidType({expected: schema->S.toUnknown, received: %raw(`"foo"`)}),
       operation: Parse,
@@ -1032,10 +1042,11 @@ test("Object schema parsing checks order", t => {
     },
   )
   // Tag check should be the second
-  t->U.assertErrorResult(
-    %raw(`{tag: "wrong", key: 123, unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
-      schema,
-    ),
+  t->U.assertRaised(
+    () =>
+      %raw(`{tag: "wrong", key: 123, unknownKey: "value", unknownKey2: "value"}`)->S.parseOrThrow(
+        schema,
+      ),
     {
       code: InvalidType({expected: S.literal("value")->S.toUnknown, received: %raw(`"wrong"`)}),
       operation: Parse,
@@ -1043,10 +1054,11 @@ test("Object schema parsing checks order", t => {
     },
   )
   // Field check should be the third
-  t->U.assertErrorResult(
-    %raw(`{tag: "value", key: 123, unknownKey: "value", unknownKey2: "value"}`)->S.parseAnyWith(
-      schema,
-    ),
+  t->U.assertRaised(
+    () =>
+      %raw(`{tag: "value", key: 123, unknownKey: "value", unknownKey2: "value"}`)->S.parseOrThrow(
+        schema,
+      ),
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`123`)}),
       operation: Parse,
@@ -1054,18 +1066,19 @@ test("Object schema parsing checks order", t => {
     },
   )
   // Unknown keys check should be the last
-  t->U.assertErrorResult(
-    %raw(`{tag: "value", key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseAnyWith(
-      schema,
-    ),
+  t->U.assertRaised(
+    () =>
+      %raw(`{tag: "value", key: "value", unknownKey: "value2", unknownKey2: "value2"}`)->S.parseOrThrow(
+        schema,
+      ),
     {code: ExcessField("unknownKey"), operation: Parse, path: S.Path.empty},
   )
   // Parses valid
   t->Assert.deepEqual(
-    %raw(`{tag: "value", key: "value"}`)->S.parseAnyWith(schema),
-    Ok({
+    %raw(`{tag: "value", key: "value"}`)->S.parseOrThrow(schema),
+    {
       "key": "value",
-    }),
+    },
     (),
   )
 })
@@ -1082,9 +1095,13 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1}}`,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
     )
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"]}}`)
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#ReverseConvert,
+      `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`,
+    )
   })
 
   test("Compiled code snapshot for refined nested object", t => {
@@ -1105,12 +1122,12 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["foo"],v1=i["bar"];if(v0!==12){e[0](v0)}if(!v1||v1.constructor!==Object){e[1](v1)}let v2=v1["baz"],v3;if(typeof v2!=="string"){e[2](v2)}v3={"baz":v2};e[3](v3);return {"foo":v0,"bar":v3}}`,
+      `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["foo"],v1=i["bar"];if(v0!==12){e[0](v0)}if(!v1||v1.constructor!==Object){e[1](v1)}let v2=v1["baz"],v3;if(typeof v2!=="string"){e[2](v2)}v3={"baz":v2,};e[3](v3);return {"foo":v0,"bar":v3,}}`,
     )
     t->U.assertCompiledCode(
       ~schema,
-      ~op=#Serialize,
-      `i=>{let v0=i["bar"];e[0](v0);return {"foo":i["foo"],"bar":{"baz":v0["baz"]}}}`, // FIXME: Should validate literal here
+      ~op=#ReverseConvert,
+      `i=>{let v0=i["bar"];e[0](v0);return {"foo":i["foo"],"bar":{"baz":v0["baz"],},}}`, // FIXME: Should validate literal here
     )
   })
 
@@ -1128,7 +1145,19 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["bar"];if(typeof v0!=="boolean"){e[1](v0)}return Promise.all([e[0](i["foo"])]).then(a=>({"foo":a[0],"bar":v0}))}`,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["bar"];if(typeof v0!=="boolean"){e[1](v0)}return Promise.all([e[0](i["foo"]),]).then(a=>({"foo":a[0],"bar":v0,}))}`,
+    )
+  })
+
+  test("Compiled parse code snapshot with async field registered as return", t => {
+    let schema = S.object(s =>
+      s.field("foo", S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
+    )
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[1](i)}return e[0](i["foo"])}`,
     )
   })
 
@@ -1143,7 +1172,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["foo"],v1=i["bar"],v2;if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}for(v2 in i){if(v2!=="foo"&&v2!=="bar"){e[2](v2)}}return {"foo":v0,"bar":v1}}`,
+      `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["foo"],v1=i["bar"],v2;if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}for(v2 in i){if(v2!=="foo"&&v2!=="bar"){e[2](v2)}}return {"foo":v0,"bar":v1,}}`,
     )
   })
 
@@ -1155,7 +1184,30 @@ module Compiled = {
       }
     )->S.Object.strict
 
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return {"foo":i["foo"],"bar":i["bar"]}}`)
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#ReverseConvert,
+      `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`,
+    )
+  })
+
+  test("Compiled code snapshot for nested empty object with strict unknown keys", t => {
+    let schema = S.schema(s =>
+      {
+        "nested": s.matches(S.object(_ => ())->S.Object.strict),
+      }
+    )
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1;for(v1 in v0){if(true){e[1](v1)}}return {"nested":e[2],}}`,
+    )
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#ReverseConvert,
+      `i=>{let v0=i["nested"];if(v0!==undefined){e[0](v0)}return {"nested":{},}}`,
+    )
   })
 
   test(
@@ -1173,7 +1225,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#Parse,
-        `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["tag"],v1=i["FOO"],v2=i["BAR"],v3;if(v0!==0){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v3 in i){if(v3!=="tag"&&v3!=="FOO"&&v3!=="BAR"){e[3](v3)}}return {"foo":v1,"bar":v2,"zoo":e[4]}}`,
+        `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["tag"],v1=i["FOO"],v2=i["BAR"],v3;if(v0!==0){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v3 in i){if(v3!=="tag"&&v3!=="FOO"&&v3!=="BAR"){e[3](v3)}}return {"foo":v1,"bar":v2,"zoo":e[4],}}`,
       )
     },
   )
@@ -1192,8 +1244,8 @@ module Compiled = {
 
       t->U.assertCompiledCode(
         ~schema,
-        ~op=#Serialize,
-        `i=>{if(i["zoo"]!==1){e[0](i["zoo"])}return {"tag":e[1],"FOO":i["foo"],"BAR":i["bar"]}}`,
+        ~op=#ReverseConvert,
+        `i=>{if(i["zoo"]!==1){e[0](i["zoo"])}return {"tag":e[1],"FOO":i["foo"],"BAR":i["bar"],}}`,
       )
     },
   )
@@ -1221,10 +1273,10 @@ test(
       "android": {"current": "1.2", "minimum": "1.1"},
     }
 
-    let value = appVersions->S.parseAnyWith(appVersionsSchema)->S.unwrap
+    let value = appVersions->S.parseOrThrow(appVersionsSchema)
     t->Assert.deepEqual(value, appVersions, ())
 
-    let data = appVersions->S.serializeWith(appVersionsSchema)->S.unwrap
+    let data = appVersions->S.reverseConvertToJsonOrThrow(appVersionsSchema)
     t->Assert.deepEqual(data, appVersions->Obj.magic, ())
   },
 )
@@ -1239,7 +1291,7 @@ test("Failse to parse reversed object schema", t => {
   let schema = S.object(_ => ())
   t->Assert.throws(
     () => {
-      let _ = ()->S.parseAnyOrRaiseWith(schema->S.reverse)
+      let _ = ()->S.parseOrThrow(schema->S.reverse)
     },
     ~expectations={
       message: "Failed parsing at root. Reason: Type validation mode is not supported. Use convert operation instead",
@@ -1248,17 +1300,12 @@ test("Failse to parse reversed object schema", t => {
   )
 })
 
-test("Failse to compile to async reversed object schema", t => {
+test("Compiles to async serialize operation with the sync object schema", t => {
   let schema = S.object(_ => ())
-  t->Assert.throws(
-    () => {
-      let _ =
-        schema->S.reverse->S.compile(~input=Any, ~output=Output, ~mode=Async, ~typeValidation=false)
-    },
-    ~expectations={
-      message: "Failed serializing at root. Reason: Async mode is not supported",
-    },
-    (),
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvertAsync,
+    `i=>{if(i!==undefined){e[0](i)}return Promise.resolve({})}`,
   )
 })
 

@@ -123,8 +123,8 @@ module Positive = {
           {
             "discriminant": testData.discriminantData,
             "field": "bar",
-          }->S.parseAnyWith(schema),
-          Ok({"field": "bar"}),
+          }->S.parseOrThrow(schema),
+          {"field": "bar"},
           (),
         )
       },
@@ -143,13 +143,11 @@ module Positive = {
         )
 
         t->Assert.deepEqual(
-          {"field": "bar"}->S.serializeToUnknownWith(schema),
-          Ok(
-            {
-              "discriminant": testData.discriminantData,
-              "field": "bar",
-            }->Obj.magic,
-          ),
+          {"field": "bar"}->S.reverseConvertOrThrow(schema),
+          {
+            "discriminant": testData.discriminantData,
+            "field": "bar",
+          }->Obj.magic,
           (),
         )
       },
@@ -231,8 +229,8 @@ module Negative = {
           {
             "discriminant": testData.discriminantData,
             "field": "bar",
-          }->S.parseAnyWith(schema),
-          Ok({"field": "bar"}),
+          }->S.parseOrThrow(schema),
+          {"field": "bar"},
           (),
         )
       },
@@ -250,13 +248,13 @@ module Negative = {
           },
         )
 
-        t->U.assertErrorResult(
-          {"field": "bar"}->S.serializeToUnknownWith(schema),
+        t->U.assertRaised(
+          () => {"field": "bar"}->S.reverseConvertOrThrow(schema),
           {
             code: InvalidOperation({
               description: `Schema for "discriminant" isn\'t registered`,
             }),
-            operation: SerializeToUnknown,
+            operation: ReverseConvert,
             path: S.Path.empty,
           },
         )
@@ -280,8 +278,8 @@ module NestedNegative = {
         {
           "discriminant": {"field": true},
           "field": "bar",
-        }->S.parseAnyWith(schema),
-        Ok({"field": "bar"}),
+        }->S.parseOrThrow(schema),
+        {"field": "bar"},
         (),
       )
     },
@@ -297,13 +295,13 @@ module NestedNegative = {
         }
       })
 
-      t->U.assertErrorResult(
-        {"field": "bar"}->S.serializeToUnknownWith(schema),
+      t->U.assertRaised(
+        () => {"field": "bar"}->S.reverseConvertOrThrow(schema),
         {
           code: InvalidOperation({
             description: `Schema for "nestedField" isn\'t registered`,
           }),
-          operation: SerializeToUnknown,
+          operation: ReverseConvert,
           path: S.Path.fromLocation("discriminant"),
         },
       )
@@ -319,19 +317,17 @@ test(`Fails to parse object with invalid data passed to discriminant field`, t =
     }
   })
 
-  t->Assert.deepEqual(
+  t->U.assertRaised(
+    () =>
+      {
+        "discriminant": false,
+        "field": "bar",
+      }->S.parseOrThrow(schema),
     {
-      "discriminant": false,
-      "field": "bar",
-    }->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
-        operation: Parse,
-        path: S.Path.fromArray(["discriminant"]),
-      }),
-    ),
-    (),
+      code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
+      operation: Parse,
+      path: S.Path.fromArray(["discriminant"]),
+    },
   )
 })
 
@@ -343,19 +339,17 @@ test(`Parses discriminant fields before registered fields`, t => {
     }
   })
 
-  t->Assert.deepEqual(
+  t->U.assertRaised(
+    () =>
+      {
+        "discriminant": false,
+        "field": false,
+      }->S.parseOrThrow(schema),
     {
-      "discriminant": false,
-      "field": false,
-    }->S.parseAnyWith(schema),
-    Error(
-      U.error({
-        code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
-        operation: Parse,
-        path: S.Path.fromArray(["discriminant"]),
-      }),
-    ),
-    (),
+      code: InvalidType({expected: S.string->S.toUnknown, received: Obj.magic(false)}),
+      operation: Parse,
+      path: S.Path.fromArray(["discriminant"]),
+    },
   )
 })
 
@@ -367,13 +361,13 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
     }
   })
 
-  t->U.assertErrorResult(
-    {"field": "bar"}->S.serializeToUnknownWith(schema),
+  t->U.assertRaised(
+    () => {"field": "bar"}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
         description: `Schema for "discriminant" isn\'t registered`,
       }),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.empty,
     },
   )
@@ -387,11 +381,11 @@ test(`Serializes constant fields before registered fields`, t => {
     }
   })
 
-  t->U.assertErrorResult(
-    {"constant": false, "field": false}->S.serializeToUnknownWith(schema),
+  t->U.assertRaised(
+    () => {"constant": false, "field": false}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidType({expected: S.literal(true)->S.toUnknown, received: Obj.magic(false)}),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["constant"]),
     },
   )

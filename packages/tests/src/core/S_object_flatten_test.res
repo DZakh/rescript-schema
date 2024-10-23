@@ -131,14 +131,14 @@ test("Successfully parses simple object with flatten", t => {
   )
 
   t->Assert.deepEqual(
-    %raw(`{"foo": "foo", "bar": "bar"}`)->S.parseAnyWith(schema),
-    Ok({"foo": "foo", "bar": "bar"}),
+    %raw(`{"foo": "foo", "bar": "bar"}`)->S.parseOrThrow(schema),
+    {"foo": "foo", "bar": "bar"},
     (),
   )
   t->U.assertCompiledCode(
     ~op=#Parse,
     ~schema,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1}}`,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
   )
 })
 
@@ -151,11 +151,15 @@ test("Successfully serializes simple object with flatten", t => {
   )
 
   t->Assert.deepEqual(
-    {"foo": "foo", "bar": "bar"}->S.serializeWith(schema),
-    Ok(%raw(`{"foo": "foo", "bar": "bar"}`)),
+    {"foo": "foo", "bar": "bar"}->S.reverseConvertToJsonOrThrow(schema),
+    %raw(`{"foo": "foo", "bar": "bar"}`),
     (),
   )
-  t->U.assertCompiledCode(~op=#Serialize, ~schema, `i=>{return {"foo":i["foo"],"bar":i["bar"]}}`)
+  t->U.assertCompiledCode(
+    ~op=#ReverseConvert,
+    ~schema,
+    `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`,
+  )
 })
 
 type entityData = {
@@ -182,13 +186,13 @@ test("Can destructure flattened schema", t => {
   })
 
   t->Assert.deepEqual(
-    {id: "1", name: "Dmitry", age: 23}->S.serializeWith(entitySchema),
-    Ok(%raw(`{id: "1", name: "Dmitry", age: 23}`)),
+    {id: "1", name: "Dmitry", age: 23}->S.reverseConvertToJsonOrThrow(entitySchema),
+    %raw(`{id: "1", name: "Dmitry", age: 23}`),
     (),
   )
   t->U.assertCompiledCode(
-    ~op=#Serialize,
+    ~op=#ReverseConvert,
     ~schema=entitySchema,
-    `i=>{return {"name":i["name"],"age":i["age"],"id":i["id"]}}`,
+    `i=>{return {"name":i["name"],"age":i["age"],"id":i["id"],}}`,
   )
 })

@@ -66,7 +66,6 @@
   - [`convertAnyToJsonWith`](#convertanytojsonwith)
   - [`convertAnyToJsonStringWith`](#convertanytojsonstringwith)
   - [`convertAnyAsyncWith`](#convertanyasyncwith)
-  - [`assertAnyWith`](#assertanywith)
   - [`compile`](#compile)
   - [`classify`](#classify)
   - [`isAsync`](#isasync)
@@ -1424,7 +1423,7 @@ Async version for the `convertAnyWith` operation.
 
 ### **`compile`**
 
-`(S.t<'schemaOutput>, ~input: input<unknown, 'input>, ~output: output<'schemaOutput, 'transformedOutput>, ~mode: mode<'transformedOutput, 'output>, ~typeValidation: bool) => 'input => 'output`
+`(S.t<'value>, ~input: input<'value, 'input>, ~output: output<'value, 'transformedOutput>, ~mode: mode<'transformedOutput, 'output>, ~typeValidation: bool) => 'input => 'output`
 
 If you want to have the most possible performance, or the built-in operations doesn't cover your specific use case, you can use `compile` to create fine-tuned operation functions.
 
@@ -1444,14 +1443,15 @@ For example, in the example above we've created an async assert operation, which
 
 You can configure compiled function `input` with the following options:
 
+- `Value` - accepts `'value` of `S.t<'value>` and reverses the operation
 - `Any` - accepts `'any`
-- `Input` | `Unknown` - accepts `unknown`
+- `Unknown` - accepts `unknown`
 - `Json` - accepts `Js.Json.t`
 - `JsonString` - accepts `string` and applies `JSON.parse` before parsing
 
 You can configure compiled function `output` with the following options:
 
-- `Output` - returns `'value` type from `S.t<'value>`
+- `Value` - returns `'value` of `S.t<'value>`
 - `Unknown` - returns `unknown`
 - `Assert` - returns `unit`
 - `Json` - validates that the schema is JSON compatible and returns `Js.Json.t`
@@ -1549,6 +1549,7 @@ let schema = S.literal(false)
 // })
 ```
 
+<!--
 👇 Also you can use `S.unwrap` to get the value from the result.
 
 ### **`unwrap`**
@@ -1565,7 +1566,7 @@ let schema = S.literal(false)
 
 A helper function to unwrap value from the result.
 
-if the result is an error, the instance of `RescriptSchemaError` will be thrown with a nice error message. Also, you can use the `S.Raised` exception to catch it in ReScript code.
+if the result is an error, the instance of `RescriptSchemaError` will be thrown with a nice error message. Also, you can use the `S.Raised` exception to catch it in ReScript code. -->
 
 ### **`Error.make`**
 

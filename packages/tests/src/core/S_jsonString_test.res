@@ -4,17 +4,13 @@ open RescriptCore
 test("Successfully parses JSON", t => {
   let schema = S.string
 
-  t->Assert.deepEqual(`"Foo"`->S.parseAnyWith(S.jsonString(schema)), Ok("Foo"), ())
+  t->Assert.deepEqual(`"Foo"`->S.parseOrThrow(S.jsonString(schema)), "Foo", ())
 })
 
 test("Successfully serializes JSON", t => {
   let schema = S.string
 
-  t->Assert.deepEqual(
-    `Foo`->S.serializeToUnknownWith(S.jsonString(schema)),
-    Ok(%raw(`'"Foo"'`)),
-    (),
-  )
+  t->Assert.deepEqual(`Foo`->S.reverseConvertOrThrow(S.jsonString(schema)), %raw(`'"Foo"'`), ())
 })
 
 test("Successfully serializes JSON object", t => {
@@ -29,19 +25,19 @@ test("Successfully serializes JSON object", t => {
     {
       "foo": "bar",
       "baz": [1, 3],
-    }->S.serializeToUnknownWith(S.jsonString(schema)),
-    Ok(%raw(`'{"foo":"bar","baz":[1,3]}'`)),
+    }->S.reverseConvertOrThrow(S.jsonString(schema)),
+    %raw(`'{"foo":"bar","baz":[1,3]}'`),
     (),
   )
 })
 
 test("Fails to serialize Option schema", t => {
   let schema = S.jsonString(S.option(S.bool))
-  t->U.assertErrorResult(
-    None->S.serializeToUnknownWith(schema),
+  t->U.assertRaised(
+    () => None->S.reverseConvertOrThrow(schema),
     {
       code: InvalidJsonSchema(S.option(S.bool)->S.toUnknown),
-      operation: SerializeToJson,
+      operation: ReverseConvertToJson,
       path: S.Path.empty,
     },
   )
@@ -59,8 +55,8 @@ test("Successfully serializes JSON object with space", t => {
     {
       "foo": "bar",
       "baz": [1, 3],
-    }->S.serializeToUnknownWith(S.jsonString(schema, ~space=2)),
-    Ok(%raw(`'{\n  "foo": "bar",\n  "baz": [\n    1,\n    3\n  ]\n}'`)),
+    }->S.reverseConvertOrThrow(S.jsonString(schema, ~space=2)),
+    %raw(`'{\n  "foo": "bar",\n  "baz": [\n    1,\n    3\n  ]\n}'`),
     (),
   )
 })
@@ -70,11 +66,11 @@ test(
   t => {
     let schema = S.jsonString(S.object(s => s.field("foo", S.unknown)))
 
-    t->U.assertErrorResult(
-      %raw(`"foo"`)->S.serializeToUnknownWith(S.jsonString(schema, ~space=2)),
+    t->U.assertRaised(
+      () => %raw(`"foo"`)->S.reverseConvertOrThrow(S.jsonString(schema, ~space=2)),
       {
         code: InvalidJsonSchema(S.unknown),
-        operation: SerializeToJson,
+        operation: ReverseConvertToJson,
         path: S.Path.empty,
       },
     )
@@ -104,13 +100,13 @@ test("Compiled async parse code snapshot", t => {
 test("Compiled serialize code snapshot", t => {
   let schema = S.jsonString(S.bool)
 
-  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return JSON.stringify(i)}`)
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return JSON.stringify(i)}`)
 })
 
 test("Compiled serialize code snapshot with space", t => {
   let schema = S.jsonString(S.bool, ~space=2)
 
-  t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{return JSON.stringify(i,null,2)}`)
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return JSON.stringify(i,null,2)}`)
 })
 
 test("Reverse schema to the original schema", t => {

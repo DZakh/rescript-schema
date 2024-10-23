@@ -11,14 +11,14 @@ module Common = {
   test("Successfully parses", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(any->S.parseAnyWith(schema), Ok(value), ())
+    t->Assert.deepEqual(any->S.parseOrThrow(schema), value, ())
   })
 
   test("Fails to parse invalid type", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      invalidTypeAny->S.parseAnyWith(schema),
+    t->U.assertRaised(
+      () => invalidTypeAny->S.parseOrThrow(schema),
       {
         code: InvalidType({
           expected: S.literal(%raw(`null`))->S.toUnknown,
@@ -33,17 +33,17 @@ module Common = {
   test("Successfully serializes", t => {
     let schema = factory()
 
-    t->Assert.deepEqual(value->S.serializeToUnknownWith(schema), Ok(any), ())
+    t->Assert.deepEqual(value->S.reverseConvertOrThrow(schema), any, ())
   })
 
   test("Fails to serialize invalid value", t => {
     let schema = factory()
 
-    t->U.assertErrorResult(
-      invalidValue->S.serializeToUnknownWith(schema),
+    t->U.assertRaised(
+      () => invalidValue->S.reverseConvertOrThrow(schema),
       {
         code: InvalidType({expected: S.literal(%raw(`null`))->S.toUnknown, received: invalidValue}),
-        operation: SerializeToUnknown,
+        operation: ReverseConvert,
         path: S.Path.empty,
       },
     )
@@ -58,7 +58,7 @@ module Common = {
   test("Compiled serialize code snapshot", t => {
     let schema = factory()
 
-    t->U.assertCompiledCode(~schema, ~op=#Serialize, `i=>{if(i!==null){e[0](i)}return i}`)
+    t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{if(i!==null){e[0](i)}return i}`)
   })
 
   test("Reverse schema to self", t => {

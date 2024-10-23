@@ -7,18 +7,18 @@ test("Keeps operation of the error passed to S.Error.raise", t => {
         S.Error.raise(
           U.error({
             code: OperationFailed("User error"),
-            operation: SerializeToUnknown,
+            operation: ReverseConvert,
             path: S.Path.fromArray(["a", "b"]),
           }),
         ),
     }),
   )
 
-  t->U.assertErrorResult(
-    ["Hello world!"]->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => ["Hello world!"]->S.parseOrThrow(schema),
     {
       code: OperationFailed("User error"),
-      operation: SerializeToUnknown,
+      operation: ReverseConvert,
       path: S.Path.fromArray(["0", "a", "b"]),
     },
   )
@@ -43,8 +43,8 @@ test("Works with failing outside of the parser", t => {
     )
   )
 
-  t->U.assertErrorResult(
-    ["Hello world!"]->S.parseAnyWith(schema),
+  t->U.assertRaised(
+    () => ["Hello world!"]->S.parseOrThrow(schema),
     {
       code: OperationFailed("User error"),
       operation: Parse,

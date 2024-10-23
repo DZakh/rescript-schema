@@ -3,48 +3,43 @@ open Ava
 test("Successfully parses valid data", t => {
   let schema = S.string->S.pattern(%re(`/[0-9]/`))
 
-  t->Assert.deepEqual("123"->S.parseAnyWith(schema), Ok("123"), ())
+  t->Assert.deepEqual("123"->S.parseOrThrow(schema), "123", ())
 })
 
 test("Fails to parse invalid data", t => {
   let schema = S.string->S.pattern(%re(`/[0-9]/`))
 
-  t->Assert.deepEqual(
-    "abc"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Invalid"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "abc"->S.parseOrThrow(schema),
+    {code: OperationFailed("Invalid"), operation: Parse, path: S.Path.empty},
   )
 })
 
 test("Successfully serializes valid value", t => {
   let schema = S.string->S.pattern(%re(`/[0-9]/`))
 
-  t->Assert.deepEqual("123"->S.serializeToUnknownWith(schema), Ok(%raw(`"123"`)), ())
+  t->Assert.deepEqual("123"->S.reverseConvertOrThrow(schema), %raw(`"123"`), ())
 })
 
 test("Fails to serialize invalid value", t => {
   let schema = S.string->S.pattern(%re(`/[0-9]/`))
 
-  t->Assert.deepEqual(
-    "abc"->S.serializeToUnknownWith(schema),
-    Error(
-      U.error({
-        code: OperationFailed("Invalid"),
-        operation: SerializeToUnknown,
-        path: S.Path.empty,
-      }),
-    ),
-    (),
+  t->U.assertRaised(
+    () => "abc"->S.reverseConvertOrThrow(schema),
+    {
+      code: OperationFailed("Invalid"),
+      operation: ReverseConvert,
+      path: S.Path.empty,
+    },
   )
 })
 
 test("Returns custom error message", t => {
   let schema = S.string->S.pattern(~message="Custom", %re(`/[0-9]/`))
 
-  t->Assert.deepEqual(
-    "abc"->S.parseAnyWith(schema),
-    Error(U.error({code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty})),
-    (),
+  t->U.assertRaised(
+    () => "abc"->S.parseOrThrow(schema),
+    {code: OperationFailed("Custom"), operation: Parse, path: S.Path.empty},
   )
 })
 

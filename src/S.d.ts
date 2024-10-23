@@ -128,25 +128,25 @@ export function reverse<Output, Input>(
   schema: Schema<Output, Input>
 ): Schema<Input, Output>;
 
-export function parseWith<Output, Input>(
+export function parseOrThrow<Output, Input>(
   data: unknown,
   schema: Schema<Output, Input>
 ): Output;
-export function parseAsyncWith<Output, Input>(
+export function parseAsyncOrThrow<Output, Input>(
   data: unknown,
   schema: Schema<Output, Input>
 ): Promise<Output>;
 
-export function convertWith<Output, Input>(
+export function convertOrThrow<Output, Input>(
   data: Input,
   schema: Schema<Output, Input>
 ): Output;
-export function convertToJsonStringWith<Output, Input>(
+export function convertToJsonStringOrThrow<Output, Input>(
   data: Input,
   schema: Schema<Output, Input>
 ): string;
 
-export function assertWith<Output, Input>(
+export function assertOrThrow<Output, Input>(
   data: unknown,
   schema: Schema<Output, Input>
 ): asserts data is Input;
@@ -231,14 +231,6 @@ export const union: <A, B extends unknown[]>(
   UnknownToInput<A> | SchemaUnionTupleInput<B>[number]
 >;
 
-/**
- * @deprecated Pass the Schema directly instead of using the s.matches method
- */
-export function schema<Value>(
-  definer: (s: {
-    matches: <Output>(schema: Schema<Output, unknown>) => Output;
-  }) => Value
-): Schema<Value, unknown>;
 export function schema<T>(
   value: T
 ): Schema<UnknownToOuput<T>, UnknownToInput<T>>;
@@ -257,27 +249,6 @@ export function object<Output>(
     tag: (name: string, value: unknown) => void;
   }) => Output
 ): Schema<Output, unknown>;
-/**
- * @deprecated Will be removed in V9. Use S.schema instead
- */
-export function object<
-  Shape extends {
-    [k in keyof Shape]: unknown;
-  }
->(
-  shape: Shape
-): Schema<
-  {
-    [k in keyof Shape]: Shape[k] extends Schema<unknown>
-      ? Output<Shape[k]>
-      : Shape[k];
-  },
-  {
-    [k in keyof Shape]: Shape[k] extends Schema<unknown>
-      ? Input<Shape[k]>
-      : Shape[k];
-  }
->;
 
 export const Object: {
   strip: <Output, Input>(
@@ -433,11 +404,6 @@ export const trim: <Input>(
 ) => Schema<string, Input>;
 
 export type UnknownKeys = "Strip" | "Strict";
-
-/**
- * @deprecated Will be removed in V9
- */
-export function unwrap<Value>(result: Result<Value>): Value;
 
 export type GlobalConfigOverride = {
   defaultUnknownKeys?: UnknownKeys;
