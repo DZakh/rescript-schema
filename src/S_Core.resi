@@ -63,8 +63,6 @@ and item = {
   location: string,
   @as("i")
   inlinedLocation: string,
-  @as("s")
-  symbol: Js.Types.symbol,
 }
 and schema<'value> = t<'value>
 and flag
