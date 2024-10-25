@@ -63,6 +63,8 @@ and item = {
   location: string,
   @as("i")
   inlinedLocation: string,
+  @as("f")
+  fieldOf?: item,
 }
 and schema<'value> = t<'value>
 and flag
