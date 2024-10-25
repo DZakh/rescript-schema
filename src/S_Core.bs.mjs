@@ -1305,25 +1305,25 @@ function factory$2(schema) {
 }
 
 function toOutputVal(b, outputs, outputDefinition) {
+  var getItemOutput = function (item) {
+    var item$1 = item.f;
+    if (item$1 === undefined) {
+      return outputs.get(item);
+    }
+    var targetVal = getItemOutput(item$1);
+    if (targetVal.f) {
+      return targetVal.f[item.l];
+    } else {
+      return val(b, $$var(b, targetVal) + item.p);
+    }
+  };
   var definitionToOutput = function (definition) {
     if (!(typeof definition === "object" && definition !== null)) {
       return val(b, "e[" + (b.g.e.push(definition) - 1) + "]");
     }
     var item = definition[itemSymbol];
     if (item !== undefined) {
-      var item$1 = item.f;
-      if (item$1 !== undefined) {
-        var targetVal = outputs.get(item$1);
-        var $$location = item.l;
-        var path = item.p;
-        if (targetVal.f) {
-          return targetVal.f[$$location];
-        } else {
-          return val(b, $$var(b, targetVal) + path);
-        }
-      } else {
-        return outputs.get(item);
-      }
+      return getItemOutput(item);
     }
     var isArray = Array.isArray(definition);
     var keys = Object.keys(definition);

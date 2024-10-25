@@ -94,26 +94,55 @@ test("Successfully parses when tuple is destructured", t => {
   )
 })
 
-test("Successfully parses when schema object is destructured - it doesn't create an object", t => {
-  let schema = S.schema(s =>
-    {
-      "foo": s.matches(S.string),
-    }
-  )->S.to(obj => obj["foo"])
+test(
+  "Successfully parses when S.schema object is destructured - it doesn't create an object",
+  t => {
+    let schema = S.schema(s =>
+      {
+        "foo": s.matches(S.string),
+      }
+    )->S.to(obj => obj["foo"])
 
-  t->Assert.deepEqual(
-    {
-      "foo": "bar",
-    }->S.parseOrThrow(schema),
-    %raw(`"bar"`),
-    (),
-  )
-  t->U.assertCompiledCode(
-    ~schema,
-    ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[1](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return v0}`,
-  )
-})
+    t->Assert.deepEqual(
+      {
+        "foo": "bar",
+      }->S.parseOrThrow(schema),
+      %raw(`"bar"`),
+      (),
+    )
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[1](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return v0}`,
+    )
+  },
+)
+
+test(
+  "Successfully parses when nested S.schema object is destructured - it doesn't create an object",
+  t => {
+    let schema = S.schema(s =>
+      {
+        "foo": {
+          "bar": s.matches(S.string),
+        },
+      }
+    )->S.to(obj => obj["foo"]["bar"])
+
+    t->Assert.deepEqual(
+      {
+        "foo": {"bar": "jazz"},
+      }->S.parseOrThrow(schema),
+      %raw(`"jazz"`),
+      (),
+    )
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["bar"];if(typeof v1!=="string"){e[1](v1)}return v1}`,
+    )
+  },
+)
 
 test(
   "Successfully parses when transformed object schema is destructured - it does create an object and extracts a field from it afterwards",

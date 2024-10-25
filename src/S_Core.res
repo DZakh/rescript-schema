@@ -552,6 +552,7 @@ module Builder = {
         }
       }
 
+      @inline
       let get = (b, targetVal: val, location, ~path) => {
         (targetVal->Obj.magic)["f"]
           ? (targetVal->Obj.magic)["f"]->Js.Dict.unsafeGet(location)
@@ -2088,12 +2089,17 @@ module Object = {
 
   let toOutputVal = (b, ~outputs, ~outputDefinition) => {
     let output = {
+      let rec getItemOutput = item => {
+        switch item {
+        | {fieldOf: item, location, path} => b->B.Val.get(item->getItemOutput, location, ~path)
+        | _ => outputs->Stdlib.WeakMap.getUnsafe(item)
+        }
+      }
+
       let rec definitionToOutput = (definition: Definition.t<item>) => {
         if definition->Definition.isNode {
           switch definition->Definition.toEmbededItem {
-          | Some({fieldOf: item, location, path}) =>
-            b->B.Val.get(outputs->Stdlib.WeakMap.getUnsafe(item), location, ~path)
-          | Some(item) => outputs->Stdlib.WeakMap.getUnsafe(item)
+          | Some(item) => item->getItemOutput
           | None => {
               let node = definition->Definition.toNode
               let isArray = Stdlib.Array.isArray(node)
@@ -2257,6 +2263,7 @@ module Object = {
         } else {
           let location = prop->(Obj.magic: unknown => string)
           let inlinedLocation = location->Stdlib.Inlined.Value.fromString
+
           {
             location,
             inlinedLocation,
