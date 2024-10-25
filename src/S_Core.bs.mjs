@@ -1309,9 +1309,21 @@ function toOutputVal(b, outputs, outputDefinition) {
     if (!(typeof definition === "object" && definition !== null)) {
       return val(b, "e[" + (b.g.e.push(definition) - 1) + "]");
     }
-    var val$1 = outputs.get(definition[itemSymbol]);
-    if (val$1 !== undefined) {
-      return val$1;
+    var item = definition[itemSymbol];
+    if (item !== undefined) {
+      var item$1 = item.f;
+      if (item$1 !== undefined) {
+        var targetVal = outputs.get(item$1);
+        var $$location = item.l;
+        var path = item.p;
+        if (targetVal.f) {
+          return targetVal.f[$$location];
+        } else {
+          return val(b, $$var(b, targetVal) + path);
+        }
+      } else {
+        return outputs.get(item);
+      }
     }
     var isArray = Array.isArray(definition);
     var keys = Object.keys(definition);
@@ -1415,9 +1427,15 @@ function proxify(item) {
               get: (function (param, prop) {
                   if (prop === itemSymbol) {
                     return item;
-                  } else {
-                    return (void 0);
                   }
+                  var inlinedLocation = JSON.stringify(prop);
+                  return proxify({
+                              t: null,
+                              p: "[" + inlinedLocation + "]",
+                              l: prop,
+                              i: inlinedLocation,
+                              f: item
+                            });
                 })
             });
 }
@@ -1438,6 +1456,10 @@ function reverse$1(inputDefinition, toItem) {
                     if (typeof definition === "object" && definition !== null) {
                       var item = definition[itemSymbol];
                       if (item !== undefined) {
+                        if (item.f !== undefined) {
+                          b.c = b.c + fail(b, "Destructuring of items is not supported", path);
+                          return ;
+                        }
                         var embededOutput = embededOutputs.get(item);
                         if (embededOutput !== undefined) {
                           var itemInput = outputPath === "" ? input : val(b, inputVar + outputPath);
