@@ -143,11 +143,11 @@ function asyncVal(b, initial) {
         };
 }
 
-function objectJoin($$location, value) {
-  return JSON.stringify($$location) + ":" + value + ",";
+function objectJoin(inlinedLocation, value) {
+  return inlinedLocation + ":" + value + ",";
 }
 
-function arrayJoin(_location, value) {
+function arrayJoin(_inlinedLocation, value) {
   return value + ",";
 }
 
@@ -951,8 +951,6 @@ function recursive(fn) {
   };
   var schema = fn(placeholder);
   placeholder.f = schema.f;
-  schema.d = undefined;
-  schema.c = undefined;
   var initialParseOperationBuilder = schema.b;
   schema.b = (function (b, input, selfSchema, path) {
       var bb = scope(b);
@@ -1312,7 +1310,7 @@ function toOutputVal(b, outputs, outputDefinition) {
     }
     var targetVal = getItemOutput(item$1);
     if (targetVal.f) {
-      return targetVal.f[item.l];
+      return targetVal.f[item.i];
     } else {
       return val(b, $$var(b, targetVal) + item.p);
     }
@@ -1332,12 +1330,13 @@ function toOutputVal(b, outputs, outputDefinition) {
       var key = keys[idx];
       var definition$1 = definition[key];
       var output = definitionToOutput(definition$1);
-      objectVal.f[key] = output;
+      var inlinedLocation = isArray ? key : JSON.stringify(key);
+      objectVal.f[inlinedLocation] = output;
       if (output.a) {
         objectVal.p = objectVal.p + output.i + ",";
-        objectVal.i = objectVal.i + objectVal.j(key, "a[" + (objectVal.c++) + "]");
+        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
       } else {
-        objectVal.i = objectVal.i + objectVal.j(key, output.i);
+        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, output.i);
       }
     }
     return complete(objectVal, isArray);
@@ -1349,37 +1348,31 @@ function typeFilter$1(_b, inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
 
-function processInputItems(b, outputs, input, schema, path, unknownKeys) {
-  var items = schema.t.items;
-  var isObject = schema.t.TAG === "Object";
+function processInputItems(b, outputs, input, items, path, unknownKeys) {
   var inputVar = $$var(b, input);
   for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
     var prevCode = b.c;
     b.c = "";
     var item = items[idx];
     var itemPath = item.p;
-    var schema$1 = item.t;
+    var schema = item.t;
     var itemInput = val(b, inputVar + itemPath);
     var path$1 = path + itemPath;
-    var isLiteral = schema$1.t.TAG === "Literal";
-    var typeFilter = schema$1.f;
+    var isLiteral = schema.t.TAG === "Literal";
+    var typeFilter = schema.f;
     if (typeFilter !== undefined && (isLiteral || b.g.o & 1)) {
-      b.c = b.c + typeFilterCode(b, typeFilter, schema$1, itemInput, path$1);
+      b.c = b.c + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
     }
     var bb = scope(b);
-    if (isObject && schema$1.d) {
-      processInputItems(bb, outputs, itemInput, schema$1, path$1, unknownKeys);
-    } else {
-      var itemOutput = schema$1.b(bb, itemInput, schema$1, path$1);
-      outputs.set(item, itemOutput);
-    }
+    var itemOutput = schema.b(bb, itemInput, schema, path$1);
+    outputs.set(item, itemOutput);
     if (isLiteral) {
       b.c = b.c + allocateScope(bb) + prevCode;
     } else {
       b.c = prevCode + b.c + allocateScope(bb);
     }
   }
-  if (!(isObject && unknownKeys === "Strict" && b.g.o & 1)) {
+  if (!(unknownKeys === "Strict" && b.g.o & 1)) {
     return ;
   }
   var key = allocateVal(b);
@@ -1404,21 +1397,19 @@ function processInputItems(b, outputs, input, schema, path, unknownKeys) {
           }), keyVar) + "}}");
 }
 
-function builder$1(b, input, selfSchema, path) {
-  var outputs = new WeakMap();
-  var unknownKeys = selfSchema.t.unknownKeys;
-  processInputItems(b, outputs, input, selfSchema, path, unknownKeys);
-  if ((unknownKeys !== "Strip" || b.g.o & 32) && selfSchema === selfSchema["~r"]()) {
-    return input;
-  } else {
-    return toOutputVal(b, outputs, selfSchema.t.definition);
-  }
+function builder$1(outputDefinition, items) {
+  return function (b, input, selfSchema, path) {
+    var outputs = new WeakMap();
+    var unknownKeys = selfSchema.t.unknownKeys;
+    processInputItems(b, outputs, input, items, path, unknownKeys);
+    return toOutputVal(b, outputs, outputDefinition);
+  };
 }
 
 function name() {
-  var schema = this;
-  return "Object({" + schema.t.items.map(function (item) {
-                return item.i + ": " + item.t.n();
+  var tagged = this.t;
+  return "Object({" + tagged.fieldNames.map(function (fieldName) {
+                return "\"" + fieldName + "\": " + tagged.fields[fieldName].n();
               }).join(", ") + "})";
 }
 
@@ -1440,9 +1431,8 @@ function proxify(item) {
             });
 }
 
-function reverse$1(inputDefinition, toItem) {
+function reverse$1(inputDefinition, kind, items) {
   return function () {
-    var original = this;
     return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, param, path) {
                   if (b.g.o & 1) {
                     invalidOperation(b, path, "Type validation mode is not supported. Use convert operation instead");
@@ -1457,8 +1447,7 @@ function reverse$1(inputDefinition, toItem) {
                       var item = definition[itemSymbol];
                       if (item !== undefined) {
                         if (item.f !== undefined) {
-                          b.c = b.c + fail(b, "Destructuring of items is not supported", path);
-                          return ;
+                          return invalidOperation(b, path, "Destructuring of items is not supported");
                         }
                         var embededOutput = embededOutputs.get(item);
                         if (embededOutput !== undefined) {
@@ -1494,84 +1483,74 @@ function reverse$1(inputDefinition, toItem) {
                   };
                   definitionToOutput(inputDefinition, "");
                   b.c = ctx.d + b.c;
-                  var isRootObject = original.t.TAG === "Object";
-                  var schemaOutput = function (schema, isObject, path) {
-                    var items = schema.t.items;
-                    var objectVal = make(b, !isObject);
-                    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-                      var item = items[idx];
-                      var o = embededOutputs.get(item);
-                      var itemOutput = o !== undefined ? o : fallbackOutput(item, path);
-                      var $$location = item.l;
-                      objectVal.f[$$location] = itemOutput;
-                      if (itemOutput.a) {
-                        objectVal.p = objectVal.p + itemOutput.i + ",";
-                        objectVal.i = objectVal.i + objectVal.j($$location, "a[" + (objectVal.c++) + "]");
-                      } else {
-                        objectVal.i = objectVal.i + objectVal.j($$location, itemOutput.i);
-                      }
-                    }
-                    return complete(objectVal, !isObject);
-                  };
                   var fallbackOutput = function (item, path) {
                     var itemSchema = item.t;
                     if (itemSchema.t.TAG !== "Literal") {
-                      if (isRootObject && itemSchema.d) {
-                        return schemaOutput(itemSchema, true, path + item.p);
-                      } else {
-                        return invalidOperation(b, path, "Schema for " + item.i + " isn't registered");
-                      }
+                      return invalidOperation(b, path, "Schema for " + item.i + " isn't registered");
                     }
                     var value = itemSchema.t._0.value;
                     return val(b, "e[" + (b.g.e.push(value) - 1) + "]");
                   };
-                  if (toItem === undefined) {
-                    return schemaOutput(original, isRootObject, path);
+                  var schemaOutput = function (items, isArray, path) {
+                    var objectVal = make(b, isArray);
+                    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+                      var item = items[idx];
+                      var o = embededOutputs.get(item);
+                      var itemOutput = o !== undefined ? o : fallbackOutput(item, path);
+                      var inlinedLocation = item.i;
+                      objectVal.f[inlinedLocation] = itemOutput;
+                      if (itemOutput.a) {
+                        objectVal.p = objectVal.p + itemOutput.i + ",";
+                        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
+                      } else {
+                        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, itemOutput.i);
+                      }
+                    }
+                    return complete(objectVal, isArray);
+                  };
+                  if (kind !== "To") {
+                    if (kind === "Array") {
+                      return schemaOutput(items, true, path);
+                    } else {
+                      return schemaOutput(items, false, path);
+                    }
                   }
-                  var o = embededOutputs.get(toItem);
+                  var item = items[0];
+                  var o = embededOutputs.get(item);
                   if (o !== undefined) {
                     return o;
                   } else {
-                    return fallbackOutput(toItem, path);
+                    return fallbackOutput(item, path);
                   }
                 }), undefined);
   };
 }
 
 function factory$3(definer) {
+  var fieldNames = [];
   var fields = {};
   var items = [];
   var flatten = function (schema) {
-    if (schema.d) {
-      return schema.d(this);
-    }
     var message = "The " + schema.n() + " schema can't be flattened";
     throw new Error("[rescript-schema] " + message);
   };
   var field = function (fieldName, schema) {
     var inlinedLocation = JSON.stringify(fieldName);
-    var item = fields[fieldName];
-    if (item !== undefined) {
-      if (item.t.d && schema.d) {
-        return schema.d(item.t.c);
-      }
+    var match = fields[fieldName];
+    if (match !== undefined) {
       throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice with incompatible schemas"));
     }
-    var schema$1 = schema.d ? factory$3(schema.d) : schema;
     var item_p = "[" + inlinedLocation + "]";
-    var item$1 = {
-      t: schema$1,
+    var item = {
+      t: schema,
       p: item_p,
       l: fieldName,
       i: inlinedLocation
     };
-    fields[fieldName] = item$1;
-    items.push(item$1);
-    if (schema$1.d) {
-      return schema$1.t.definition;
-    } else {
-      return proxify(item$1);
-    }
+    fields[fieldName] = schema;
+    fieldNames.push(fieldName);
+    items.push(item);
+    return proxify(item);
   };
   var tag = function (tag$1, asValue) {
     field(tag$1, literal(asValue));
@@ -1580,14 +1559,11 @@ function factory$3(definer) {
     return field(fieldName, getOr(factory(schema), or));
   };
   var nestedField = function (fieldName, nestedFieldName, schema) {
-    var item = fields[fieldName];
-    if (item === undefined) {
+    var match = fields[fieldName];
+    if (match === undefined) {
       return field(fieldName, factory$3(function (s) {
                       return s.f(nestedFieldName, schema);
                     }));
-    }
-    if (item.t.d) {
-      return item.t.c.f(nestedFieldName, schema);
     }
     var message = "The field " + JSON.stringify(fieldName) + " defined twice with incompatible schemas";
     throw new Error("[rescript-schema] " + message);
@@ -1604,28 +1580,20 @@ function factory$3(definer) {
   return {
           t: {
             TAG: "Object",
-            items: items,
+            fieldNames: fieldNames,
             fields: fields,
-            unknownKeys: globalConfig.u,
-            definition: definition
+            unknownKeys: globalConfig.u
           },
           n: name,
-          "~r": reverse$1(definition, undefined),
-          b: builder$1,
+          "~r": reverse$1(definition, "Object", items),
+          b: builder$1(definition, items),
           f: typeFilter$1,
           i: 0,
-          d: definer,
-          c: ctx,
           m: empty
         };
 }
 
 function to(schema, definer) {
-  if (schema.d) {
-    return factory$3(function (ctx) {
-                return definer(schema.d(ctx));
-              });
-  }
   var item = {
     t: schema,
     p: "",
@@ -1638,7 +1606,7 @@ function to(schema, definer) {
                 var itemOutput = schema.b(b, input, schema, path);
                 outputs.set(item, itemOutput);
                 return toOutputVal(b, outputs, definition);
-              }), schema.f, reverse$1(definition, item));
+              }), schema.f, reverse$1(definition, "To", [item]));
 }
 
 function setUnknownKeys(schema, unknownKeys) {
@@ -1649,18 +1617,15 @@ function setUnknownKeys(schema, unknownKeys) {
     return {
             t: {
               TAG: "Object",
-              items: match.items,
+              fieldNames: match.fieldNames,
               fields: match.fields,
-              unknownKeys: unknownKeys,
-              definition: match.definition
+              unknownKeys: unknownKeys
             },
             n: schema.n,
             "~r": schema["~r"],
             b: schema.b,
             f: schema.f,
             i: schema.i,
-            d: schema.d,
-            c: schema.c,
             m: schema.m
           };
   }
@@ -1675,27 +1640,27 @@ function strict(schema) {
 }
 
 function name$1() {
-  var schema = this;
-  return "Tuple(" + schema.t.items.map(function (item) {
-                return item.t.n();
+  return "Tuple(" + this.t.items.map(function (schema) {
+                return schema.n();
               }).join(", ") + ")";
 }
 
 function factory$4(definer) {
   var items = [];
+  var schemas = [];
   var item = function (idx, schema) {
     var $$location = idx.toString();
-    var inlinedLocation = "\"" + $$location + "\"";
     if (items[idx]) {
-      throw new Error("[rescript-schema] " + ("The item " + inlinedLocation + " is defined multiple times"));
+      throw new Error("[rescript-schema] " + ("The item " + $$location + " is defined multiple times"));
     }
-    var item_p = "[" + inlinedLocation + "]";
+    var item_p = "[" + $$location + "]";
     var item$1 = {
       t: schema,
       p: item_p,
       l: $$location,
-      i: inlinedLocation
+      i: $$location
     };
+    schemas[idx] = schema;
     items[idx] = item$1;
     return proxify(item$1);
   };
@@ -1719,17 +1684,17 @@ function factory$4(definer) {
         l: $$location,
         i: inlinedLocation
       };
+      schemas[idx] = unit;
       items[idx] = item$1;
     }
     
   }
   return makeSchema(name$1, {
               TAG: "Tuple",
-              items: items,
-              definition: definition
-            }, empty, builder$1, (function (b, inputVar) {
+              items: schemas
+            }, empty, builder$1(definition, items), (function (b, inputVar) {
                 return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
-              }), reverse$1(definition, undefined));
+              }), reverse$1(definition, "Array", items));
 }
 
 function factory$5(schema) {
@@ -2153,6 +2118,69 @@ function description(schema) {
   return schema.m[descriptionMetadataId];
 }
 
+function builder$2(items, inlinedLocations, isArray) {
+  return function (b, input, selfSchema, path) {
+    var unknownKeys = selfSchema.t.unknownKeys;
+    var inputVar = $$var(b, input);
+    var objectVal = make(b, isArray);
+    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+      var prevCode = b.c;
+      b.c = "";
+      var schema = items[idx];
+      var inlinedLocation = inlinedLocations[idx];
+      var itemPath = "[" + inlinedLocation + "]";
+      var itemInput = val(b, inputVar + itemPath);
+      var path$1 = path + itemPath;
+      var isLiteral = schema.t.TAG === "Literal";
+      var typeFilter = schema.f;
+      if (typeFilter !== undefined && (isLiteral || b.g.o & 1)) {
+        b.c = b.c + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
+      }
+      var bb = scope(b);
+      var itemOutput = schema.b(bb, itemInput, schema, path$1);
+      objectVal.f[inlinedLocation] = itemOutput;
+      if (itemOutput.a) {
+        objectVal.p = objectVal.p + itemOutput.i + ",";
+        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
+      } else {
+        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, itemOutput.i);
+      }
+      if (isLiteral) {
+        b.c = b.c + allocateScope(bb) + prevCode;
+      } else {
+        b.c = prevCode + b.c + allocateScope(bb);
+      }
+    }
+    if (unknownKeys === "Strict" && b.g.o & 1) {
+      var key = allocateVal(b);
+      var keyVar = key.i;
+      b.c = b.c + ("for(" + keyVar + " in " + input.i + "){if(");
+      if (items.length !== 0) {
+        for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
+          var inlinedLocation$1 = inlinedLocations[idx$1];
+          if (idx$1 !== 0) {
+            b.c = b.c + "&&";
+          }
+          b.c = b.c + (keyVar + "!==" + inlinedLocation$1);
+        }
+      } else {
+        b.c = b.c + "true";
+      }
+      b.c = b.c + ("){" + failWithArg(b, path, (function (exccessFieldName) {
+                return {
+                        TAG: "ExcessField",
+                        _0: exccessFieldName
+                      };
+              }), keyVar) + "}}");
+    }
+    if ((unknownKeys !== "Strip" || b.g.o & 32) && selfSchema === selfSchema["~r"]()) {
+      return input;
+    } else {
+      return complete(objectVal, isArray);
+    }
+  };
+}
+
 function definitionToSchema(definition) {
   if (!(typeof definition === "object" && definition !== null)) {
     return literal(definition);
@@ -2162,67 +2190,65 @@ function definitionToSchema(definition) {
   }
   if (Array.isArray(definition)) {
     var items = [];
+    var inlinedLocations = [];
+    var reversedItems = [];
     var isTransformed = false;
     for(var idx = 0 ,idx_finish = definition.length; idx < idx_finish; ++idx){
-      var $$location = idx.toString();
-      var inlinedLocation = "\"" + $$location + "\"";
       var schema = definitionToSchema(definition[idx]);
-      var item_p = "[" + inlinedLocation + "]";
-      var item = {
-        t: schema,
-        p: item_p,
-        l: $$location,
-        i: inlinedLocation
-      };
-      items[idx] = item;
-      if (!isTransformed && schema !== schema["~r"]()) {
+      var reversed = schema["~r"]();
+      items[idx] = schema;
+      reversedItems[idx] = reversed;
+      inlinedLocations[idx] = idx.toString();
+      if (!isTransformed && schema !== reversed) {
         isTransformed = true;
       }
       
     }
-    var definition$1 = items.map(proxify);
     var length = items.length;
+    var maybeTypeFilter = (function (b, inputVar) {
+        return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
+      });
     return makeSchema(name$1, {
                 TAG: "Tuple",
-                items: items,
-                definition: definition$1
-              }, empty, builder$1, (function (b, inputVar) {
-                  return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
-                }), isTransformed ? reverse$1(definition$1, undefined) : toSelf);
+                items: items
+              }, empty, builder$2(items, inlinedLocations, true), maybeTypeFilter, isTransformed ? (function () {
+                    return makeReverseSchema(name$1, {
+                                TAG: "Tuple",
+                                items: reversedItems
+                              }, empty, builder$2(reversedItems, inlinedLocations, true), maybeTypeFilter);
+                  }) : toSelf);
   }
   var items$1 = [];
+  var inlinedLocations$1 = [];
   var fields = {};
-  var definition$2 = {};
   var fieldNames = Object.keys(definition);
   var isTransformed$1 = false;
   for(var idx$1 = 0 ,idx_finish$1 = fieldNames.length; idx$1 < idx_finish$1; ++idx$1){
-    var $$location$1 = fieldNames[idx$1];
-    var inlinedLocation$1 = "\"" + $$location$1 + "\"";
-    var schema$1 = definitionToSchema(definition[$$location$1]);
-    ((delete schema$1["d"]));
-    ((delete schema$1["c"]));
-    var item_p$1 = "[" + inlinedLocation$1 + "]";
-    var item$1 = {
-      t: schema$1,
-      p: item_p$1,
-      l: $$location$1,
-      i: inlinedLocation$1
-    };
-    items$1[idx$1] = item$1;
-    fields[$$location$1] = item$1;
-    definition$2[$$location$1] = proxify(item$1);
-    if (!isTransformed$1 && schema$1 !== schema$1["~r"]()) {
+    var $$location = fieldNames[idx$1];
+    var inlinedLocation = "\"" + $$location + "\"";
+    var schema$1 = definitionToSchema(definition[$$location]);
+    var reversed$1 = schema$1["~r"]();
+    items$1[idx$1] = schema$1;
+    inlinedLocations$1[idx$1] = inlinedLocation;
+    fields[$$location] = schema$1;
+    if (!isTransformed$1 && schema$1 !== reversed$1) {
       isTransformed$1 = true;
     }
     
   }
   return makeSchema(name, {
               TAG: "Object",
-              items: items$1,
+              fieldNames: fieldNames,
               fields: fields,
-              unknownKeys: globalConfig.u,
-              definition: definition$2
-            }, empty, builder$1, typeFilter$1, isTransformed$1 ? reverse$1(definition$2, undefined) : toSelf);
+              unknownKeys: globalConfig.u
+            }, empty, builder$2(items$1, inlinedLocations$1, false), typeFilter$1, isTransformed$1 ? (function () {
+                  return makeReverseSchema(name, {
+                              TAG: "Object",
+                              fieldNames: fieldNames,
+                              fields: fields,
+                              unknownKeys: globalConfig.u
+                            }, empty, builder$2(items$1, inlinedLocations$1, false), typeFilter$1);
+                }) : toSelf);
 }
 
 function matches(schema) {
@@ -2347,15 +2373,22 @@ function internalInline(schema, maybeVariant, param) {
           inlinedSchema = "S.array(" + internalInline(literal._0, undefined, undefined) + ")";
           break;
       case "Object" :
-          var items = literal.items;
-          inlinedSchema = items.length !== 0 ? "S.object(s =>\n  {\n    " + items.map(function (item) {
-                    return item.i + ": s.field(" + item.i + ", " + internalInline(item.t, undefined, undefined) + ")";
-                  }).join(",\n    ") + ",\n  }\n)" : "S.object(_ => ())";
+          var fieldNames = literal.fieldNames;
+          if (fieldNames.length !== 0) {
+            var fields = literal.fields;
+            inlinedSchema = "S.object(s =>\n  {\n    " + fieldNames.map(function (fieldName) {
+                    var schema = fields[fieldName];
+                    var inlinedLocation = JSON.stringify(fieldName);
+                    return inlinedLocation + ": s.field(" + inlinedLocation + ", " + internalInline(schema, undefined, undefined) + ")";
+                  }).join(",\n    ") + ",\n  }\n)";
+          } else {
+            inlinedSchema = "S.object(_ => ())";
+          }
           break;
       case "Tuple" :
-          var tupleSchemas = literal.items;
+          var items = literal.items;
           var exit = 0;
-          var len = tupleSchemas.length;
+          var len = items.length;
           if (len >= 4) {
             exit = 1;
           } else {
@@ -2364,26 +2397,26 @@ function internalInline(schema, maybeVariant, param) {
                   exit = 1;
                   break;
               case 1 :
-                  var i1 = tupleSchemas[0];
-                  inlinedSchema = "S.tuple1(" + internalInline(i1.t, undefined, undefined) + ")";
+                  var s0 = items[0];
+                  inlinedSchema = "S.tuple1(" + internalInline(s0, undefined, undefined) + ")";
                   break;
               case 2 :
-                  var i1$1 = tupleSchemas[0];
-                  var i2 = tupleSchemas[1];
-                  inlinedSchema = "S.tuple2(" + internalInline(i1$1.t, undefined, undefined) + ", " + internalInline(i2.t, undefined, undefined) + ")";
+                  var s0$1 = items[0];
+                  var s1 = items[1];
+                  inlinedSchema = "S.tuple2(" + internalInline(s0$1, undefined, undefined) + ", " + internalInline(s1, undefined, undefined) + ")";
                   break;
               case 3 :
-                  var i1$2 = tupleSchemas[0];
-                  var i2$1 = tupleSchemas[1];
-                  var i3 = tupleSchemas[2];
-                  inlinedSchema = "S.tuple3(" + internalInline(i1$2.t, undefined, undefined) + ", " + internalInline(i2$1.t, undefined, undefined) + ", " + internalInline(i3.t, undefined, undefined) + ")";
+                  var s0$2 = items[0];
+                  var s1$1 = items[1];
+                  var s2 = items[2];
+                  inlinedSchema = "S.tuple3(" + internalInline(s0$2, undefined, undefined) + ", " + internalInline(s1$1, undefined, undefined) + ", " + internalInline(s2, undefined, undefined) + ")";
                   break;
               
             }
           }
           if (exit === 1) {
-            inlinedSchema = "S.tuple(s => (" + tupleSchemas.map(function (item, idx) {
-                    return "s.item(" + idx + ", " + internalInline(item.t, undefined, undefined) + ")";
+            inlinedSchema = "S.tuple(s => (" + items.map(function (schema, idx) {
+                    return "s.item(" + idx + ", " + internalInline(schema, undefined, undefined) + ")";
                   }).join(", ") + "))";
           }
           break;
@@ -2903,33 +2936,34 @@ function js_custom(name, maybeParser, maybeSerializer, param) {
 function js_merge(s1, s2) {
   var match = s1.t;
   if (typeof match === "object" && match.TAG === "Object") {
-    var s1Items = match.items;
+    var s1Fields = match.fields;
+    var s1FieldNames = match.fieldNames;
     var match$1 = s2.t;
     if (typeof match$1 === "object" && match$1.TAG === "Object") {
-      var s2Items = match$1.items;
-      var items = [];
+      var s2Fields = match$1.fields;
+      var s2FieldNames = match$1.fieldNames;
+      var fieldNames = [];
       var fields = {};
-      for(var idx = 0 ,idx_finish = s1Items.length; idx < idx_finish; ++idx){
-        var item = s1Items[idx];
-        items.push(item);
-        fields[item.l] = item;
+      for(var idx = 0 ,idx_finish = s1FieldNames.length; idx < idx_finish; ++idx){
+        var fieldName = s1FieldNames[idx];
+        fieldNames.push(fieldName);
+        fields[fieldName] = s1Fields[fieldName];
       }
-      for(var idx$1 = 0 ,idx_finish$1 = s2Items.length; idx$1 < idx_finish$1; ++idx$1){
-        var item$1 = s2Items[idx$1];
-        if (fields[item$1.l]) {
-          throw new Error("[rescript-schema] " + ("The field " + item$1.i + " is defined multiple times"));
+      for(var idx$1 = 0 ,idx_finish$1 = s2FieldNames.length; idx$1 < idx_finish$1; ++idx$1){
+        var fieldName$1 = s2FieldNames[idx$1];
+        if (fields[fieldName$1]) {
+          throw new Error("[rescript-schema] " + ("The field \"" + fieldName$1 + "\" is defined multiple times"));
         }
-        items.push(item$1);
-        fields[item$1.l] = item$1;
+        fieldNames.push(fieldName$1);
+        fields[fieldName$1] = s2Fields[fieldName$1];
       }
       return makeSchema((function () {
                     return s1.n() + " & " + s2.n();
                   }), {
                   TAG: "Object",
-                  items: items,
+                  fieldNames: fieldNames,
                   fields: fields,
-                  unknownKeys: match$1.unknownKeys,
-                  definition: (void 0)
+                  unknownKeys: match$1.unknownKeys
                 }, empty, (function (b, input, param, path) {
                     var s1Result = s1.b(b, input, s1, path);
                     var s2Result = s2.b(b, input, s2, path);

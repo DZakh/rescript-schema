@@ -117,8 +117,6 @@ let rec cleanUpSchema = schema => {
   ->Array.forEach(((key, value)) => {
     switch key {
     | "i" | "c" => ()
-    // tagged
-    | "definition" => ()
     | _ =>
       if typeof(value) === #function {
         ()

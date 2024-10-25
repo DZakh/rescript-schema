@@ -186,7 +186,7 @@ test("BROKEN: Fails to serialize when tuple is destructured", t => {
       12->S.reverseConvertOrThrow(schema)
     },
     ~expectations={
-      message: `Failed converting reverse at root. Reason: Schema for "" isn\'t registered`,
+      message: `Failed converting reverse at root. Reason: Destructuring of items is not supported`,
     },
     (),
   )
@@ -249,7 +249,7 @@ test("Compiled code snapshot of variant applied to object", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return {"foo":i["_0"],}}`,
+    `i=>{let v0=i["_0"];if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return {"foo":v0,}}`,
   )
 })
 
