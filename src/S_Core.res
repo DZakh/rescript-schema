@@ -58,6 +58,7 @@ module Stdlib = {
     @new external make: unit => t<'k, 'v> = "WeakMap"
 
     @send external get: (t<'k, 'v>, 'k) => option<'v> = "get"
+    @send external getUnsafe: (t<'k, 'v>, 'k) => 'v = "get"
     @send external set: (t<'k, 'v>, 'k, 'v) => t<'k, 'v> = "set"
   }
 
@@ -278,6 +279,8 @@ and item = {
   location: string,
   @as("i")
   inlinedLocation: string,
+  @as("f")
+  fieldOf?: item, // FIXME: Don't expose item type?
 }
 and builder = (b, ~input: val, ~selfSchema: schema<unknown>, ~path: Path.t) => val
 and val = {
@@ -549,12 +552,11 @@ module Builder = {
         }
       }
 
-      // FIXME: This is not use
-      // let get = (b, targetVal: val, location, ~path) => {
-      //   (targetVal->Obj.magic)["f"]
-      //     ? (targetVal->Obj.magic)["f"](location)
-      //     : b->val(`${b->var(targetVal)}${path}`)
-      // }
+      let get = (b, targetVal: val, location, ~path) => {
+        (targetVal->Obj.magic)["f"]
+          ? (targetVal->Obj.magic)["f"]->Js.Dict.unsafeGet(location)
+          : b->val(`${b->var(targetVal)}${path}`)
+      }
 
       let push = (b: b, input: val, val: val) => {
         `${b->var(input)}.push(${val.inline})`
@@ -2088,10 +2090,10 @@ module Object = {
     let output = {
       let rec definitionToOutput = (definition: Definition.t<item>) => {
         if definition->Definition.isNode {
-          switch outputs->Stdlib.WeakMap.get(
-            definition->Definition.toEmbededItem->Stdlib.Option.unsafeUnwrap,
-          ) {
-          | Some(val) => val
+          switch definition->Definition.toEmbededItem {
+          | Some({fieldOf: item, location, path}) =>
+            b->B.Val.get(outputs->Stdlib.WeakMap.getUnsafe(item), location, ~path)
+          | Some(item) => outputs->Stdlib.WeakMap.getUnsafe(item)
           | None => {
               let node = definition->Definition.toNode
               let isArray = Stdlib.Array.isArray(node)
@@ -2247,13 +2249,23 @@ module Object = {
     }
   }
 
-  let proxify = (item: item): 'a =>
+  let rec proxify = (item: item): 'a =>
     Stdlib.Object.immutableEmpty->Stdlib.Proxy.make({
       get: (~target as _, ~prop) => {
         if prop === itemSymbol->Obj.magic {
           item->Obj.magic
         } else {
-          %raw(`void 0`)
+          let location = prop->(Obj.magic: unknown => string)
+          let inlinedLocation = location->Stdlib.Inlined.Value.fromString
+          {
+            location,
+            inlinedLocation,
+            path: inlinedLocation->Path.fromInlinedLocation,
+            schema: %raw(`null`),
+            fieldOf: item,
+          }
+          ->proxify
+          ->Obj.magic
         }
       },
     })
@@ -2283,6 +2295,10 @@ module Object = {
         let rec definitionToOutput = (definition: Definition.t<item>, ~outputPath) => {
           if definition->Definition.isNode {
             switch definition->Definition.toEmbededItem {
+            | Some({fieldOf: _}) =>
+              b.code =
+                b.code ++ b->B.fail(~message="Destructuring of items is not supported", ~path)
+
             | Some(item) =>
               switch embededOutputs->Stdlib.WeakMap.get(item) {
               | Some(embededOutput) => {

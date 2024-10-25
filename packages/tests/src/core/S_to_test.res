@@ -83,12 +83,69 @@ test(
   },
 )
 
-test("BROKEN: Successfully parses when tuple is destructured", t => {
+test("Successfully parses when tuple is destructured", t => {
   let schema = S.literal((true, 12))->S.to(((_, twelve)) => twelve)
 
-  // FIXME: This is wrong, the result should be Ok(12)
-  t->Assert.deepEqual(%raw(`[true, 12]`)->S.parseOrThrow(schema), %raw(`undefined`), ())
+  t->Assert.deepEqual(%raw(`[true, 12]`)->S.parseOrThrow(schema), %raw(`12`), ())
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(i!==e[0]&&(!Array.isArray(i)||i.length!==2||i[0]!==true||i[1]!==12)){e[1](i)}return i["1"]}`,
+  )
 })
+
+test("Successfully parses when schema object is destructured - it doesn't create an object", t => {
+  let schema = S.schema(s =>
+    {
+      "foo": s.matches(S.string),
+    }
+  )->S.to(obj => obj["foo"])
+
+  t->Assert.deepEqual(
+    {
+      "foo": "bar",
+    }->S.parseOrThrow(schema),
+    %raw(`"bar"`),
+    (),
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[1](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return v0}`,
+  )
+})
+
+test(
+  "Successfully parses when transformed object schema is destructured - it does create an object and extracts a field from it afterwards",
+  t => {
+    let schema =
+      S.schema(s =>
+        {
+          "foo": s.matches(S.string),
+        }
+      )
+      ->S.transform(_ => {
+        parser: obj =>
+          {
+            "faz": obj["foo"],
+          },
+      })
+      ->S.to(obj => obj["faz"])
+
+    t->Assert.deepEqual(
+      {
+        "foo": "bar",
+      }->S.parseOrThrow(schema),
+      %raw(`"bar"`),
+      (),
+    )
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=e[1]({"foo":v0,});if(typeof v0!=="string"){e[0](v0)}return v1["faz"]}`,
+    )
+  },
+)
 
 // FIXME: Throw in proxy (???)
 test("BROKEN: Fails to serialize when tuple is destructured", t => {
