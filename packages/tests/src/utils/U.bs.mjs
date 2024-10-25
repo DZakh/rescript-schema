@@ -110,7 +110,6 @@ function cleanUpSchema(schema) {
         var key = param[0];
         switch (key) {
           case "c" :
-          case "definition" :
           case "i" :
               return ;
           default:

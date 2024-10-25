@@ -30,7 +30,7 @@ test("Tuple of literals schema", t => {
   )
 })
 
-test("Object with embeded", t => {
+test("Object with embeded schema", t => {
   let schema = S.schema(s =>
     {
       "foo": "bar",
@@ -61,6 +61,37 @@ test("Object with embeded", t => {
   )
 })
 
+test("Object with embeded transformed schema", t => {
+  let schema = S.schema(s =>
+    {
+      "foo": "bar",
+      "zoo": s.matches(S.null(S.int)),
+    }
+  )
+  let objectSchema = S.object(s =>
+    {
+      "foo": s.field("foo", S.literal("bar")),
+      "zoo": s.field("zoo", S.null(S.int)),
+    }
+  )
+  t->U.assertEqualSchemas(schema, objectSchema)
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#Parse),
+    objectSchema->U.getCompiledCodeString(~op=#Parse),
+    (),
+  )
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#ReverseConvert),
+    `i=>{let v0=i["foo"],v1=i["zoo"];if(v0!=="bar"){e[0](v0)}let v2;if(v1!==void 0){v2=v1}else{v2=null}return {"foo":v0,"zoo":v2,}}`,
+    (),
+  )
+  t->Assert.is(
+    objectSchema->U.getCompiledCodeString(~op=#ReverseConvert),
+    `i=>{let v0=i["zoo"],v1;if(v0!==void 0){v1=v0}else{v1=null}return {"foo":i["foo"],"zoo":v1,}}`, // FIXME: Validate literals for S.object schemas
+    (),
+  )
+})
+
 test("Strict object with embeded returns input without object recreation", t => {
   S.setGlobalConfig({
     defaultUnknownKeys: Strict,
@@ -85,7 +116,7 @@ test("Strict object with embeded returns input without object recreation", t => 
   )
 })
 
-test("Tuple with embeded", t => {
+test("Tuple with embeded schema", t => {
   let schema = S.schema(s => (s.matches(S.string), (), "bar"))
   let tupleSchema = S.tuple(s => (
     s.item(0, S.string),
@@ -117,7 +148,33 @@ test("Tuple with embeded", t => {
   )
 })
 
-test("Nested embeded object", t => {
+test("Tuple with embeded transformed schema", t => {
+  let schema = S.schema(s => (s.matches(S.null(S.string)), (), "bar"))
+  let tupleSchema = S.tuple(s => (
+    s.item(0, S.null(S.string)),
+    s.item(1, S.literal()),
+    s.item(2, S.literal("bar")),
+  ))
+
+  t->U.assertEqualSchemas(schema, tupleSchema)
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#Parse),
+    tupleSchema->U.getCompiledCodeString(~op=#Parse),
+    (),
+  )
+  t->Assert.is(
+    schema->U.getCompiledCodeString(~op=#ReverseConvert),
+    `i=>{let v0=i["0"],v2=i["1"],v3=i["2"];if(v3!=="bar"){e[1](v3)}if(v2!==undefined){e[0](v2)}let v1;if(v0!==void 0){v1=v0}else{v1=null}return [v1,v2,v3,]}`,
+    (),
+  )
+  t->Assert.is(
+    tupleSchema->U.getCompiledCodeString(~op=#ReverseConvert),
+    `i=>{let v0=i["0"],v1;if(v0!==void 0){v1=v0}else{v1=null}return [v1,i["1"],i["2"],]}`,
+    (),
+  )
+})
+
+test("Nested object with embeded schema", t => {
   let schema = S.schema(s =>
     {
       "nested": {
@@ -154,7 +211,7 @@ test("Nested embeded object", t => {
   )
   t->Assert.is(
     objectSchema->U.getCompiledCodeString(~op=#ReverseConvert),
-    `i=>{return {"nested":{"foo":i["nested"]["foo"],"zoo":i["nested"]["zoo"],},}}`, // FIXME: validate literals for S.tuple schemas
+    `i=>{let v0=i["nested"];return {"nested":{"foo":v0["foo"],"zoo":v0["zoo"],},}}`, // FIXME: validate literals for S.tuple schemas
     (),
   )
 })
