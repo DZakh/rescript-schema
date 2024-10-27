@@ -159,8 +159,7 @@ function make(b, isArray) {
           a: false,
           j: isArray ? arrayJoin : objectJoin,
           c: 0,
-          p: "",
-          f: {}
+          p: ""
         };
 }
 
@@ -1309,8 +1308,9 @@ function toOutputVal(b, outputs, outputDefinition) {
       return outputs[item.i];
     }
     var targetVal = getItemOutput(item$1);
-    if (targetVal.f) {
-      return targetVal.f[item.i];
+    var val$1 = targetVal[item.i];
+    if (val$1 !== undefined) {
+      return val$1;
     }
     var targetVar;
     if (targetVal.v) {
@@ -1338,7 +1338,7 @@ function toOutputVal(b, outputs, outputDefinition) {
       var definition$1 = definition[key];
       var output = definitionToOutput(definition$1);
       var inlinedLocation = isArray ? key : JSON.stringify(key);
-      objectVal.f[inlinedLocation] = output;
+      objectVal[inlinedLocation] = output;
       if (output.a) {
         objectVal.p = objectVal.p + output.i + ",";
         objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
@@ -1353,6 +1353,12 @@ function toOutputVal(b, outputs, outputDefinition) {
 
 function typeFilter$1(_b, inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
+}
+
+function tupleTypeFilter(length) {
+  return function (b, inputVar) {
+    return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
+  };
 }
 
 function objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path) {
@@ -1441,96 +1447,133 @@ function proxify(item) {
 
 function reverse$1(inputDefinition, kind, items, inlinedLocations) {
   return function () {
-    return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, input, param, path) {
-                  if (b.g.o & 1) {
-                    invalidOperation(b, path, "Type validation mode is not supported. Use convert operation instead");
-                  }
-                  var inputVar = $$var(b, input);
-                  var ctx = {
-                    d: ""
-                  };
-                  var outputs = {};
-                  var definitionToOutput = function (definition, outputPath) {
-                    if (typeof definition === "object" && definition !== null) {
-                      var item = definition[itemSymbol];
-                      if (item !== undefined) {
-                        if (item.f !== undefined) {
-                          return invalidOperation(b, path, "Destructuring of items is not supported");
-                        }
-                        var embededOutput = outputs[item.i];
-                        if (embededOutput !== undefined) {
-                          var itemInput = outputPath === "" ? input : val(b, inputVar + outputPath);
-                          var schema = item.t["~r"]();
-                          var itemOutput = schema.b(b, itemInput, schema, path + outputPath);
-                          b.c = b.c + ("if(" + $$var(b, embededOutput) + "!==" + $$var(b, itemOutput) + "){" + fail(b, "Multiple sources provided not equal data for " + item.i, path) + "}");
-                          return ;
-                        }
-                        var itemInput$1 = outputPath === "" ? input : val(b, inputVar + outputPath);
-                        var schema$1 = item.t["~r"]();
-                        var itemOutput$1 = schema$1.b(b, itemInput$1, schema$1, path + outputPath);
-                        outputs[item.i] = itemOutput$1;
-                        return ;
-                      }
-                      var keys = Object.keys(definition);
-                      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
-                        var key = keys[idx];
-                        var definition$1 = definition[key];
-                        definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
-                      }
-                      return ;
-                    }
-                    var tagSchema = literal(definition);
-                    var itemInputVar = inputVar + outputPath;
-                    ctx.d = ctx.d + ("if(" + tagSchema.f(b, itemInputVar) + "){" + failWithArg(b, path + outputPath, (function (received) {
-                              return {
-                                      TAG: "InvalidType",
-                                      expected: tagSchema,
-                                      received: received
-                                    };
-                            }), itemInputVar) + "}");
-                  };
-                  definitionToOutput(inputDefinition, "");
-                  b.c = ctx.d + b.c;
-                  var fallbackOutput = function (schema, inlinedLocation, path) {
-                    if (schema.t.TAG !== "Literal") {
-                      return invalidOperation(b, path, "Schema for " + inlinedLocation + " isn't registered");
-                    }
-                    var value = schema.t._0.value;
-                    return val(b, "e[" + (b.g.e.push(value) - 1) + "]");
-                  };
-                  var schemaOutput = function (items, inlinedLocations, isArray, path) {
-                    var objectVal = make(b, isArray);
-                    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-                      var schema = items[idx];
-                      var inlinedLocation = inlinedLocations[idx];
-                      var o = outputs[inlinedLocation];
-                      var itemOutput = o !== undefined ? o : fallbackOutput(schema, inlinedLocation, path);
-                      objectVal.f[inlinedLocation] = itemOutput;
-                      if (itemOutput.a) {
-                        objectVal.p = objectVal.p + itemOutput.i + ",";
-                        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
-                      } else {
-                        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, itemOutput.i);
-                      }
-                    }
-                    return complete(objectVal, isArray);
-                  };
-                  if (kind !== "To") {
-                    if (kind === "Array") {
-                      return schemaOutput(items, inlinedLocations, true, path);
-                    } else {
-                      return schemaOutput(items, inlinedLocations, false, path);
-                    }
-                  }
-                  var schema = items[0];
-                  var inlinedLocation = inlinedLocations[0];
-                  var o = outputs[inlinedLocation];
-                  if (o !== undefined) {
-                    return o;
-                  } else {
-                    return fallbackOutput(schema, inlinedLocation, path);
-                  }
-                }), undefined);
+    var builder$2 = function (b, input, param, path) {
+      var inputVar = $$var(b, input);
+      var ctx = {
+        d: ""
+      };
+      var outputs = {};
+      var definitionToOutput = function (definition, outputPath) {
+        if (typeof definition === "object" && definition !== null) {
+          var item = definition[itemSymbol];
+          if (item !== undefined) {
+            if (item.f !== undefined) {
+              return invalidOperation(b, path, "Destructuring of items is not supported");
+            }
+            var embededOutput = outputs[item.i];
+            if (embededOutput !== undefined) {
+              var itemInput = outputPath === "" ? input : val(b, inputVar + outputPath);
+              var schema = item.t["~r"]();
+              var itemOutput = schema.b(b, itemInput, schema, path + outputPath);
+              b.c = b.c + ("if(" + $$var(b, embededOutput) + "!==" + $$var(b, itemOutput) + "){" + fail(b, "Multiple sources provided not equal data for " + item.i, path) + "}");
+              return ;
+            }
+            var itemInput$1 = outputPath === "" ? input : val(b, inputVar + outputPath);
+            var schema$1 = item.t["~r"]();
+            var itemOutput$1 = schema$1.b(b, itemInput$1, schema$1, path + outputPath);
+            outputs[item.i] = itemOutput$1;
+            return ;
+          }
+          var keys = Object.keys(definition);
+          for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+            var key = keys[idx];
+            var definition$1 = definition[key];
+            definitionToOutput(definition$1, outputPath + ("[" + JSON.stringify(key) + "]"));
+          }
+          return ;
+        }
+        if (outputPath === "") {
+          return ;
+        }
+        var tagSchema = literal(definition);
+        var itemInputVar = inputVar + outputPath;
+        ctx.d = ctx.d + ("if(" + tagSchema.f(b, itemInputVar) + "){" + failWithArg(b, path + outputPath, (function (received) {
+                  return {
+                          TAG: "InvalidType",
+                          expected: tagSchema,
+                          received: received
+                        };
+                }), itemInputVar) + "}");
+      };
+      definitionToOutput(inputDefinition, "");
+      b.c = ctx.d + b.c;
+      var fallbackOutput = function (schema, inlinedLocation, path) {
+        if (schema.t.TAG !== "Literal") {
+          return invalidOperation(b, path, "Schema for " + inlinedLocation + " isn't registered");
+        }
+        var value = schema.t._0.value;
+        return val(b, "e[" + (b.g.e.push(value) - 1) + "]");
+      };
+      var schemaOutput = function (items, inlinedLocations, isArray, path) {
+        var objectVal = make(b, isArray);
+        for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+          var schema = items[idx];
+          var inlinedLocation = inlinedLocations[idx];
+          var o = outputs[inlinedLocation];
+          var itemOutput = o !== undefined ? o : fallbackOutput(schema, inlinedLocation, path);
+          objectVal[inlinedLocation] = itemOutput;
+          if (itemOutput.a) {
+            objectVal.p = objectVal.p + itemOutput.i + ",";
+            objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
+          } else {
+            objectVal.i = objectVal.i + objectVal.j(inlinedLocation, itemOutput.i);
+          }
+        }
+        return complete(objectVal, isArray);
+      };
+      if (kind !== "To") {
+        if (kind === "Array") {
+          return schemaOutput(items, inlinedLocations, true, path);
+        } else {
+          return schemaOutput(items, inlinedLocations, false, path);
+        }
+      }
+      var schema = items[0];
+      var inlinedLocation = inlinedLocations[0];
+      var o = outputs[inlinedLocation];
+      if (o !== undefined) {
+        return o;
+      } else {
+        return fallbackOutput(schema, inlinedLocation, path);
+      }
+    };
+    var definitionToSchema = function (definition, isRoot) {
+      if (!(typeof definition === "object" && definition !== null)) {
+        return literal(definition);
+      }
+      var item = definition[itemSymbol];
+      if (item !== undefined) {
+        if (item.f !== undefined) {
+          throw new Error("[rescript-schema] Destructuring of items is not supported");
+        }
+        var reversed = item.t["~r"]();
+        if (isRoot) {
+          return makeReverseSchema(reversed.n, reversed.t, reversed.m, reversed.b, reversed.f);
+        } else {
+          return reversed;
+        }
+      }
+      var keys = Object.keys(definition);
+      var isArray = Array.isArray(definition);
+      var fields = isArray ? [] : ({});
+      for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
+        var $$location = keys[idx];
+        var schema = definitionToSchema(definition[$$location], false);
+        fields[$$location] = schema;
+      }
+      return makeReverseSchema(name, isArray ? ({
+                      TAG: "Tuple",
+                      items: fields
+                    }) : ({
+                      TAG: "Object",
+                      fieldNames: keys,
+                      fields: fields,
+                      unknownKeys: globalConfig.u
+                    }), empty, builder, isArray ? tupleTypeFilter(fields.length) : typeFilter$1);
+    };
+    var schema = definitionToSchema(inputDefinition, true);
+    schema.b = builder$2;
+    return schema;
   };
 }
 
@@ -1695,9 +1738,7 @@ function factory$4(definer) {
   return makeSchema(name$1, {
               TAG: "Tuple",
               items: items
-            }, empty, builder$1(definition, items, inlinedLocations), (function (b, inputVar) {
-                return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
-              }), reverse$1(definition, "Array", items, inlinedLocations));
+            }, empty, builder$1(definition, items, inlinedLocations), tupleTypeFilter(length), reverse$1(definition, "Array", items, inlinedLocations));
 }
 
 function factory$5(schema) {
@@ -1859,15 +1900,6 @@ function parse$1(b, schemas, path, input, output) {
     try {
       var bb = scope(b);
       var itemOutput = schema.b(bb, input, schema, "");
-      if (isMultiple && !(b.g.o & 1)) {
-        var reversed = schema["~r"]();
-        var typeFilter = reversed.f;
-        if (typeFilter !== undefined) {
-          var code = typeFilterCode(bb, typeFilter, reversed, itemOutput, "");
-          bb.c = bb.c + code;
-        }
-        
-      }
       if (itemOutput !== input) {
         bb.c = bb.c + set(bb, output, itemOutput);
       }
@@ -2145,7 +2177,7 @@ function builder$2(items, inlinedLocations, isArray) {
         
       }
       var val$1 = schema.b(b, itemInput, schema, path$1);
-      objectVal.f[inlinedLocation] = val$1;
+      objectVal[inlinedLocation] = val$1;
       if (val$1.a) {
         objectVal.p = objectVal.p + val$1.i + ",";
         objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
@@ -2187,9 +2219,7 @@ function definitionToSchema(definition) {
       }
       
     }
-    var maybeTypeFilter = (function (b, inputVar) {
-        return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
-      });
+    var maybeTypeFilter = tupleTypeFilter(length);
     return makeSchema(name$1, {
                 TAG: "Tuple",
                 items: definition

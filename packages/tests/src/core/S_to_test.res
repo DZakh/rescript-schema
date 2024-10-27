@@ -186,7 +186,7 @@ test("BROKEN: Fails to serialize when tuple is destructured", t => {
       12->S.reverseConvertOrThrow(schema)
     },
     ~expectations={
-      message: `Failed converting reverse at root. Reason: Destructuring of items is not supported`,
+      message: `[rescript-schema] Destructuring of items is not supported`,
     },
     (),
   )
@@ -292,7 +292,7 @@ test(
 
     t->Assert.deepEqual(#foo->S.reverseConvertOrThrow(schema), %raw(`[true,12]`), ())
 
-    t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{if(i!=="foo"){e[0](i)}return e[1]}`)
+    t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{if(i!=="foo"){e[1](i)}return e[0]}`)
   },
 )
 
@@ -327,20 +327,18 @@ test("Works with variant schema used multiple times as a child schema", t => {
 
 test("Reverse variant schema to literal", t => {
   let schema = S.literal("foo")->S.to(_ => ())
-  // t->U.assertEqualSchemas(schema->S.reverse, S.unit->S.toUnknown)
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+  t->U.assertEqualSchemas(schema->S.reverse, S.unit->S.toUnknown)
 })
 
 test("Succesfully uses reversed variant schema to literal for parsing back to initial value", t => {
   let schema = S.literal("foo")->S.to(_ => ())
-  // t->U.assertReverseParsesBack(schema, ())
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+  t->U.assertReverseParsesBack(schema, ())
 })
 
 test("Reverse variant schema to self", t => {
   let schema = S.bool->S.to(v => v)
-  // t->Assert.is(schema->S.reverse, schema->S.toUnknown, ())
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+  t->Assert.not(schema->S.reverse, schema->S.toUnknown, ())
+  t->U.assertEqualSchemas(schema->S.reverse, schema->S.toUnknown)
 })
 
 test("Succesfully uses reversed variant schema to self for parsing back to initial value", t => {
@@ -367,28 +365,27 @@ test("Reverse with output of nested object/tuple schema", t => {
       },
     }
   })
-  // t->U.assertEqualSchemas(
-  //   schema->S.reverse,
-  //   S.object(s => {
-  //     let _ = s.field(
-  //       "nested",
-  //       S.object(
-  //         s => {
-  //           let _ = s.field(
-  //             "field",
-  //             S.tuple(
-  //               s => {
-  //                 let _ = s.item(0, S.bool)
-  //                 s.tag(1, true)
-  //               },
-  //             ),
-  //           )
-  //         },
-  //       ),
-  //     )
-  //   })->S.toUnknown,
-  // )
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+  t->U.assertEqualSchemas(
+    schema->S.reverse,
+    S.object(s => {
+      let _ = s.field(
+        "nested",
+        S.object(
+          s => {
+            let _ = s.field(
+              "field",
+              S.tuple(
+                s => {
+                  let _ = s.item(0, S.bool)
+                  s.tag(1, true)
+                },
+              ),
+            )
+          },
+        ),
+      )
+    })->S.toUnknown,
+  )
 })
 
 test(
