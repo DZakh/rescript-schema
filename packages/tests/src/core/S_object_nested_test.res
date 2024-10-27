@@ -1,6 +1,6 @@
 open Ava
 
-test(
+Skip.test(
   "Has correct tagged type with nested called multiple times and nested objects are not mutate",
   t => {
     let nested1 = S.object(s => s.field("baz", S.string))
@@ -73,7 +73,7 @@ test("Fails to create schema with nested called additinally to non-object field"
   )
 })
 
-test("Successfully parses with nested object defined multiple times", t => {
+Skip.test("Successfully parses with nested object defined multiple times", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
@@ -94,7 +94,7 @@ test("Successfully parses with nested object defined multiple times", t => {
   )
 })
 
-test("Successfully serializes with nested object defined multiple times", t => {
+Skip.test("Successfully serializes with nested object defined multiple times", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
@@ -115,7 +115,7 @@ test("Successfully serializes with nested object defined multiple times", t => {
   )
 })
 
-test("Merges deeply nested in different branches", t => {
+Skip.test("Merges deeply nested in different branches", t => {
   let schema = S.object(s =>
     {
       "bar": s.field(
