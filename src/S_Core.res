@@ -547,13 +547,6 @@ module Builder = {
         }
       }
 
-      @inline
-      let get = (b, targetVal: val, inlinedLocation, ~path) => {
-        (targetVal->Obj.magic)["f"]
-          ? (targetVal->Obj.magic)["f"]->Js.Dict.unsafeGet(inlinedLocation)
-          : b->val(`${b->var(targetVal)}${path}`)
-      }
-
       let push = (b: b, input: val, val: val) => {
         `${b->var(input)}.push(${val.inline})`
       }
@@ -577,6 +570,22 @@ module Builder = {
             `${inputVar}=${val.inline}`
           | ({isAsync: true}, {isAsync: false}) => `${inputVar}=Promise.resolve(${val.inline})`
           }
+        }
+      }
+
+      @inline
+      let get = (b, targetVal: val, inlinedLocation, ~path) => {
+        if (targetVal->Obj.magic)["f"] {
+          (targetVal->Obj.magic)["f"]->Js.Dict.unsafeGet(inlinedLocation)
+        } else {
+          let targetVar = if targetVal.isVar {
+            targetVal.inline
+          } else {
+            let scopedInput = b->allocateVal
+            b.code = b.code ++ b->set(scopedInput, targetVal) ++ ";"
+            scopedInput.inline
+          }
+          b->val(`${targetVar}${path}`)
         }
       }
 
@@ -2124,50 +2133,20 @@ module Object = {
 
   let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
 
-  let processInputItems = (b: b, ~outputs, ~input, ~items, ~path, ~unknownKeys) => {
-    let inputVar = b->B.Val.var(input)
-
-    for idx in 0 to items->Js.Array2.length - 1 {
-      let prevCode = b.code
-      b.code = ""
-
-      let item = items->Js.Array2.unsafe_get(idx)
-      let {schema, path: itemPath} = item
-      let itemInput = b->B.val(`${inputVar}${itemPath}`)
-      let path = path->Path.concat(itemPath)
-      let isLiteral = schema->isLiteralSchema
-
-      switch schema.maybeTypeFilter {
-      | Some(typeFilter) if isLiteral || b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
-        b.code = b.code ++ b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path)
-      | _ => ()
-      }
-
-      let bb = b->B.scope
-      let itemOutput = bb->B.parse(~schema, ~input=itemInput, ~path)
-      addItemOutput(~outputs, item, itemOutput)
-
-      // Parse literal fields first, because they are most often used as discriminants
-      if isLiteral {
-        b.code = b.code ++ bb->B.allocateScope ++ prevCode
-      } else {
-        b.code = prevCode ++ b.code ++ bb->B.allocateScope
-      }
-    }
-
+  let objectStrictModeCheck = (b, ~input, ~inlinedLocations, ~unknownKeys, ~path) => {
     if unknownKeys === Strict && b.global.flag->Flag.unsafeHas(Flag.typeValidation) {
       let key = b->B.allocateVal
       let keyVar = key.inline
       b.code = b.code ++ `for(${keyVar} in ${input.inline}){if(`
-      switch items {
+      switch inlinedLocations {
       | [] => b.code = b.code ++ "true"
       | _ =>
-        for idx in 0 to items->Js.Array2.length - 1 {
-          let item = items->Js.Array2.unsafe_get(idx)
+        for idx in 0 to inlinedLocations->Js.Array2.length - 1 {
+          let inlinedLocation = inlinedLocations->Js.Array2.unsafe_get(idx)
           if idx !== 0 {
             b.code = b.code ++ "&&"
           }
-          b.code = b.code ++ `${keyVar}!==${item.inlinedLocation}`
+          b.code = b.code ++ `${keyVar}!==${inlinedLocation}`
         }
       }
       b.code =
@@ -2176,10 +2155,58 @@ module Object = {
     }
   }
 
-  let builder = (~definition as outputDefinition, ~items) => (b, ~input, ~selfSchema, ~path) => {
+  @inline
+  let processInputItems = (
+    parentB: b,
+    ~outputs,
+    ~input,
+    ~items,
+    ~path,
+    ~inlinedLocations,
+    ~unknownKeys,
+  ) => {
+    let b = parentB->B.scope
+
+    let inputVar = b->B.Val.var(input)
+    let typeFilters = ref("")
+
+    for idx in 0 to items->Js.Array2.length - 1 {
+      let item = items->Js.Array2.unsafe_get(idx)
+      let {schema, path: itemPath} = item
+
+      let itemInput = b->B.val(`${inputVar}${itemPath}`)
+      let path = path->Path.concat(itemPath)
+      let isLiteral = schema->isLiteralSchema
+
+      switch schema.maybeTypeFilter {
+      | Some(typeFilter) if isLiteral =>
+        // Check literal fields first, because they are most often used as discriminants
+        typeFilters :=
+          b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path) ++ typeFilters.contents
+      | Some(typeFilter) if b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
+        typeFilters :=
+          typeFilters.contents ++ b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path)
+      | _ => ()
+      }
+
+      addItemOutput(~outputs, item, b->B.parse(~schema, ~input=itemInput, ~path))
+    }
+
+    b->objectStrictModeCheck(~input, ~inlinedLocations, ~unknownKeys, ~path)
+
+    b.code = typeFilters.contents ++ b.code
+    parentB.code = parentB.code ++ b->B.allocateScope
+  }
+
+  let builder = (~definition as outputDefinition, ~items, ~inlinedLocations) => (
+    b,
+    ~input,
+    ~selfSchema,
+    ~path,
+  ) => {
     let outputs = Stdlib.WeakMap.make()
     let unknownKeys = (selfSchema->classify->Obj.magic)["unknownKeys"]
-    b->processInputItems(~outputs, ~input, ~items, ~path, ~unknownKeys)
+    b->processInputItems(~outputs, ~input, ~items, ~path, ~inlinedLocations, ~unknownKeys)
     b->toOutputVal(~outputs, ~outputDefinition)
   }
 
@@ -2383,6 +2410,7 @@ module Object = {
     type value. (s => value) => schema<value> =
     definer => {
       let fieldNames = []
+      let inlinedLocations = []
       let fields = Js.Dict.empty()
       let items = []
 
@@ -2425,6 +2453,7 @@ module Object = {
                 }
                 fields->Js.Dict.set(fieldName, schema)
                 fieldNames->Js.Array2.push(fieldName)->ignore
+                inlinedLocations->Js.Array2.push(inlinedLocation)->ignore
                 items->Js.Array2.push(item)->ignore
                 // if schema.definer->Obj.magic {
                 //   schema->getOutputDefinition->(Obj.magic: unknown => value)
@@ -2486,7 +2515,7 @@ module Object = {
           fields,
           unknownKeys: globalConfig.defaultUnknownKeys,
         }),
-        builder: builder(~definition, ~items),
+        builder: builder(~definition, ~items, ~inlinedLocations),
         isAsyncSchema: Unknown,
         maybeTypeFilter: Some(typeFilter),
         name,
@@ -2544,6 +2573,7 @@ module Tuple = {
   let factory = definer => {
     let items = []
     let schemas = []
+    let inlinedLocations = []
 
     let ctx: s = {
       let item:
@@ -2563,6 +2593,7 @@ module Tuple = {
             }
             schemas->Js.Array2.unsafe_set(idx, schema)
             items->Js.Array2.unsafe_set(idx, item)
+            inlinedLocations->Js.Array2.unsafe_set(idx, inlinedLocation)
             item->Object.proxify
           }
         }
@@ -2592,6 +2623,7 @@ module Tuple = {
         }
         schemas->Js.Array2.unsafe_set(idx, schema)
         items->Js.Array2.unsafe_set(idx, item)
+        inlinedLocations->Js.Array2.unsafe_set(idx, inlinedLocation)
       }
     }
 
@@ -2600,7 +2632,7 @@ module Tuple = {
       ~tagged=Tuple({
         items: schemas,
       }),
-      ~builder=Object.builder(~definition, ~items),
+      ~builder=Object.builder(~definition, ~items, ~inlinedLocations),
       ~maybeTypeFilter=Some(typeFilter(~length)),
       ~metadataMap=Metadata.Map.empty,
       ~reverse=Object.reverse(~definition, ~items, ~kind=#Array),
@@ -3221,17 +3253,16 @@ let description = schema => schema->Metadata.get(~id=descriptionMetadataId)
 module Schema = {
   type s = {matches: 'value. t<'value> => 'value}
 
-  let builder = (~items, ~inlinedLocations, ~isArray) => (b, ~input, ~selfSchema, ~path) => {
+  let builder = (~items, ~inlinedLocations, ~isArray) => (parentB, ~input, ~selfSchema, ~path) => {
     let unknownKeys = (selfSchema->classify->Obj.magic)["unknownKeys"]
 
-    let inputVar = b->B.Val.var(input)
+    let b = parentB->B.scope
 
+    let typeFilters = ref("")
+    let inputVar = b->B.Val.var(input)
     let objectVal = b->B.Val.Object.make(~isArray)
 
     for idx in 0 to items->Js.Array2.length - 1 {
-      let prevCode = b.code
-      b.code = ""
-
       let schema = items->Js.Array2.unsafe_get(idx)
       let inlinedLocation = inlinedLocations->Js.Array2.unsafe_get(idx)
       let itemPath = inlinedLocation->Path.fromInlinedLocation
@@ -3241,43 +3272,23 @@ module Schema = {
       let isLiteral = schema->isLiteralSchema
 
       switch schema.maybeTypeFilter {
-      | Some(typeFilter) if isLiteral || b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
-        b.code = b.code ++ b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path)
+      | Some(typeFilter) if isLiteral =>
+        // Check literal fields first, because they are most often used as discriminants
+        typeFilters :=
+          b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path) ++ typeFilters.contents
+      | Some(typeFilter) if b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
+        typeFilters :=
+          typeFilters.contents ++ b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path)
       | _ => ()
       }
 
-      let bb = b->B.scope
-      let itemOutput = bb->B.parse(~schema, ~input=itemInput, ~path)
-
-      objectVal->B.Val.Object.add(inlinedLocation, itemOutput)
-
-      // Parse literal fields first, because they are most often used as discriminants
-      if isLiteral {
-        b.code = b.code ++ bb->B.allocateScope ++ prevCode
-      } else {
-        b.code = prevCode ++ b.code ++ bb->B.allocateScope
-      }
+      objectVal->B.Val.Object.add(inlinedLocation, b->B.parse(~schema, ~input=itemInput, ~path))
     }
 
-    if unknownKeys === Strict && b.global.flag->Flag.unsafeHas(Flag.typeValidation) {
-      let key = b->B.allocateVal
-      let keyVar = key.inline
-      b.code = b.code ++ `for(${keyVar} in ${input.inline}){if(`
-      switch items {
-      | [] => b.code = b.code ++ "true"
-      | _ =>
-        for idx in 0 to items->Js.Array2.length - 1 {
-          let inlinedLocation = inlinedLocations->Js.Array2.unsafe_get(idx)
-          if idx !== 0 {
-            b.code = b.code ++ "&&"
-          }
-          b.code = b.code ++ `${keyVar}!==${inlinedLocation}`
-        }
-      }
-      b.code =
-        b.code ++
-        `){${b->B.failWithArg(~path, exccessFieldName => ExcessField(exccessFieldName), keyVar)}}}`
-    }
+    b->Object.objectStrictModeCheck(~input, ~inlinedLocations, ~unknownKeys, ~path)
+
+    b.code = typeFilters.contents ++ b.code
+    parentB.code = parentB.code ++ b->B.allocateScope
 
     if (
       (unknownKeys !== Strip || b.global.flag->Flag.unsafeHas(Flag.reverse)) &&

@@ -1311,9 +1311,16 @@ function toOutputVal(b, outputs, outputDefinition) {
     var targetVal = getItemOutput(item$1);
     if (targetVal.f) {
       return targetVal.f[item.i];
-    } else {
-      return val(b, $$var(b, targetVal) + item.p);
     }
+    var targetVar;
+    if (targetVal.v) {
+      targetVar = targetVal.i;
+    } else {
+      var scopedInput = allocateVal(b);
+      b.c = b.c + set(b, scopedInput, targetVal) + ";";
+      targetVar = scopedInput.i;
+    }
+    return val(b, targetVar + item.p);
   };
   var definitionToOutput = function (definition) {
     if (!(typeof definition === "object" && definition !== null)) {
@@ -1348,43 +1355,20 @@ function typeFilter$1(_b, inputVar) {
   return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
 
-function processInputItems(b, outputs, input, items, path, unknownKeys) {
-  var inputVar = $$var(b, input);
-  for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-    var prevCode = b.c;
-    b.c = "";
-    var item = items[idx];
-    var itemPath = item.p;
-    var schema = item.t;
-    var itemInput = val(b, inputVar + itemPath);
-    var path$1 = path + itemPath;
-    var isLiteral = schema.t.TAG === "Literal";
-    var typeFilter = schema.f;
-    if (typeFilter !== undefined && (isLiteral || b.g.o & 1)) {
-      b.c = b.c + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
-    }
-    var bb = scope(b);
-    var itemOutput = schema.b(bb, itemInput, schema, path$1);
-    outputs.set(item, itemOutput);
-    if (isLiteral) {
-      b.c = b.c + allocateScope(bb) + prevCode;
-    } else {
-      b.c = prevCode + b.c + allocateScope(bb);
-    }
-  }
+function objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path) {
   if (!(unknownKeys === "Strict" && b.g.o & 1)) {
     return ;
   }
   var key = allocateVal(b);
   var keyVar = key.i;
   b.c = b.c + ("for(" + keyVar + " in " + input.i + "){if(");
-  if (items.length !== 0) {
-    for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
-      var item$1 = items[idx$1];
-      if (idx$1 !== 0) {
+  if (inlinedLocations.length !== 0) {
+    for(var idx = 0 ,idx_finish = inlinedLocations.length; idx < idx_finish; ++idx){
+      var inlinedLocation = inlinedLocations[idx];
+      if (idx !== 0) {
         b.c = b.c + "&&";
       }
-      b.c = b.c + (keyVar + "!==" + item$1.i);
+      b.c = b.c + (keyVar + "!==" + inlinedLocation);
     }
   } else {
     b.c = b.c + "true";
@@ -1397,11 +1381,35 @@ function processInputItems(b, outputs, input, items, path, unknownKeys) {
           }), keyVar) + "}}");
 }
 
-function builder$1(outputDefinition, items) {
+function builder$1(outputDefinition, items, inlinedLocations) {
   return function (b, input, selfSchema, path) {
     var outputs = new WeakMap();
     var unknownKeys = selfSchema.t.unknownKeys;
-    processInputItems(b, outputs, input, items, path, unknownKeys);
+    var b$1 = scope(b);
+    var inputVar = $$var(b$1, input);
+    var typeFilters = "";
+    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+      var item = items[idx];
+      var itemPath = item.p;
+      var schema = item.t;
+      var itemInput = val(b$1, inputVar + itemPath);
+      var path$1 = path + itemPath;
+      var isLiteral = schema.t.TAG === "Literal";
+      var typeFilter = schema.f;
+      if (typeFilter !== undefined) {
+        if (isLiteral) {
+          typeFilters = typeFilterCode(b$1, typeFilter, schema, itemInput, path$1) + typeFilters;
+        } else if (b$1.g.o & 1) {
+          typeFilters = typeFilters + typeFilterCode(b$1, typeFilter, schema, itemInput, path$1);
+        }
+        
+      }
+      var output = schema.b(b$1, itemInput, schema, path$1);
+      outputs.set(item, output);
+    }
+    objectStrictModeCheck(b$1, input, inlinedLocations, unknownKeys, path);
+    b$1.c = typeFilters + b$1.c;
+    b.c = b.c + allocateScope(b$1);
     return toOutputVal(b, outputs, outputDefinition);
   };
 }
@@ -1528,6 +1536,7 @@ function reverse$1(inputDefinition, kind, items) {
 
 function factory$3(definer) {
   var fieldNames = [];
+  var inlinedLocations = [];
   var fields = {};
   var items = [];
   var flatten = function (schema) {
@@ -1549,6 +1558,7 @@ function factory$3(definer) {
     };
     fields[fieldName] = schema;
     fieldNames.push(fieldName);
+    inlinedLocations.push(inlinedLocation);
     items.push(item);
     return proxify(item);
   };
@@ -1586,7 +1596,7 @@ function factory$3(definer) {
           },
           n: name,
           "~r": reverse$1(definition, "Object", items),
-          b: builder$1(definition, items),
+          b: builder$1(definition, items, inlinedLocations),
           f: typeFilter$1,
           i: 0,
           m: empty
@@ -1648,6 +1658,7 @@ function name$1() {
 function factory$4(definer) {
   var items = [];
   var schemas = [];
+  var inlinedLocations = [];
   var item = function (idx, schema) {
     var $$location = idx.toString();
     if (items[idx]) {
@@ -1662,6 +1673,7 @@ function factory$4(definer) {
     };
     schemas[idx] = schema;
     items[idx] = item$1;
+    inlinedLocations[idx] = $$location;
     return proxify(item$1);
   };
   var tag = function (idx, asValue) {
@@ -1685,13 +1697,14 @@ function factory$4(definer) {
       };
       schemas[idx] = unit;
       items[idx] = item$1;
+      inlinedLocations[idx] = $$location;
     }
     
   }
   return makeSchema(name$1, {
               TAG: "Tuple",
               items: schemas
-            }, empty, builder$1(definition, items), (function (b, inputVar) {
+            }, empty, builder$1(definition, items, inlinedLocations), (function (b, inputVar) {
                 return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
               }), reverse$1(definition, "Array", items));
 }
@@ -2118,13 +2131,13 @@ function description(schema) {
 }
 
 function builder$2(items, inlinedLocations, isArray) {
-  return function (b, input, selfSchema, path) {
+  return function (parentB, input, selfSchema, path) {
     var unknownKeys = selfSchema.t.unknownKeys;
+    var b = scope(parentB);
+    var typeFilters = "";
     var inputVar = $$var(b, input);
     var objectVal = make(b, isArray);
     for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-      var prevCode = b.c;
-      b.c = "";
       var schema = items[idx];
       var inlinedLocation = inlinedLocations[idx];
       var itemPath = "[" + inlinedLocation + "]";
@@ -2132,46 +2145,26 @@ function builder$2(items, inlinedLocations, isArray) {
       var path$1 = path + itemPath;
       var isLiteral = schema.t.TAG === "Literal";
       var typeFilter = schema.f;
-      if (typeFilter !== undefined && (isLiteral || b.g.o & 1)) {
-        b.c = b.c + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
+      if (typeFilter !== undefined) {
+        if (isLiteral) {
+          typeFilters = typeFilterCode(b, typeFilter, schema, itemInput, path$1) + typeFilters;
+        } else if (b.g.o & 1) {
+          typeFilters = typeFilters + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
+        }
+        
       }
-      var bb = scope(b);
-      var itemOutput = schema.b(bb, itemInput, schema, path$1);
-      objectVal.f[inlinedLocation] = itemOutput;
-      if (itemOutput.a) {
-        objectVal.p = objectVal.p + itemOutput.i + ",";
+      var val$1 = schema.b(b, itemInput, schema, path$1);
+      objectVal.f[inlinedLocation] = val$1;
+      if (val$1.a) {
+        objectVal.p = objectVal.p + val$1.i + ",";
         objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
       } else {
-        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, itemOutput.i);
-      }
-      if (isLiteral) {
-        b.c = b.c + allocateScope(bb) + prevCode;
-      } else {
-        b.c = prevCode + b.c + allocateScope(bb);
+        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, val$1.i);
       }
     }
-    if (unknownKeys === "Strict" && b.g.o & 1) {
-      var key = allocateVal(b);
-      var keyVar = key.i;
-      b.c = b.c + ("for(" + keyVar + " in " + input.i + "){if(");
-      if (items.length !== 0) {
-        for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
-          var inlinedLocation$1 = inlinedLocations[idx$1];
-          if (idx$1 !== 0) {
-            b.c = b.c + "&&";
-          }
-          b.c = b.c + (keyVar + "!==" + inlinedLocation$1);
-        }
-      } else {
-        b.c = b.c + "true";
-      }
-      b.c = b.c + ("){" + failWithArg(b, path, (function (exccessFieldName) {
-                return {
-                        TAG: "ExcessField",
-                        _0: exccessFieldName
-                      };
-              }), keyVar) + "}}");
-    }
+    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
+    b.c = typeFilters + b.c;
+    parentB.c = parentB.c + allocateScope(b);
     if ((unknownKeys !== "Strip" || b.g.o & 32) && selfSchema === selfSchema["~r"]()) {
       return input;
     } else {
