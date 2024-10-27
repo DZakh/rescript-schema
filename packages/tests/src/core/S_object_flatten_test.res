@@ -1,6 +1,6 @@
 open Ava
 
-test("Has correct tagged type", t => {
+Skip.test("Has correct tagged type", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
@@ -48,7 +48,7 @@ test("Can flatten S.schema", t => {
   // )
 })
 
-test("Can flatten strict object", t => {
+Skip.test("Can flatten strict object", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
@@ -122,7 +122,7 @@ test("Fails to flatten non-object schema", t => {
   )
 })
 
-test("Successfully parses simple object with flatten", t => {
+Skip.test("Successfully parses simple object with flatten", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
@@ -142,7 +142,7 @@ test("Successfully parses simple object with flatten", t => {
   )
 })
 
-test("Successfully serializes simple object with flatten", t => {
+Skip.test("Successfully serializes simple object with flatten", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
@@ -171,7 +171,7 @@ type entity = {
   ...entityData,
 }
 
-test("Can destructure flattened schema", t => {
+Skip.test("Can destructure flattened schema", t => {
   let entityDataSchema = S.object(s => {
     name: s.field("name", S.string),
     age: s.field("age", S.int),

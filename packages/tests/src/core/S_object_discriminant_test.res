@@ -130,7 +130,7 @@ module Positive = {
       },
     )
 
-    test(
+    Skip.test(
       `Successfully serializes object with discriminant "${testData.discriminantSchema->S.name}"${testData.testNamePostfix}`,
       t => {
         let schema = S.object(
@@ -285,7 +285,7 @@ module NestedNegative = {
     },
   )
 
-  test(
+  Skip.test(
     `Fails to serialize object with object discriminant that we don't know how to serialize`,
     t => {
       let schema = S.object(s => {

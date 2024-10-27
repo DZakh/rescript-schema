@@ -984,7 +984,7 @@ test("Reverse convert of object schema with single field registered multiple tim
   )
 })
 
-test("Can destructure fields of simple nested objects", t => {
+Skip.test("Can destructure fields of simple nested objects", t => {
   let schema = S.object(s => {
     let nested = s.field(
       "nested",

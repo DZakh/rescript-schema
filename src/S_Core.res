@@ -724,7 +724,7 @@ module Builder = {
           ~input,
           ~catch=(b, ~errorVar) => {
             b.code = `${errorVar}.path=${path->Stdlib.Inlined.Value.fromString}+${switch maybeDynamicLocationVar {
-              | Some(var) => `'["'+${var}+'"]'+`
+              | Some(var) => `'["'+${var}+'"]'+` // FIXME: Don't add "" for int var
               | _ => ""
               }}${errorVar}.path`
             None
@@ -2583,7 +2583,7 @@ module Tuple = {
       if items->Js.Array2.unsafe_get(idx)->Obj.magic->not {
         let schema = unit->toUnknown
         let location = idx->Js.Int.toString
-        let inlinedLocation = `"${location}"`
+        let inlinedLocation = location
         let item: item = {
           schema,
           location,
@@ -3337,10 +3337,9 @@ module Schema = {
       } else {
         let node = definition->(Obj.magic: unknown => dict<unknown>)
         let items = []
-        // let reversedItems = []
         let inlinedLocations = []
-        let fields = Js.Dict.empty() // TODO: Mutate node instead of creating a new dict
-        // let reversedFields = Js.Dict.empty()
+        let reversedItems = []
+        let reversedFields = Js.Dict.empty()
         let fieldNames = node->Js.Dict.keys
         let isTransformed = ref(false)
         for idx in 0 to fieldNames->Js.Array2.length - 1 {
@@ -3349,11 +3348,10 @@ module Schema = {
           let schema = node->Js.Dict.unsafeGet(location)->definitionToSchema
           let reversed = schema.reverse()
           items->Js.Array2.unsafe_set(idx, schema)
-          // reversedItems->Js.Array2.unsafe_set(idx, reversed)
           inlinedLocations->Js.Array2.unsafe_set(idx, inlinedLocation)
-          fields->Js.Dict.set(location, schema)
-
-          // reversedFields->Js.Dict.set(location, reversed)
+          reversedItems->Js.Array2.unsafe_set(idx, reversed)
+          reversedFields->Js.Dict.set(fieldNames->Js.Array2.unsafe_get(idx), reversed)
+          node->Js.Dict.set(location, schema->(Obj.magic: t<unknown> => unknown))
           if !isTransformed.contents && schema !== reversed {
             isTransformed := true
           }
@@ -3362,7 +3360,7 @@ module Schema = {
           ~name=Object.name,
           ~tagged=Object({
             fieldNames,
-            fields,
+            fields: node->(Obj.magic: dict<unknown> => dict<t<unknown>>),
             unknownKeys: globalConfig.defaultUnknownKeys,
           }),
           ~builder=builder(~items, ~inlinedLocations, ~isArray=false),
@@ -3374,11 +3372,10 @@ module Schema = {
                   ~name=Object.name,
                   ~tagged=Object({
                     fieldNames,
-                    // fields: reversedFields,
-                    fields,
+                    fields: reversedFields,
                     unknownKeys: globalConfig.defaultUnknownKeys,
                   }),
-                  ~builder=builder(~items, ~inlinedLocations, ~isArray=false),
+                  ~builder=builder(~items=reversedItems, ~inlinedLocations, ~isArray=false),
                   ~maybeTypeFilter=Some(Object.typeFilter),
                   ~metadataMap=Metadata.Map.empty,
                 )

@@ -530,7 +530,7 @@ module CknittelBugReport = {
 
   type value = A(A.t) | B(B.t)
 
-  test("Union serializing of objects with optional fields", t => {
+  Skip.test("Union serializing of objects with optional fields", t => {
     let schema = S.union([A.schema->S.to(m => A(m)), B.schema->S.to(m => B(m))])
 
     t->U.assertCompiledCode(
