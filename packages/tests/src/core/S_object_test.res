@@ -1283,21 +1283,7 @@ test(
 
 test("Reverse empty object schema to literal", t => {
   let schema = S.object(_ => ())
-  // t->U.assertEqualSchemas(schema->S.reverse, S.unit->S.toUnknown)
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
-})
-
-test("Failse to parse reversed object schema", t => {
-  let schema = S.object(_ => ())
-  t->Assert.throws(
-    () => {
-      let _ = ()->S.parseOrThrow(schema->S.reverse)
-    },
-    ~expectations={
-      message: "Failed parsing at root. Reason: Type validation mode is not supported. Use convert operation instead",
-    },
-    (),
-  )
+  t->U.assertEqualSchemas(schema->S.reverse, S.unit->S.toUnknown)
 })
 
 test("Compiles to async serialize operation with the sync object schema", t => {
@@ -1319,8 +1305,7 @@ test("Reverse tagged object to literal without payload", t => {
     s.tag("kind", "test")
     #Test
   })
-  // t->U.assertEqualSchemas(schema->S.reverse, S.literal(#Test)->S.toUnknown)
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+  t->U.assertEqualSchemas(schema->S.reverse, S.literal(#Test)->S.toUnknown)
 })
 
 test(
@@ -1339,8 +1324,7 @@ test("Reverse tagged object to primitive schema", t => {
     s.tag("kind", "test")
     s.field("field", S.bool)
   })
-  // t->U.assertEqualSchemas(schema->S.reverse, S.bool->S.toUnknown)
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+  t->U.assertEqualSchemas(schema->S.reverse, S.bool->S.toUnknown)
 })
 
 test(
@@ -1363,28 +1347,27 @@ test("Reverse with output of nested object/tuple schema", t => {
       },
     }
   })
-  // t->U.assertEqualSchemas(
-  //   schema->S.reverse,
-  //   S.object(s => {
-  //     let _ = s.field(
-  //       "nested",
-  //       S.object(
-  //         s => {
-  //           let _ = s.field(
-  //             "field",
-  //             S.tuple(
-  //               s => {
-  //                 let _ = s.item(0, S.bool)
-  //                 s.tag(1, true)
-  //               },
-  //             ),
-  //           )
-  //         },
-  //       ),
-  //     )
-  //   })->S.toUnknown,
-  // )
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown)
+  t->U.assertEqualSchemas(
+    schema->S.reverse,
+    S.object(s => {
+      let _ = s.field(
+        "nested",
+        S.object(
+          s => {
+            let _ = s.field(
+              "field",
+              S.tuple(
+                s => {
+                  let _ = s.item(0, S.bool)
+                  s.tag(1, true)
+                },
+              ),
+            )
+          },
+        ),
+      )
+    })->S.toUnknown,
+  )
 })
 
 test(
