@@ -1676,13 +1676,12 @@ function factory$4(definer) {
   for(var idx = 0; idx < length; ++idx){
     if (!items[idx]) {
       var $$location = idx.toString();
-      var inlinedLocation = "\"" + $$location + "\"";
-      var item_p = "[" + inlinedLocation + "]";
+      var item_p = "[" + $$location + "]";
       var item$1 = {
         t: unit,
         p: item_p,
         l: $$location,
-        i: inlinedLocation
+        i: $$location
       };
       schemas[idx] = unit;
       items[idx] = item$1;
@@ -2220,7 +2219,8 @@ function definitionToSchema(definition) {
   }
   var items$1 = [];
   var inlinedLocations$1 = [];
-  var fields = {};
+  var reversedItems$1 = [];
+  var reversedFields = {};
   var fieldNames = Object.keys(definition);
   var isTransformed$1 = false;
   for(var idx$1 = 0 ,idx_finish$1 = fieldNames.length; idx$1 < idx_finish$1; ++idx$1){
@@ -2230,7 +2230,9 @@ function definitionToSchema(definition) {
     var reversed$1 = schema$1["~r"]();
     items$1[idx$1] = schema$1;
     inlinedLocations$1[idx$1] = inlinedLocation;
-    fields[$$location] = schema$1;
+    reversedItems$1[idx$1] = reversed$1;
+    reversedFields[fieldNames[idx$1]] = reversed$1;
+    definition[$$location] = schema$1;
     if (!isTransformed$1 && schema$1 !== reversed$1) {
       isTransformed$1 = true;
     }
@@ -2239,15 +2241,15 @@ function definitionToSchema(definition) {
   return makeSchema(name, {
               TAG: "Object",
               fieldNames: fieldNames,
-              fields: fields,
+              fields: definition,
               unknownKeys: globalConfig.u
             }, empty, builder$2(items$1, inlinedLocations$1, false), typeFilter$1, isTransformed$1 ? (function () {
                   return makeReverseSchema(name, {
                               TAG: "Object",
                               fieldNames: fieldNames,
-                              fields: fields,
+                              fields: reversedFields,
                               unknownKeys: globalConfig.u
-                            }, empty, builder$2(items$1, inlinedLocations$1, false), typeFilter$1);
+                            }, empty, builder$2(reversedItems$1, inlinedLocations$1, false), typeFilter$1);
                 }) : toSelf);
 }
 

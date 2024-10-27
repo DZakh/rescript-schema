@@ -128,22 +128,24 @@ test("Tuple with embeded schema", t => {
   // S.schema does return i without tuple recreation
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#Parse),
-    `i=>{if(!Array.isArray(i)||i.length!==3){e[3](i)}let v0=i["0"],v1=i["1"],v2=i["2"];if(v2!=="bar"){e[2](v2)}if(v1!==undefined){e[1](v1)}if(typeof v0!=="string"){e[0](v0)}return i}`,
+    `i=>{if(!Array.isArray(i)||i.length!==3){e[3](i)}let v0=i[0],v1=i[1],v2=i[2];if(v2!=="bar"){e[2](v2)}if(v1!==undefined){e[1](v1)}if(typeof v0!=="string"){e[0](v0)}return i}`,
     (),
   )
   t->Assert.is(
     tupleSchema->U.getCompiledCodeString(~op=#Parse),
-    `i=>{if(!Array.isArray(i)||i.length!==3){e[3](i)}let v0=i["0"],v1=i["1"],v2=i["2"];if(v2!=="bar"){e[2](v2)}if(v1!==undefined){e[1](v1)}if(typeof v0!=="string"){e[0](v0)}return [v0,v1,v2,]}`,
+    `i=>{if(!Array.isArray(i)||i.length!==3){e[3](i)}let v0=i[0],v1=i[1],v2=i[2];if(v2!=="bar"){e[2](v2)}if(v1!==undefined){e[1](v1)}if(typeof v0!=="string"){e[0](v0)}return [v0,v1,v2,]}`,
     (),
   )
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#ReverseConvert),
-    `i=>{let v0=i["1"],v1=i["2"];if(v1!=="bar"){e[1](v1)}if(v0!==undefined){e[0](v0)}return i}`,
+    `i=>{let v0=i[1],v1=i[2];if(v1!=="bar"){e[1](v1)}if(v0!==undefined){e[0](v0)}return i}`,
     (),
   )
   t->Assert.is(
     tupleSchema->U.getCompiledCodeString(~op=#ReverseConvert),
-    `i=>{return [i["0"],i["1"],i["2"],]}`, // FIXME: validate literals for S.tuple schemas
+    // FIXME: validate literals for S.tuple schemas
+    // FIXME: Access using int instead of string
+    `i=>{return [i["0"],i["1"],i["2"],]}`,
     (),
   )
 })
@@ -164,7 +166,7 @@ test("Tuple with embeded transformed schema", t => {
   )
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#ReverseConvert),
-    `i=>{let v0=i["0"],v2=i["1"],v3=i["2"];if(v3!=="bar"){e[1](v3)}if(v2!==undefined){e[0](v2)}let v1;if(v0!==void 0){v1=v0}else{v1=null}return [v1,v2,v3,]}`,
+    `i=>{let v0=i[0],v2=i[1],v3=i[2];if(v3!=="bar"){e[1](v3)}if(v2!==undefined){e[0](v2)}let v1;if(v0!==void 0){v1=v0}else{v1=null}return [v1,v2,v3,]}`,
     (),
   )
   t->Assert.is(

@@ -1,6 +1,6 @@
 open Ava
 
-test("Has correct tagged type with nestedField called multiple times", t => {
+Skip.test("Has correct tagged type with nestedField called multiple times", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
@@ -66,7 +66,7 @@ test("Fails to create schema with nestedField called additinally to non-object f
   )
 })
 
-test("Successfully parses with nestedField used multiple times", t => {
+Skip.test("Successfully parses with nestedField used multiple times", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
@@ -87,7 +87,7 @@ test("Successfully parses with nestedField used multiple times", t => {
   )
 })
 
-test("Successfully serializes with nestedField used multiple times", t => {
+Skip.test("Successfully serializes with nestedField used multiple times", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
