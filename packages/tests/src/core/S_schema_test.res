@@ -82,7 +82,7 @@ test("Object with embeded transformed schema", t => {
   )
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#ReverseConvert),
-    `i=>{let v0=i["foo"],v1=i["zoo"];if(v0!=="bar"){e[0](v0)}let v2;if(v1!==void 0){v2=v1}else{v2=null}return {"foo":v0,"zoo":v2,}}`,
+    `i=>{let v0=i["foo"],v1=i["zoo"],v2;if(v0!=="bar"){e[0](v0)}if(v1!==void 0){v2=v1}else{v2=null}return {"foo":v0,"zoo":v2,}}`,
     (),
   )
   t->Assert.is(
@@ -166,7 +166,7 @@ test("Tuple with embeded transformed schema", t => {
   )
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#ReverseConvert),
-    `i=>{let v0=i[0],v2=i[1],v3=i[2];if(v3!=="bar"){e[1](v3)}if(v2!==undefined){e[0](v2)}let v1;if(v0!==void 0){v1=v0}else{v1=null}return [v1,v2,v3,]}`,
+    `i=>{let v0=i[0],v1,v2=i[1],v3=i[2];if(v3!=="bar"){e[1](v3)}if(v2!==undefined){e[0](v2)}if(v0!==void 0){v1=v0}else{v1=null}return [v1,v2,v3,]}`,
     (),
   )
   t->Assert.is(

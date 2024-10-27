@@ -171,7 +171,7 @@ test(
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=e[1]({"foo":v0,});if(typeof v0!=="string"){e[0](v0)}return v1["faz"]}`,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v1;let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}v1=e[1]({"foo":v0,});return v1["faz"]}`,
     )
   },
 )

@@ -1122,7 +1122,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["foo"],v1=i["bar"];if(v0!==12){e[0](v0)}if(!v1||v1.constructor!==Object){e[1](v1)}let v2=v1["baz"],v3;if(typeof v2!=="string"){e[2](v2)}v3={"baz":v2,};e[3](v3);return {"foo":v0,"bar":v3,}}`,
+      `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["foo"],v1=i["bar"],v3;if(v0!==12){e[0](v0)}if(!v1||v1.constructor!==Object){e[1](v1)}let v2=v1["baz"];if(typeof v2!=="string"){e[2](v2)}v3={"baz":v2,};e[3](v3);return {"foo":v0,"bar":v3,}}`,
     )
     t->U.assertCompiledCode(
       ~schema,
