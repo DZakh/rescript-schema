@@ -54,18 +54,6 @@ and tagged =
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
   | JSON({validated: bool})
-and item = {
-  @as("t")
-  schema: schema<unknown>,
-  @as("p")
-  path: Path.t,
-  @as("l")
-  location: string,
-  @as("i")
-  inlinedLocation: string,
-  @as("f")
-  fieldOf?: item,
-}
 and schema<'value> = t<'value>
 and flag
 and error = private {flag: flag, code: errorCode, path: Path.t}
