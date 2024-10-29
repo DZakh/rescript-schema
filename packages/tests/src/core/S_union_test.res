@@ -529,13 +529,13 @@ module CknittelBugReport = {
 
   type value = A(A.t) | B(B.t)
 
-  Skip.test("Union serializing of objects with optional fields", t => {
+  test("Union serializing of objects with optional fields", t => {
     let schema = S.union([A.schema->S.to(m => A(m)), B.schema->S.to(m => B(m))])
 
     t->U.assertCompiledCode(
       ~schema,
       ~op=#ReverseConvert,
-      `i=>{let v0=i;try{if(i["TAG"]!=="A"){e[0](i["TAG"])}v0={"payload":{"a":i["_0"]["payload"]["a"],},}}catch(e0){try{if(i["TAG"]!=="B"){e[1](i["TAG"])}v0={"payload":{"b":i["_0"]["payload"]["b"],},}}catch(e1){e[2]([e0,e1,])}}return v0}`,
+      `i=>{let v2=i;if(!i||i.constructor!==Object){e[3](i)}else{try{let v0=i["_0"],v1=v0["payload"];if(i["TAG"]!=="A"){e[0](i["TAG"])}v2={"payload":{"a":v1["a"],},}}catch(e0){try{let v3=i["_0"],v4=v3["payload"];if(i["TAG"]!=="B"){e[1](i["TAG"])}v2={"payload":{"b":v4["b"],},}}catch(e1){e[2]([e0,e1,])}}}return v2}`,
     )
 
     let x = {
