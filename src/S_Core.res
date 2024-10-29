@@ -52,9 +52,21 @@ module Stdlib = {
     @val external internalClass: Js.Types.obj_val => string = "Object.prototype.toString.call"
   }
 
+  module WeakMap = {
+    type t<'k, 'v> = Js.WeakMap.t<'k, 'v>
+
+    @new external make: unit => t<'k, 'v> = "WeakMap"
+
+    @send external getUnsafe: (t<'k, 'v>, 'k) => 'v = "get"
+    @send external set: (t<'k, 'v>, 'k, 'v) => t<'k, 'v> = "set"
+  }
+
   module Array = {
     @send
     external append: (array<'a>, 'a) => array<'a> = "concat"
+
+    @get_index
+    external unsafeGetOption: (array<'a>, int) => option<'a> = ""
 
     @inline
     let has = (array, idx) => {
@@ -2118,25 +2130,23 @@ module Object = {
     }
   }
 
-  @inline
-  let processInputItems = (
-    parentB: b,
-    ~outputs,
+  let builder = (~definition, ~items: array<item>, ~inlinedLocations, ~flattened=?) => (
+    parentB,
     ~input,
-    ~schemas,
+    ~selfSchema,
     ~path,
-    ~inlinedLocations,
-    ~unknownKeys,
   ) => {
-    let b = parentB->B.scope
+    let outputs = Stdlib.WeakMap.make()
+    let unknownKeys = (selfSchema->classify->Obj.magic)["unknownKeys"]
 
+    let b = parentB->B.scope
     let inputVar = b->B.Val.var(input)
     let typeFilters = ref("")
 
-    for idx in 0 to schemas->Js.Array2.length - 1 {
-      let schema = schemas->Js.Array2.unsafe_get(idx)
-      let inlinedLocation = inlinedLocations->Js.Array2.unsafe_get(idx)
-      let itemPath = inlinedLocation->Path.fromInlinedLocation
+    for idx in 0 to items->Js.Array2.length - 1 {
+      let item = items->Js.Array2.unsafe_get(idx)
+      let schema = item.schema
+      let itemPath = item.inlinedLocation->Path.fromInlinedLocation
 
       let itemInput = b->B.val(`${inputVar}${itemPath}`)
       let path = path->Path.concat(itemPath)
@@ -2153,29 +2163,36 @@ module Object = {
       | _ => ()
       }
 
-      addItemOutput(~outputs, inlinedLocation, b->B.parse(~schema, ~input=itemInput, ~path))
+      outputs->Stdlib.WeakMap.set(item, b->B.parse(~schema, ~input=itemInput, ~path))->ignore
     }
 
     b->objectStrictModeCheck(~input, ~inlinedLocations, ~unknownKeys, ~path)
 
-    b.code = typeFilters.contents ++ b.code
-    parentB.code = parentB.code ++ b->B.allocateScope
-  }
+    switch flattened {
+    | Some(items) =>
+      for idx in 0 to items->Js.Array2.length - 1 {
+        let item = items->Js.Array2.unsafe_get(idx)
+        outputs->Stdlib.WeakMap.set(item, b->B.parse(~schema=item.schema, ~input, ~path))->ignore
+      }
+    | None => ()
+    }
 
-  let builder = (~definition, ~schemas, ~inlinedLocations) => (b, ~input, ~selfSchema, ~path) => {
-    let outputs = Js.Dict.empty()
-    let unknownKeys = (selfSchema->classify->Obj.magic)["unknownKeys"]
-    b->processInputItems(~outputs, ~input, ~schemas, ~path, ~inlinedLocations, ~unknownKeys)
     let rec getItemOutput = item => {
       switch item {
       | {fieldOf: item, inlinedLocation} => b->B.Val.get(item->getItemOutput, inlinedLocation)
-      | _ => outputs->Js.Dict.unsafeGet(item.inlinedLocation)
+      | _ => outputs->Stdlib.WeakMap.getUnsafe(item)
       }
     }
-    b->definitionToOutput(
-      ~definition=definition->(Obj.magic: unknown => Definition.t<item>),
-      ~getItemOutput,
-    )
+    let output =
+      b->definitionToOutput(
+        ~definition=definition->(Obj.magic: unknown => Definition.t<item>),
+        ~getItemOutput,
+      )
+
+    b.code = typeFilters.contents ++ b.code
+    parentB.code = parentB.code ++ b->B.allocateScope
+
+    output
   }
 
   type serializeCtx = {@as("d") mutable discriminantCode: string}
@@ -2436,14 +2453,32 @@ module Object = {
       let inlinedLocations = []
       let fields = Js.Dict.empty()
       let schemas = []
+      let items = []
+      let flattened = []
 
       let ctx = {
         let flatten = schema => {
-          // if schema.definer->Obj.magic {
-          //   (schema.definer->Obj.magic)(%raw(`this`))
-          // } else {
-          InternalError.panic(`The ${schema.name()} schema can't be flattened`)
-          // }
+          let schema = schema->toUnknown
+          switch schema.tagged {
+          | Object({fieldNames: flattenedFieldNames, fields: flattenedFields}) =>
+            for idx in 0 to flattenedFieldNames->Js.Array2.length - 1 {
+              let flattenedFieldName = flattenedFieldNames->Js.Array2.unsafe_get(idx)
+              // FIXME: What if the field name already exists
+              fieldNames->Js.Array2.push(flattenedFieldName)->ignore
+              fields->Js.Dict.set(
+                flattenedFieldName,
+                flattenedFields->Js.Dict.unsafeGet(flattenedFieldName),
+              )
+            }
+            let item = {
+              inlinedLocation: "",
+              // FIXME: Strict mode schema
+              schema,
+            }
+            flattened->Js.Array2.push(item)->ignore
+            item->proxify
+          | _ => InternalError.panic(`The ${schema.name()} schema can't be flattened`)
+          }
         }
 
         let field:
@@ -2476,6 +2511,7 @@ module Object = {
                 fieldNames->Js.Array2.push(fieldName)->ignore
                 inlinedLocations->Js.Array2.push(inlinedLocation)->ignore
                 schemas->Js.Array2.push(schema)->ignore
+                items->Js.Array2.push(item)->ignore
                 // if schema.definer->Obj.magic {
                 //   schema->getOutputDefinition->(Obj.magic: unknown => value)
                 // } else {
@@ -2536,7 +2572,7 @@ module Object = {
           fields,
           unknownKeys: globalConfig.defaultUnknownKeys,
         }),
-        builder: builder(~definition, ~schemas, ~inlinedLocations),
+        builder: builder(~definition, ~items, ~inlinedLocations, ~flattened),
         isAsyncSchema: Unknown,
         maybeTypeFilter: Some(typeFilter),
         name,
@@ -2588,8 +2624,7 @@ module Tuple = {
   }
 
   let factory = definer => {
-    let schemas = []
-    let inlinedLocations = []
+    let items = []
 
     let ctx: s = {
       let item:
@@ -2597,15 +2632,14 @@ module Tuple = {
         (idx, schema) => {
           let schema = schema->toUnknown
           let inlinedLocation = idx->Js.Int.toString
-          if schemas->Stdlib.Array.has(idx) {
-            InternalError.panic(`The item ${inlinedLocation} is defined multiple times`)
+          if items->Stdlib.Array.has(idx) {
+            InternalError.panic(`The item [${inlinedLocation}] is defined multiple times`)
           } else {
             let item: item = {
               schema,
               inlinedLocation,
             }
-            schemas->Js.Array2.unsafe_set(idx, schema)
-            inlinedLocations->Js.Array2.unsafe_set(idx, inlinedLocation)
+            items->Js.Array2.unsafe_set(idx, item)
             item->Object.proxify
           }
         }
@@ -2621,14 +2655,23 @@ module Tuple = {
     }
     let definition = definer((ctx :> s))->(Obj.magic: 'any => unknown)
 
-    let length = schemas->Js.Array2.length
+    let length = items->Js.Array2.length
+    let inlinedLocations = Belt.Array.makeUninitializedUnsafe(length)
+    let schemas = Belt.Array.makeUninitializedUnsafe(length)
+
     for idx in 0 to length - 1 {
-      if schemas->Js.Array2.unsafe_get(idx)->Obj.magic->not {
-        let schema = unit->toUnknown
-        let inlinedLocation = idx->Js.Int.toString
-        schemas->Js.Array2.unsafe_set(idx, schema)
-        inlinedLocations->Js.Array2.unsafe_set(idx, inlinedLocation)
+      let item = switch items->Stdlib.Array.unsafeGetOption(idx) {
+      | Some(item) => item
+      | None =>
+        let item: item = {
+          schema: unit->toUnknown,
+          inlinedLocation: idx->Js.Int.toString,
+        }
+        items->Js.Array2.unsafe_set(idx, item)
+        item
       }
+      schemas->Js.Array2.unsafe_set(idx, item.schema)
+      inlinedLocations->Js.Array2.unsafe_set(idx, item.inlinedLocation)
     }
 
     makeSchema(
@@ -2636,7 +2679,7 @@ module Tuple = {
       ~tagged=Tuple({
         items: schemas,
       }),
-      ~builder=Object.builder(~definition, ~schemas, ~inlinedLocations),
+      ~builder=Object.builder(~definition, ~items, ~inlinedLocations),
       ~maybeTypeFilter=Some(Object.tupleTypeFilter(~length)),
       ~metadataMap=Metadata.Map.empty,
       ~reverse=Object.reverse(~definition, ~schemas, ~inlinedLocations, ~kind=#Array),
