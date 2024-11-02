@@ -70,7 +70,7 @@ test("Fails to parse tuple with holes", t => {
     {
       code: InvalidType({expected: S.literal(None)->S.toUnknown, received: %raw(`"smth"`)}),
       operation: Parse,
-      path: S.Path.fromLocation(1->Obj.magic),
+      path: S.Path.fromLocation("1"),
     },
   )
 })
@@ -93,7 +93,7 @@ test("Reverse convert of tuple schema with single item registered multiple times
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0=i["item1"],v1=i["item2"];if(v0!==v1){e[0]()}return [v0,]}`,
+    `i=>{let v0=i["item1"];if(v0!==i["item2"]){e[0]()}return [v0,]}`,
   )
 
   t->Assert.deepEqual(
@@ -105,10 +105,10 @@ test("Reverse convert of tuple schema with single item registered multiple times
     () => {"item1": "foo", "item2": "foz"}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
-        description: `Multiple sources provided not equal data for 0`,
+        description: `Another source for the field ["0"] has conflicting data`,
       }),
       operation: ReverseConvert,
-      path: S.Path.empty,
+      path: S.Path.fromArray(["item2"]),
     },
   )
 })
@@ -123,7 +123,7 @@ test(`Fails to serialize tuple with discriminant "Never"`, t => {
     () => "bar"->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
-        description: `Schema for 0 isn\'t registered`,
+        description: `Schema for "0" isn\'t registered`,
       }),
       operation: ReverseConvert,
       path: S.Path.empty,
@@ -149,7 +149,7 @@ test(`Fails to serialize tuple with discriminant "Never" inside of an object (te
     () => {"foo": "bar"}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
-        description: `Schema for 0 isn\'t registered`,
+        description: `Schema for "0" isn\'t registered`,
       }),
       operation: ReverseConvert,
       path: S.Path.fromLocation(`foo`),
@@ -194,7 +194,7 @@ test("Fails to create tuple schema with single item defined multiple times", t =
       )
     },
     ~expectations={
-      message: `[rescript-schema] The item [0] is defined multiple times`,
+      message: `[rescript-schema] The item ["0"] is defined multiple times`,
     },
     (),
   )
@@ -235,7 +235,7 @@ test("Tuple schema parsing checks order", t => {
     {
       code: InvalidType({expected: S.literal("value")->S.toUnknown, received: %raw(`"wrong"`)}),
       operation: Parse,
-      path: S.Path.fromLocation(1->Obj.magic),
+      path: S.Path.fromLocation("1"),
     },
   )
   // Field check should be the last
@@ -244,7 +244,7 @@ test("Tuple schema parsing checks order", t => {
     {
       code: InvalidType({expected: S.string->S.toUnknown, received: %raw(`1`)}),
       operation: Parse,
-      path: S.Path.fromLocation(0->Obj.magic),
+      path: S.Path.fromLocation("0"),
     },
   )
   // Parses valid
@@ -271,7 +271,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i[0],v1=i[1];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return [v0,v1,]}`,
+      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i["0"],v1=i["1"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return [v0,v1,]}`,
     )
   })
 
@@ -284,7 +284,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i[1];if(typeof v0!=="boolean"){e[1](v0)}return Promise.all([e[0](i[0]),]).then(a=>([a[0],v0,]))}`,
+      `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i["1"];if(typeof v0!=="boolean"){e[1](v0)}return Promise.all([e[0](i["0"]),]).then(a=>([a[0],v0,]))}`,
     )
   })
 
@@ -320,7 +320,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#Parse,
-        `i=>{if(!Array.isArray(i)||i.length!==3){e[4](i)}let v0=i[0],v1=i[1],v2=i[2];if(v0!==0){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}return {"foo":v1,"bar":v2,"zoo":e[3],}}`,
+        `i=>{if(!Array.isArray(i)||i.length!==3){e[4](i)}let v0=i["0"],v1=i["1"],v2=i["2"];if(v0!==0){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}return {"foo":v1,"bar":v2,"zoo":e[3],}}`,
       )
     },
   )
@@ -340,7 +340,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#ReverseConvert,
-        `i=>{if(i["zoo"]!==1){e[0](i["zoo"])}return [e[1],i["foo"],i["bar"],]}`,
+        `i=>{let v0=i["zoo"];if(v0!==1){e[0](v0)}return [e[1],i["foo"],i["bar"],]}`,
       )
     },
   )

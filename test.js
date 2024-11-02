@@ -1,30 +1,26 @@
 (i) => {
-  let v0 = i;
   if (!i || i.constructor !== Object) {
-    e[7](i);
-  } else {
-    try {
-      if (i["TAG"] !== "Circle") {
-        e[0](i["TAG"]);
-      }
-      v0 = { kind: e[1], radius: i["radius"] };
-    } catch (e0) {
-      try {
-        if (i["TAG"] !== "Square") {
-          e[2](i["TAG"]);
-        }
-        v0 = { kind: e[3], x: i["x"] };
-      } catch (e1) {
-        try {
-          if (i["TAG"] !== "Triangle") {
-            e[4](i["TAG"]);
-          }
-          v0 = { kind: e[5], x: i["x"], y: i["y"] };
-        } catch (e2) {
-          e[6]([e0, e1, e2]);
-        }
-      }
-    }
+    e[5](i);
   }
-  return v0;
+  let v0 = i["foo"],
+    v1 = i["obj"],
+    v2 = i["obj"]["foo"],
+    v3 = i["tuple"],
+    v4 = i["tuple"]["0"];
+  if (v0 !== 1) {
+    e[0](v0);
+  }
+  if (!v1 || v1.constructor !== Object) {
+    e[1](v1);
+  }
+  if (v2 !== 2) {
+    e[2](v2);
+  }
+  if (!Array.isArray(v3)) {
+    e[3](v3);
+  }
+  if (v4 !== 3) {
+    e[4](v4);
+  }
+  return { bar: i["obj"]["bar"], baz: i["tuple"]["1"] };
 };
