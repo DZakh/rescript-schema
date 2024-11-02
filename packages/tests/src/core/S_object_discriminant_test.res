@@ -373,16 +373,32 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
   )
 })
 
-test(`Serializes constant fields before registered fields`, t => {
+test(`Serializes constant fields before registered non-literal fields`, t => {
   let schema = S.object(s => {
     {
-      "field": s.field("field", S.literal(true)),
+      "literalField": s.field("field", S.literal(true)),
       "constant": true,
     }
   })
 
   t->U.assertRaised(
-    () => {"constant": false, "field": false}->S.reverseConvertOrThrow(schema),
+    () => {"constant": false, "literalField": false}->S.reverseConvertOrThrow(schema),
+    {
+      code: InvalidType({expected: S.literal(true)->S.toUnknown, received: Obj.magic(false)}),
+      operation: ReverseConvert,
+      path: S.Path.fromArray(["literalField"]),
+    },
+  )
+
+  let schema = S.object(s => {
+    {
+      "boolField": s.field("field", S.bool),
+      "constant": true,
+    }
+  })
+
+  t->U.assertRaised(
+    () => {"constant": false, "boolField": false}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidType({expected: S.literal(true)->S.toUnknown, received: Obj.magic(false)}),
       operation: ReverseConvert,
