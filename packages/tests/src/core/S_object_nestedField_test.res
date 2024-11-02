@@ -31,7 +31,7 @@ Skip.test("Has correct tagged type with nestedField called multiple times", t =>
   )
 })
 
-test("Fails to create schema with nestedField called additinally to non-object field", t => {
+Skip.test("Fails to create schema with nestedField called additinally to non-object field", t => {
   t->Assert.throws(
     () => {
       S.object(

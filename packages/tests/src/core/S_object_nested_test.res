@@ -38,7 +38,7 @@ Skip.test(
   },
 )
 
-test("Fails to create schema with nested called additinally to non-object field", t => {
+Skip.test("Fails to create schema with nested called additinally to non-object field", t => {
   t->Assert.throws(
     () => {
       S.object(

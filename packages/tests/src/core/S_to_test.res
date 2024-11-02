@@ -66,7 +66,7 @@ test("Fails to serialize when the value is not used as the variant payload", t =
     () => #foo->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
-        description: `Schema for "" isn\'t registered`,
+        description: `Schema isn\'t registered`,
       }),
       operation: ReverseConvert,
       path: S.Path.empty,
@@ -204,7 +204,7 @@ test("Reverse convert with value registered multiple times", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0=i["VAL"]["0"],v1=i["VAL"]["1"];if(i["NAME"]!=="Foo"){e[0](i["NAME"])}if(v0!==v1){e[1]()}return v0}`,
+    `i=>{let v0=i["NAME"],v1=i["VAL"]["0"];if(v0!=="Foo"){e[0](v0)}if(v1!==i["VAL"]["1"]){e[1]()}return v1}`,
   )
 
   t->Assert.deepEqual(#Foo("abc", "abc")->S.reverseConvertOrThrow(schema), %raw(`"abc"`), ())
@@ -212,10 +212,10 @@ test("Reverse convert with value registered multiple times", t => {
     () => #Foo("abc", "abcd")->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
-        description: `Multiple sources provided not equal data for ""`,
+        description: `Another source has conflicting data`,
       }),
       operation: ReverseConvert,
-      path: S.Path.empty,
+      path: S.Path.fromArray(["VAL", "1"]),
     },
   )
 })
@@ -249,7 +249,7 @@ test("Compiled code snapshot of variant applied to object", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0=i["_0"];if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return {"foo":v0,}}`,
+    `i=>{let v0=i["TAG"],v1=i["_0"];if(v0!=="Ok"){e[0](v0)}return {"foo":v1,}}`,
   )
 })
 
@@ -275,7 +275,7 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return i["_0"]}`,
+    `i=>{let v0=i["TAG"];if(v0!=="Ok"){e[0](v0)}return i["_0"]}`,
   )
 })
 
@@ -353,7 +353,7 @@ test("Reverse convert tuple turned to Ok", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0=i["_0"];if(i["TAG"]!=="Ok"){e[0](i["TAG"])}return v0}`,
+    `i=>{let v0=i["TAG"],v1=i["_0"];if(v0!=="Ok"){e[0](v0)}return v1}`,
   )
 })
 

@@ -19,6 +19,7 @@ type taggedFlag =
   | Parse
   | ParseAsync
   | ReverseConvertToJson
+  | ReverseParse
   | ReverseConvert
   | Assert
 
@@ -30,6 +31,7 @@ let error = ({operation, code, path}: errorPayload): S.error => {
     ~code,
     ~flag=switch operation {
     | Parse => S.Flag.typeValidation
+    | ReverseParse => S.Flag.reverse->S.Flag.with(S.Flag.typeValidation)
     | ReverseConvertToJson => S.Flag.reverse->S.Flag.with(S.Flag.jsonableOutput)
     | ReverseConvert => S.Flag.reverse
     | ParseAsync => S.Flag.typeValidation->S.Flag.with(S.Flag.async)
@@ -74,6 +76,7 @@ let getCompiledCodeString = (
     | #ParseAsync
     | #ReverseConvertAsync
     | #ReverseConvert
+    | #ReverseParse
     | #Assert
     | #ReverseConvertToJson
   ],
@@ -92,6 +95,10 @@ let getCompiledCodeString = (
     | #Assert =>
       let fn = schema->S.compile(~input=Any, ~output=Assert, ~mode=Sync, ~typeValidation=true)
       fn->magic
+    | #ReverseParse => {
+        let fn = schema->S.compile(~input=Value, ~output=Unknown, ~mode=Sync, ~typeValidation=true)
+        fn->magic
+      }
     | #ReverseConvert => {
         let fn = schema->S.compile(~input=Value, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
         fn->magic
