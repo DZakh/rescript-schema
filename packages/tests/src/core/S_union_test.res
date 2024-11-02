@@ -422,7 +422,7 @@ module Advanced = {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
       ~op=#ReverseConvert,
-      `i=>{let v0=i;if(!i||i.constructor!==Object){e[7](i)}else{try{if(i["TAG"]!=="Circle"){e[0](i["TAG"])}v0={"kind":e[1],"radius":i["radius"],}}catch(e0){try{if(i["TAG"]!=="Square"){e[2](i["TAG"])}v0={"kind":e[3],"x":i["x"],}}catch(e1){try{if(i["TAG"]!=="Triangle"){e[4](i["TAG"])}v0={"kind":e[5],"x":i["x"],"y":i["y"],}}catch(e2){e[6]([e0,e1,e2,])}}}}return v0}`,
+      `i=>{let v1=i;if(!i||i.constructor!==Object){e[7](i)}else{try{let v0=i["TAG"];if(v0!=="Circle"){e[0](v0)}v1={"kind":e[1],"radius":i["radius"],}}catch(e0){try{let v2=i["TAG"];if(v2!=="Square"){e[2](v2)}v1={"kind":e[3],"x":i["x"],}}catch(e1){try{let v3=i["TAG"];if(v3!=="Triangle"){e[4](v3)}v1={"kind":e[5],"x":i["x"],"y":i["y"],}}catch(e2){e[6]([e0,e1,e2,])}}}}return v1}`,
     )
   })
 }
@@ -535,7 +535,7 @@ module CknittelBugReport = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#ReverseConvert,
-      `i=>{let v2=i;if(!i||i.constructor!==Object){e[3](i)}else{try{let v0=i["_0"],v1=v0["payload"];if(i["TAG"]!=="A"){e[0](i["TAG"])}v2={"payload":{"a":v1["a"],},}}catch(e0){try{let v3=i["_0"],v4=v3["payload"];if(i["TAG"]!=="B"){e[1](i["TAG"])}v2={"payload":{"b":v4["b"],},}}catch(e1){e[2]([e0,e1,])}}}return v2}`,
+      `i=>{let v3=i;if(!i||i.constructor!==Object){e[3](i)}else{try{let v0=i["TAG"],v1=i["_0"],v2=v1["payload"];if(v0!=="A"){e[0](v0)}v3={"payload":{"a":v2["a"],},}}catch(e0){try{let v4=i["TAG"],v5=i["_0"],v6=v5["payload"];if(v4!=="B"){e[1](v4)}v3={"payload":{"b":v6["b"],},}}catch(e1){e[2]([e0,e1,])}}}return v3}`,
     )
 
     let x = {
@@ -625,17 +625,10 @@ module CrazyUnion = {
 
   test("Compiled serialize code snapshot of crazy union", t => {
     S.setGlobalConfig({})
-    t->U.assertCompiledCode(
-      ~schema,
-      ~op=#ReverseConvert,
-      `i=>{let r0=i=>{let v5=i;if(!i||i.constructor!==Object){if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){e[5](i)}}}}}}}}}}}}}}}}}}}}}}}}}else{try{let v0=i["_0"],v4=[];if(i["TAG"]!=="A"){e[0](i["TAG"])}for(let v1=0;v1<v0.length;++v1){let v3;try{v3=r0(v0[v1])}catch(v2){if(v2&&v2.s===s){v2.path="[\\"_0\\"]"+\'["\'+v1+\'"]\'+v2.path}throw v2}v4.push(v3)}v5={"type":e[1],"nested":v4,}}catch(e0){try{let v6=i["_0"],v10=[];if(i["TAG"]!=="Z"){e[2](i["TAG"])}for(let v7=0;v7<v6.length;++v7){let v9;try{v9=r0(v6[v7])}catch(v8){if(v8&&v8.s===s){v8.path="[\\"_0\\"]"+\'["\'+v7+\'"]\'+v8.path}throw v8}v10.push(v9)}v5={"type":e[3],"nested":v10,}}catch(e1){e[4]([e0,e1,])}}}return v5};return r0(i)}`,
-    )
+    let code = `i=>{let r0=i=>{let v6=i;if(!i||i.constructor!==Object){if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){e[5](i)}}}}}}}}}}}}}}}}}}}}}}}}}else{try{let v0=i["TAG"],v1=i["_0"],v5=[];if(v0!=="A"){e[0](v0)}for(let v2=0;v2<v1.length;++v2){let v4;try{v4=r0(v1[v2])}catch(v3){if(v3&&v3.s===s){v3.path="[\\"_0\\"]"+\'["\'+v2+\'"]\'+v3.path}throw v3}v5.push(v4)}v6={"type":e[1],"nested":v5,}}catch(e0){try{let v7=i["TAG"],v8=i["_0"],v12=[];if(v7!=="Z"){e[2](v7)}for(let v9=0;v9<v8.length;++v9){let v11;try{v11=r0(v8[v9])}catch(v10){if(v10&&v10.s===s){v10.path="[\\"_0\\"]"+\'["\'+v9+\'"]\'+v10.path}throw v10}v12.push(v11)}v6={"type":e[3],"nested":v12,}}catch(e1){e[4]([e0,e1,])}}}return v6};return r0(i)}`
+    t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
     // There was an issue with reverse when it doesn't return the same code on second run
-    t->U.assertCompiledCode(
-      ~schema,
-      ~op=#ReverseConvert,
-      `i=>{let r0=i=>{let v5=i;if(!i||i.constructor!==Object){if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){e[5](i)}}}}}}}}}}}}}}}}}}}}}}}}}else{try{let v0=i["_0"],v4=[];if(i["TAG"]!=="A"){e[0](i["TAG"])}for(let v1=0;v1<v0.length;++v1){let v3;try{v3=r0(v0[v1])}catch(v2){if(v2&&v2.s===s){v2.path="[\\"_0\\"]"+\'["\'+v1+\'"]\'+v2.path}throw v2}v4.push(v3)}v5={"type":e[1],"nested":v4,}}catch(e0){try{let v6=i["_0"],v10=[];if(i["TAG"]!=="Z"){e[2](i["TAG"])}for(let v7=0;v7<v6.length;++v7){let v9;try{v9=r0(v6[v7])}catch(v8){if(v8&&v8.s===s){v8.path="[\\"_0\\"]"+\'["\'+v7+\'"]\'+v8.path}throw v8}v10.push(v9)}v5={"type":e[3],"nested":v10,}}catch(e1){e[4]([e0,e1,])}}}return v5};return r0(i)}`,
-    )
+    t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
   })
 }
 

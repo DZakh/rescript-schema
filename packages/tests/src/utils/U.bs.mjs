@@ -30,6 +30,9 @@ function error(param) {
     case "ReverseConvertToJson" :
         tmp = S$RescriptSchema.Flag.reverse | S$RescriptSchema.Flag.jsonableOutput;
         break;
+    case "ReverseParse" :
+        tmp = S$RescriptSchema.Flag.reverse | S$RescriptSchema.Flag.typeValidation;
+        break;
     case "ReverseConvert" :
         tmp = S$RescriptSchema.Flag.reverse;
         break;
@@ -96,7 +99,9 @@ function getCompiledCodeString(schema, op) {
               ) : (
                 op === "ReverseConvertToJson" ? S$RescriptSchema.compile(schema, "Value", "Json", "Sync", false) : (
                     op === "ReverseConvert" ? S$RescriptSchema.compile(schema, "Value", "Unknown", "Sync", false) : (
-                        op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : S$RescriptSchema.compile(schema, "Value", "Unknown", "Async", false)
+                        op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : (
+                            op === "ReverseParse" ? S$RescriptSchema.compile(schema, "Value", "Unknown", "Sync", true) : S$RescriptSchema.compile(schema, "Value", "Unknown", "Async", false)
+                          )
                       )
                   )
               )
