@@ -176,22 +176,30 @@ test(
   },
 )
 
-// FIXME: Throw in proxy (???)
-test("BROKEN: Fails to serialize when tuple is destructured", t => {
+test("Reverse convert of tagged tuple with destructured literal", t => {
   let schema = S.tuple2(S.literal(true), S.literal(12))->S.to(((_, twelve)) => twelve)
 
   t->U.assertEqualSchemas(schema->S.reverse, S.literal(12)->S.toUnknown)
 
-  // t->Assert.deepEqual(12->S.reverseConvertOrThrow(schema), Ok(%raw(`[true, 12]`)), ())
-  t->Assert.throws(
-    () => {
-      12->S.reverseConvertOrThrow(schema)
-    },
-    ~expectations={
-      message: `[rescript-schema] Destructuring of items is not supported`,
-    },
-    (),
-  )
+  t->Assert.deepEqual(12->S.reverseConvertOrThrow(schema), %raw(`[true, 12]`), ())
+
+  // FIXME: Can be improved
+  let code = `i=>{if(i!==12){e[4](i)}let v0=[e[0],e[1],];let v1=v0["0"],v2=v0["1"];if(v2!==12){e[3](v2)}if(v1!==true){e[2](v1)}return v0}`
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
+  t->U.assertCompiledCode(~schema, ~op=#ReverseParse, code)
+})
+
+test("Reverse convert of tagged tuple with destructured bool", t => {
+  let schema = S.tuple2(S.literal(true), S.bool)->S.to(((_, item)) => item)
+
+  t->U.assertEqualSchemas(schema->S.reverse, S.bool->S.toUnknown)
+
+  t->Assert.deepEqual(false->S.reverseConvertOrThrow(schema), %raw(`[true, false]`), ())
+
+  // FIXME: Can be improved
+  let code = `i=>{if(i!==12){e[4](i)}let v0=[e[0],e[1],];let v1=v0["0"],v2=v0["1"];if(v2!==12){e[3](v2)}if(v1!==true){e[2](v1)}return v0}`
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
+  t->U.assertCompiledCode(~schema, ~op=#ReverseParse, code)
 })
 
 test("Successfully parses when value registered multiple times", t => {
