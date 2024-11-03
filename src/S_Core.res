@@ -404,8 +404,11 @@ module Flag = {
   @inline let jsonableOutput = 8
   @inline let jsonStringOutput = 16
   @inline let reverse = 32
+  @inline let skipDiscriminant = 64
 
   external with: (flag, flag) => flag = "%orint"
+  @inline
+  let without = (flags, flag) => flags->with(flag)->lxor(flag)
 
   let unsafeHas = (acc: flag, flag) => acc->land(flag)->(Obj.magic: int => bool)
   let has = (acc: flag, flag) => acc->land(flag) !== 0
@@ -2206,7 +2209,8 @@ module Object = {
           let path = path->Path.concat(itemPath)
 
           switch schema.maybeTypeFilter {
-          | Some(typeFilter) if schema->isLiteralSchema =>
+          | Some(typeFilter)
+            if schema->isLiteralSchema && !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant)) =>
             // Check literal fields first, because they are most often used as discriminants
             typeFilters :=
               b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path) ++
@@ -2288,12 +2292,19 @@ module Object = {
           },
         )
       }
-      b->B.parse(~schema=reversed, ~input=reversedInput, ~path)
+      let prevFlag = b.global.flag
+      b.global.flag = prevFlag->Flag.without(Flag.typeValidation)->Flag.with(Flag.skipDiscriminant)
+      let output = b->B.parse(~schema=reversed, ~input=reversedInput, ~path)
+      b.global.flag = prevFlag
+      output
     }
+
+    @inline
     let getUnregistered = item => {
       // It's fine to use getUnsafeItemSchema here, because this will never be called on ItemField
       reversedToOutput((item->getUnsafeItemSchema).reverse(), ~originalPath=item->getItemPath)
     }
+
     let schemaOutput = (~items, ~isArray) => {
       let objectVal = b->B.Val.Object.make(~isArray)
       for idx in 0 to items->Js.Array2.length - 1 {
@@ -2457,13 +2468,13 @@ module Object = {
       b.code = ""
       let typeFilters = ref("")
 
-      let inputVar = b->B.Val.var(input)
-
       switch ritem {
       | Registred({item, reversed}) =>
+        let itemOutput = b->B.parse(~schema=reversed, ~input, ~path)
         outputs
-        ->Stdlib.WeakMap.set(item, b->B.parse(~schema=reversed, ~input, ~path))
+        ->Stdlib.WeakMap.set(item, itemOutput)
         ->ignore
+        outputsByPath->Js.Dict.set(item->getItemPath, itemOutput)->ignore
       | _ => ()
       }
 
@@ -2484,7 +2495,7 @@ module Object = {
         //     ~path,
         //   )
         | Discriminant({reversed, path: ritemPath}) => {
-            let itemInput = b->B.val(`${inputVar}${ritemPath}`)
+            let itemInput = b->B.val(`${b->B.Val.var(input)}${ritemPath}`)
             let path = path->Path.concat(ritemPath)
             typeFilters :=
               typeFilters.contents ++
@@ -2497,7 +2508,7 @@ module Object = {
           }
         | Registred({item, reversed, path: ritemPath}) =>
           let itemPath = item->getItemPath // FIXME: This is incorrect for nested ItemField
-          let itemInput = b->B.val(`${inputVar}${ritemPath}`)
+          let itemInput = b->B.val(`${b->B.Val.var(input)}${ritemPath}`)
           let path = path->Path.concat(ritemPath)
           switch outputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
           | Some(embededOutput) => {
@@ -2515,7 +2526,9 @@ module Object = {
 
           | None => {
               switch reversed.maybeTypeFilter {
-              | Some(typeFilter) if reversed->isLiteralSchema =>
+              | Some(typeFilter)
+                if reversed->isLiteralSchema &&
+                  !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant)) =>
                 // Check literal fields first, because they are most often used as discriminants
                 typeFilters :=
                   b->B.typeFilterCode(~schema=reversed, ~typeFilter, ~input=itemInput, ~path) ++
@@ -2924,8 +2937,8 @@ module JsonString = {
           ~tagged=reversed.tagged,
           ~metadataMap=reversed.metadataMap,
           ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-            let prevOperation = b.global.flag
-            b.global.flag = prevOperation->Flag.with(Flag.jsonableOutput)
+            let prevFlag = b.global.flag
+            b.global.flag = prevFlag->Flag.with(Flag.jsonableOutput)
             if reversed.tagged->unsafeGetVarianTag === "Option" {
               b->B.raise(~code=InvalidJsonSchema(reversed), ~path=Path.empty)
             }
@@ -2935,7 +2948,7 @@ module JsonString = {
                     ? `,null,${space->Stdlib.Int.unsafeToString}`
                     : ""})`,
               )
-            b.global.flag = prevOperation
+            b.global.flag = prevFlag
             output
           }),
           ~maybeTypeFilter=reversed.maybeTypeFilter,
@@ -3405,7 +3418,8 @@ module Schema = {
       let path = path->Path.concat(itemPath)
 
       switch schema.maybeTypeFilter {
-      | Some(typeFilter) if schema->isLiteralSchema =>
+      | Some(typeFilter)
+        if schema->isLiteralSchema && !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant)) =>
         // Check literal fields first, because they are most often used as discriminants
         typeFilters :=
           b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path) ++ typeFilters.contents
