@@ -106,6 +106,11 @@ module Positive = {
       }`),
       (),
     ),
+    TestData.make(
+      ~discriminantSchema=S.tuple2(S.literal(false), S.literal("bar")),
+      ~discriminantData=%raw(`[false, "bar"]`),
+      (),
+    ),
   ]->Array.forEach(testData => {
     test(
       `Successfully parses object with discriminant "${testData.discriminantSchema->S.name}"${testData.testNamePostfix}`,
@@ -161,13 +166,14 @@ module Negative = {
       discriminantSchema: S.t<unknown>,
       discriminantData: unknown,
       testNamePostfix: string,
+      path: S.Path.t,
     }
 
     let make = (
       ~discriminantSchema: S.t<'value>,
       ~discriminantData: 'any,
       ~description as maybeDescription=?,
-      (),
+      ~path=S.Path.empty,
     ) => {
       discriminantSchema: discriminantSchema->Obj.magic,
       discriminantData: discriminantData->Obj.magic,
@@ -175,42 +181,32 @@ module Negative = {
       | Some(description) => ` ${description}`
       | None => ""
       },
+      path,
     }
   }
 
   [
-    TestData.make(~discriminantSchema=S.string, ~discriminantData="foo", ()),
-    TestData.make(~discriminantSchema=S.int, ~discriminantData=123, ()),
-    TestData.make(~discriminantSchema=S.float, ~discriminantData=123., ()),
-    TestData.make(~discriminantSchema=S.bool, ~discriminantData=true, ()),
-    TestData.make(~discriminantSchema=S.option(S.literal(true)), ~discriminantData=None, ()),
-    TestData.make(~discriminantSchema=S.null(S.literal(true)), ~discriminantData=%raw(`null`), ()),
-    TestData.make(~discriminantSchema=S.unknown, ~discriminantData="anything", ()),
-    TestData.make(~discriminantSchema=S.array(S.literal(true)), ~discriminantData=[true, true], ()),
+    TestData.make(~discriminantSchema=S.string, ~discriminantData="foo"),
+    TestData.make(~discriminantSchema=S.int, ~discriminantData=123),
+    TestData.make(~discriminantSchema=S.float, ~discriminantData=123.),
+    TestData.make(~discriminantSchema=S.bool, ~discriminantData=true),
+    TestData.make(~discriminantSchema=S.option(S.literal(true)), ~discriminantData=None),
+    TestData.make(~discriminantSchema=S.null(S.literal(true)), ~discriminantData=%raw(`null`)),
+    TestData.make(~discriminantSchema=S.unknown, ~discriminantData="anything"),
+    TestData.make(~discriminantSchema=S.array(S.literal(true)), ~discriminantData=[true, true]),
     TestData.make(
       ~discriminantSchema=S.dict(S.literal(true)),
       ~discriminantData=Dict.fromArray([("foo", true), ("bar", true)]),
-      (),
     ),
     TestData.make(
       ~discriminantSchema=S.tuple2(S.literal(true), S.bool),
       ~discriminantData=(true, false),
-      (),
+      ~path=S.Path.fromLocation("1"),
     ),
-    TestData.make(
-      ~discriminantSchema=S.union([S.bool, S.literal(false)]),
-      ~discriminantData=true,
-      (),
-    ),
+    TestData.make(~discriminantSchema=S.union([S.bool, S.literal(false)]), ~discriminantData=true),
     TestData.make(
       ~discriminantSchema=S.union([S.literal(false), S.bool]),
       ~discriminantData=%raw("false"),
-      (),
-    ),
-    TestData.make(
-      ~discriminantSchema=S.tuple2(S.literal(false), S.literal("bar")),
-      ~discriminantData=%raw(`[false, "bar"]`),
-      (),
     ),
   ]->Array.forEach(testData => {
     test(
@@ -252,7 +248,7 @@ module Negative = {
           () => {"field": "bar"}->S.reverseConvertOrThrow(schema),
           {
             code: InvalidOperation({
-              description: `Schema for "discriminant" isn\'t registered`,
+              description: `Schema for ["discriminant"]${testData.path->S.Path.toString} isn\'t registered`,
             }),
             operation: ReverseConvert,
             path: S.Path.empty,
@@ -365,7 +361,7 @@ test(`Fails to serialize object with discriminant "Never"`, t => {
     () => {"field": "bar"}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
-        description: `Schema for "discriminant" isn\'t registered`,
+        description: `Schema for ["discriminant"] isn\'t registered`,
       }),
       operation: ReverseConvert,
       path: S.Path.empty,
