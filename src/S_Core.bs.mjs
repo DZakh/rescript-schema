@@ -1313,6 +1313,39 @@ function factory$2(schema) {
               }), typeFilter, onlyChild(factory$2, schema));
 }
 
+function getItemReversed(item) {
+  switch (item.k) {
+    case 1 :
+        var $$location = item.l;
+        var targetReversed = getItemReversed(item.t);
+        var match = targetReversed.t;
+        var maybeReversed;
+        if (typeof match !== "object") {
+          maybeReversed = undefined;
+        } else {
+          switch (match.TAG) {
+            case "Object" :
+                maybeReversed = match.fields[$$location];
+                break;
+            case "Tuple" :
+                maybeReversed = match.items[$$location];
+                break;
+            default:
+              maybeReversed = undefined;
+          }
+        }
+        if (maybeReversed === undefined) {
+          var message = "Impossible to reverse the " + item.i + " access of " + targetReversed.n() + " schema";
+          throw new Error("[rescript-schema] " + message);
+        }
+        return maybeReversed;
+    case 0 :
+    case 2 :
+        return item.s["~r"]();
+    
+  }
+}
+
 function definitionToOutput(b, definition, getItemOutput) {
   if (!(typeof definition === "object" && definition !== null)) {
     return val(b, "e[" + (b.g.e.push(definition) - 1) + "]");
@@ -1467,6 +1500,7 @@ function proxify(item) {
                   return proxify({
                               k: 1,
                               i: inlinedLocation,
+                              l: prop,
                               t: item,
                               p: item.p + ("[" + inlinedLocation + "]")
                             });
@@ -1484,21 +1518,11 @@ function definitionToRitem(definition, path, ritems) {
   }
   var item = definition[itemSymbol];
   if (item !== undefined) {
-    var tmp;
-    switch (item.k) {
-      case 1 :
-          throw new Error("[rescript-schema] Destructuring of items is not supported");
-      case 0 :
-      case 2 :
-          tmp = item.s["~r"]();
-          break;
-      
-    }
     return {
             k: 0,
             p: path,
             i: item,
-            s: tmp
+            s: getItemReversed(item)
           };
   }
   var keys = Object.keys(definition);

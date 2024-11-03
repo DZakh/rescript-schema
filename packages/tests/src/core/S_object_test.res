@@ -1013,7 +1013,7 @@ test("Reverse convert of object schema with single field registered multiple tim
     () => {"field1": "foo", "field2": "foo", "field3": "foz"}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
-        description: `Another source for the field ["field"] has conflicting data`,
+        description: `Another source has conflicting data for the field ["field"]`,
       }),
       operation: ReverseConvert,
       path: S.Path.fromArray(["field3"]),

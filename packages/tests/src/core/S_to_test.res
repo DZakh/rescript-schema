@@ -180,6 +180,8 @@ test(
 test("BROKEN: Fails to serialize when tuple is destructured", t => {
   let schema = S.tuple2(S.literal(true), S.literal(12))->S.to(((_, twelve)) => twelve)
 
+  t->U.assertEqualSchemas(schema->S.reverse, S.literal(12)->S.toUnknown)
+
   // t->Assert.deepEqual(12->S.reverseConvertOrThrow(schema), Ok(%raw(`[true, 12]`)), ())
   t->Assert.throws(
     () => {
