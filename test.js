@@ -1,26 +1,15 @@
 (i) => {
-  if (!i || i.constructor !== Object) {
-    e[5](i);
+  if (i !== 12) {
+    e[4](i);
   }
-  let v0 = i["foo"],
-    v1 = i["obj"],
-    v2 = i["obj"]["foo"],
-    v3 = i["tuple"],
-    v4 = i["tuple"]["0"];
-  if (v0 !== 1) {
-    e[0](v0);
+  let v0 = [e[0], e[1]];
+  let v1 = v0["0"],
+    v2 = v0["1"];
+  if (v2 !== 12) {
+    e[3](v2);
   }
-  if (!v1 || v1.constructor !== Object) {
-    e[1](v1);
+  if (v1 !== true) {
+    e[2](v1);
   }
-  if (v2 !== 2) {
-    e[2](v2);
-  }
-  if (!Array.isArray(v3)) {
-    e[3](v3);
-  }
-  if (v4 !== 3) {
-    e[4](v4);
-  }
-  return { bar: i["obj"]["bar"], baz: i["tuple"]["1"] };
+  return v0;
 };
