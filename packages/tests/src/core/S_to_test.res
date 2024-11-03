@@ -183,8 +183,7 @@ test("Reverse convert of tagged tuple with destructured literal", t => {
 
   t->Assert.deepEqual(12->S.reverseConvertOrThrow(schema), %raw(`[true, 12]`), ())
 
-  // FIXME: Can be improved
-  let code = `i=>{if(i!==12){e[4](i)}let v0=[e[0],e[1],];let v1=v0["0"],v2=v0["1"];if(v2!==12){e[3](v2)}if(v1!==true){e[2](v1)}return v0}`
+  let code = `i=>{if(i!==12){e[1](i)}let v0=[e[0],i,];return v0}`
   t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
   t->U.assertCompiledCode(~schema, ~op=#ReverseParse, code)
 })
@@ -196,10 +195,12 @@ test("Reverse convert of tagged tuple with destructured bool", t => {
 
   t->Assert.deepEqual(false->S.reverseConvertOrThrow(schema), %raw(`[true, false]`), ())
 
-  // FIXME: Can be improved
-  let code = `i=>{if(i!==12){e[4](i)}let v0=[e[0],e[1],];let v1=v0["0"],v2=v0["1"];if(v2!==12){e[3](v2)}if(v1!==true){e[2](v1)}return v0}`
-  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
-  t->U.assertCompiledCode(~schema, ~op=#ReverseParse, code)
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{let v0=[e[0],i,];return v0}`)
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseParse,
+    `i=>{if(typeof i!=="boolean"){e[1](i)}let v0=[e[0],i,];return v0}`,
+  )
 })
 
 test("Successfully parses when value registered multiple times", t => {
@@ -259,7 +260,7 @@ test("Compiled code snapshot of variant applied to object", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0=i["TAG"],v1=i["_0"];if(v0!=="Ok"){e[0](v0)}return {"foo":v1,}}`,
+    `i=>{let v0=i["TAG"];if(v0!=="Ok"){e[0](v0)}return {"foo":i["_0"],}}`,
   )
 })
 
