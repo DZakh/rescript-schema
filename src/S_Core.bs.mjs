@@ -1425,7 +1425,7 @@ function builder$1(definition, items, inlinedLocations) {
             var path$1 = path + itemPath;
             var typeFilter = schema.f;
             if (typeFilter !== undefined) {
-              if (schema.t.TAG === "Literal") {
+              if (schema.t.TAG === "Literal" && !(b.g.o & 64)) {
                 typeFilters = typeFilterCode(b, typeFilter, schema, itemInput, path$1) + typeFilters;
               } else if (b.g.o & 1) {
                 typeFilters = typeFilters + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
@@ -1573,11 +1573,13 @@ function reverse$1(definition, kind, items) {
         var prevCode = b.c;
         b.c = "";
         var typeFilters = "";
-        var inputVar = $$var(b, input);
         switch (ritem.k) {
           case 0 :
               var reversed = ritem.s;
-              outputs.set(ritem.i, reversed.b(b, input, reversed, path));
+              var item = ritem.i;
+              var itemOutput = reversed.b(b, input, reversed, path);
+              outputs.set(item, itemOutput);
+              outputsByPath[item.p] = itemOutput;
               break;
           case 1 :
           case 2 :
@@ -1589,36 +1591,36 @@ function reverse$1(definition, kind, items) {
           switch (match.k) {
             case 0 :
                 var reversed$1 = match.s;
-                var item = match.i;
+                var item$1 = match.i;
                 var ritemPath = match.p;
-                var itemPath = item.p;
-                var itemInput = val(b, inputVar + ritemPath);
+                var itemPath = item$1.p;
+                var itemInput = val(b, $$var(b, input) + ritemPath);
                 var path$1 = path + ritemPath;
                 var embededOutput = outputsByPath[itemPath];
                 if (embededOutput !== undefined) {
-                  var itemOutput = reversed$1.b(b, itemInput, reversed$1, path$1);
-                  b.c = b.c + ("if(" + $$var(b, embededOutput) + "!==" + itemOutput.i + "){" + fail(b, "Another source has conflicting data" + (
+                  var itemOutput$1 = reversed$1.b(b, itemInput, reversed$1, path$1);
+                  b.c = b.c + ("if(" + $$var(b, embededOutput) + "!==" + itemOutput$1.i + "){" + fail(b, "Another source has conflicting data" + (
                           itemPath === "" ? "" : " for the field " + itemPath
                         ), path$1) + "}");
                 } else {
                   var typeFilter = reversed$1.f;
                   if (typeFilter !== undefined) {
-                    if (reversed$1.t.TAG === "Literal") {
+                    if (reversed$1.t.TAG === "Literal" && !(b.g.o & 64)) {
                       typeFilters = typeFilterCode(b, typeFilter, reversed$1, itemInput, path$1) + typeFilters;
                     } else if (b.g.o & 1) {
                       typeFilters = typeFilters + typeFilterCode(b, typeFilter, reversed$1, itemInput, path$1);
                     }
                     
                   }
-                  var itemOutput$1 = reversed$1.b(b, itemInput, reversed$1, path$1);
-                  outputsByPath[itemPath] = itemOutput$1;
-                  outputs.set(item, itemOutput$1);
+                  var itemOutput$2 = reversed$1.b(b, itemInput, reversed$1, path$1);
+                  outputsByPath[itemPath] = itemOutput$2;
+                  outputs.set(item$1, itemOutput$2);
                 }
                 break;
             case 1 :
                 var reversed$2 = match.s;
                 var ritemPath$1 = match.p;
-                var itemInput$1 = val(b, inputVar + ritemPath$1);
+                var itemInput$1 = val(b, $$var(b, input) + ritemPath$1);
                 var path$2 = path + ritemPath$1;
                 typeFilters = typeFilters + typeFilterCode(b, reversed$2.f, reversed$2, itemInput$1, path$2);
                 break;
@@ -1669,10 +1671,11 @@ function reverse$1(definition, kind, items) {
             var tmp = originalPath === "" ? "Schema isn't registered" : "Schema for " + originalPath + " isn't registered";
             reversedInput = invalidOperation(b, path, tmp);
           }
-          return reversed.b(b, reversedInput, reversed, path);
-        };
-        var getUnregistered = function (item) {
-          return reversedToOutput(item.s["~r"](), item.p);
+          var prevFlag = b.g.o;
+          b.g.o = (prevFlag | 1) ^ 1 | 64;
+          var output = reversed.b(b, reversedInput, reversed, path);
+          b.g.o = prevFlag;
+          return output;
         };
         var schemaOutput = function (items, isArray) {
           var objectVal = make(b, isArray);
@@ -1682,7 +1685,7 @@ function reverse$1(definition, kind, items) {
               case 0 :
                   var inlinedLocation = item.i;
                   var o = outputs.get(item);
-                  var itemOutput = o !== undefined ? o : getUnregistered(item);
+                  var itemOutput = o !== undefined ? o : reversedToOutput(item.s["~r"](), item.p);
                   objectVal[inlinedLocation] = itemOutput;
                   if (itemOutput.a) {
                     objectVal.p = objectVal.p + itemOutput.i + ",";
@@ -1706,12 +1709,12 @@ function reverse$1(definition, kind, items) {
             return schemaOutput(items, false);
           }
         }
-        var item$1 = items[0];
-        var o = outputs.get(item$1);
+        var item$2 = items[0];
+        var o = outputs.get(item$2);
         if (o !== undefined) {
           return o;
         } else {
-          return getUnregistered(item$1);
+          return reversedToOutput(item$2.s["~r"](), item$2.p);
         }
       });
     return reversed;
@@ -1958,8 +1961,8 @@ function factory$6(schema, spaceOpt) {
               }), typeFilter$2, (function () {
                 var reversed = schema["~r"]();
                 return makeReverseSchema(reversed.n, reversed.t, reversed.m, (function (b, input, param, path) {
-                              var prevOperation = b.g.o;
-                              b.g.o = prevOperation | 8;
+                              var prevFlag = b.g.o;
+                              b.g.o = prevFlag | 8;
                               if (reversed.t.TAG === "Option") {
                                 raise(b, {
                                       TAG: "InvalidJsonSchema",
@@ -1969,7 +1972,7 @@ function factory$6(schema, spaceOpt) {
                               var output = val(b, "JSON.stringify(" + reversed.b(b, input, reversed, path).i + (
                                     space > 0 ? ",null," + space : ""
                                   ) + ")");
-                              b.g.o = prevOperation;
+                              b.g.o = prevFlag;
                               return output;
                             }), reversed.f);
               }));
@@ -2309,7 +2312,7 @@ function builder$2(schemas, inlinedLocations, isArray) {
       var path$1 = path + itemPath;
       var typeFilter = schema.f;
       if (typeFilter !== undefined) {
-        if (schema.t.TAG === "Literal") {
+        if (schema.t.TAG === "Literal" && !(b.g.o & 64)) {
           typeFilters = typeFilterCode(b, typeFilter, schema, itemInput, path$1) + typeFilters;
         } else if (b.g.o & 1) {
           typeFilters = typeFilters + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
