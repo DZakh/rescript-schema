@@ -123,7 +123,7 @@ test(`Fails to serialize tuple with discriminant "Never"`, t => {
     () => "bar"->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
-        description: `Schema for "0" isn\'t registered`,
+        description: `Schema for ["0"] isn\'t registered`,
       }),
       operation: ReverseConvert,
       path: S.Path.empty,
@@ -149,7 +149,7 @@ test(`Fails to serialize tuple with discriminant "Never" inside of an object (te
     () => {"foo": "bar"}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
-        description: `Schema for "0" isn\'t registered`,
+        description: `Schema for ["0"] isn\'t registered`,
       }),
       operation: ReverseConvert,
       path: S.Path.fromLocation(`foo`),
