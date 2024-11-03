@@ -66,8 +66,8 @@ module Stdlib = {
     @send
     external append: (array<'a>, 'a) => array<'a> = "concat"
 
-    // @get_index
-    // external unsafeGetOption: (array<'a>, int) => option<'a> = ""
+    @get_index
+    external unsafeGetOptionByString: (array<'a>, string) => option<'a> = ""
 
     @inline
     let has = (array, idx) => {
@@ -2048,6 +2048,8 @@ module Object = {
     ItemField({
         @as("i")
         inlinedLocation: string,
+        @as("l")
+        location: string,
         @as("t")
         target: item,
         @as("p")
@@ -2073,10 +2075,22 @@ module Object = {
   @inline
   let getItemPath = (item: item) => (item->Obj.magic)["p"]
 
-  @inline
-  let getItemReversed = item => {
+  let rec getItemReversed = item => {
     switch item {
-    | ItemField(_) => InternalError.panic("Destructuring of items is not supported")
+    | ItemField({target, location, inlinedLocation}) => {
+        let targetReversed = target->getItemReversed
+        let maybeReversed = switch targetReversed.tagged {
+        | Object({fields}) => fields->Stdlib.Dict.unsafeGetOption(location)
+        | Tuple({items}) => items->Stdlib.Array.unsafeGetOptionByString(location)
+        | _ => None
+        }
+        if maybeReversed === None {
+          InternalError.panic(
+            `Impossible to reverse the ${inlinedLocation} access of ${targetReversed.name()} schema`,
+          )
+        }
+        maybeReversed->Stdlib.Option.unsafeUnwrap
+      }
     | Root({schema})
     | Item({schema}) =>
       schema.reverse()
@@ -2331,6 +2345,7 @@ module Object = {
           let inlinedLocation = location->Stdlib.Inlined.Value.fromString
           ItemField({
             inlinedLocation,
+            location,
             target: item,
             path: item->getItemPath->Path.concat(Path.fromInlinedLocation(inlinedLocation)),
           })
