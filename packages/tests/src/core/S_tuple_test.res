@@ -105,7 +105,7 @@ test("Reverse convert of tuple schema with single item registered multiple times
     () => {"item1": "foo", "item2": "foz"}->S.reverseConvertOrThrow(schema),
     {
       code: InvalidOperation({
-        description: `Another source for the field ["0"] has conflicting data`,
+        description: `Another source has conflicting data for the field ["0"]`,
       }),
       operation: ReverseConvert,
       path: S.Path.fromArray(["item2"]),
