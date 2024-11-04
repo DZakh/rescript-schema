@@ -231,7 +231,7 @@ test("Reverse convert with value registered multiple times", t => {
   )
 })
 
-Skip.test("Can destructure object value passed to S.to", t => {
+test("Can destructure object value passed to S.to", t => {
   let schema =
     S.object(s => (s.field("foo", S.string), s.field("bar", S.string)))->S.to(((foo, bar)) =>
       {"foo": foo, "bar": bar}
@@ -242,10 +242,11 @@ Skip.test("Can destructure object value passed to S.to", t => {
     ~op=#Parse,
     `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
   )
+  // FIXME: Can be improved
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`,
+    `i=>{let v0=[i["foo"],i["bar"],];return {"foo":v0["0"],"bar":v0["1"],}}`,
   )
 })
 

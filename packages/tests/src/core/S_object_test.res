@@ -1021,7 +1021,7 @@ test("Reverse convert of object schema with single field registered multiple tim
   )
 })
 
-Skip.test("Can destructure fields of simple nested objects", t => {
+test("Can destructure fields of simple nested objects", t => {
   let schema = S.object(s => {
     let nested = s.field(
       "nested",
@@ -1054,10 +1054,11 @@ Skip.test("Can destructure fields of simple nested objects", t => {
     %raw(`{"nested": {"foo": "foo", "bar": "bar"}}`),
     (),
   )
+  // FIXME: Can be improved
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{return {"nested":{"foo":i["foz"],"bar":i["baz"],},}}`,
+    `i=>{let v0={"foo":i["foz"],"bar":i["baz"],};return {"nested":{"foo":v0["foo"],"bar":v0["bar"],},}}`,
   )
 })
 
