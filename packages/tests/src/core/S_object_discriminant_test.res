@@ -135,7 +135,7 @@ module Positive = {
       },
     )
 
-    Skip.test(
+    test(
       `Successfully serializes object with discriminant "${testData.discriminantSchema->S.name}"${testData.testNamePostfix}`,
       t => {
         let schema = S.object(
@@ -281,7 +281,7 @@ module NestedNegative = {
     },
   )
 
-  Skip.test(
+  test(
     `Fails to serialize object with object discriminant that we don't know how to serialize`,
     t => {
       let schema = S.object(s => {
@@ -295,10 +295,10 @@ module NestedNegative = {
         () => {"field": "bar"}->S.reverseConvertOrThrow(schema),
         {
           code: InvalidOperation({
-            description: `Schema for "nestedField" isn\'t registered`,
+            description: `Schema for ["discriminant"] isn\'t registered`,
           }),
           operation: ReverseConvert,
-          path: S.Path.fromLocation("discriminant"),
+          path: S.Path.empty,
         },
       )
     },

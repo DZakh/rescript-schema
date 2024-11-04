@@ -2271,15 +2271,30 @@ module Object = {
           let objectVal = b->B.Val.Object.make(~isArray=true)
           for idx in 0 to schemas->Js.Array2.length - 1 {
             let schema = schemas->Js.Array2.unsafe_get(idx)
-            let itemPath = Path.fromInlinedLocation(`"${idx->Stdlib.Int.unsafeToString}"`)
-            let fullItemPath = originalPath->Path.concat(itemPath)
-            let schemaOutput = switch outputsByPath->Stdlib.Dict.unsafeGetOption(fullItemPath) {
+            let inlinedLocation = `"${idx->Stdlib.Int.unsafeToString}"`
+            let itemPath = originalPath->Path.concat(Path.fromInlinedLocation(inlinedLocation))
+            let schemaOutput = switch outputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
             | Some(o) => o
-            | None => schema->reversedToOutput(~originalPath=fullItemPath)
+            | None => schema->reversedToOutput(~originalPath=itemPath)
             }
-            objectVal->B.Val.Object.add(itemPath, schemaOutput)
+            objectVal->B.Val.Object.add(inlinedLocation, schemaOutput)
           }
           objectVal->B.Val.Object.complete(~isArray=true)
+        }
+      | Object({fieldNames, fields}) => {
+          let objectVal = b->B.Val.Object.make(~isArray=false)
+          for idx in 0 to fieldNames->Js.Array2.length - 1 {
+            let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+            let schema = fields->Js.Dict.unsafeGet(fieldName)
+            let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
+            let itemPath = originalPath->Path.concat(Path.fromInlinedLocation(inlinedLocation))
+            let schemaOutput = switch outputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
+            | Some(o) => o
+            | None => schema->reversedToOutput(~originalPath=itemPath)
+            }
+            objectVal->B.Val.Object.add(inlinedLocation, schemaOutput)
+          }
+          objectVal->B.Val.Object.complete(~isArray=false)
         }
       | _ =>
         b->B.invalidOperation(
