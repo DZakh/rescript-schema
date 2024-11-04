@@ -1644,24 +1644,45 @@ function reverse$1(definition, kind, items) {
               case "Literal" :
                   reversedInput = val(b, "e[" + (b.g.e.push(literal._0.value) - 1) + "]");
                   break;
-              case "Tuple" :
-                  var schemas = literal.items;
-                  var objectVal = make(b, true);
-                  for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-                    var schema = schemas[idx];
-                    var itemPath = "[" + ("\"" + idx + "\"") + "]";
-                    var fullItemPath = originalPath + itemPath;
-                    var o = outputsByPath[fullItemPath];
-                    var schemaOutput = o !== undefined ? o : reversedToOutput(schema, fullItemPath);
-                    objectVal[itemPath] = schemaOutput;
+              case "Object" :
+                  var fields = literal.fields;
+                  var fieldNames = literal.fieldNames;
+                  var objectVal = make(b, false);
+                  for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+                    var fieldName = fieldNames[idx];
+                    var schema = fields[fieldName];
+                    var inlinedLocation = JSON.stringify(fieldName);
+                    var itemPath = originalPath + ("[" + inlinedLocation + "]");
+                    var o = outputsByPath[itemPath];
+                    var schemaOutput = o !== undefined ? o : reversedToOutput(schema, itemPath);
+                    objectVal[inlinedLocation] = schemaOutput;
                     if (schemaOutput.a) {
                       objectVal.p = objectVal.p + schemaOutput.i + ",";
-                      objectVal.i = objectVal.i + objectVal.j(itemPath, "a[" + (objectVal.c++) + "]");
+                      objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
                     } else {
-                      objectVal.i = objectVal.i + objectVal.j(itemPath, schemaOutput.i);
+                      objectVal.i = objectVal.i + objectVal.j(inlinedLocation, schemaOutput.i);
                     }
                   }
-                  reversedInput = complete(objectVal, true);
+                  reversedInput = complete(objectVal, false);
+                  break;
+              case "Tuple" :
+                  var schemas = literal.items;
+                  var objectVal$1 = make(b, true);
+                  for(var idx$1 = 0 ,idx_finish$1 = schemas.length; idx$1 < idx_finish$1; ++idx$1){
+                    var schema$1 = schemas[idx$1];
+                    var inlinedLocation$1 = "\"" + idx$1 + "\"";
+                    var itemPath$1 = originalPath + ("[" + inlinedLocation$1 + "]");
+                    var o$1 = outputsByPath[itemPath$1];
+                    var schemaOutput$1 = o$1 !== undefined ? o$1 : reversedToOutput(schema$1, itemPath$1);
+                    objectVal$1[inlinedLocation$1] = schemaOutput$1;
+                    if (schemaOutput$1.a) {
+                      objectVal$1.p = objectVal$1.p + schemaOutput$1.i + ",";
+                      objectVal$1.i = objectVal$1.i + objectVal$1.j(inlinedLocation$1, "a[" + (objectVal.c++) + "]");
+                    } else {
+                      objectVal$1.i = objectVal$1.i + objectVal$1.j(inlinedLocation$1, schemaOutput$1.i);
+                    }
+                  }
+                  reversedInput = complete(objectVal$1, true);
                   break;
               default:
                 exit = 1;
