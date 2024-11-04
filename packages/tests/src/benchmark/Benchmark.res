@@ -224,29 +224,66 @@ let _ = S.Error.make(
 Console.timeEnd("S.Error.make")
 
 Suite.make()
-->Suite.addWithPrepare("Parse string", () => {
-  let schema = S.string
-  let data = "Hello world!"
+->Suite.add("S.schema - make", () => makeAdvancedObjectSchema())
+->Suite.addWithPrepare("S.schema - make + parse", () => {
+  let data = makeTestObject()
   () => {
+    let schema = makeAdvancedObjectSchema()
     data->S.parseOrThrow(schema)
   }
 })
-->Suite.addWithPrepare("Reverse convert string", () => {
-  let schema = S.string
-  let data = "Hello world!"
-  () => {
-    data->S.reverseConvertOrThrow(schema)
-  }
-})
-->Suite.add("Advanced object schema factory", makeAdvancedObjectSchema)
-->Suite.addWithPrepare("Parse advanced object", () => {
+->Suite.addWithPrepare("S.schema - parse", () => {
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
     data->S.parseOrThrow(schema)
   }
 })
-->Suite.addWithPrepare("Assert advanced object - compile", () => {
+->Suite.addWithPrepare("S.schema - parse strict", () => {
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+    defaultUnknownKeys: Strict,
+  })
+  let schema = makeAdvancedObjectSchema()
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+  })
+  let data = makeTestObject()
+  () => {
+    data->S.parseOrThrow(schema)
+  }
+})
+->Suite.add("S.schema - make + reverse", () => makeAdvancedObjectSchema()->S.reverse)
+->Suite.addWithPrepare("S.schema - make + reverse convert", () => {
+  let data = makeTestObject()
+  () => {
+    let schema = makeAdvancedObjectSchema()
+    data->S.reverseConvertOrThrow(schema)
+  }
+})
+->Suite.addWithPrepare("S.schema - reverse convert", () => {
+  let schema = makeAdvancedObjectSchema()
+  let data = makeTestObject()
+  () => {
+    data->S.reverseConvertOrThrow(schema)
+  }
+})
+->Suite.addWithPrepare("S.schema - reverse convert (compiled)", () => {
+  let schema = makeAdvancedObjectSchema()
+  let data = makeTestObject()
+  let fn = schema->S.compile(~input=Value, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
+  () => {
+    fn(data)
+  }
+})
+->Suite.addWithPrepare("S.schema - assert", () => {
+  let schema = makeAdvancedObjectSchema()
+  let data = makeTestObject()
+  () => {
+    data->S.assertOrThrow(schema)
+  }
+})
+->Suite.addWithPrepare("S.schema - assert (compiled)", () => {
   let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   let assertFn = schema->S.compile(~input=Any, ~output=Assert, ~mode=Sync, ~typeValidation=true)
@@ -254,68 +291,62 @@ Suite.make()
     assertFn(data)
   }
 })
-->Suite.addWithPrepare("Assert advanced object", () => {
+->Suite.addWithPrepare("S.schema - assert strict", () => {
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+    defaultUnknownKeys: Strict,
+  })
   let schema = makeAdvancedObjectSchema()
+  S.setGlobalConfig({
+    disableNanNumberCheck: true,
+  })
   let data = makeTestObject()
   () => {
     data->S.assertOrThrow(schema)
   }
 })
-->Suite.addWithPrepare("Create and parse advanced object - with S.object", () => {
+->Suite.add("S.object - make", () => makeAdvancedObjectSchemaWithSObject())
+->Suite.addWithPrepare("S.object - make + parse", () => {
   let data = makeTestObject()
   () => {
     let schema = makeAdvancedObjectSchemaWithSObject()
     data->S.parseOrThrow(schema)
   }
 })
-->Suite.addWithPrepare("Create and parse advanced object", () => {
-  let data = makeTestObject()
-  () => {
-    let schema = makeAdvancedObjectSchema()
-    data->S.parseOrThrow(schema)
-  }
-})
-->Suite.addWithPrepare("Parse advanced strict object", () => {
-  S.setGlobalConfig({
-    disableNanNumberCheck: true,
-    defaultUnknownKeys: Strict,
-  })
-  let schema = makeAdvancedObjectSchema()
-  S.setGlobalConfig({
-    disableNanNumberCheck: true,
-  })
+->Suite.addWithPrepare("S.object - parse", () => {
+  let schema = makeAdvancedObjectSchemaWithSObject()
   let data = makeTestObject()
   () => {
     data->S.parseOrThrow(schema)
   }
 })
-->Suite.addWithPrepare("Assert advanced strict object", () => {
-  S.setGlobalConfig({
-    disableNanNumberCheck: true,
-    defaultUnknownKeys: Strict,
-  })
-  let schema = makeAdvancedObjectSchema()
-  S.setGlobalConfig({
-    disableNanNumberCheck: true,
-  })
+->Suite.add("S.object - make + reverse", () => makeAdvancedObjectSchemaWithSObject()->S.reverse)
+->Suite.addWithPrepare("S.object - make + reverse convert", () => {
   let data = makeTestObject()
   () => {
-    data->S.assertOrThrow(schema)
+    let schema = makeAdvancedObjectSchemaWithSObject()
+    data->S.reverseConvertOrThrow(schema)
   }
 })
-->Suite.addWithPrepare("Reverse convert advanced object", () => {
-  let schema = makeAdvancedObjectSchema()
+->Suite.addWithPrepare("S.object - reverse convert", () => {
+  let schema = makeAdvancedObjectSchemaWithSObject()
   let data = makeTestObject()
   () => {
     data->S.reverseConvertOrThrow(schema)
   }
 })
-->Suite.addWithPrepare("Reverse convert advanced object - compile", () => {
-  let schema = makeAdvancedObjectSchema()
-  let data = makeTestObject()
-  let fn = schema->S.compile(~input=Value, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
+->Suite.addWithPrepare("S.string - parse", () => {
+  let schema = S.string
+  let data = "Hello world!"
   () => {
-    fn(data)
+    data->S.parseOrThrow(schema)
+  }
+})
+->Suite.addWithPrepare("S.string - reverse convert", () => {
+  let schema = S.string
+  let data = "Hello world!"
+  () => {
+    data->S.reverseConvertOrThrow(schema)
   }
 })
 ->Suite.run
