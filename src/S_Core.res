@@ -494,7 +494,6 @@ module Builder = {
           }
         }
 
-        @inline
         let add = (objectVal, inlinedLocation, val: val) => {
           // inlinedLocation is either an int or a quoted string, so it's safe to store it directly on val
           objectVal->(Obj.magic: t => dict<val>)->Js.Dict.set(inlinedLocation, val)
@@ -504,6 +503,18 @@ module Builder = {
               objectVal.inline ++ objectVal.join(inlinedLocation, `a[${%raw(`objectVal.c++`)}]`)
           } else {
             objectVal.inline = objectVal.inline ++ objectVal.join(inlinedLocation, val.inline)
+          }
+        }
+
+        let merge = (target, subObjectVal) => {
+          let inlinedLocations = subObjectVal->Obj.magic->Js.Dict.keys
+          // Start from 7 to skip all normal fields which are not inlined locations
+          for idx in 7 to inlinedLocations->Js.Array2.length - 1 {
+            let inlinedLocation = inlinedLocations->Js.Array2.unsafe_get(idx)
+            target->add(
+              inlinedLocation,
+              subObjectVal->Obj.magic->Js.Dict.unsafeGet(inlinedLocation),
+            )
           }
         }
 
@@ -2314,10 +2325,13 @@ module Object = {
       output
     }
 
-    @inline
-    let getUnregistered = item => {
-      // It's fine to use getUnsafeItemSchema here, because this will never be called on ItemField
-      reversedToOutput((item->getUnsafeItemSchema).reverse(), ~originalPath=item->getItemPath)
+    let getItemOutput = item => {
+      switch outputs->Stdlib.WeakMap.get(item) {
+      | Some(o) => o
+      | None =>
+        // It's fine to use getUnsafeItemSchema here, because this will never be called on ItemField
+        reversedToOutput((item->getUnsafeItemSchema).reverse(), ~originalPath=item->getItemPath)
+      }
     }
 
     let schemaOutput = (~items, ~isArray) => {
@@ -2325,27 +2339,17 @@ module Object = {
       for idx in 0 to items->Js.Array2.length - 1 {
         let item = items->Js.Array2.unsafe_get(idx)
         switch item {
-        | ItemField(_)
-        | Root(_) => ()
-        | Item({inlinedLocation}) => {
-            let itemOutput = switch outputs->Stdlib.WeakMap.get(item) {
-            | Some(o) => o
-            | None => item->getUnregistered
-            }
-            objectVal->B.Val.Object.add(inlinedLocation, itemOutput)
-          }
+        | ItemField(_) => ()
+        | Root(_) => objectVal->B.Val.Object.merge(item->getItemOutput)
+        | Item({inlinedLocation}) =>
+          objectVal->B.Val.Object.add(inlinedLocation, item->getItemOutput)
         }
       }
       objectVal->B.Val.Object.complete(~isArray)
     }
 
     switch kind {
-    | #To =>
-      let item = items->Js.Array2.unsafe_get(0)
-      switch outputs->Stdlib.WeakMap.get(item) {
-      | Some(o) => o
-      | None => item->getUnregistered
-      }
+    | #To => items->Js.Array2.unsafe_get(0)->getItemOutput
     | #Object => schemaOutput(~items, ~isArray=false)
     | #Array => schemaOutput(~items, ~isArray=true)
     }

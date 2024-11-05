@@ -202,7 +202,7 @@ test("Fails to flatten non-object schema", t => {
   )
 })
 
-Skip.test("Successfully serializes simple object with flatten", t => {
+test("Successfully serializes simple object with flatten", t => {
   let schema = S.object(s =>
     {
       "foo": s.field("foo", S.string),
@@ -211,7 +211,7 @@ Skip.test("Successfully serializes simple object with flatten", t => {
   )
 
   t->Assert.deepEqual(
-    {"foo": "foo", "bar": "bar"}->S.reverseConvertToJsonOrThrow(schema),
+    {"foo": "foo", "bar": "bar"}->S.reverseConvertOrThrow(schema),
     %raw(`{"foo": "foo", "bar": "bar"}`),
     (),
   )
@@ -231,7 +231,7 @@ type entity = {
   ...entityData,
 }
 
-Skip.test("Can destructure flattened schema", t => {
+test("Can destructure flattened schema", t => {
   let entityDataSchema = S.object(s => {
     name: s.field("name", S.string),
     age: s.field("age", S.int),
@@ -248,7 +248,7 @@ Skip.test("Can destructure flattened schema", t => {
   t->U.assertCompiledCode(
     ~op=#Parse,
     ~schema=entitySchema,
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["id"];if(typeof v0!=="string"){e[0](v0)}let v1=i["name"],v2=i["age"];if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="number"||v2>2147483647||v2<-2147483648||v2%1!==0){e[2](v2)}return {"id":v0,"name":v1,"age":v2,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v2=i["id"];if(typeof v2!=="string"){e[2](v2)}let v0=i["name"],v1=i["age"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[1](v1)}return {"id":v2,"name":v0,"age":v1,}}`,
   )
 
   t->Assert.deepEqual(
@@ -259,6 +259,7 @@ Skip.test("Can destructure flattened schema", t => {
   t->U.assertCompiledCode(
     ~op=#ReverseConvert,
     ~schema=entitySchema,
-    `i=>{return {"name":i["name"],"age":i["age"],"id":i["id"],}}`,
+    // FIXME: Can be improved
+    `i=>{let v0={"name":i["name"],"age":i["age"],};return {"name":v0["name"],"age":v0["age"],"id":i["id"],}}`,
   )
 })
