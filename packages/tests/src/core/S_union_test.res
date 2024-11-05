@@ -688,3 +688,36 @@ test("json-rpc response", t => {
     (),
   )
 })
+
+test("Issue https://github.com/DZakh/rescript-schema/issues/101", t => {
+  let syncRequestSchema = S.schema(s =>
+    #request({
+      "collectionName": s.matches(S.string),
+    })
+  )
+  let syncResponseSchema = S.schema(s =>
+    #response({
+      "collectionName": s.matches(S.string),
+      "response": s.matches(S.enum(["accepted", "rejected"])),
+    })
+  )
+  let schema = S.union([syncRequestSchema, syncResponseSchema])
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    `i=>{let v5=i;if(!i||i.constructor!==Object){e[4](i)}else{try{let v0=i["NAME"],v1=i["VAL"];if(v0!=="request"){e[0](v0)}}catch(e0){try{let v2=i["NAME"],v3=i["VAL"];if(v2!=="response"){e[1](v2)}let v4=v3["response"];if(v4!=="accepted"){if(v4!=="rejected"){e[2](v4)}}v5={"NAME":v2,"VAL":{"collectionName":v3["collectionName"],"response":v4,},}}catch(e1){e[3]([e0,e1,])}}}return v5}`,
+  )
+
+  t->Assert.deepEqual(
+    #response({
+      "collectionName": "foo",
+      "response": "accepted",
+    })->S.reverseConvertOrThrow(schema),
+    #response({
+      "collectionName": "foo",
+      "response": "accepted",
+    })->Obj.magic,
+    (),
+  )
+})
