@@ -161,6 +161,24 @@ function make(b, isArray) {
         };
 }
 
+function add(objectVal, inlinedLocation, val) {
+  objectVal[inlinedLocation] = val;
+  if (val.a) {
+    objectVal.p = objectVal.p + val.i + ",";
+    objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
+  } else {
+    objectVal.i = objectVal.i + objectVal.j(inlinedLocation, val.i);
+  }
+}
+
+function merge(target, subObjectVal) {
+  var inlinedLocations = Object.keys(subObjectVal);
+  for(var idx = 7 ,idx_finish = inlinedLocations.length; idx < idx_finish; ++idx){
+    var inlinedLocation = inlinedLocations[idx];
+    add(target, inlinedLocation, subObjectVal[inlinedLocation]);
+  }
+}
+
 function complete(objectVal, isArray) {
   objectVal.i = isArray ? "[" + objectVal.i + "]" : "{" + objectVal.i + "}";
   if (objectVal.c) {
@@ -1359,15 +1377,7 @@ function definitionToOutput(b, definition, getItemOutput) {
   var objectVal = make(b, isArray);
   for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
     var key = keys[idx];
-    var val$1 = definitionToOutput(b, definition[key], getItemOutput);
-    var inlinedLocation = isArray ? "\"" + key + "\"" : JSON.stringify(key);
-    objectVal[inlinedLocation] = val$1;
-    if (val$1.a) {
-      objectVal.p = objectVal.p + val$1.i + ",";
-      objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
-    } else {
-      objectVal.i = objectVal.i + objectVal.j(inlinedLocation, val$1.i);
-    }
+    add(objectVal, isArray ? "\"" + key + "\"" : JSON.stringify(key), definitionToOutput(b, definition[key], getItemOutput));
   }
   return complete(objectVal, isArray);
 }
@@ -1655,13 +1665,7 @@ function reverse$1(definition, kind, items) {
                     var itemPath = originalPath + ("[" + inlinedLocation + "]");
                     var o = outputsByPath[itemPath];
                     var schemaOutput = o !== undefined ? o : reversedToOutput(schema, itemPath);
-                    objectVal[inlinedLocation] = schemaOutput;
-                    if (schemaOutput.a) {
-                      objectVal.p = objectVal.p + schemaOutput.i + ",";
-                      objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
-                    } else {
-                      objectVal.i = objectVal.i + objectVal.j(inlinedLocation, schemaOutput.i);
-                    }
+                    add(objectVal, inlinedLocation, schemaOutput);
                   }
                   reversedInput = complete(objectVal, false);
                   break;
@@ -1674,13 +1678,7 @@ function reverse$1(definition, kind, items) {
                     var itemPath$1 = originalPath + ("[" + inlinedLocation$1 + "]");
                     var o$1 = outputsByPath[itemPath$1];
                     var schemaOutput$1 = o$1 !== undefined ? o$1 : reversedToOutput(schema$1, itemPath$1);
-                    objectVal$1[inlinedLocation$1] = schemaOutput$1;
-                    if (schemaOutput$1.a) {
-                      objectVal$1.p = objectVal$1.p + schemaOutput$1.i + ",";
-                      objectVal$1.i = objectVal$1.i + objectVal$1.j(inlinedLocation$1, "a[" + (objectVal.c++) + "]");
-                    } else {
-                      objectVal$1.i = objectVal$1.i + objectVal$1.j(inlinedLocation$1, schemaOutput$1.i);
-                    }
+                    add(objectVal$1, inlinedLocation$1, schemaOutput$1);
                   }
                   reversedInput = complete(objectVal$1, true);
                   break;
@@ -1698,44 +1696,38 @@ function reverse$1(definition, kind, items) {
           b.g.o = prevFlag;
           return output;
         };
+        var getItemOutput = function (item) {
+          var o = outputs.get(item);
+          if (o !== undefined) {
+            return o;
+          } else {
+            return reversedToOutput(item.s["~r"](), item.p);
+          }
+        };
         var schemaOutput = function (items, isArray) {
           var objectVal = make(b, isArray);
           for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
             var item = items[idx];
             switch (item.k) {
               case 0 :
-                  var inlinedLocation = item.i;
-                  var o = outputs.get(item);
-                  var itemOutput = o !== undefined ? o : reversedToOutput(item.s["~r"](), item.p);
-                  objectVal[inlinedLocation] = itemOutput;
-                  if (itemOutput.a) {
-                    objectVal.p = objectVal.p + itemOutput.i + ",";
-                    objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
-                  } else {
-                    objectVal.i = objectVal.i + objectVal.j(inlinedLocation, itemOutput.i);
-                  }
+                  add(objectVal, item.i, getItemOutput(item));
                   break;
               case 1 :
+                  break;
               case 2 :
+                  merge(objectVal, getItemOutput(item));
                   break;
               
             }
           }
           return complete(objectVal, isArray);
         };
-        if (kind !== "To") {
-          if (kind === "Array") {
-            return schemaOutput(items, true);
-          } else {
-            return schemaOutput(items, false);
-          }
-        }
-        var item$2 = items[0];
-        var o = outputs.get(item$2);
-        if (o !== undefined) {
-          return o;
+        if (kind === "To") {
+          return getItemOutput(items[0]);
+        } else if (kind === "Array") {
+          return schemaOutput(items, true);
         } else {
-          return reversedToOutput(item$2.s["~r"](), item$2.p);
+          return schemaOutput(items, false);
         }
       });
     return reversed;
@@ -2340,14 +2332,7 @@ function builder$2(schemas, inlinedLocations, isArray) {
         }
         
       }
-      var val$1 = schema.b(b, itemInput, schema, path$1);
-      objectVal[inlinedLocation] = val$1;
-      if (val$1.a) {
-        objectVal.p = objectVal.p + val$1.i + ",";
-        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, "a[" + (objectVal.c++) + "]");
-      } else {
-        objectVal.i = objectVal.i + objectVal.j(inlinedLocation, val$1.i);
-      }
+      add(objectVal, inlinedLocation, schema.b(b, itemInput, schema, path$1));
     }
     objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
     b.c = typeFilters + b.c;
