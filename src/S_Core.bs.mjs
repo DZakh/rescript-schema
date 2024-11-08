@@ -80,10 +80,6 @@ function getOrRethrow(exn) {
   throw exn;
 }
 
-function classify(schema) {
-  return schema.t;
-}
-
 function has(acc, flag) {
   return (acc & flag) !== 0;
 }
@@ -3341,7 +3337,6 @@ export {
   assertOrThrow ,
   isAsync ,
   recursive ,
-  classify ,
   setName ,
   removeTypeValidation ,
   Schema ,

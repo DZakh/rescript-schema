@@ -226,7 +226,8 @@ let isAsync: t<'value> => bool
 
 let recursive: (t<'value> => t<'value>) => t<'value>
 
-let classify: t<'value> => tagged
+@get
+external classify: t<'value> => tagged = "t"
 
 @send
 external name: t<'value> => string = "n"
