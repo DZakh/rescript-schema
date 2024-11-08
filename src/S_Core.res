@@ -393,8 +393,8 @@ type s<'value> = {
   fail: 'a. (string, ~path: Path.t=?) => 'a,
 }
 
-@inline
-let classify = schema => schema.tagged
+@get
+external classify: t<'value> => tagged = "t"
 
 module Flag = {
   @inline let none = 0
