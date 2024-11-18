@@ -1732,12 +1732,27 @@ function reverse$1(definition, kind, items) {
 
 function factory$3(definer) {
   var inlinedLocations = [];
-  var fields = {};
   var items = [];
   var flatten = function (schema) {
+    var ctx = this;
     var match = schema.t;
     if (typeof match === "object" && match.TAG === "Object") {
-      Object.assign(fields, match.fields);
+      var flattenedFields = match.fields;
+      var flattenedFieldNames = match.fieldNames;
+      for(var idx = 0 ,idx_finish = flattenedFieldNames.length; idx < idx_finish; ++idx){
+        var fieldName = flattenedFieldNames[idx];
+        var schema$1 = flattenedFields[fieldName];
+        var definedSchema = ctx.fields[fieldName];
+        if (definedSchema !== undefined) {
+          if (definedSchema !== schema$1) {
+            throw new Error("[rescript-schema] " + ("The field " + fieldName + " defined twice with incompatible schemas"));
+          }
+          
+        } else {
+          ctx.fields[fieldName] = schema$1;
+          ctx.fieldNames.push(fieldName);
+        }
+      }
       var item_0 = setUnknownKeys(schema, "Strip");
       var item = {
         k: 2,
@@ -1751,7 +1766,11 @@ function factory$3(definer) {
     throw new Error("[rescript-schema] " + message);
   };
   var field = function (fieldName, schema) {
+    var ctx = this;
     var inlinedLocation = JSON.stringify(fieldName);
+    if (ctx.fields[fieldName]) {
+      throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice with incompatible schemas"));
+    }
     var item_2 = "[" + inlinedLocation + "]";
     var item = {
       k: 0,
@@ -1759,41 +1778,47 @@ function factory$3(definer) {
       i: inlinedLocation,
       p: item_2
     };
-    fields[fieldName] = schema;
+    ctx.fields[fieldName] = schema;
+    ctx.fieldNames.push(fieldName);
     inlinedLocations.push(inlinedLocation);
     items.push(item);
     return proxify(item);
   };
   var tag = function (tag$1, asValue) {
-    field(tag$1, literal(asValue));
+    this.f(tag$1, literal(asValue));
   };
   var fieldOr = function (fieldName, schema, or) {
-    return field(fieldName, getOr(factory(schema), or));
+    return this.f(fieldName, getOr(factory(schema), or));
   };
   var nestedField = function (fieldName, nestedFieldName, schema) {
-    var match = fields[fieldName];
+    var ctx = this;
+    var match = ctx.fields[fieldName];
     if (match === undefined) {
-      return field(fieldName, factory$3(function (s) {
+      return ctx.f(fieldName, factory$3(function (s) {
                       return s.f(nestedFieldName, schema);
                     }));
     }
     var message = "The field " + JSON.stringify(fieldName) + " defined twice with incompatible schemas";
     throw new Error("[rescript-schema] " + message);
   };
+  var ctx_fields = {};
+  var ctx_fieldNames = [];
   var ctx = {
     field: field,
     f: field,
     fieldOr: fieldOr,
     tag: tag,
     nestedField: nestedField,
-    flatten: flatten
+    flatten: flatten,
+    fields: ctx_fields,
+    fieldNames: ctx_fieldNames
   };
   var definition = definer(ctx);
   return {
           t: {
             TAG: "Object",
-            fieldNames: Object.keys(fields),
-            fields: fields,
+            fieldNames: ctx_fieldNames,
+            fields: ctx_fields,
             unknownKeys: globalConfig.u
           },
           n: name,

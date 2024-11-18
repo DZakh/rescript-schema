@@ -250,6 +250,8 @@ module Object: {
     tag: 'value. (string, 'value) => unit,
     nestedField: 'value. (string, string, t<'value>) => 'value,
     flatten: 'value. t<'value> => 'value,
+    fields: dict<t<unknown>>,
+    fieldNames: array<string>,
   }
 
   /* The same as S.object. Expose only for PPX since the object is a reserved name in OCaml */

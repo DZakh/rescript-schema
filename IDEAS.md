@@ -32,6 +32,13 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Get rid of S.literal in Js/ts API and S.tuple shorthand
 - Use ReScript types for schema names
   // FIXME: Return back s.flatten support for schemas created with S.schema
+- Rename Js integer to int32
+
+  // TODO: FIXME: PLAN
+  // 1. Move fields and fieldNames to the ctx and expose them in resi
+  // 2. Add merge logic to s.flatten and s.field - allow only duplicate fields with the same schema (===)
+  // 3. Add s.nested("fieldName") which would return a nested ctx.
+  // So it's possible to do s.nested("fieldName").field("nestedFieldName", S.string)
 
 ### Done
 
