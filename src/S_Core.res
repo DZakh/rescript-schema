@@ -101,9 +101,6 @@ module Stdlib = {
     @val
     external copy: (@as(json`{}`) _, dict<'a>) => dict<'a> = "Object.assign"
 
-    @val
-    external mixin: (dict<'a>, dict<'a>) => dict<'a> = "Object.assign"
-
     @get_index
     external unsafeGetOption: (dict<'a>, string) => option<'a> = ""
 
@@ -2115,6 +2112,8 @@ module Object = {
     tag: 'value. (string, 'value) => unit,
     nestedField: 'value. (string, string, t<'value>) => 'value,
     flatten: 'value. t<'value> => 'value,
+    fields: dict<t<unknown>>,
+    fieldNames: array<string>,
   }
 
   type ctx = {
@@ -2613,21 +2612,35 @@ module Object = {
     type value. (s => value) => schema<value> =
     definer => {
       let inlinedLocations = []
-      let fields = Js.Dict.empty()
       let items = []
 
       let ctx = {
         let flatten = schema => {
+          let ctx = %raw(`this`)
           let schema = schema->toUnknown
           switch schema.tagged {
-          | Object({fields: flattenedFields}) =>
-            let _ = Stdlib.Dict.mixin(fields, flattenedFields)
-            let item = Root({
-              schema: schema->setUnknownKeys(Strip),
-              path: Path.empty,
-            })
-            items->Js.Array2.push(item)->ignore
-            item->proxify
+          | Object({fields: flattenedFields, fieldNames: flattenedFieldNames}) => {
+              for idx in 0 to flattenedFieldNames->Js.Array2.length - 1 {
+                let fieldName = flattenedFieldNames->Js.Array2.unsafe_get(idx)
+                let schema = flattenedFields->Js.Dict.unsafeGet(fieldName)
+                switch ctx.fields->Stdlib.Dict.unsafeGetOption(fieldName) {
+                | Some(definedSchema) if definedSchema === schema => ()
+                | Some(_) =>
+                  InternalError.panic(
+                    `The field ${fieldName} defined twice with incompatible schemas`,
+                  )
+                | None =>
+                  ctx.fields->Js.Dict.set(fieldName, schema)
+                  ctx.fieldNames->Js.Array2.push(fieldName)->ignore
+                }
+              }
+              let item = Root({
+                schema: schema->setUnknownKeys(Strip),
+                path: Path.empty,
+              })
+              items->Js.Array2.push(item)->ignore
+              item->proxify
+            }
           | _ => InternalError.panic(`The ${schema.name()} schema can't be flattened`)
           }
         }
@@ -2635,55 +2648,40 @@ module Object = {
         let field:
           type value. (string, schema<value>) => value =
           (fieldName, schema) => {
+            let ctx = %raw(`this`)
             let schema = schema->toUnknown
             let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
-            // switch fields->Stdlib.Dict.unsafeGetOption(fieldName) {
-            // | Some(_) =>
-            //   // if item.schema.definer->Obj.magic && schema.definer->Obj.magic {
-            //   //   (schema.definer->Obj.magic)(item.schema.definerCtx->Obj.magic)->(
-            //   //     Obj.magic: unknown => value
-            //   //   )
-            //   // } else {
-            //   InternalError.panic(
-            //     `The field ${inlinedLocation} defined twice with incompatible schemas`,
-            //   )
-            // // }
-            // | None => {
-            // let schema = if schema.definer->Obj.magic {
-            //   factory(schema.definer->Obj.magic)
-            // } else {
-            //   schema
-            // }
+            if ctx.fields->Stdlib.Dict.has(fieldName) {
+              InternalError.panic(
+                `The field ${inlinedLocation} defined twice with incompatible schemas`,
+              )
+            }
             let item: item = Item({
               schema,
               inlinedLocation,
               path: Path.fromInlinedLocation(inlinedLocation),
             })
-            fields->Js.Dict.set(fieldName, schema)
+            ctx.fields->Js.Dict.set(fieldName, schema)
+            ctx.fieldNames->Js.Array2.push(fieldName)->ignore
             inlinedLocations->Js.Array2.push(inlinedLocation)->ignore
             items->Js.Array2.push(item)->ignore
-            // if schema.definer->Obj.magic {
-            //   schema->getOutputDefinition->(Obj.magic: unknown => value)
-            // } else {
             item->proxify
-            // }
-            // }
-            // }
           }
 
         let tag = (tag, asValue) => {
-          let _ = field(tag, literal(asValue))
+          let _ = (%raw(`this`)).field(tag, literal(asValue))
         }
 
         let fieldOr = (fieldName, schema, or) => {
-          field(fieldName, Option.factory(schema)->Option.getOr(or))
+          (%raw(`this`)).field(fieldName, Option.factory(schema)->Option.getOr(or))
         }
 
         let nestedField:
           type value. (string, string, t<value>) => value =
           (fieldName, nestedFieldName, schema) => {
+            let ctx = %raw(`this`)
             let schema = schema->toUnknown
-            switch fields->Stdlib.Dict.unsafeGetOption(fieldName) {
+            switch ctx.fields->Stdlib.Dict.unsafeGetOption(fieldName) {
             | Some(_) =>
               // if item.schema.definer->Obj.magic {
               //   (item.schema.definerCtx->(Obj.magic: option<char> => ctx)).field(
@@ -2696,7 +2694,7 @@ module Object = {
               )
             // }
             | None =>
-              field(fieldName, factory(s => s.field(nestedFieldName, schema)))->(
+              ctx.field(fieldName, factory(s => s.field(nestedFieldName, schema)))->(
                 Obj.magic: unknown => value
               )
             }
@@ -2705,6 +2703,9 @@ module Object = {
         {
           // js/ts methods
           _jsField: field,
+          // data
+          fields: Js.Dict.empty(),
+          fieldNames: [],
           // methods
           field,
           fieldOr,
@@ -2718,8 +2719,8 @@ module Object = {
 
       {
         tagged: Object({
-          fieldNames: fields->Js.Dict.keys,
-          fields,
+          fieldNames: ctx.fieldNames,
+          fields: ctx.fields,
           unknownKeys: globalConfig.defaultUnknownKeys,
         }),
         builder: builder(~definition, ~items, ~inlinedLocations),
