@@ -81,11 +81,30 @@ test("Can flatten strict object", t => {
   )
 })
 
-test("Flatten schema with duplicated field of the same type", t => {
+// FIXME: Should work
+test("Flatten schema with duplicated field of the same type (flatten first)", t => {
+  t->Assert.throws(
+    () => {
+      S.object(
+        s =>
+          {
+            "bar": s.flatten(S.object(s => s.field("foo", S.string))),
+            "foo": s.field("foo", S.string),
+          },
+      )
+    },
+    ~expectations={
+      message: `[rescript-schema] The field "foo" defined twice with incompatible schemas`,
+    },
+    (),
+  )
+})
+
+test("Flatten schema with duplicated field of the same type (flatten last)", t => {
   let schema = S.object(s =>
     {
-      "bar": s.flatten(S.object(s => s.field("foo", S.string))),
       "foo": s.field("foo", S.string),
+      "bar": s.flatten(S.object(s => s.field("foo", S.string))),
     }
   )
 
@@ -97,42 +116,35 @@ test("Flatten schema with duplicated field of the same type", t => {
       }
     ),
   )
+  // FIXME: Can be improved
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v1=i["foo"];if(typeof v1!=="string"){e[1](v1)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"bar":v0,"foo":v1,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}let v1=i["foo"];if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
+  )
+  // FIXME: Should validate that the fields are equal
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    `i=>{return {"foo":i["foo"],"foo":i["bar"],}}`,
   )
 })
 
 test("Flatten schema with duplicated field of different type", t => {
-  let schema = S.object(s =>
-    {
-      "bar": s.flatten(S.object(s => s.field("foo", S.string))),
-      "foo": s.field("foo", S.bool),
-    }
-  )
-
-  t->U.unsafeAssertEqualSchemas(
-    schema,
-    S.object(s =>
-      {
-        "foo": s.field("foo", S.bool),
-      }
-    ),
-  )
-  // It'll never pass, but we don't protect against it
-  t->U.assertCompiledCode(
-    ~schema,
-    ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v1=i["foo"];if(typeof v1!=="boolean"){e[1](v1)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"bar":v0,"foo":v1,}}`,
-  )
-  t->U.assertRaised(
-    () => %raw(`{"foo": true}`)->S.parseOrThrow(schema),
-    {
-      code: InvalidType({expected: S.string->S.toUnknown, received: true->Obj.magic}),
-      operation: Parse,
-      path: S.Path.fromLocation("foo"),
+  t->Assert.throws(
+    () => {
+      S.object(
+        s =>
+          {
+            "bar": s.flatten(S.object(s => s.field("foo", S.string))),
+            "foo": s.field("foo", S.string->S.email),
+          },
+      )
     },
+    ~expectations={
+      message: `[rescript-schema] The field "foo" defined twice with incompatible schemas`,
+    },
+    (),
   )
 })
 
