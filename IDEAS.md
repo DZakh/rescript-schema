@@ -33,6 +33,8 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Use ReScript types for schema names
   // FIXME: Return back s.flatten support for schemas created with S.schema
 - Rename Js integer to int32
+- Rename S.Object.strict to S.strict (the same for strip)
+- Fix unknownKeys for nested S.schema
 
   // TODO: FIXME: PLAN
   // 1. Move fields and fieldNames to the ctx and expose them in resi

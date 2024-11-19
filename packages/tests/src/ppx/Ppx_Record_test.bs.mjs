@@ -4,10 +4,10 @@ import * as U from "../utils/U.bs.mjs";
 import Ava from "ava";
 import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 
-var simpleRecordSchema = S$RescriptSchema.$$Object.factory(function (s) {
+var simpleRecordSchema = S$RescriptSchema.schema(function (s) {
       return {
-              label: s.f("label", S$RescriptSchema.string),
-              value: s.f("value", S$RescriptSchema.$$int)
+              label: s.matches(S$RescriptSchema.string),
+              value: s.matches(S$RescriptSchema.$$int)
             };
     });
 
@@ -24,10 +24,10 @@ Ava("Simple record schema", (function (t) {
             }, undefined);
       }));
 
-var recordWithAliasSchema = S$RescriptSchema.$$Object.factory(function (s) {
+var recordWithAliasSchema = S$RescriptSchema.schema(function (s) {
       return {
-              "aliased-label": s.f("aliased-label", S$RescriptSchema.string),
-              value: s.f("value", S$RescriptSchema.$$int)
+              "aliased-label": s.matches(S$RescriptSchema.string),
+              value: s.matches(S$RescriptSchema.$$int)
             };
     });
 
@@ -44,10 +44,10 @@ Ava("Record schema with alias for field name", (function (t) {
             }, undefined);
       }));
 
-var recordWithOptionalSchema = S$RescriptSchema.$$Object.factory(function (s) {
+var recordWithOptionalSchema = S$RescriptSchema.schema(function (s) {
       return {
-              label: s.f("label", S$RescriptSchema.option(S$RescriptSchema.string)),
-              value: s.f("value", S$RescriptSchema.option(S$RescriptSchema.$$int))
+              label: s.matches(S$RescriptSchema.option(S$RescriptSchema.string)),
+              value: s.matches(S$RescriptSchema.option(S$RescriptSchema.$$int))
             };
     });
 
@@ -68,9 +68,9 @@ Ava("Record schema with optional fields", (function (t) {
             }, undefined);
       }));
 
-var recordWithNullableFieldSchema = S$RescriptSchema.$$Object.factory(function (s) {
+var recordWithNullableFieldSchema = S$RescriptSchema.schema(function (s) {
       return {
-              subscription: s.f("subscription", S$RescriptSchema.option(S$RescriptSchema.$$null(S$RescriptSchema.string)))
+              subscription: s.matches(S$RescriptSchema.option(S$RescriptSchema.$$null(S$RescriptSchema.string)))
             };
     });
 
