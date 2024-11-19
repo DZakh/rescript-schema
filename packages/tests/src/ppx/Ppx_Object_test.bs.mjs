@@ -4,10 +4,10 @@ import * as U from "../utils/U.bs.mjs";
 import Ava from "ava";
 import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 
-var simpleObjectSchema = S$RescriptSchema.$$Object.factory(function (s) {
+var simpleObjectSchema = S$RescriptSchema.schema(function (s) {
       return {
-              label: s.f("label", S$RescriptSchema.string),
-              value: s.f("value", S$RescriptSchema.$$int)
+              label: s.matches(S$RescriptSchema.string),
+              value: s.matches(S$RescriptSchema.$$int)
             };
     });
 
@@ -24,10 +24,10 @@ Ava("Simple object schema", (function (t) {
             }, undefined);
       }));
 
-var objectWithAliasSchema = S$RescriptSchema.$$Object.factory(function (s) {
+var objectWithAliasSchema = S$RescriptSchema.schema(function (s) {
       return {
-              label: s.f("label", S$RescriptSchema.string),
-              value: s.f("value", S$RescriptSchema.$$int)
+              label: s.matches(S$RescriptSchema.string),
+              value: s.matches(S$RescriptSchema.$$int)
             };
     });
 

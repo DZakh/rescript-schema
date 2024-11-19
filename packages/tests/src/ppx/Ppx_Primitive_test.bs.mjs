@@ -80,10 +80,10 @@ Ava("Json schema from Core", (function (t) {
         U.assertEqualSchemas(t, myJsonFromCoreSchema, S$RescriptSchema.json(true), undefined);
       }));
 
-var myTupleSchema = S$RescriptSchema.tuple(function (s) {
+var myTupleSchema = S$RescriptSchema.schema(function (s) {
       return [
-              s.item(0, S$RescriptSchema.string),
-              s.item(1, S$RescriptSchema.$$int)
+              s.matches(S$RescriptSchema.string),
+              s.matches(S$RescriptSchema.$$int)
             ];
     });
 
@@ -91,20 +91,20 @@ Ava("Tuple schema", (function (t) {
         U.assertEqualSchemas(t, myTupleSchema, S$RescriptSchema.tuple2(S$RescriptSchema.string, S$RescriptSchema.$$int), undefined);
       }));
 
-var myBigTupleSchema = S$RescriptSchema.tuple(function (s) {
+var myBigTupleSchema = S$RescriptSchema.schema(function (s) {
       return [
-              s.item(0, S$RescriptSchema.string),
-              s.item(1, S$RescriptSchema.string),
-              s.item(2, S$RescriptSchema.string),
-              s.item(3, S$RescriptSchema.$$int),
-              s.item(4, S$RescriptSchema.$$int),
-              s.item(5, S$RescriptSchema.$$int),
-              s.item(6, S$RescriptSchema.$$float),
-              s.item(7, S$RescriptSchema.$$float),
-              s.item(8, S$RescriptSchema.$$float),
-              s.item(9, S$RescriptSchema.bool),
-              s.item(10, S$RescriptSchema.bool),
-              s.item(11, S$RescriptSchema.bool)
+              s.matches(S$RescriptSchema.string),
+              s.matches(S$RescriptSchema.string),
+              s.matches(S$RescriptSchema.string),
+              s.matches(S$RescriptSchema.$$int),
+              s.matches(S$RescriptSchema.$$int),
+              s.matches(S$RescriptSchema.$$int),
+              s.matches(S$RescriptSchema.$$float),
+              s.matches(S$RescriptSchema.$$float),
+              s.matches(S$RescriptSchema.$$float),
+              s.matches(S$RescriptSchema.bool),
+              s.matches(S$RescriptSchema.bool),
+              s.matches(S$RescriptSchema.bool)
             ];
     });
 
