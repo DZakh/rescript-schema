@@ -1,5 +1,20 @@
 open Ava
 
+test("Object with a single nested field", t => {
+  let schema = S.object(s => s.nested("nested").field("foo", S.string))
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s => s.field("nested", S.object(s => s.field("foo", S.string)))),
+  )
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[1](v1)}return {"nested":{"foo":v1,},}}`,
+  )
+})
+
 Skip.test(
   "Has correct tagged type with nested called multiple times and nested objects are not mutate",
   t => {

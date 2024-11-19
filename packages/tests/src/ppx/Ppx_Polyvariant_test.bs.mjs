@@ -38,9 +38,9 @@ Ava("Supported as a dict field", (function (t) {
         U.assertEqualSchemas(t, dictFieldSchema, S$RescriptSchema.dict(S$RescriptSchema.literal("one")), undefined);
       }));
 
-var recordFieldSchema = S$RescriptSchema.$$Object.factory(function (s) {
+var recordFieldSchema = S$RescriptSchema.schema(function (s) {
       return {
-              poly: s.f("poly", S$RescriptSchema.literal("one"))
+              poly: s.matches(S$RescriptSchema.literal("one"))
             };
     });
 
@@ -52,9 +52,9 @@ Ava("Supported as a record field", (function (t) {
                 }), undefined);
       }));
 
-var objectFieldSchema = S$RescriptSchema.$$Object.factory(function (s) {
+var objectFieldSchema = S$RescriptSchema.schema(function (s) {
       return {
-              poly: s.f("poly", S$RescriptSchema.literal("one"))
+              poly: s.matches(S$RescriptSchema.literal("one"))
             };
     });
 

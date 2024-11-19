@@ -11,13 +11,13 @@ var ratingSchema = S$RescriptSchema.union([
       S$RescriptSchema.literal("R")
     ]);
 
-var filmSchema = S$RescriptSchema.$$Object.factory(function (s) {
+var filmSchema = S$RescriptSchema.schema(function (s) {
       return {
-              Id: s.f("Id", S$RescriptSchema.$$float),
-              Title: s.f("Title", S$RescriptSchema.string),
-              Tags: s.f("Tags", S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.array(S$RescriptSchema.string)), [])),
-              Rating: s.f("Rating", ratingSchema),
-              Age: s.f("Age", S$RescriptSchema.deprecate(S$RescriptSchema.option(S$RescriptSchema.$$int), "Use rating instead"))
+              Id: s.matches(S$RescriptSchema.$$float),
+              Title: s.matches(S$RescriptSchema.string),
+              Tags: s.matches(S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.array(S$RescriptSchema.string)), [])),
+              Rating: s.matches(ratingSchema),
+              Age: s.matches(S$RescriptSchema.deprecate(S$RescriptSchema.option(S$RescriptSchema.$$int), "Use rating instead"))
             };
     });
 
