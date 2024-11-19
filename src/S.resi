@@ -248,13 +248,11 @@ module Object: {
     fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     tag: 'value. (string, 'value) => unit,
     nestedField: 'value. (string, string, t<'value>) => 'value,
+    nested: string => s,
     flatten: 'value. t<'value> => 'value,
     fields: dict<t<unknown>>,
     fieldNames: array<string>,
   }
-
-  /* The same as S.object. Expose only for PPX since the object is a reserved name in OCaml */
-  let factory: (s => 'value) => t<'value>
 
   let strip: t<'value> => t<'value>
   let strict: t<'value> => t<'value>

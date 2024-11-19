@@ -12,12 +12,12 @@ Ava("Creates schema with the type name and schema at the for non t types", (func
         U.assertEqualSchemas(t, S$RescriptSchema.$$int, S$RescriptSchema.$$int, undefined);
       }));
 
-var reusedTypesSchema = S$RescriptSchema.tuple(function (s) {
+var reusedTypesSchema = S$RescriptSchema.schema(function (s) {
       return [
-              s.item(0, S$RescriptSchema.string),
-              s.item(1, S$RescriptSchema.$$int),
-              s.item(2, S$RescriptSchema.bool),
-              s.item(3, S$RescriptSchema.$$float)
+              s.matches(S$RescriptSchema.string),
+              s.matches(S$RescriptSchema.$$int),
+              s.matches(S$RescriptSchema.bool),
+              s.matches(S$RescriptSchema.$$float)
             ];
     });
 

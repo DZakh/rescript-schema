@@ -17,7 +17,7 @@ let rec generateConstrSchemaExpression {Location.txt = identifier; loc}
   | Lident "unknown", _ -> [%expr S.unknown]
   | Ldot (Lident "S", "never"), _ -> [%expr S.never]
   | Ldot (Ldot (Lident "Js", "Json"), "t"), _ | Ldot (Lident "JSON", "t"), _ ->
-    [%expr S.json ~validate:true ]
+    [%expr S.json ~validate:true]
   | Lident "array", [item_type] ->
     [%expr S.array [%e generateCoreTypeSchemaExpression item_type]]
   | Lident "list", [item_type] ->
@@ -110,26 +110,33 @@ and generateObjectSchema fields =
   let field_expressions =
     fields
     |> List.map (fun field ->
-           let runtime_field_name_expression =
-             Exp.constant
-               (Pconst_string (field.runtime_name, Location.none, None))
-           in
-           let schema_expression = generateFieldSchemaExpression field in
-           ( lid field.runtime_name,
-             [%expr
-               s.field [%e runtime_field_name_expression] [%e schema_expression]]
-           ))
+           ( lid field.name,
+             [%expr s.matches [%e generateFieldSchemaExpression field]] ))
   in
   (* Use Obj.magic to cast to uncurried function in case of uncurried mode *)
   [%expr
-    S.Object.factory
-      (Obj.magic (fun (s : S.Object.s) ->
+    S.schema
+      (Obj.magic (fun (s : S.Schema.s) ->
            [%e
              Exp.extension
                ( mkloc "obj" Location.none,
                  PStr [Str.eval (Exp.record field_expressions None)] )]))]
 
-and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
+and generateRecordSchema fields =
+  let field_expressions =
+    fields
+    |> List.map (fun field ->
+           ( lid field.name,
+             [%expr s.matches [%e generateFieldSchemaExpression field]] ))
+  in
+  (* Use Obj.magic to cast to uncurried function in case of uncurried mode *)
+  [%expr
+    S.schema
+      (Obj.magic (fun (s : S.Schema.s) ->
+           [%e Exp.record field_expressions None]))]
+
+and generateCoreTypeSchemaExpression core_type =
+  let {ptyp_desc; ptyp_loc; ptyp_attributes} = core_type in
   let customSchemaExpression = getAttributeByName ptyp_attributes "s.matches" in
   let option_factory_expression =
     match
@@ -145,7 +152,7 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
     | _, Error s | Error s, _ -> fail ptyp_loc s
   in
   let schema_expression =
-    match (customSchemaExpression) with
+    match customSchemaExpression with
     | Ok None -> (
       match ptyp_desc with
       | Ptyp_any -> fail ptyp_loc "Can't generate schema for `any` type"
@@ -154,15 +161,14 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
       | Ptyp_package _ -> fail ptyp_loc "Can't generate schema for module type"
       | Ptyp_tuple tuple_types ->
         [%expr
-          S.tuple
-            (Obj.magic (fun (s : S.Tuple.s) ->
+          S.schema
+            (Obj.magic (fun (s : S.Schema.s) : [%t core_type] ->
                  [%e
                    Exp.tuple
                      (tuple_types
-                     |> List.mapi (fun idx tuple_type ->
+                     |> List.map (fun tuple_type ->
                             [%expr
-                              s.item
-                                [%e Exp.constant (Const.int idx)]
+                              s.matches
                                 [%e generateCoreTypeSchemaExpression tuple_type]])
                      )]))]
       | Ptyp_var s -> makeIdentExpr (generateSchemaName s)
@@ -174,8 +180,7 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
       | Ptyp_object (object_fields, Closed) ->
         object_fields |> List.map parseObjectField |> generateObjectSchema
       | _ -> fail ptyp_loc "Unsupported type")
-    | Ok (Some attribute) ->
-      getExpressionFromPayload attribute
+    | Ok (Some attribute) -> getExpressionFromPayload attribute
     | Error s -> fail ptyp_loc s
   in
   let schema_expression =
@@ -219,15 +224,16 @@ and generateCoreTypeSchemaExpression {ptyp_desc; ptyp_loc; ptyp_attributes} =
   schema_expression
 
 let generateTypeDeclarationSchemaExpression type_declaration =
+  (* let {ptype_name = {txt = type_name}} = type_declaration in *)
   match type_declaration with
   | {ptype_loc; ptype_kind = Ptype_abstract; ptype_manifest = None} ->
     fail ptype_loc "Can't generate schema for abstract type"
   | {ptype_manifest = Some manifest; _} ->
-    generateCoreTypeSchemaExpression manifest
+    manifest |> generateCoreTypeSchemaExpression
   | {ptype_kind = Ptype_variant decls; _} ->
     generateVariantSchemaExpression decls
   | {ptype_kind = Ptype_record label_declarations; _} ->
-    label_declarations |> List.map parseLabelDeclaration |> generateObjectSchema
+    label_declarations |> List.map parseLabelDeclaration |> generateRecordSchema
   | {ptype_loc; _} -> fail ptype_loc "Unsupported type declaration"
 
 let generateSchemaValueBinding type_name schema_expr =

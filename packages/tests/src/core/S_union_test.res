@@ -535,7 +535,7 @@ module CknittelBugReport = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#ReverseConvert,
-      `i=>{let v3=i;if(!i||i.constructor!==Object){e[3](i)}else{try{let v0=i["TAG"],v1=i["_0"],v2=v1["payload"];if(v0!=="A"){e[0](v0)}v3={"payload":{"a":v2["a"],},}}catch(e0){try{let v4=i["TAG"],v5=i["_0"],v6=v5["payload"];if(v4!=="B"){e[1](v4)}v3={"payload":{"b":v6["b"],},}}catch(e1){e[2]([e0,e1,])}}}return v3}`,
+      `i=>{let v3=i;if(!i||i.constructor!==Object){e[3](i)}else{try{let v0=i["TAG"],v1=i["_0"];if(v0!=="A"){e[0](v0)}let v2=v1["payload"];v3=v1}catch(e0){try{let v4=i["TAG"],v5=i["_0"];if(v4!=="B"){e[1](v4)}let v6=v5["payload"];v3=v5}catch(e1){e[2]([e0,e1,])}}}return v3}`,
     )
 
     let x = {
