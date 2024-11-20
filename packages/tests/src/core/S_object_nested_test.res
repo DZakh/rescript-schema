@@ -57,6 +57,28 @@ test("Object with a two nested field using the same ctx", t => {
   )
 })
 
+test("Object with a single nested nested field", t => {
+  let schema = S.object(s => s.nested("nested").nested("deeply").field("foo", S.string))
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s =>
+      s.field("nested", S.object(s => s.field("deeply", S.object(s => s.field("foo", S.string)))))
+    ),
+  )
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["deeply"];if(!v1||v1.constructor!==Object){e[1](v1)}let v2=v1["foo"];if(typeof v2!=="string"){e[2](v2)}return v2}`,
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    `i=>{let v0={"foo":i,},v1={"deeply":v0,};let v2=v1["deeply"];return {"nested":v1,}}`,
+  )
+})
+
 Skip.test(
   "Has correct tagged type with nested called multiple times and nested objects are not mutate",
   t => {
