@@ -1792,6 +1792,17 @@ function description(schema) {
   return schema.m[descriptionMetadataId];
 }
 
+function getFullItemPath(item) {
+  switch (item.k) {
+    case 1 :
+        return getFullItemPath(item.t) + item.p;
+    case 0 :
+    case 2 :
+        return item.p;
+    
+  }
+}
+
 function getItemReversed(item) {
   switch (item.k) {
     case 1 :
@@ -1881,7 +1892,7 @@ function proxify(item) {
                               i: inlinedLocation,
                               l: prop,
                               t: item,
-                              p: item.p + ("[" + inlinedLocation + "]")
+                              p: "[" + inlinedLocation + "]"
                             });
                 })
             });
@@ -1930,119 +1941,39 @@ function definitionToRitem(definition, path, ritems) {
         };
 }
 
-function object(definer) {
-  var ctx = makeAdvancedObjectCtx();
-  var definition = definer(ctx);
-  var self = ctx.self;
-  self.b = advancedBuilder(definition, ctx.items, ctx.inlinedLocations);
-  self["~r"] = advancedReverse(definition, "Object", ctx.items);
-  return self;
-}
-
-function makeAdvancedObjectCtx() {
-  var inlinedLocations = [];
-  var items = [];
-  var fields = {};
-  var fieldNames = [];
-  var flatten = function (schema) {
-    var match = schema.t;
-    if (typeof match === "object" && match.TAG === "Object") {
-      var flattenedFields = match.fields;
-      var flattenedFieldNames = match.fieldNames;
-      for(var idx = 0 ,idx_finish = flattenedFieldNames.length; idx < idx_finish; ++idx){
-        var fieldName = flattenedFieldNames[idx];
-        var schema$1 = flattenedFields[fieldName];
-        var definedSchema = fields[fieldName];
-        if (definedSchema !== undefined) {
-          if (definedSchema !== schema$1) {
-            throw new Error("[rescript-schema] " + ("The field " + fieldName + " defined twice with incompatible schemas"));
-          }
-          
-        } else {
-          fields[fieldName] = schema$1;
-          fieldNames.push(fieldName);
+function builder$1(schemas, inlinedLocations, isArray) {
+  return function (parentB, input, selfSchema, path) {
+    var unknownKeys = selfSchema.t.unknownKeys;
+    var b = scope(parentB);
+    var typeFilters = "";
+    var inputVar = $$var(b, input);
+    var objectVal = make(b, isArray);
+    for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
+      var schema = schemas[idx];
+      var inlinedLocation = inlinedLocations[idx];
+      var itemPath = "[" + inlinedLocation + "]";
+      var itemInput = val(b, inputVar + itemPath);
+      var path$1 = path + itemPath;
+      var typeFilter = schema.f;
+      if (typeFilter !== undefined) {
+        if (schema.t.TAG === "Literal" && !(b.g.o & 64)) {
+          typeFilters = typeFilterCode(b, typeFilter, schema, itemInput, path$1) + typeFilters;
+        } else if (b.g.o & 1) {
+          typeFilters = typeFilters + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
         }
+        
       }
-      var item_0 = setUnknownKeys(schema, "Strip");
-      var item = {
-        k: 2,
-        s: item_0,
-        p: ""
-      };
-      items.push(item);
-      return proxify(item);
+      add(objectVal, inlinedLocation, schema.b(b, itemInput, schema, path$1));
     }
-    var message = "The " + schema.n() + " schema can't be flattened";
-    throw new Error("[rescript-schema] " + message);
-  };
-  var field = function (fieldName, schema) {
-    var inlinedLocation = JSON.stringify(fieldName);
-    if (fields[fieldName]) {
-      throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice with incompatible schemas"));
+    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
+    b.c = typeFilters + b.c;
+    parentB.c = parentB.c + allocateScope(b);
+    if ((unknownKeys !== "Strip" || b.g.o & 32) && selfSchema === selfSchema["~r"]()) {
+      return input;
+    } else {
+      return complete(objectVal, isArray);
     }
-    var item_2 = "[" + inlinedLocation + "]";
-    var item = {
-      k: 0,
-      s: schema,
-      i: inlinedLocation,
-      p: item_2
-    };
-    fields[fieldName] = schema;
-    fieldNames.push(fieldName);
-    inlinedLocations.push(inlinedLocation);
-    items.push(item);
-    return proxify(item);
   };
-  var tag = function (tag$1, asValue) {
-    field(tag$1, literal(asValue));
-  };
-  var fieldOr = function (fieldName, schema, or) {
-    return field(fieldName, getOr(factory(schema), or));
-  };
-  var nestedField = function (fieldName, nestedFieldName, schema) {
-    var match = fields[fieldName];
-    if (match === undefined) {
-      return field(fieldName, object(function (s) {
-                      return s.f(nestedFieldName, schema);
-                    }));
-    }
-    var message = "The field " + JSON.stringify(fieldName) + " defined twice with incompatible schemas";
-    throw new Error("[rescript-schema] " + message);
-  };
-  var nested = function (fieldName) {
-    var nestedCtx = makeAdvancedObjectCtx();
-    field(fieldName, nestedCtx.self);
-    return nestedCtx;
-  };
-  return {
-          field: field,
-          items: items,
-          inlinedLocations: inlinedLocations,
-          self: {
-            t: {
-              TAG: "Object",
-              fieldNames: fieldNames,
-              fields: fields,
-              unknownKeys: globalConfig.u
-            },
-            n: name,
-            "~r": (function () {
-                throw new Error("[rescript-schema] FIXME: ");
-              }),
-            b: builder,
-            f: typeFilter$1,
-            i: 0,
-            m: empty
-          },
-          f: field,
-          fieldOr: fieldOr,
-          tag: tag,
-          nestedField: nestedField,
-          nested: nested,
-          flatten: flatten,
-          fields: fields,
-          fieldNames: fieldNames
-        };
 }
 
 function advancedReverse(definition, kind, items) {
@@ -2073,7 +2004,7 @@ function advancedReverse(definition, kind, items) {
               var item = ritem.i;
               var itemOutput = reversed.b(b, input, reversed, path);
               outputs.set(item, itemOutput);
-              outputsByPath[item.p] = itemOutput;
+              outputsByPath[getFullItemPath(item)] = itemOutput;
               break;
           case 1 :
           case 2 :
@@ -2087,7 +2018,7 @@ function advancedReverse(definition, kind, items) {
                 var reversed$1 = match.s;
                 var item$1 = match.i;
                 var ritemPath = match.p;
-                var itemPath = item$1.p;
+                var itemPath = getFullItemPath(item$1);
                 var itemInput = val(b, $$var(b, input) + ritemPath);
                 var path$1 = path + ritemPath;
                 var embededOutput = outputsByPath[itemPath];
@@ -2271,41 +2202,6 @@ function advancedBuilder(definition, items, inlinedLocations) {
   };
 }
 
-function builder$1(schemas, inlinedLocations, isArray) {
-  return function (parentB, input, selfSchema, path) {
-    var unknownKeys = selfSchema.t.unknownKeys;
-    var b = scope(parentB);
-    var typeFilters = "";
-    var inputVar = $$var(b, input);
-    var objectVal = make(b, isArray);
-    for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-      var schema = schemas[idx];
-      var inlinedLocation = inlinedLocations[idx];
-      var itemPath = "[" + inlinedLocation + "]";
-      var itemInput = val(b, inputVar + itemPath);
-      var path$1 = path + itemPath;
-      var typeFilter = schema.f;
-      if (typeFilter !== undefined) {
-        if (schema.t.TAG === "Literal" && !(b.g.o & 64)) {
-          typeFilters = typeFilterCode(b, typeFilter, schema, itemInput, path$1) + typeFilters;
-        } else if (b.g.o & 1) {
-          typeFilters = typeFilters + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
-        }
-        
-      }
-      add(objectVal, inlinedLocation, schema.b(b, itemInput, schema, path$1));
-    }
-    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
-    b.c = typeFilters + b.c;
-    parentB.c = parentB.c + allocateScope(b);
-    if ((unknownKeys !== "Strip" || b.g.o & 32) && selfSchema === selfSchema["~r"]()) {
-      return input;
-    } else {
-      return complete(objectVal, isArray);
-    }
-  };
-}
-
 function to(schema, definer) {
   var item = {
     k: 2,
@@ -2327,6 +2223,176 @@ function to(schema, definer) {
                 };
                 return definitionToOutput(b, definition, getItemOutput);
               }), schema.f, advancedReverse(definition, "To", [item]));
+}
+
+function object(definer) {
+  var inlinedLocations = [];
+  var items = [];
+  var fields = {};
+  var fieldNames = [];
+  var flatten = function (schema) {
+    var match = schema.t;
+    if (typeof match === "object" && match.TAG === "Object") {
+      var flattenedFields = match.fields;
+      var flattenedFieldNames = match.fieldNames;
+      for(var idx = 0 ,idx_finish = flattenedFieldNames.length; idx < idx_finish; ++idx){
+        var fieldName = flattenedFieldNames[idx];
+        var schema$1 = flattenedFields[fieldName];
+        var definedSchema = fields[fieldName];
+        if (definedSchema !== undefined) {
+          if (definedSchema !== schema$1) {
+            throw new Error("[rescript-schema] " + ("The field " + fieldName + " defined twice with incompatible schemas"));
+          }
+          
+        } else {
+          fields[fieldName] = schema$1;
+          fieldNames.push(fieldName);
+        }
+      }
+      var item_0 = setUnknownKeys(schema, "Strip");
+      var item = {
+        k: 2,
+        s: item_0,
+        p: ""
+      };
+      items.push(item);
+      return proxify(item);
+    }
+    var message = "The " + schema.n() + " schema can't be flattened";
+    throw new Error("[rescript-schema] " + message);
+  };
+  var field = function (fieldName, schema) {
+    var inlinedLocation = JSON.stringify(fieldName);
+    if (fields[fieldName]) {
+      throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice with incompatible schemas"));
+    }
+    var item_2 = "[" + inlinedLocation + "]";
+    var item = {
+      k: 0,
+      s: schema,
+      i: inlinedLocation,
+      p: item_2
+    };
+    fields[fieldName] = schema;
+    fieldNames.push(fieldName);
+    inlinedLocations.push(inlinedLocation);
+    items.push(item);
+    return proxify(item);
+  };
+  var tag = function (tag$1, asValue) {
+    field(tag$1, literal(asValue));
+  };
+  var fieldOr = function (fieldName, schema, or) {
+    return field(fieldName, getOr(factory(schema), or));
+  };
+  var nested = function (fieldName) {
+    var schemas = [];
+    var inlinedLocations = [];
+    var fieldNames = [];
+    var fields = {};
+    var schema = makeSchema(name, {
+          TAG: "Object",
+          fieldNames: fieldNames,
+          fields: fields,
+          unknownKeys: globalConfig.u
+        }, empty, builder$1(schemas, inlinedLocations, false), typeFilter$1, toSelf);
+    var target = field(fieldName, schema);
+    var target$1 = target[itemSymbol];
+    var flatten = function (schema) {
+      var match = schema.t;
+      if (typeof match === "object" && match.TAG === "Object") {
+        var flattenedFields = match.fields;
+        var flattenedFieldNames = match.fieldNames;
+        for(var idx = 0 ,idx_finish = flattenedFieldNames.length; idx < idx_finish; ++idx){
+          var fieldName = flattenedFieldNames[idx];
+          var schema$1 = flattenedFields[fieldName];
+          var definedSchema = fields[fieldName];
+          if (definedSchema !== undefined) {
+            if (definedSchema !== schema$1) {
+              throw new Error("[rescript-schema] " + ("The field " + fieldName + " defined twice with incompatible schemas"));
+            }
+            
+          } else {
+            fields[fieldName] = schema$1;
+            fieldNames.push(fieldName);
+          }
+        }
+        var item_0 = setUnknownKeys(schema, "Strip");
+        var item = {
+          k: 2,
+          s: item_0,
+          p: ""
+        };
+        schemas.push(schema);
+        return proxify(item);
+      }
+      var message = "The " + schema.n() + " schema can't be flattened";
+      throw new Error("[rescript-schema] " + message);
+    };
+    var field$1 = function (fieldName, schema) {
+      var inlinedLocation = JSON.stringify(fieldName);
+      if (fields[fieldName]) {
+        throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice with incompatible schemas"));
+      }
+      var item_3 = "[" + inlinedLocation + "]";
+      var item = {
+        k: 1,
+        i: inlinedLocation,
+        l: fieldName,
+        t: target$1,
+        p: item_3
+      };
+      fields[fieldName] = schema;
+      fieldNames.push(fieldName);
+      inlinedLocations.push(inlinedLocation);
+      schemas.push(schema);
+      return proxify(item);
+    };
+    var tag = function (tag$1, asValue) {
+      field$1(tag$1, literal(asValue));
+    };
+    var fieldOr = function (fieldName, schema, or) {
+      return field$1(fieldName, getOr(factory(schema), or));
+    };
+    var nested$1 = function (_fieldName) {
+      return null;
+    };
+    return {
+            field: field$1,
+            f: field$1,
+            fieldOr: fieldOr,
+            tag: tag,
+            nested: nested$1,
+            flatten: flatten,
+            fields: fields,
+            fieldNames: fieldNames
+          };
+  };
+  var ctx = {
+    field: field,
+    f: field,
+    fieldOr: fieldOr,
+    tag: tag,
+    nested: nested,
+    flatten: flatten,
+    fields: fields,
+    fieldNames: fieldNames
+  };
+  var definition = definer(ctx);
+  return {
+          t: {
+            TAG: "Object",
+            fieldNames: fieldNames,
+            fields: fields,
+            unknownKeys: globalConfig.u
+          },
+          n: name,
+          "~r": advancedReverse(definition, "Object", items),
+          b: advancedBuilder(definition, items, inlinedLocations),
+          f: typeFilter$1,
+          i: 0,
+          m: empty
+        };
 }
 
 function tuple(definer) {
