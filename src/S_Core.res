@@ -2043,7 +2043,6 @@ module Object = {
     @as("f") field: 'value. (string, t<'value>) => 'value,
     fieldOr: 'value. (string, t<'value>, 'value) => 'value,
     tag: 'value. (string, 'value) => unit,
-    nestedField: 'value. (string, string, t<'value>) => 'value,
     nested: string => s,
     flatten: 'value. t<'value> => 'value,
     fields: dict<t<unknown>>,
@@ -2746,10 +2745,6 @@ module Schema = {
     // needed only because we use @as for field to reduce bundle-size
     // of ReScript compiled code
     @as("field") _jsField: 'value. (string, schema<'value>) => 'value,
-    // Internal fields
-    items: array<item>,
-    inlinedLocations: array<string>,
-    self: t<unknown>,
     // Public API for ReScript users
     ...Object.s,
   }
@@ -2775,6 +2770,13 @@ module Schema = {
 
   @inline
   let getItemPath = (item: item) => (item->Obj.magic)["p"]
+
+  let rec getFullItemPath = (item: item) => {
+    switch item {
+    | ItemField({target, path}) => Path.concat(target->getFullItemPath, path)
+    | _ => item->getItemPath
+    }
+  }
 
   @inline
   let getUnsafeItemSchema = (item: item) => (item->Obj.magic)["s"]
@@ -2943,7 +2945,7 @@ module Schema = {
             inlinedLocation,
             location,
             target: item,
-            path: item->getItemPath->Path.concat(Path.fromInlinedLocation(inlinedLocation)),
+            path: Path.fromInlinedLocation(inlinedLocation),
           })
           ->proxify
           ->Obj.magic
@@ -3165,7 +3167,7 @@ module Schema = {
         outputs
         ->Stdlib.WeakMap.set(item, itemOutput)
         ->ignore
-        outputsByPath->Js.Dict.set(item->getItemPath, itemOutput)->ignore
+        outputsByPath->Js.Dict.set(item->getFullItemPath, itemOutput)->ignore
       | _ => ()
       }
 
@@ -3198,7 +3200,7 @@ module Schema = {
               )
           }
         | Registred({item, reversed, path: ritemPath}) =>
-          let itemPath = item->getItemPath // FIXME: This is incorrect for nested ItemField
+          let itemPath = item->getFullItemPath
           let itemInput = b->B.val(`${b->B.Val.var(input)}${ritemPath}`)
           let path = path->Path.concat(ritemPath)
           switch outputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
@@ -3281,12 +3283,15 @@ module Schema = {
       )
     }
   }
-  and makeAdvancedObjectCtx = (): advancedObjectCtx => {
-    let inlinedLocations = []
-    let items = []
-    let fields = Js.Dict.empty()
-    let fieldNames = []
 
+  and makeNestedCtx = (
+    ~target: item,
+    ~schemas,
+    ~inlinedLocations,
+    ~fields,
+    ~fieldNames,
+  ): advancedObjectCtx => {
+    // FIXME: Update logic and try to reuse something
     let flatten = schema => {
       let schema = schema->toUnknown
       switch schema.tagged {
@@ -3307,7 +3312,7 @@ module Schema = {
             schema: schema->Object.setUnknownKeys(Strip),
             path: Path.empty,
           })
-          items->Js.Array2.push(item)->ignore
+          schemas->Js.Array2.push(schema)->ignore
           item->proxify
         }
       | _ => InternalError.panic(`The ${schema.name()} schema can't be flattened`)
@@ -3324,15 +3329,16 @@ module Schema = {
             `The field ${inlinedLocation} defined twice with incompatible schemas`,
           )
         }
-        let item: item = Item({
-          schema,
+        let item: item = ItemField({
+          target,
+          location: fieldName,
           inlinedLocation,
           path: Path.fromInlinedLocation(inlinedLocation),
         })
         fields->Js.Dict.set(fieldName, schema)
         fieldNames->Js.Array2.push(fieldName)->ignore
         inlinedLocations->Js.Array2.push(inlinedLocation)->ignore
-        items->Js.Array2.push(item)->ignore
+        schemas->Js.Array2.push(schema)->ignore
         item->proxify
       }
 
@@ -3344,38 +3350,9 @@ module Schema = {
       field(fieldName, Option.factory(schema)->Option.getOr(or))
     }
 
-    let nestedField:
-      type value. (string, string, t<value>) => value =
-      (fieldName, nestedFieldName, schema) => {
-        let schema = schema->toUnknown
-        switch fields->Stdlib.Dict.unsafeGetOption(fieldName) {
-        | Some(_) =>
-          // if item.schema.definer->Obj.magic {
-          //   (item.schema.definerCtx->(Obj.magic: option<char> => ctx)).field(
-          //     nestedFieldName,
-          //     schema,
-          //   )->(Obj.magic: unknown => value)
-          // } else {
-          InternalError.panic(
-            `The field ${fieldName->Stdlib.Inlined.Value.fromString} defined twice with incompatible schemas`,
-          )
-        // }
-        | None =>
-          field(fieldName, object(s => s.field(nestedFieldName, schema)))->(
-            Obj.magic: unknown => value
-          )
-        }
-      }
-
-    let nested = fieldName => {
-      let nestedCtx = makeAdvancedObjectCtx()
-      let _ = field(fieldName, nestedCtx.self)
-      (nestedCtx: advancedObjectCtx :> Object.s)
+    let nested = _fieldName => {
+      %raw(`null`)
     }
-
-    // TODO: FIXME:
-    // 1. Split nestedCtx and ctx
-    // 2. For nestedCtx store schema and lazily create builder and reverse using the Schema module logic
 
     {
       // js/ts methods
@@ -3383,47 +3360,155 @@ module Schema = {
       // data
       fields,
       fieldNames,
-      items,
-      inlinedLocations,
-      self: {
-        tagged: Object({
-          fieldNames,
-          fields,
-          unknownKeys: globalConfig.defaultUnknownKeys, // FIXME: Idea? Add mutable unknownKeys to ctx??
-        }),
-        builder: Never.builder, // FIXME:
-        isAsyncSchema: Unknown,
-        maybeTypeFilter: Some(Object.typeFilter),
-        name: Object.name,
-        metadataMap: Metadata.Map.empty,
-        reverse: () => InternalError.panic("FIXME: "),
-      },
       // methods
       field,
       fieldOr,
       tag,
       nested,
-      nestedField,
       flatten,
     }
   }
   and object:
     type value. (Object.s => value) => schema<value> =
     definer => {
-      let ctx = makeAdvancedObjectCtx()
+      let inlinedLocations = []
+      let items = []
+      let fields = Js.Dict.empty()
+      let fieldNames = []
+
+      let flatten = schema => {
+        let schema = schema->toUnknown
+        switch schema.tagged {
+        | Object({fields: flattenedFields, fieldNames: flattenedFieldNames}) => {
+            for idx in 0 to flattenedFieldNames->Js.Array2.length - 1 {
+              let fieldName = flattenedFieldNames->Js.Array2.unsafe_get(idx)
+              let schema = flattenedFields->Js.Dict.unsafeGet(fieldName)
+              switch fields->Stdlib.Dict.unsafeGetOption(fieldName) {
+              | Some(definedSchema) if definedSchema === schema => ()
+              | Some(_) =>
+                InternalError.panic(
+                  `The field ${fieldName} defined twice with incompatible schemas`,
+                )
+              | None =>
+                fields->Js.Dict.set(fieldName, schema)
+                fieldNames->Js.Array2.push(fieldName)->ignore
+              }
+            }
+            let item = Root({
+              schema: schema->Object.setUnknownKeys(Strip),
+              path: Path.empty,
+            })
+            items->Js.Array2.push(item)->ignore
+            item->proxify
+          }
+        | _ => InternalError.panic(`The ${schema.name()} schema can't be flattened`)
+        }
+      }
+
+      let field:
+        type value. (string, schema<value>) => value =
+        (fieldName, schema) => {
+          let schema = schema->toUnknown
+          let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
+          if fields->Stdlib.Dict.has(fieldName) {
+            InternalError.panic(
+              `The field ${inlinedLocation} defined twice with incompatible schemas`,
+            )
+          }
+          let item: item = Item({
+            schema,
+            inlinedLocation,
+            path: Path.fromInlinedLocation(inlinedLocation),
+          })
+          fields->Js.Dict.set(fieldName, schema)
+          fieldNames->Js.Array2.push(fieldName)->ignore
+          inlinedLocations->Js.Array2.push(inlinedLocation)->ignore
+          items->Js.Array2.push(item)->ignore
+          item->proxify
+        }
+
+      let tag = (tag, asValue) => {
+        let _ = field(tag, literal(asValue))
+      }
+
+      let fieldOr = (fieldName, schema, or) => {
+        field(fieldName, Option.factory(schema)->Option.getOr(or))
+      }
+
+      // FIXME: Move to a factory outside of the object fn
+      let nested = fieldName => {
+        // FIXME: Memo ctx
+        let schemas = []
+        let inlinedLocations = []
+        let fieldNames = []
+        let fields = Js.Dict.empty()
+        let schema = makeSchema(
+          ~name=Object.name,
+          ~tagged=Object({
+            fieldNames,
+            fields,
+            unknownKeys: globalConfig.defaultUnknownKeys,
+          }),
+          ~builder=builder(~schemas, ~inlinedLocations, ~isArray=false),
+          ~maybeTypeFilter=Some(Object.typeFilter),
+          ~metadataMap=Metadata.Map.empty,
+          ~reverse=Reverse.toSelf, //FIXME:
+          // ~reverse=isTransformed.contents
+          //   ? () => {
+          //       makeReverseSchema(
+          //         ~name=Object.name,
+          //         ~tagged=Object({
+          //           fieldNames,
+          //           fields: reversedFields,
+          //           unknownKeys: globalConfig.defaultUnknownKeys,
+          //         }),
+          //         ~builder=builder(~schemas=reversedSchemas, ~inlinedLocations, ~isArray=false),
+          //         ~maybeTypeFilter=Some(Object.typeFilter),
+          //         ~metadataMap=Metadata.Map.empty,
+          //       )
+          //     }
+          //   : Reverse.toSelf,
+        )
+        let target = field(fieldName, schema)
+        let ctx = makeNestedCtx(
+          ~target=target->Definition.toEmbededItem->Stdlib.Option.unsafeUnwrap,
+          ~schemas,
+          ~inlinedLocations,
+          ~fieldNames,
+          ~fields,
+        )
+        (ctx :> Object.s)
+      }
+
+      let ctx = {
+        // js/ts methods
+        _jsField: field,
+        // data
+        fields,
+        fieldNames,
+        // methods
+        field,
+        fieldOr,
+        tag,
+        nested,
+        flatten,
+      }
 
       let definition = definer((ctx :> Object.s))->(Obj.magic: value => unknown)
 
-      let self = ctx.self
-
-      self.builder = advancedBuilder(
-        ~definition,
-        ~items=ctx.items,
-        ~inlinedLocations=ctx.inlinedLocations,
-      )
-      self.reverse = advancedReverse(~definition, ~items=ctx.items, ~kind=#Object)
-
-      self->castUnknownSchemaToAnySchema
+      {
+        tagged: Object({
+          fieldNames,
+          fields,
+          unknownKeys: globalConfig.defaultUnknownKeys, // FIXME: Idea? Add mutable unknownKeys to ctx??
+        }),
+        builder: advancedBuilder(~definition, ~items, ~inlinedLocations),
+        isAsyncSchema: Unknown,
+        maybeTypeFilter: Some(Object.typeFilter),
+        name: Object.name,
+        metadataMap: Metadata.Map.empty,
+        reverse: advancedReverse(~definition, ~items, ~kind=#Object),
+      }
     }
   and tuple = definer => {
     let items = []
