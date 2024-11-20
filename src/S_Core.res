@@ -3283,14 +3283,44 @@ module Schema = {
       )
     }
   }
+  and nested = fieldName => {
+    // FIXME: Memo ctx
+    let schemas = []
+    let inlinedLocations = []
+    let fieldNames = []
+    let fields = Js.Dict.empty()
 
-  and makeNestedCtx = (
-    ~target: item,
-    ~schemas,
-    ~inlinedLocations,
-    ~fields,
-    ~fieldNames,
-  ): advancedObjectCtx => {
+    let schema = makeSchema(
+      ~name=Object.name,
+      ~tagged=Object({
+        fieldNames,
+        fields,
+        unknownKeys: globalConfig.defaultUnknownKeys,
+      }),
+      ~builder=builder(~schemas, ~inlinedLocations, ~isArray=false),
+      ~maybeTypeFilter=Some(Object.typeFilter),
+      ~metadataMap=Metadata.Map.empty,
+      ~reverse=Reverse.toSelf, //FIXME:
+      // ~reverse=isTransformed.contents
+      //   ? () => {
+      //       makeReverseSchema(
+      //         ~name=Object.name,
+      //         ~tagged=Object({
+      //           fieldNames,
+      //           fields: reversedFields,
+      //           unknownKeys: globalConfig.defaultUnknownKeys,
+      //         }),
+      //         ~builder=builder(~schemas=reversedSchemas, ~inlinedLocations, ~isArray=false),
+      //         ~maybeTypeFilter=Some(Object.typeFilter),
+      //         ~metadataMap=Metadata.Map.empty,
+      //       )
+      //     }
+      //   : Reverse.toSelf,
+    )
+
+    let target =
+      (%raw(`this`)).field(fieldName, schema)->Definition.toEmbededItem->Stdlib.Option.unsafeUnwrap
+
     // FIXME: Update logic and try to reuse something
     let flatten = schema => {
       let schema = schema->toUnknown
@@ -3350,11 +3380,7 @@ module Schema = {
       field(fieldName, Option.factory(schema)->Option.getOr(or))
     }
 
-    let nested = _fieldName => {
-      %raw(`null`)
-    }
-
-    {
+    ({
       // js/ts methods
       _jsField: field,
       // data
@@ -3366,7 +3392,7 @@ module Schema = {
       tag,
       nested,
       flatten,
-    }
+    } :> Object.s)
   }
   and object:
     type value. (Object.s => value) => schema<value> =
@@ -3433,51 +3459,6 @@ module Schema = {
 
       let fieldOr = (fieldName, schema, or) => {
         field(fieldName, Option.factory(schema)->Option.getOr(or))
-      }
-
-      // FIXME: Move to a factory outside of the object fn
-      let nested = fieldName => {
-        // FIXME: Memo ctx
-        let schemas = []
-        let inlinedLocations = []
-        let fieldNames = []
-        let fields = Js.Dict.empty()
-        let schema = makeSchema(
-          ~name=Object.name,
-          ~tagged=Object({
-            fieldNames,
-            fields,
-            unknownKeys: globalConfig.defaultUnknownKeys,
-          }),
-          ~builder=builder(~schemas, ~inlinedLocations, ~isArray=false),
-          ~maybeTypeFilter=Some(Object.typeFilter),
-          ~metadataMap=Metadata.Map.empty,
-          ~reverse=Reverse.toSelf, //FIXME:
-          // ~reverse=isTransformed.contents
-          //   ? () => {
-          //       makeReverseSchema(
-          //         ~name=Object.name,
-          //         ~tagged=Object({
-          //           fieldNames,
-          //           fields: reversedFields,
-          //           unknownKeys: globalConfig.defaultUnknownKeys,
-          //         }),
-          //         ~builder=builder(~schemas=reversedSchemas, ~inlinedLocations, ~isArray=false),
-          //         ~maybeTypeFilter=Some(Object.typeFilter),
-          //         ~metadataMap=Metadata.Map.empty,
-          //       )
-          //     }
-          //   : Reverse.toSelf,
-        )
-        let target = field(fieldName, schema)
-        let ctx = makeNestedCtx(
-          ~target=target->Definition.toEmbededItem->Stdlib.Option.unsafeUnwrap,
-          ~schemas,
-          ~inlinedLocations,
-          ~fieldNames,
-          ~fields,
-        )
-        (ctx :> Object.s)
       }
 
       let ctx = {
