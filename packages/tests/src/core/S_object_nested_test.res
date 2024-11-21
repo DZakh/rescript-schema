@@ -20,6 +20,44 @@ test("Object with a single nested field", t => {
   )
 })
 
+test("Object with a nested tag and optional field", t => {
+  let schema = S.object(s => {
+    s.nested("nested").tag("tag", "value")
+    {
+      "foo": s.nested("nested").fieldOr("foo", S.string, ""),
+      "bar": s.field("bar", S.string),
+    }
+  })
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s => {
+      let _ = s.field(
+        "nested",
+        S.object(
+          s => {
+            s.tag("tag", "value")
+            let _ = s.fieldOr("foo", S.string, "")
+          },
+        ),
+      )
+      let _ = s.field("bar", S.string)
+    }),
+  )
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["nested"],v3=i["bar"];if(!v0||v0.constructor!==Object){e[0](v0)}if(typeof v3!=="string"){e[4](v3)}let v1=v0["tag"],v2=v0["foo"];if(v1!=="value"){e[1](v1)}if(v2!==void 0&&(typeof v2!=="string")){e[2](v2)}return {"foo":v2===void 0?e[3]:v2,"bar":v3,}}`,
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    // FIXME: why default value is passed here?
+    `i=>{let v0=i["foo"],v1={"tag":e[1],"foo":v0===void 0?e[0]:v0,};let v2=v1["foo"];return {"nested":v1,"bar":i["bar"],}}`,
+  )
+})
+
 test("Object with a two nested field using the same ctx", t => {
   let schema = S.object(s => {
     let nested = s.nested("nested")
@@ -76,6 +114,42 @@ test("Object with a single nested nested field", t => {
     ~schema,
     ~op=#ReverseConvert,
     `i=>{let v0={"foo":i,},v1={"deeply":v0,};let v2=v1["deeply"];return {"nested":v1,}}`,
+  )
+})
+
+test("Object with a two nested field calling s.nested twice", t => {
+  let schema = S.object(s => {
+    {
+      "foo": s.nested("nested").field("foo", S.string),
+      "bar": s.nested("nested").field("bar", S.string),
+    }
+  })
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s =>
+      s.field(
+        "nested",
+        S.object(
+          s =>
+            {
+              "foo": s.field("foo", S.string),
+              "bar": s.field("bar", S.string),
+            },
+        ),
+      )
+    ),
+  )
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2=v0["bar"];if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}return {"foo":v1,"bar":v2,}}`,
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    `i=>{let v0={"foo":i["foo"],"bar":i["bar"],};return {"nested":v0,}}`,
   )
 })
 

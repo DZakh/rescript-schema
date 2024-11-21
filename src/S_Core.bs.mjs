@@ -1977,6 +1977,12 @@ function builder$1(schemas, inlinedLocations, isArray) {
 }
 
 function nested(fieldName) {
+  var parentCtx = this;
+  var cacheId = "~" + fieldName;
+  var ctx = parentCtx[cacheId];
+  if (ctx !== undefined) {
+    return Caml_option.valFromOption(ctx);
+  }
   var schemas = [];
   var inlinedLocations = [];
   var fieldNames = [];
@@ -1987,7 +1993,7 @@ function nested(fieldName) {
         fields: fields,
         unknownKeys: globalConfig.u
       }, empty, builder$1(schemas, inlinedLocations, false), typeFilter$1, toSelf);
-  var target = this.f(fieldName, schema)[itemSymbol];
+  var target = parentCtx.f(fieldName, schema)[itemSymbol];
   var flatten = function (schema) {
     var match = schema.t;
     if (typeof match === "object" && match.TAG === "Object") {
@@ -2044,16 +2050,18 @@ function nested(fieldName) {
   var fieldOr = function (fieldName, schema, or) {
     return field(fieldName, getOr(factory(schema), or));
   };
-  return {
-          field: field,
-          f: field,
-          fieldOr: fieldOr,
-          tag: tag,
-          nested: nested,
-          flatten: flatten,
-          fields: fields,
-          fieldNames: fieldNames
-        };
+  var ctx$1 = {
+    field: field,
+    f: field,
+    fieldOr: fieldOr,
+    tag: tag,
+    nested: nested,
+    flatten: flatten,
+    fields: fields,
+    fieldNames: fieldNames
+  };
+  parentCtx[cacheId] = ctx$1;
+  return ctx$1;
 }
 
 function advancedReverse(definition, kind, items) {

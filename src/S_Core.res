@@ -3284,115 +3284,130 @@ module Schema = {
     }
   }
   and nested = fieldName => {
-    // FIXME: Memo ctx
-    let schemas = []
-    let inlinedLocations = []
-    let fieldNames = []
-    let fields = Js.Dict.empty()
+    let parentCtx = %raw(`this`) // TODO: Add a check that it's binded?
+    let cacheId = `~${fieldName}`
 
-    let schema = makeSchema(
-      ~name=Object.name,
-      ~tagged=Object({
-        fieldNames,
-        fields,
-        unknownKeys: globalConfig.defaultUnknownKeys,
-      }),
-      ~builder=builder(~schemas, ~inlinedLocations, ~isArray=false),
-      ~maybeTypeFilter=Some(Object.typeFilter),
-      ~metadataMap=Metadata.Map.empty,
-      ~reverse=Reverse.toSelf, //FIXME:
-      // ~reverse=isTransformed.contents
-      //   ? () => {
-      //       makeReverseSchema(
-      //         ~name=Object.name,
-      //         ~tagged=Object({
-      //           fieldNames,
-      //           fields: reversedFields,
-      //           unknownKeys: globalConfig.defaultUnknownKeys,
-      //         }),
-      //         ~builder=builder(~schemas=reversedSchemas, ~inlinedLocations, ~isArray=false),
-      //         ~maybeTypeFilter=Some(Object.typeFilter),
-      //         ~metadataMap=Metadata.Map.empty,
-      //       )
-      //     }
-      //   : Reverse.toSelf,
-    )
+    switch parentCtx->Stdlib.Dict.unsafeGetOption(cacheId) {
+    | Some(ctx) => ctx
+    | None => {
+        let schemas = []
+        let inlinedLocations = []
+        let fieldNames = []
+        let fields = Js.Dict.empty()
 
-    let target =
-      (%raw(`this`)).field(fieldName, schema)->Definition.toEmbededItem->Stdlib.Option.unsafeUnwrap
+        let schema = makeSchema(
+          ~name=Object.name,
+          ~tagged=Object({
+            fieldNames,
+            fields,
+            unknownKeys: globalConfig.defaultUnknownKeys,
+          }),
+          ~builder=builder(~schemas, ~inlinedLocations, ~isArray=false),
+          ~maybeTypeFilter=Some(Object.typeFilter),
+          ~metadataMap=Metadata.Map.empty,
+          ~reverse=Reverse.toSelf, //FIXME:
+          // ~reverse=isTransformed.contents
+          //   ? () => {
+          //       makeReverseSchema(
+          //         ~name=Object.name,
+          //         ~tagged=Object({
+          //           fieldNames,
+          //           fields: reversedFields,
+          //           unknownKeys: globalConfig.defaultUnknownKeys,
+          //         }),
+          //         ~builder=builder(~schemas=reversedSchemas, ~inlinedLocations, ~isArray=false),
+          //         ~maybeTypeFilter=Some(Object.typeFilter),
+          //         ~metadataMap=Metadata.Map.empty,
+          //       )
+          //     }
+          //   : Reverse.toSelf,
+        )
 
-    // FIXME: Update logic and try to reuse something
-    let flatten = schema => {
-      let schema = schema->toUnknown
-      switch schema.tagged {
-      | Object({fields: flattenedFields, fieldNames: flattenedFieldNames}) => {
-          for idx in 0 to flattenedFieldNames->Js.Array2.length - 1 {
-            let fieldName = flattenedFieldNames->Js.Array2.unsafe_get(idx)
-            let schema = flattenedFields->Js.Dict.unsafeGet(fieldName)
-            switch fields->Stdlib.Dict.unsafeGetOption(fieldName) {
-            | Some(definedSchema) if definedSchema === schema => ()
-            | Some(_) =>
-              InternalError.panic(`The field ${fieldName} defined twice with incompatible schemas`)
-            | None =>
-              fields->Js.Dict.set(fieldName, schema)
-              fieldNames->Js.Array2.push(fieldName)->ignore
+        let target =
+          parentCtx.field(fieldName, schema)
+          ->Definition.toEmbededItem
+          ->Stdlib.Option.unsafeUnwrap
+
+        // FIXME: Update logic and try to reuse something
+        let flatten = schema => {
+          let schema = schema->toUnknown
+          switch schema.tagged {
+          | Object({fields: flattenedFields, fieldNames: flattenedFieldNames}) => {
+              for idx in 0 to flattenedFieldNames->Js.Array2.length - 1 {
+                let fieldName = flattenedFieldNames->Js.Array2.unsafe_get(idx)
+                let schema = flattenedFields->Js.Dict.unsafeGet(fieldName)
+                switch fields->Stdlib.Dict.unsafeGetOption(fieldName) {
+                | Some(definedSchema) if definedSchema === schema => ()
+                | Some(_) =>
+                  InternalError.panic(
+                    `The field ${fieldName} defined twice with incompatible schemas`,
+                  )
+                | None =>
+                  fields->Js.Dict.set(fieldName, schema)
+                  fieldNames->Js.Array2.push(fieldName)->ignore
+                }
+              }
+              let item = Root({
+                schema: schema->Object.setUnknownKeys(Strip),
+                path: Path.empty,
+              })
+              schemas->Js.Array2.push(schema)->ignore
+              item->proxify
             }
+          | _ => InternalError.panic(`The ${schema.name()} schema can't be flattened`)
           }
-          let item = Root({
-            schema: schema->Object.setUnknownKeys(Strip),
-            path: Path.empty,
-          })
-          schemas->Js.Array2.push(schema)->ignore
-          item->proxify
         }
-      | _ => InternalError.panic(`The ${schema.name()} schema can't be flattened`)
+
+        let field:
+          type value. (string, schema<value>) => value =
+          (fieldName, schema) => {
+            let schema = schema->toUnknown
+            let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
+            if fields->Stdlib.Dict.has(fieldName) {
+              InternalError.panic(
+                `The field ${inlinedLocation} defined twice with incompatible schemas`,
+              )
+            }
+            let item: item = ItemField({
+              target,
+              location: fieldName,
+              inlinedLocation,
+              path: Path.fromInlinedLocation(inlinedLocation),
+            })
+            fields->Js.Dict.set(fieldName, schema)
+            fieldNames->Js.Array2.push(fieldName)->ignore
+            inlinedLocations->Js.Array2.push(inlinedLocation)->ignore
+            schemas->Js.Array2.push(schema)->ignore
+            item->proxify
+          }
+
+        let tag = (tag, asValue) => {
+          let _ = field(tag, literal(asValue))
+        }
+
+        let fieldOr = (fieldName, schema, or) => {
+          field(fieldName, Option.factory(schema)->Option.getOr(or))
+        }
+
+        let ctx = {
+          // js/ts methods
+          _jsField: field,
+          // data
+          fields,
+          fieldNames,
+          // methods
+          field,
+          fieldOr,
+          tag,
+          nested,
+          flatten,
+        }
+
+        parentCtx->Js.Dict.set(cacheId, ctx)
+
+        (ctx :> Object.s)
       }
     }
-
-    let field:
-      type value. (string, schema<value>) => value =
-      (fieldName, schema) => {
-        let schema = schema->toUnknown
-        let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
-        if fields->Stdlib.Dict.has(fieldName) {
-          InternalError.panic(
-            `The field ${inlinedLocation} defined twice with incompatible schemas`,
-          )
-        }
-        let item: item = ItemField({
-          target,
-          location: fieldName,
-          inlinedLocation,
-          path: Path.fromInlinedLocation(inlinedLocation),
-        })
-        fields->Js.Dict.set(fieldName, schema)
-        fieldNames->Js.Array2.push(fieldName)->ignore
-        inlinedLocations->Js.Array2.push(inlinedLocation)->ignore
-        schemas->Js.Array2.push(schema)->ignore
-        item->proxify
-      }
-
-    let tag = (tag, asValue) => {
-      let _ = field(tag, literal(asValue))
-    }
-
-    let fieldOr = (fieldName, schema, or) => {
-      field(fieldName, Option.factory(schema)->Option.getOr(or))
-    }
-
-    ({
-      // js/ts methods
-      _jsField: field,
-      // data
-      fields,
-      fieldNames,
-      // methods
-      field,
-      fieldOr,
-      tag,
-      nested,
-      flatten,
-    } :> Object.s)
   }
   and object:
     type value. (Object.s => value) => schema<value> =
