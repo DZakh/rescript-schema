@@ -2185,7 +2185,7 @@ function advancedReverse(definition, kind, items) {
     }
     reversed.b = (function (b, input, param, path) {
         var outputs = new WeakMap();
-        var outputsByPath = {};
+        var inputsByPath = {};
         var prevCode = b.c;
         b.c = "";
         var typeFilters = "";
@@ -2193,9 +2193,8 @@ function advancedReverse(definition, kind, items) {
           case 0 :
               var reversed = ritem.s;
               var item = ritem.i;
-              var itemOutput = reversed.b(b, input, reversed, path);
-              outputs.set(item, itemOutput);
-              outputsByPath[getFullItemPath(item)] = itemOutput;
+              outputs.set(item, reversed.b(b, input, reversed, path));
+              inputsByPath[getFullItemPath(item)] = input;
               break;
           case 1 :
           case 2 :
@@ -2216,10 +2215,9 @@ function advancedReverse(definition, kind, items) {
                   a: false
                 };
                 var path$1 = path + ritemPath;
-                var embededOutput = outputsByPath[itemPath];
-                if (embededOutput !== undefined) {
-                  var itemOutput$1 = reversed$1.b(b, itemInput, reversed$1, path$1);
-                  b.c = b.c + ("if(" + $$var(b, embededOutput) + "!==" + itemOutput$1.i + "){" + fail(b, "Another source has conflicting data" + (
+                var embededInput = inputsByPath[itemPath];
+                if (embededInput !== undefined) {
+                  b.c = b.c + ("if(" + $$var(b, embededInput) + "!==" + itemInput.i + "){" + fail(b, "Another source has conflicting data" + (
                           itemPath === "" ? "" : " for the field " + itemPath
                         ), path$1) + "}");
                 } else {
@@ -2232,9 +2230,9 @@ function advancedReverse(definition, kind, items) {
                     }
                     
                   }
-                  var itemOutput$2 = reversed$1.b(b, itemInput, reversed$1, path$1);
-                  outputsByPath[itemPath] = itemOutput$2;
-                  outputs.set(item$1, itemOutput$2);
+                  var itemOutput = reversed$1.b(b, itemInput, reversed$1, path$1);
+                  inputsByPath[itemPath] = itemInput;
+                  outputs.set(item$1, itemOutput);
                 }
                 break;
             case 1 :
@@ -2257,21 +2255,16 @@ function advancedReverse(definition, kind, items) {
           }
         }
         b.c = prevCode + typeFilters + b.c;
-        var reversedToOutput = function (reversed, originalPath) {
+        var reversedToInput = function (reversed, originalPath) {
           var literal = reversed.t;
-          var reversedInput;
-          var exit = 0;
-          if (typeof literal !== "object") {
-            exit = 1;
-          } else {
+          if (typeof literal === "object") {
             switch (literal.TAG) {
               case "Literal" :
-                  reversedInput = {
-                    v: false,
-                    i: embed(b, literal._0.value),
-                    a: false
-                  };
-                  break;
+                  return {
+                          v: false,
+                          i: embed(b, literal._0.value),
+                          a: false
+                        };
               case "Object" :
                   var fields = literal.fields;
                   var fieldNames = literal.fieldNames;
@@ -2281,12 +2274,11 @@ function advancedReverse(definition, kind, items) {
                     var schema = fields[fieldName];
                     var inlinedLocation = JSON.stringify(fieldName);
                     var itemPath = originalPath + ("[" + inlinedLocation + "]");
-                    var o = outputsByPath[itemPath];
-                    var schemaOutput = o !== undefined ? o : reversedToOutput(schema, itemPath);
+                    var o = inputsByPath[itemPath];
+                    var schemaOutput = o !== undefined ? o : reversedToInput(schema, itemPath);
                     add(objectVal, inlinedLocation, schemaOutput);
                   }
-                  reversedInput = complete(objectVal, false);
-                  break;
+                  return complete(objectVal, false);
               case "Tuple" :
                   var schemas = literal.items;
                   var objectVal$1 = make(b, true);
@@ -2294,33 +2286,30 @@ function advancedReverse(definition, kind, items) {
                     var schema$1 = schemas[idx$1];
                     var inlinedLocation$1 = "\"" + idx$1 + "\"";
                     var itemPath$1 = originalPath + ("[" + inlinedLocation$1 + "]");
-                    var o$1 = outputsByPath[itemPath$1];
-                    var schemaOutput$1 = o$1 !== undefined ? o$1 : reversedToOutput(schema$1, itemPath$1);
+                    var o$1 = inputsByPath[itemPath$1];
+                    var schemaOutput$1 = o$1 !== undefined ? o$1 : reversedToInput(schema$1, itemPath$1);
                     add(objectVal$1, inlinedLocation$1, schemaOutput$1);
                   }
-                  reversedInput = complete(objectVal$1, true);
-                  break;
+                  return complete(objectVal$1, true);
               default:
-                exit = 1;
+                
             }
           }
-          if (exit === 1) {
-            var tmp = originalPath === "" ? "Schema isn't registered" : "Schema for " + originalPath + " isn't registered";
-            reversedInput = invalidOperation(b, path, tmp);
-          }
-          var prevFlag = b.g.o;
-          b.g.o = (prevFlag | 1) ^ 1 | 64;
-          var output = reversed.b(b, reversedInput, reversed, path);
-          b.g.o = prevFlag;
-          return output;
+          var tmp = originalPath === "" ? "Schema isn't registered" : "Schema for " + originalPath + " isn't registered";
+          return invalidOperation(b, path, tmp);
         };
         var getItemOutput = function (item) {
           var o = outputs.get(item);
           if (o !== undefined) {
             return o;
-          } else {
-            return reversedToOutput(item.s["~r"](), item.p);
           }
+          var reversed = item.s["~r"]();
+          var input = reversedToInput(reversed, item.p);
+          var prevFlag = b.g.o;
+          b.g.o = (prevFlag | 1) ^ 1 | 64;
+          var output = reversed.b(b, input, reversed, path);
+          b.g.o = prevFlag;
+          return output;
         };
         var schemaOutput = function (items, isArray) {
           var objectVal = make(b, isArray);
