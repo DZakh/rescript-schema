@@ -1,4 +1,5 @@
 open Ava
+open RescriptCore
 
 test("Object with a single nested field", t => {
   let schema = S.object(s => s.nested("nested").field("foo", S.string))
@@ -13,10 +14,73 @@ test("Object with a single nested field", t => {
     ~op=#Parse,
     `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[1](v1)}return v1}`,
   )
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":i,},}}`)
+})
+
+test("Object with a single nested field with S.null", t => {
+  let schema = S.object(s => s.nested("nested").field("foo", S.null(S.string)))
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s => s.field("nested", S.object(s => s.field("foo", S.null(S.string))))),
+  )
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2;if(v1!==null&&(typeof v1!=="string")){e[1](v1)}if(v1!==null){v2=v1}else{v2=void 0}return v2}`,
+  )
+  // FIXME:
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0={"foo":i,};return {"nested":v0,}}`,
+    `i=>{let v0;if(i!==void 0){v0=i}else{v0=null}let v1;if(v0!==void 0){v1=v0}else{v1=null}return {"nested":{"foo":v1,},}}`,
+  )
+  t->Assert.deepEqual(
+    Some("bar")->S.reverseConvertOrThrow(schema),
+    %raw(`{"nested":{"foo":"bar"}}`),
+    (),
+  )
+})
+
+test("Object with a single nested field with S.transform", t => {
+  let schema = S.object(s =>
+    s.nested("nested").field(
+      "foo",
+      S.float->S.transform(
+        s => {
+          parser: f => f->Float.toString,
+          serializer: string => {
+            // There used to be a case of double application of the serializer.
+            // Check that it doesn't happen again.
+            if string->typeof !== #string {
+              s.fail("Unexpected type")
+            }
+            switch string->Float.fromString {
+            | Some(float) => float
+            | None => s.fail("Invalid float")
+            }
+          },
+        },
+      ),
+    )
+  )
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"];if(typeof v1!=="number"||Number.isNaN(v1)){e[1](v1)}return e[2](v1)}`,
+  )
+  // FIXME:
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    `i=>{return {"nested":{"foo":e[1](e[0](i)),},}}`,
+  )
+  t->Assert.deepEqual(
+    "123.4"->S.reverseConvertOrThrow(schema),
+    %raw(`{"nested":{"foo":123.4}}`),
+    (),
   )
 })
 
@@ -53,8 +117,7 @@ test("Object with a nested tag and optional field", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    // FIXME: why default value is passed here?
-    `i=>{let v0=i["foo"],v1={"tag":e[1],"foo":v0===void 0?e[0]:v0,};let v2=v1["foo"];return {"nested":v1,"bar":i["bar"],}}`,
+    `i=>{return {"nested":{"tag":e[0],"foo":i["foo"],},"bar":i["bar"],}}`,
   )
 })
 
@@ -91,7 +154,7 @@ test("Object with a two nested field using the same ctx", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0={"foo":i["foo"],"bar":i["bar"],};return {"nested":v0,}}`,
+    `i=>{return {"nested":{"foo":i["foo"],"bar":i["bar"],},}}`,
   )
 })
 
@@ -113,7 +176,7 @@ test("Object with a single nested nested field", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0={"foo":i,},v1={"deeply":v0,};let v2=v1["deeply"];return {"nested":v1,}}`,
+    `i=>{return {"nested":{"deeply":{"foo":i,},},}}`,
   )
 })
 
@@ -149,7 +212,7 @@ test("Object with a two nested field calling s.nested twice", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0={"foo":i["foo"],"bar":i["bar"],};return {"nested":v0,}}`,
+    `i=>{return {"nested":{"foo":i["foo"],"bar":i["bar"],},}}`,
   )
 })
 

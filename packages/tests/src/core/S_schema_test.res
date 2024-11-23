@@ -206,7 +206,7 @@ test("Nested object with embeded schema", t => {
   )
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#ReverseConvert),
-    `i=>{let v0=i["nested"];let v1=v0["foo"];if(v1!=="bar"){e[0](v1)}return i}`,
+    `i=>{let v0=i["nested"],v1=v0["foo"];if(v1!=="bar"){e[0](v1)}return i}`,
     (),
   )
   t->Assert.is(
