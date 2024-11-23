@@ -30,11 +30,11 @@ test("Object with a single nested field with S.null", t => {
     ~op=#Parse,
     `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2;if(v1!==null&&(typeof v1!=="string")){e[1](v1)}if(v1!==null){v2=v1}else{v2=void 0}return v2}`,
   )
-  // FIXME:
+  // FIXME: Can be improved - duplicated operation code
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0;if(i!==void 0){v0=i}else{v0=null}let v1;if(v0!==void 0){v1=v0}else{v1=null}return {"nested":{"foo":v1,},}}`,
+    `i=>{let v0;if(i!==void 0){v0=i}else{v0=null}let v1;if(i!==void 0){v1=i}else{v1=null}return {"nested":{"foo":v1,},}}`,
   )
   t->Assert.deepEqual(
     Some("bar")->S.reverseConvertOrThrow(schema),
@@ -71,12 +71,7 @@ test("Object with a single nested field with S.transform", t => {
     ~op=#Parse,
     `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"];if(typeof v1!=="number"||Number.isNaN(v1)){e[1](v1)}return e[2](v1)}`,
   )
-  // FIXME:
-  t->U.assertCompiledCode(
-    ~schema,
-    ~op=#ReverseConvert,
-    `i=>{return {"nested":{"foo":e[1](e[0](i)),},}}`,
-  )
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":e[1](i),},}}`)
   t->Assert.deepEqual(
     "123.4"->S.reverseConvertOrThrow(schema),
     %raw(`{"nested":{"foo":123.4}}`),
