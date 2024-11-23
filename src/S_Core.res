@@ -274,8 +274,6 @@ and val = {
   mutable isVar: bool,
   @as("i")
   mutable inline: string,
-  @as("s")
-  _scope: b,
   @as("a")
   mutable isAsync: bool,
 }
@@ -418,13 +416,14 @@ module Builder = {
   )
 
   module B = {
-    @inline
     let embed = (b: b, value) => {
-      `e[${(b.global.embeded
-        ->Js.Array2.push(value->castAnyToUnknown)
-        ->(Obj.magic: int => float) -. 1.)->(Obj.magic: float => string)}]`
+      let e = b.global.embeded
+      let l = e->Js.Array2.length
+      e->Js.Array2.unsafe_set(l, value->castAnyToUnknown)
+      `e[${l->(Obj.magic: int => string)}]`
     }
 
+    @inline
     let scope = (b: b): b => {
       {
         global: b.global,
@@ -448,15 +447,15 @@ module Builder = {
       let var = b->varWithoutAllocation
       let varsAllocation = b.varsAllocation
       b.varsAllocation = varsAllocation === "" ? var : varsAllocation ++ "," ++ var
-      {isVar: true, _scope: b, isAsync: false, inline: var}
+      {isVar: true, isAsync: false, inline: var}
     }
 
-    let val = (b: b, initial: string): val => {
-      {isVar: false, inline: initial, _scope: b, isAsync: false}
+    let val = (_b: b, initial: string): val => {
+      {isVar: false, inline: initial, isAsync: false}
     }
 
-    let asyncVal = (b: b, initial: string): val => {
-      {isVar: false, inline: initial, _scope: b, isAsync: true}
+    let asyncVal = (_b: b, initial: string): val => {
+      {isVar: false, inline: initial, isAsync: true}
     }
 
     module Val = {
@@ -479,11 +478,10 @@ module Builder = {
           value ++ ","
         }
 
-        let make = (b, ~isArray): t => {
+        let make = (_b: b, ~isArray): t => {
           {
             isVar: false,
             inline: "",
-            _scope: b,
             isAsync: false,
             join: isArray ? arrayJoin : objectJoin,
             asyncCount: 0,
@@ -505,8 +503,8 @@ module Builder = {
 
         let merge = (target, subObjectVal) => {
           let inlinedLocations = subObjectVal->Obj.magic->Js.Dict.keys
-          // Start from 7 to skip all normal fields which are not inlined locations
-          for idx in 7 to inlinedLocations->Js.Array2.length - 1 {
+          // Start from 6 to skip all normal fields which are not inlined locations
+          for idx in 6 to inlinedLocations->Js.Array2.length - 1 {
             let inlinedLocation = inlinedLocations->Js.Array2.unsafe_get(idx)
             target->add(
               inlinedLocation,
@@ -536,10 +534,9 @@ module Builder = {
           | "" => var
           | i => `${var}=${i}`
           }
-          let varsAllocation = val._scope.varsAllocation
-          val._scope.varsAllocation = varsAllocation === ""
+          b.varsAllocation = b.varsAllocation === ""
             ? allocation
-            : varsAllocation ++ "," ++ allocation
+            : b.varsAllocation ++ "," ++ allocation
           val.isVar = true
           val.inline = var
           var
@@ -577,16 +574,7 @@ module Builder = {
         ->(Obj.magic: val => dict<val>)
         ->Stdlib.Dict.unsafeGetOption(inlinedLocation) {
         | Some(val) => val
-        | None => {
-            let targetVar = if targetVal.isVar {
-              targetVal.inline
-            } else {
-              let scopedInput = b->allocateVal
-              b.code = b.code ++ b->set(scopedInput, targetVal) ++ ";"
-              scopedInput.inline
-            }
-            b->val(`${targetVar}${Path.fromInlinedLocation(inlinedLocation)}`)
-          }
+        | None => b->val(`${b->var(targetVal)}${Path.fromInlinedLocation(inlinedLocation)}`)
         }
       }
 
@@ -609,7 +597,6 @@ module Builder = {
         let bb = b->scope
         let operationInput: val = {
           isVar: true,
-          _scope: bb,
           inline: bb->varWithoutAllocation,
           isAsync: false,
         }
@@ -694,7 +681,7 @@ module Builder = {
         fnOutput
       } else {
         let isAsync = fnOutput.isAsync
-        let output = input === fnOutput ? input : {isVar: false, _scope: b, inline: "", isAsync}
+        let output = input === fnOutput ? input : {isVar: false, inline: "", isAsync}
 
         let catchCode = switch maybeResolveVal {
         | None => _ => `${catchCode}}throw ${errorVar}`
@@ -807,16 +794,17 @@ module Builder = {
       )
     }
 
+    let embeded = []
     let b = {
       code: "",
       varsAllocation: "",
       global: {
         varCounter: -1,
-        embeded: [],
+        embeded,
         flag,
       },
     }
-    let input = {isVar: true, _scope: b, isAsync: false, inline: intitialInputVar}
+    let input = {isVar: true, isAsync: false, inline: intitialInputVar}
 
     let output = builder(b, ~input, ~selfSchema=schema, ~path=Path.empty)
     schema.isAsyncSchema = Value(output.isAsync)
@@ -866,7 +854,7 @@ module Builder = {
 
       Stdlib.Function.make2(
         ~ctxVarName1="e",
-        ~ctxVarValue1=b.global.embeded,
+        ~ctxVarValue1=embeded,
         ~ctxVarName2="s",
         ~ctxVarValue2=symbol,
         ~inlinedFunction,
@@ -1273,7 +1261,6 @@ let isAsync = schema => {
       }
       let input = {
         isVar: true,
-        _scope: b,
         isAsync: false,
         inline: Builder.intitialInputVar,
       }
@@ -1538,10 +1525,11 @@ let recursive = fn => {
 
   let initialParseOperationBuilder = schema.builder
   schema.builder = Builder.make((b, ~input, ~selfSchema, ~path) => {
+    let inputVar = b->B.Val.var(input)
     let bb = b->B.scope
     let opOutput = initialParseOperationBuilder(bb, ~input, ~selfSchema, ~path=Path.empty)
     let opBodyCode = bb->B.allocateScope ++ `return ${opOutput.inline}`
-    b.code = b.code ++ `let ${r}=${b->B.Val.var(input)}=>{${opBodyCode}};`
+    b.code = b.code ++ `let ${r}=${inputVar}=>{${opBodyCode}};`
     b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) => {
       b->B.transform(
         ~input,
@@ -1576,10 +1564,11 @@ let recursive = fn => {
       ~tagged=initialReversed.tagged,
       ~metadataMap=initialReversed.metadataMap,
       ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
+        let inputVar = b->B.Val.var(input)
         let bb = b->B.scope
         let opOutput = initialReversed.builder(bb, ~input, ~selfSchema, ~path=Path.empty)
         let opBodyCode = bb->B.allocateScope ++ `return ${opOutput.inline}`
-        b.code = b.code ++ `let ${r}=${b->B.Val.var(input)}=>{${opBodyCode}};`
+        b.code = b.code ++ `let ${r}=${inputVar}=>{${opBodyCode}};`
         b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) => b->B.Val.map(r, input))
       }),
       ~maybeTypeFilter=initialReversed.maybeTypeFilter,
@@ -1623,15 +1612,9 @@ let internalRefine = (schema, refiner) => {
       b->B.transform(
         ~input=b->B.parse(~schema, ~input, ~path),
         (b, ~input) => {
-          let input = if b.code === "" && input.isVar {
-            input
-          } else {
-            let scopedInput = b->B.allocateVal
-            b.code = b.code ++ b->B.Val.set(scopedInput, input) ++ ";"
-            scopedInput
-          }
-          let rCode = refiner(b, ~inputVar=b->B.Val.var(input), ~selfSchema, ~path)
-          b.code = b.code ++ rCode
+          let bb = b->B.scope
+          let rCode = refiner(bb, ~inputVar=bb->B.Val.var(input), ~selfSchema, ~path)
+          b.code = b.code ++ bb->B.allocateScope ++ rCode
           input
         },
       )
@@ -1838,9 +1821,7 @@ module Option = {
 
       let isTransformed = inputLiteral !== ouputLiteral || itemOutput !== input
 
-      let output = isTransformed
-        ? {isVar: false, _scope: b, isAsync: itemOutput.isAsync, inline: ""}
-        : input
+      let output = isTransformed ? {isVar: false, isAsync: itemOutput.isAsync, inline: ""} : input
 
       if itemCode !== "" || isTransformed {
         b.code =
@@ -2410,7 +2391,8 @@ module Union = {
         ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
           let schemas = selfSchema->classify->unsafeGetVariantPayload
           let inputVar = b->B.Val.var(input)
-          let output = b->B.val(inputVar)
+          let output = {isVar: false, inline: inputVar, isAsync: false}
+          let _ = b->B.Val.var(output) // FIXME: Improve how the scoping done
 
           let byTypeFilter = Js.Dict.empty()
           let typeFilters = []
@@ -2898,6 +2880,7 @@ module Schema = {
       }
       let prevFlag = b.global.flag
       b.global.flag = prevFlag->Flag.without(Flag.typeValidation)->Flag.with(Flag.skipDiscriminant)
+      // FIXME: It reverses reversed items
       let output = b->B.parse(~schema=reversed, ~input=reversedInput, ~path)
       b.global.flag = prevFlag
       output
@@ -3028,7 +3011,6 @@ module Schema = {
     let b = parentB->B.scope
 
     let typeFilters = ref("")
-    let inputVar = b->B.Val.var(input)
     let objectVal = b->B.Val.Object.make(~isArray)
 
     for idx in 0 to schemas->Js.Array2.length - 1 {
@@ -3036,7 +3018,7 @@ module Schema = {
       let inlinedLocation = inlinedLocations->Js.Array2.unsafe_get(idx)
       let itemPath = inlinedLocation->Path.fromInlinedLocation
 
-      let itemInput = b->B.val(`${inputVar}${itemPath}`)
+      let itemInput = b->B.Val.get(input, inlinedLocation)
       let path = path->Path.concat(itemPath)
 
       switch schema.maybeTypeFilter {
@@ -3066,6 +3048,38 @@ module Schema = {
       input
     } else {
       objectVal->B.Val.Object.complete(~isArray)
+    }
+  }
+  and reverse = (~fieldNames, ~schemas, ~inlinedLocations) => {
+    () => {
+      let reversedFields = Js.Dict.empty()
+      let reversedSchemas = []
+      let isTransformed = ref(false)
+      for idx in 0 to fieldNames->Js.Array2.length - 1 {
+        let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+        let schema = schemas->Js.Array2.unsafe_get(idx)
+        let reversed = schema.reverse()
+        reversedFields->Js.Dict.set(fieldName, reversed)
+        reversedSchemas->Js.Array2.push(reversed)->ignore
+        if schema !== reversed {
+          isTransformed.contents = true
+        }
+      }
+      if isTransformed.contents {
+        makeReverseSchema(
+          ~name=Object.name,
+          ~tagged=Object({
+            fieldNames,
+            fields: reversedFields,
+            unknownKeys: globalConfig.defaultUnknownKeys,
+          }),
+          ~builder=builder(~schemas=reversedSchemas, ~inlinedLocations, ~isArray=false),
+          ~maybeTypeFilter=Some(Object.typeFilter),
+          ~metadataMap=Metadata.Map.empty,
+        )
+      } else {
+        %raw(`this`)
+      }
     }
   }
   and advancedBuilder = (~definition, ~items: array<item>, ~inlinedLocations) => (
@@ -3265,17 +3279,23 @@ module Schema = {
         ~tagged=schema.tagged,
         ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
           let itemOutput = b->B.parse(~schema, ~input, ~path)
+
+          let bb = b->B.scope
           let rec getItemOutput = item => {
             switch item {
             | ItemField({target: item, inlinedLocation}) =>
-              b->B.Val.get(item->getItemOutput, inlinedLocation)
+              bb->B.Val.get(item->getItemOutput, inlinedLocation)
             | _ => itemOutput
             }
           }
-          b->definitionToOutput(
-            ~definition=definition->(Obj.magic: unknown => Definition.t<item>),
-            ~getItemOutput,
-          )
+          let output =
+            bb->definitionToOutput(
+              ~definition=definition->(Obj.magic: unknown => Definition.t<item>),
+              ~getItemOutput,
+            )
+          b.code = b.code ++ bb->B.allocateScope
+
+          output
         }),
         ~maybeTypeFilter=schema.maybeTypeFilter,
         ~metadataMap=schema.metadataMap,
@@ -3305,22 +3325,7 @@ module Schema = {
           ~builder=builder(~schemas, ~inlinedLocations, ~isArray=false),
           ~maybeTypeFilter=Some(Object.typeFilter),
           ~metadataMap=Metadata.Map.empty,
-          ~reverse=Reverse.toSelf, //FIXME:
-          // ~reverse=isTransformed.contents
-          //   ? () => {
-          //       makeReverseSchema(
-          //         ~name=Object.name,
-          //         ~tagged=Object({
-          //           fieldNames,
-          //           fields: reversedFields,
-          //           unknownKeys: globalConfig.defaultUnknownKeys,
-          //         }),
-          //         ~builder=builder(~schemas=reversedSchemas, ~inlinedLocations, ~isArray=false),
-          //         ~maybeTypeFilter=Some(Object.typeFilter),
-          //         ~metadataMap=Metadata.Map.empty,
-          //       )
-          //     }
-          //   : Reverse.toSelf,
+          ~reverse=reverse(~fieldNames, ~schemas, ~inlinedLocations),
         )
 
         let target =
@@ -3588,7 +3593,7 @@ module Schema = {
           reversedSchemas->Js.Array2.unsafe_set(idx, reversed)
           inlinedLocations->Js.Array2.unsafe_set(idx, `"${idx->Stdlib.Int.unsafeToString}"`)
 
-          if !isTransformed.contents && schema !== reversed {
+          if schema !== reversed {
             isTransformed := true
           }
         }
@@ -3621,22 +3626,13 @@ module Schema = {
         let length = fieldNames->Js.Array2.length
         let schemas = Belt.Array.makeUninitializedUnsafe(length)
         let inlinedLocations = Belt.Array.makeUninitializedUnsafe(length)
-        let reversedSchemas = Belt.Array.makeUninitializedUnsafe(length)
-        let reversedFields = Js.Dict.empty()
-        let isTransformed = ref(false)
         for idx in 0 to length - 1 {
           let location = fieldNames->Js.Array2.unsafe_get(idx)
           let inlinedLocation = location->Stdlib.Inlined.Value.fromString // FIXME: Test a location with "
           let schema = node->Js.Dict.unsafeGet(location)->definitionToSchema
-          let reversed = schema.reverse()
           schemas->Js.Array2.unsafe_set(idx, schema)
           inlinedLocations->Js.Array2.unsafe_set(idx, inlinedLocation)
-          reversedSchemas->Js.Array2.unsafe_set(idx, reversed)
-          reversedFields->Js.Dict.set(fieldNames->Js.Array2.unsafe_get(idx), reversed)
           node->Js.Dict.set(location, schema->(Obj.magic: t<unknown> => unknown))
-          if !isTransformed.contents && schema !== reversed {
-            isTransformed := true
-          }
         }
         makeSchema(
           ~name=Object.name,
@@ -3648,21 +3644,7 @@ module Schema = {
           ~builder=builder(~schemas, ~inlinedLocations, ~isArray=false),
           ~maybeTypeFilter=Some(Object.typeFilter),
           ~metadataMap=Metadata.Map.empty,
-          ~reverse=isTransformed.contents
-            ? () => {
-                makeReverseSchema(
-                  ~name=Object.name,
-                  ~tagged=Object({
-                    fieldNames,
-                    fields: reversedFields,
-                    unknownKeys: globalConfig.defaultUnknownKeys,
-                  }),
-                  ~builder=builder(~schemas=reversedSchemas, ~inlinedLocations, ~isArray=false),
-                  ~maybeTypeFilter=Some(Object.typeFilter),
-                  ~metadataMap=Metadata.Map.empty,
-                )
-              }
-            : Reverse.toSelf,
+          ~reverse=reverse(~fieldNames, ~schemas, ~inlinedLocations),
         )
       }
     } else {
@@ -4403,8 +4385,7 @@ let js_merge = (s1, s2) => {
         let s1Result = b->B.parse(~schema=s1, ~input, ~path)
         let s2Result = b->B.parse(~schema=s2, ~input, ~path)
         // TODO: Check that these are objects
-        // TODO: Check that s1Result is not mutating input
-        b->B.val(`Object.assign(${s1Result.inline}, ${s2Result.inline})`)
+        b->B.val(`{...${s1Result.inline}, ...${s2Result.inline}}`)
       }),
       ~maybeTypeFilter=Some(Object.typeFilter),
       ~metadataMap=Metadata.Map.empty,

@@ -171,7 +171,7 @@ test(
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v1;let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}v1=e[1]({"foo":v0,});return v1["faz"]}`,
+      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}let v1=e[1]({"foo":v0,});return v1["faz"]}`,
     )
   },
 )
@@ -183,7 +183,7 @@ test("Reverse convert of tagged tuple with destructured literal", t => {
 
   t->Assert.deepEqual(12->S.reverseConvertOrThrow(schema), %raw(`[true, 12]`), ())
 
-  let code = `i=>{if(i!==12){e[1](i)}let v0=[e[0],i,];return v0}`
+  let code = `i=>{if(i!==12){e[1](i)}return [e[0],i,]}`
   t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
   t->U.assertCompiledCode(~schema, ~op=#ReverseParse, code)
 })
@@ -195,11 +195,11 @@ test("Reverse convert of tagged tuple with destructured bool", t => {
 
   t->Assert.deepEqual(false->S.reverseConvertOrThrow(schema), %raw(`[true, false]`), ())
 
-  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{let v0=[e[0],i,];return v0}`)
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return [e[0],i,]}`)
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseParse,
-    `i=>{if(typeof i!=="boolean"){e[1](i)}let v0=[e[0],i,];return v0}`,
+    `i=>{if(typeof i!=="boolean"){e[1](i)}return [e[0],i,]}`,
   )
 })
 
@@ -365,7 +365,7 @@ test("Reverse convert tuple turned to Ok", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0=i["TAG"],v1=i["_0"];if(v0!=="Ok"){e[0](v0)}return v1}`,
+    `i=>{let v0=i["TAG"];if(v0!=="Ok"){e[0](v0)}let v1=i["_0"];return v1}`,
   )
 })
 
