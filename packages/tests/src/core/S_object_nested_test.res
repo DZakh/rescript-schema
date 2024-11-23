@@ -211,178 +211,254 @@ test("Object with a two nested field calling s.nested twice", t => {
   )
 })
 
-Skip.test(
-  "Has correct tagged type with nested called multiple times and nested objects are not mutate",
-  t => {
-    let nested1 = S.object(s => s.field("baz", S.string))
-    let nested3 = S.object(s => s.field("bar", S.string))
-    let schema = S.object(s =>
-      {
-        "foo": s.field("foo", S.string),
-        "baz": s.field("nested", nested1),
-        "baj": s.field("nested", S.object(s => s.field("baj", S.string))),
-        "bar": s.field("nested", nested3),
-      }
-    )
-
-    t->U.unsafeAssertEqualSchemas(
-      schema,
-      S.object(s =>
-        {
-          "foo": s.field("foo", S.string),
-          "nested": s.field(
-            "nested",
-            S.object(
-              s =>
-                {
-                  "baz": s.field("baz", S.string),
-                  "baj": s.field("baj", S.string),
-                  "bar": s.field("bar", S.string),
-                },
-            ),
-          ),
-        }
+test("Object with a flattened nested field", t => {
+  let schema = S.object(s =>
+    s.nested("nested").flatten(
+      S.schema(
+        s =>
+          {
+            "foo": s.matches(S.string),
+          },
       ),
     )
-    t->U.unsafeAssertEqualSchemas(nested1, S.object(s => s.field("baz", S.string)))
-    t->U.unsafeAssertEqualSchemas(nested3, S.object(s => s.field("bar", S.string)))
-  },
-)
+  )
 
-Skip.test("Fails to create schema with nested called additinally to non-object field", t => {
-  t->Assert.throws(
-    () => {
-      S.object(
-        s =>
-          {
-            "foo": s.field("foo", S.string),
-            "bar": s.field("nested", S.string),
-            "baz": s.field("nested", S.object(s => s.field("baz", S.string))),
-          },
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s =>
+      s.field(
+        "nested",
+        S.schema(
+          s =>
+            {
+              "foo": s.matches(S.string),
+            },
+        ),
       )
-    },
-    ~expectations={
-      message: `[rescript-schema] The field "nested" defined twice with incompatible schemas`,
-    },
-    (),
-  )
-  t->Assert.throws(
-    () => {
-      S.object(
-        s =>
-          {
-            "foo": s.field("foo", S.string),
-            "baz": s.field("nested", S.object(s => s.field("baz", S.string))),
-            "bar": s.field("nested", S.string),
-          },
-      )
-    },
-    ~expectations={
-      message: `[rescript-schema] The field "nested" defined twice with incompatible schemas`,
-    },
-    (),
-  )
-})
-
-Skip.test("Successfully parses with nested object defined multiple times", t => {
-  let schema = S.object(s =>
-    {
-      "foo": s.field("foo", S.string),
-      "bar": s.field("nested", S.object(s => s.field("bar", S.string))),
-      "baz": s.field("nested", S.object(s => s.field("baz", S.string))),
-    }
+    ),
   )
 
-  t->Assert.deepEqual(
-    %raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`)->S.parseOrThrow(schema),
-    {"foo": "foo", "bar": "bar", "baz": "baz"},
-    (),
-  )
   t->U.assertCompiledCode(
+    ~schema,
     ~op=#Parse,
-    ~schema,
-    `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["foo"],v1=i["nested"];if(typeof v0!=="string"){e[0](v0)}if(!v1||v1.constructor!==Object){e[1](v1)}let v2=v1["bar"],v3=v1["baz"];if(typeof v2!=="string"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}return {"foo":v0,"bar":v2,"baz":v3,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[1](v1)}return {"foo":v1,}}`,
   )
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":i["foo"],},}}`)
 })
 
-Skip.test("Successfully serializes with nested object defined multiple times", t => {
+test("Object with a strict flattened nested field", t => {
   let schema = S.object(s =>
-    {
-      "foo": s.field("foo", S.string),
-      "bar": s.field("nested", S.object(s => s.field("bar", S.string))),
-      "baz": s.field("nested", S.object(s => s.field("baz", S.string))),
-    }
+    s.nested("nested").flatten(
+      S.schema(
+        s =>
+          {
+            "foo": s.matches(S.string),
+          },
+      )->S.Object.strict,
+    )
   )
 
-  t->Assert.deepEqual(
-    {"foo": "foo", "bar": "bar", "baz": "baz"}->S.reverseConvertToJsonOrThrow(schema),
-    %raw(`{"foo": "foo", "nested": {"bar": "bar", "baz": "baz"}}`),
-    (),
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s =>
+      s.field(
+        "nested",
+        S.schema(
+          s =>
+            {
+              "foo": s.matches(S.string),
+            },
+        ),
+      )
+    ),
   )
+
   t->U.assertCompiledCode(
-    ~op=#ReverseConvert,
     ~schema,
-    `i=>{return {"foo":i["foo"],"nested":{"bar":i["bar"],"baz":i["baz"],},}}`,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[1](v1)}return {"foo":v1,}}`,
   )
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":i["foo"],},}}`)
 })
 
-Skip.test("Merges deeply nested in different branches", t => {
+test("Object with nested field together with flatten", t => {
   let schema = S.object(s =>
     {
-      "bar": s.field(
-        "nested",
-        S.object(s => s.field("nested2", S.object(s => s.field("bar", S.string)))),
+      "flattened": s.nested("nested").flatten(
+        S.schema(
+          s =>
+            {
+              "foo": s.matches(S.string),
+            },
+        ),
       ),
-      "baz": s.field(
-        "nested",
-        S.object(s => s.field("nested2", S.object(s => s.field("baz", S.string)))),
-      ),
+      "field": s.nested("nested").field("bar", S.string),
     }
   )
 
   t->U.unsafeAssertEqualSchemas(
     schema,
     S.object(s =>
-      {
-        "nested": s.field(
-          "nested",
-          S.object(
-            s =>
-              s.field(
-                "nested2",
-                S.object(
-                  s =>
-                    {
-                      "bar": s.field("bar", S.string),
-                      "baz": s.field("baz", S.string),
-                    },
-                ),
-              ),
-          ),
+      s.field(
+        "nested",
+        S.schema(
+          s =>
+            {
+              "foo": s.matches(S.string),
+              "bar": s.matches(S.string),
+            },
         ),
-      }
+      )
     ),
   )
 
-  t->Assert.deepEqual(
-    %raw(`{"nested": {"nested2": {"bar": "bar", "baz": "baz"}}}`)->S.parseOrThrow(schema),
-    {"bar": "bar", "baz": "baz"},
-    (),
-  )
   t->U.assertCompiledCode(
+    ~schema,
     ~op=#Parse,
-    ~schema,
-    `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["nested2"];if(!v1||v1.constructor!==Object){e[1](v1)}let v2=v1["bar"],v3=v1["baz"];if(typeof v2!=="string"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}return {"bar":v2,"baz":v3,}}`,
-  )
-
-  t->Assert.deepEqual(
-    {"bar": "bar", "baz": "baz"}->S.reverseConvertToJsonOrThrow(schema),
-    %raw(`{"nested": {"nested2": {"bar": "bar", "baz": "baz"}}}`),
-    (),
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2=v0["bar"];if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}return {"flattened":{"foo":v1,},"field":v2,}}`,
   )
   t->U.assertCompiledCode(
-    ~op=#ReverseConvert,
     ~schema,
-    `i=>{return {"nested":{"nested2":{"bar":i["bar"],"baz":i["baz"],},},}}`,
+    ~op=#ReverseConvert,
+    `i=>{return {"nested":{"foo":i["flattened"]["foo"],"bar":i["field"],},}}`,
+  )
+})
+
+test("s.nested conflicts with s.field", t => {
+  t->Assert.throws(
+    () => {
+      S.object(
+        s => {
+          let _ = s.nested("nested").field("foo", S.string)
+          let _ = s.field("nested", S.object(s => s.field("foo", S.string)))
+        },
+      )
+    },
+    ~expectations={
+      message: `[rescript-schema] The field "nested" defined twice with incompatible schemas`,
+    },
+    (),
+  )
+})
+
+test("s.nested.flattened doesn't work with S.object", t => {
+  t->Assert.throws(
+    () => {
+      S.object(
+        s => {
+          let _ = s.nested("nested").flatten(S.object(s => s.field("foo", S.string)))
+        },
+      )
+    },
+    ~expectations={
+      message: `[rescript-schema] Can\'t flatten advanced object schema Object({"foo": String}) in nested field`,
+    },
+    (),
+  )
+})
+
+test("s.nested.flattened doesn't work with transformed S.schema", t => {
+  t->Assert.throws(
+    () => {
+      S.object(
+        s => {
+          let _ = s.nested("nested").flatten(
+            S.schema(
+              s =>
+                {
+                  "foo": s.matches(S.string),
+                },
+            )->S.transform(_ => {parser: i => i}),
+          )
+        },
+      )
+    },
+    ~expectations={
+      message: `[rescript-schema] Can\'t flatten transformed schema Object({"foo": String}) in nested field`,
+    },
+    (),
+  )
+})
+
+test("s.nested.flattened doesn't work with S.schema->S.to", t => {
+  t->Assert.throws(
+    () => {
+      S.object(
+        s => {
+          let _ = s.nested("nested").flatten(
+            S.schema(
+              s =>
+                {
+                  "foo": s.matches(S.string),
+                },
+            )->S.to(v => {"foo": v["foo"]}),
+          )
+        },
+      )
+    },
+    ~expectations={
+      message: `[rescript-schema] Can\'t flatten transformed schema Object({"foo": String}) in nested field`,
+    },
+    (),
+  )
+})
+
+test("s.nested.flattened doesn't work with S.string", t => {
+  t->Assert.throws(
+    () => {
+      S.object(
+        s => {
+          let _ = s.nested("nested").flatten(S.string)
+        },
+      )
+    },
+    ~expectations={
+      message: `[rescript-schema] The String schema can\'t be flattened`,
+    },
+    (),
+  )
+})
+
+test("s.nested.flattened works with S.schema->S.to to self", t => {
+  let schema = S.object(s => {
+    s.nested("nested").flatten(
+      S.schema(
+        s =>
+          {
+            "foo": s.matches(S.string),
+          },
+      )->S.to(v => v),
+    )
+  })
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["nested"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[1](v1)}return {"foo":v1,}}`,
+  )
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":i["foo"],},}}`)
+})
+
+test("s.nested.flatten conflicts with s.nested.field", t => {
+  t->Assert.throws(
+    () => {
+      S.object(
+        s => {
+          let _ = s.nested("nested").flatten(
+            S.schema(
+              s =>
+                {
+                  "foo": s.matches(S.string),
+                },
+            ),
+          )
+          let _ = s.nested("nested").field("foo", S.string)
+        },
+      )
+    },
+    ~expectations={
+      message: `[rescript-schema] The field "foo" defined twice`,
+    },
+    (),
   )
 })
