@@ -263,7 +263,12 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Object({fieldNames: array<string>, fields: dict<t<unknown>>, unknownKeys: unknownKeys})
+  | Object({
+      fieldNames: array<string>,
+      fields: dict<t<unknown>>,
+      unknownKeys: unknownKeys,
+      advanced: bool,
+    })
   | Tuple({items: array<t<unknown>>})
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)
@@ -2044,13 +2049,14 @@ module Object = {
 
   let setUnknownKeys = (schema, unknownKeys) => {
     switch schema->classify {
-    | Object({unknownKeys: schemaUnknownKeys, fieldNames, fields})
+    | Object({unknownKeys: schemaUnknownKeys, fieldNames, fields, advanced})
       if schemaUnknownKeys !== unknownKeys => {
         name: schema.name,
         tagged: Object({
           unknownKeys,
           fieldNames,
           fields,
+          advanced,
         }),
         builder: schema.builder,
         maybeTypeFilter: schema.maybeTypeFilter,
@@ -2978,6 +2984,7 @@ module Schema = {
                     fieldNames: keys,
                     fields,
                     unknownKeys: globalConfig.defaultUnknownKeys,
+                    advanced: true,
                   }),
               ~metadataMap=Metadata.Map.empty,
               ~maybeTypeFilter=Some(
@@ -3074,6 +3081,7 @@ module Schema = {
             fieldNames,
             fields: reversedFields,
             unknownKeys: globalConfig.defaultUnknownKeys,
+            advanced: false,
           }),
           ~builder=builder(~schemas=reversedSchemas, ~inlinedLocations, ~isArray=false),
           ~maybeTypeFilter=Some(Object.typeFilter),
@@ -3219,7 +3227,8 @@ module Schema = {
           let itemInput = b->B.val(`${b->B.Val.var(input)}${ritemPath}`)
           let path = path->Path.concat(ritemPath)
           switch inputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
-          | Some(embededInput) => b.code =
+          | Some(embededInput) =>
+            b.code =
               b.code ++
               // TODO: Show values in the message
               `if(${b->B.Val.var(embededInput)}!==${itemInput.inline}){${b->B.fail(
@@ -3319,6 +3328,7 @@ module Schema = {
             fieldNames,
             fields,
             unknownKeys: globalConfig.defaultUnknownKeys,
+            advanced: false,
           }),
           ~builder=builder(~schemas, ~inlinedLocations, ~isArray=false),
           ~maybeTypeFilter=Some(Object.typeFilter),
@@ -3327,39 +3337,7 @@ module Schema = {
         )
 
         let target =
-          parentCtx.field(fieldName, schema)
-          ->Definition.toEmbededItem
-          ->Stdlib.Option.unsafeUnwrap
-
-        // FIXME: Update logic and try to reuse something
-        let flatten = schema => {
-          let schema = schema->toUnknown
-          switch schema.tagged {
-          | Object({fields: flattenedFields, fieldNames: flattenedFieldNames}) => {
-              for idx in 0 to flattenedFieldNames->Js.Array2.length - 1 {
-                let fieldName = flattenedFieldNames->Js.Array2.unsafe_get(idx)
-                let schema = flattenedFields->Js.Dict.unsafeGet(fieldName)
-                switch fields->Stdlib.Dict.unsafeGetOption(fieldName) {
-                | Some(definedSchema) if definedSchema === schema => ()
-                | Some(_) =>
-                  InternalError.panic(
-                    `The field ${fieldName} defined twice with incompatible schemas`,
-                  )
-                | None =>
-                  fields->Js.Dict.set(fieldName, schema)
-                  fieldNames->Js.Array2.push(fieldName)->ignore
-                }
-              }
-              let item = Root({
-                schema: schema->Object.setUnknownKeys(Strip),
-                path: Path.empty,
-              })
-              schemas->Js.Array2.push(schema)->ignore
-              item->proxify
-            }
-          | _ => InternalError.panic(`The ${schema.name()} schema can't be flattened`)
-          }
-        }
+          parentCtx.field(fieldName, schema)->Definition.toEmbededItem->Stdlib.Option.unsafeUnwrap
 
         let field:
           type value. (string, schema<value>) => value =
@@ -3367,9 +3345,7 @@ module Schema = {
             let schema = schema->toUnknown
             let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
             if fields->Stdlib.Dict.has(fieldName) {
-              InternalError.panic(
-                `The field ${inlinedLocation} defined twice with incompatible schemas`,
-              )
+              InternalError.panic(`The field ${inlinedLocation} defined twice`)
             }
             let item: item = ItemField({
               target,
@@ -3390,6 +3366,36 @@ module Schema = {
 
         let fieldOr = (fieldName, schema, or) => {
           field(fieldName, Option.factory(schema)->Option.getOr(or))
+        }
+
+        let flatten = schema => {
+          let schema = schema->toUnknown
+          switch schema.tagged {
+          | Object({fields: flattenedFields, fieldNames: flattenedFieldNames, advanced}) => {
+              if advanced {
+                InternalError.panic(
+                  `Can't flatten advanced object schema ${schema.name()} in nested field`,
+                )
+              }
+              switch schema.reverse().tagged {
+              | Object({advanced: false}) =>
+                let result = Js.Dict.empty()
+                for idx in 0 to flattenedFieldNames->Js.Array2.length - 1 {
+                  let fieldName = flattenedFieldNames->Js.Array2.unsafe_get(idx)
+                  result->Js.Dict.set(
+                    fieldName,
+                    field(fieldName, flattenedFields->Js.Dict.unsafeGet(fieldName)),
+                  )
+                }
+                result->Obj.magic
+              | _ =>
+                InternalError.panic(
+                  `Can't flatten transformed schema ${schema.name()} in nested field`,
+                )
+              }
+            }
+          | _ => InternalError.panic(`The ${schema.name()} schema can't be flattened`)
+          }
         }
 
         let ctx = {
@@ -3500,6 +3506,7 @@ module Schema = {
           fieldNames,
           fields,
           unknownKeys: globalConfig.defaultUnknownKeys, // FIXME: Idea? Add mutable unknownKeys to ctx??
+          advanced: true,
         }),
         builder: advancedBuilder(~definition, ~items, ~inlinedLocations),
         isAsyncSchema: Unknown,
@@ -3638,6 +3645,7 @@ module Schema = {
             fieldNames,
             fields: node->(Obj.magic: dict<unknown> => dict<t<unknown>>),
             unknownKeys: globalConfig.defaultUnknownKeys,
+            advanced: false,
           }),
           ~builder=builder(~schemas, ~inlinedLocations, ~isArray=false),
           ~maybeTypeFilter=Some(Object.typeFilter),
@@ -4378,6 +4386,7 @@ let js_merge = (s1, s2) => {
         unknownKeys,
         fieldNames,
         fields,
+        advanced: true,
       }),
       ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let s1Result = b->B.parse(~schema=s1, ~input, ~path)

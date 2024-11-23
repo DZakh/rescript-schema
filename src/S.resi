@@ -49,7 +49,12 @@ and tagged =
   | Option(t<unknown>)
   | Null(t<unknown>)
   | Array(t<unknown>)
-  | Object({fieldNames: array<string>, fields: dict<t<unknown>>, unknownKeys: unknownKeys})
+  | Object({
+      fieldNames: array<string>,
+      fields: dict<t<unknown>>,
+      unknownKeys: unknownKeys,
+      advanced: bool,
+    })
   | Tuple({items: array<t<unknown>>})
   | Union(array<t<unknown>>)
   | Dict(t<unknown>)

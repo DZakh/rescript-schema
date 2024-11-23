@@ -123,7 +123,7 @@ let rec cleanUpSchema = schema => {
   ->Dict.toArray
   ->Array.forEach(((key, value)) => {
     switch key {
-    | "i" | "c" => ()
+    | "i" | "c" | "advanced" => ()
     | _ =>
       if typeof(value) === #function {
         ()
