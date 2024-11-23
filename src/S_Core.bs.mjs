@@ -84,12 +84,11 @@ function has(acc, flag) {
   return (acc & flag) !== 0;
 }
 
-function scope(b) {
-  return {
-          c: "",
-          l: "",
-          g: b.g
-        };
+function embed(b, value) {
+  var e = b.g.e;
+  var l = e.length;
+  e[l] = value;
+  return "e[" + l + "]";
 }
 
 function allocateScope(b) {
@@ -114,26 +113,7 @@ function allocateVal(b) {
   return {
           v: true,
           i: $$var,
-          s: b,
           a: false
-        };
-}
-
-function val(b, initial) {
-  return {
-          v: false,
-          i: initial,
-          s: b,
-          a: false
-        };
-}
-
-function asyncVal(b, initial) {
-  return {
-          v: false,
-          i: initial,
-          s: b,
-          a: true
         };
 }
 
@@ -145,11 +125,10 @@ function arrayJoin(_inlinedLocation, value) {
   return value + ",";
 }
 
-function make(b, isArray) {
+function make(_b, isArray) {
   return {
           v: false,
           i: "",
-          s: b,
           a: false,
           j: isArray ? arrayJoin : objectJoin,
           c: 0,
@@ -169,7 +148,7 @@ function add(objectVal, inlinedLocation, val) {
 
 function merge(target, subObjectVal) {
   var inlinedLocations = Object.keys(subObjectVal);
-  for(var idx = 7 ,idx_finish = inlinedLocations.length; idx < idx_finish; ++idx){
+  for(var idx = 6 ,idx_finish = inlinedLocations.length; idx < idx_finish; ++idx){
     var inlinedLocation = inlinedLocations[idx];
     add(target, inlinedLocation, subObjectVal[inlinedLocation]);
   }
@@ -191,8 +170,7 @@ function $$var(b, val) {
   var $$var$1 = varWithoutAllocation(b);
   var i = val.i;
   var allocation = i === "" ? $$var$1 : $$var$1 + "=" + i;
-  var varsAllocation = val.s.l;
-  val.s.l = varsAllocation === "" ? allocation : varsAllocation + "," + allocation;
+  b.l = b.l === "" ? allocation : b.l + "," + allocation;
   val.v = true;
   val.i = $$var$1;
   return $$var$1;
@@ -230,19 +208,16 @@ function set(b, input, val) {
 }
 
 function get(b, targetVal, inlinedLocation) {
-  var val$1 = targetVal[inlinedLocation];
-  if (val$1 !== undefined) {
-    return val$1;
-  }
-  var targetVar;
-  if (targetVal.v) {
-    targetVar = targetVal.i;
+  var val = targetVal[inlinedLocation];
+  if (val !== undefined) {
+    return val;
   } else {
-    var scopedInput = allocateVal(b);
-    b.c = b.c + set(b, scopedInput, targetVal) + ";";
-    targetVar = scopedInput.i;
+    return {
+            v: false,
+            i: $$var(b, targetVal) + ("[" + inlinedLocation + "]"),
+            a: false
+          };
   }
-  return val(b, targetVar + ("[" + inlinedLocation + "]"));
 }
 
 function setInlined(b, input, inlined) {
@@ -250,23 +225,34 @@ function setInlined(b, input, inlined) {
 }
 
 function map(b, inlinedFn, input) {
-  return val(b, inlinedFn + "(" + input.i + ")");
+  return {
+          v: false,
+          i: inlinedFn + "(" + input.i + ")",
+          a: false
+        };
 }
 
 function transform(b, input, operation) {
   if (!input.a) {
     return operation(b, input);
   }
-  var bb = scope(b);
+  var bb = {
+    c: "",
+    l: "",
+    g: b.g
+  };
   var operationInput = {
     v: true,
     i: varWithoutAllocation(bb),
-    s: bb,
     a: false
   };
   var operationOutputVal = operation(bb, operationInput);
   var operationCode = allocateScope(bb);
-  return asyncVal(b, input.i + ".then(" + $$var(b, operationInput) + "=>{" + operationCode + "return " + operationOutputVal.i + "})");
+  return {
+          v: false,
+          i: input.i + ".then(" + $$var(b, operationInput) + "=>{" + operationCode + "return " + operationOutputVal.i + "})",
+          a: true
+        };
 }
 
 function raise(b, code, path) {
@@ -275,9 +261,13 @@ function raise(b, code, path) {
 
 function embedSyncOperation(b, input, fn) {
   if (input.a) {
-    return asyncVal(b, input.i + ".then(" + ("e[" + (b.g.e.push(fn) - 1) + "]") + ")");
+    return {
+            v: false,
+            i: input.i + ".then(" + embed(b, fn) + ")",
+            a: true
+          };
   } else {
-    return map(b, "e[" + (b.g.e.push(fn) - 1) + "]", input);
+    return map(b, embed(b, fn), input);
   }
 }
 
@@ -293,18 +283,18 @@ function embedAsyncOperation(b, input, fn) {
 }
 
 function failWithArg(b, path, fn, arg) {
-  return "e[" + (b.g.e.push(function (arg) {
+  return embed(b, (function (arg) {
                 return raise(b, fn(arg), path);
-              }) - 1) + "](" + arg + ")";
+              })) + "(" + arg + ")";
 }
 
 function fail(b, message, path) {
-  return "e[" + (b.g.e.push(function () {
+  return embed(b, (function () {
                 return raise(b, {
                             TAG: "OperationFailed",
                             _0: message
                           }, path);
-              }) - 1) + "]()";
+              })) + "()";
 }
 
 function effectCtx(b, selfSchema, path) {
@@ -344,7 +334,11 @@ function withCatch(b, input, $$catch, fn) {
   var maybeResolveVal = $$catch(b, errorVar);
   var catchCode = "if(" + (errorVar + "&&" + errorVar + ".s===s") + "){" + b.c;
   b.c = "";
-  var bb = scope(b);
+  var bb = {
+    c: "",
+    l: "",
+    g: b.g
+  };
   var fnOutput = fn(bb);
   b.c = b.c + allocateScope(bb);
   if (fnOutput === input && b.c === "") {
@@ -354,7 +348,6 @@ function withCatch(b, input, $$catch, fn) {
   var output = input === fnOutput ? input : ({
         v: false,
         i: "",
-        s: b,
         a: isAsync
       });
   var catchCode$1 = maybeResolveVal !== undefined ? (function (catchLocation) {
@@ -409,7 +402,11 @@ function parseWithTypeCheck(b, schema, input, path) {
     return schema.b(b, input, schema, path);
   }
   b.c = b.c + typeFilterCode(b, typeFilter, schema, input, path);
-  var bb = scope(b);
+  var bb = {
+    c: "",
+    l: "",
+    g: b.g
+  };
   var val = schema.b(bb, input, schema, path);
   b.c = b.c + allocateScope(bb);
   return val;
@@ -435,19 +432,19 @@ function compile(builder, schema, flag) {
               _0: schema
             }, flag, "");
   }
+  var embeded = [];
   var b = {
     c: "",
     l: "",
     g: {
       v: -1,
       o: flag,
-      e: []
+      e: embeded
     }
   };
   var input = {
     v: true,
     i: "i",
-    s: b,
     a: false
   };
   var output = builder(b, input, schema, "");
@@ -473,7 +470,7 @@ function compile(builder, schema, flag) {
     inlinedOutput = "Promise.resolve(" + inlinedOutput + ")";
   }
   var inlinedFunction = "i=>{" + b.c + "return " + inlinedOutput + "}";
-  return new Function("e", "s", "return " + inlinedFunction)(b.g.e, symbol);
+  return new Function("e", "s", "return " + inlinedFunction)(embeded, symbol);
 }
 
 function operationFn(s, o) {
@@ -562,7 +559,7 @@ function toString(literal) {
 
 function arrayFilterBuilder(b, inputVar, literal) {
   var items = literal.i;
-  return inputVar + "!==" + ("e[" + (b.g.e.push(literal.value) - 1) + "]") + "&&(!Array.isArray(" + inputVar + ")||" + inputVar + ".length!==" + items.length + (
+  return inputVar + "!==" + embed(b, literal.value) + "&&(!Array.isArray(" + inputVar + ")||" + inputVar + ".length!==" + items.length + (
           items.length > 0 ? "||" + items.map(function (literal, idx) {
                     return literal.f(b, inputVar + "[" + idx + "]", literal);
                   }).join("||") : ""
@@ -573,7 +570,7 @@ function dictFilterBuilder(b, inputVar, literal) {
   var items = literal.i;
   var fields = Object.keys(items);
   var numberOfFields = fields.length;
-  return inputVar + "!==" + ("e[" + (b.g.e.push(value) - 1) + "]") + "&&(!" + inputVar + "||" + inputVar + ".constructor!==Object||Object.keys(" + inputVar + ").length!==" + numberOfFields + (
+  return inputVar + "!==" + embed(b, value) + "&&(!" + inputVar + "||" + inputVar + ".constructor!==Object||Object.keys(" + inputVar + ").length!==" + numberOfFields + (
           numberOfFields > 0 ? "||" + fields.map(function (field) {
                     var literal = items[field];
                     return literal.f(b, inputVar + "[" + JSON.stringify(field) + "]", literal);
@@ -586,7 +583,7 @@ function inlinedStrictEqualFilterBuilder(param, inputVar, literal) {
 }
 
 function strictEqualFilterBuilder(b, inputVar, literal) {
-  return inputVar + "!==" + ("e[" + (b.g.e.push(literal.value) - 1) + "]");
+  return inputVar + "!==" + embed(b, literal.value);
 }
 
 var undefined_value = undefined;
@@ -767,7 +764,6 @@ function isAsync(schema) {
     var input = {
       v: true,
       i: "i",
-      s: b,
       a: false
     };
     var output = schema.b(b, input, schema, "");
@@ -978,10 +974,15 @@ function recursive(fn) {
   placeholder.f = schema.f;
   var initialParseOperationBuilder = schema.b;
   schema.b = (function (b, input, selfSchema, path) {
-      var bb = scope(b);
+      var inputVar = $$var(b, input);
+      var bb = {
+        c: "",
+        l: "",
+        g: b.g
+      };
       var opOutput = initialParseOperationBuilder(bb, input, selfSchema, "");
       var opBodyCode = allocateScope(bb) + ("return " + opOutput.i);
-      b.c = b.c + ("let " + r + "=" + $$var(b, input) + "=>{" + opBodyCode + "};");
+      b.c = b.c + ("let " + r + "=" + inputVar + "=>{" + opBodyCode + "};");
       return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
                     return transform(b, input, (function (b, input) {
                                   var output = map(b, r, input);
@@ -1003,10 +1004,15 @@ function recursive(fn) {
   schema["~r"] = (function () {
       var initialReversed = initialReverse();
       var reversed = makeReverseSchema(initialReversed.n, initialReversed.t, initialReversed.m, (function (b, input, selfSchema, path) {
-              var bb = scope(b);
+              var inputVar = $$var(b, input);
+              var bb = {
+                c: "",
+                l: "",
+                g: b.g
+              };
               var opOutput = initialReversed.b(bb, input, selfSchema, "");
               var opBodyCode = allocateScope(bb) + ("return " + opOutput.i);
-              b.c = b.c + ("let " + r + "=" + $$var(b, input) + "=>{" + opBodyCode + "};");
+              b.c = b.c + ("let " + r + "=" + inputVar + "=>{" + opBodyCode + "};");
               return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
                             return map(b, r, input);
                           }));
@@ -1039,17 +1045,14 @@ function removeTypeValidation(schema) {
 function internalRefine(schema, refiner) {
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 return transform(b, schema.b(b, input, schema, path), (function (b, input) {
-                              var input$1;
-                              if (b.c === "" && input.v) {
-                                input$1 = input;
-                              } else {
-                                var scopedInput = allocateVal(b);
-                                b.c = b.c + set(b, scopedInput, input) + ";";
-                                input$1 = scopedInput;
-                              }
-                              var rCode = refiner(b, $$var(b, input$1), selfSchema, path);
-                              b.c = b.c + rCode;
-                              return input$1;
+                              var bb = {
+                                c: "",
+                                l: "",
+                                g: b.g
+                              };
+                              var rCode = refiner(bb, $$var(bb, input), selfSchema, path);
+                              b.c = b.c + allocateScope(bb) + rCode;
+                              return input;
                             }));
               }), schema.f, (function () {
                 var schema$1 = schema["~r"]();
@@ -1065,8 +1068,7 @@ function internalRefine(schema, refiner) {
 
 function refine(schema, refiner) {
   return internalRefine(schema, (function (b, inputVar, selfSchema, path) {
-                var value = refiner(effectCtx(b, selfSchema, path));
-                return "e[" + (b.g.e.push(value) - 1) + "](" + inputVar + ");";
+                return embed(b, refiner(effectCtx(b, selfSchema, path))) + "(" + inputVar + ");";
               }));
 }
 
@@ -1177,14 +1179,16 @@ function makeBuilder(isNullInput, isNullOutput) {
   return function (b, input, selfSchema, path) {
     var childSchema = selfSchema.t._0;
     var childSchemaTag = childSchema.t.TAG;
-    var bb = scope(b);
-    var itemInput;
-    if (!(b.g.o & 1) && (childSchema.t === "Unknown" || childSchemaTag === "Option" || childSchemaTag === "Literal" && childSchema.t._0.value === (void 0))) {
-      var value = Caml_option.valFromOption;
-      itemInput = val(bb, "e[" + (bb.g.e.push(value) - 1) + "](" + $$var(b, input) + ")");
-    } else {
-      itemInput = input;
-    }
+    var bb = {
+      c: "",
+      l: "",
+      g: b.g
+    };
+    var itemInput = !(b.g.o & 1) && (childSchema.t === "Unknown" || childSchemaTag === "Option" || childSchemaTag === "Literal" && childSchema.t._0.value === (void 0)) ? ({
+          v: false,
+          i: embed(bb, Caml_option.valFromOption) + "(" + $$var(b, input) + ")",
+          a: false
+        }) : input;
     var itemOutput = childSchema.b(bb, itemInput, childSchema, path);
     var itemCode = allocateScope(bb);
     var inputLiteral = isNullInput ? "null" : "void 0";
@@ -1193,12 +1197,15 @@ function makeBuilder(isNullInput, isNullOutput) {
     var output = isTransformed ? ({
           v: false,
           i: "",
-          s: b,
           a: itemOutput.a
         }) : input;
     if (itemCode !== "" || isTransformed) {
       b.c = b.c + ("if(" + $$var(b, input) + "!==" + inputLiteral + "){" + itemCode + set(b, output, itemOutput) + "}" + (
-          inputLiteral !== ouputLiteral || output.a ? "else{" + set(b, output, val(b, ouputLiteral)) + "}" : ""
+          inputLiteral !== ouputLiteral || output.a ? "else{" + set(b, output, {
+                  v: false,
+                  i: ouputLiteral,
+                  a: false
+                }) + "}" : ""
         ));
     }
     return output;
@@ -1227,8 +1234,12 @@ function getWithDefault(schema, $$default) {
                 return transform(b, schema.b(b, input, schema, path), (function (b, input) {
                               var inputVar = $$var(b, input);
                               var tmp;
-                              tmp = $$default.TAG === "Value" ? "e[" + (b.g.e.push($$default._0) - 1) + "]" : "e[" + (b.g.e.push($$default._0) - 1) + "]()";
-                              return val(b, inputVar + "===void 0?" + tmp + ":" + inputVar);
+                              tmp = $$default.TAG === "Value" ? embed(b, $$default._0) : embed(b, $$default._0) + "()";
+                              return {
+                                      v: false,
+                                      i: inputVar + "===void 0?" + tmp + ":" + inputVar,
+                                      a: false
+                                    };
                             }));
               }), schema.f, (function () {
                 var reversed = schema["~r"]();
@@ -1306,21 +1317,37 @@ function factory$2(schema) {
             }, empty, (function (b, input, param, path) {
                 var inputVar = $$var(b, input);
                 var iteratorVar = varWithoutAllocation(b);
-                var bb = scope(b);
-                var itemInput = val(bb, inputVar + "[" + iteratorVar + "]");
+                var bb = {
+                  c: "",
+                  l: "",
+                  g: b.g
+                };
+                var itemInput = {
+                  v: false,
+                  i: inputVar + "[" + iteratorVar + "]",
+                  a: false
+                };
                 var itemOutput = withPathPrepend(bb, itemInput, path, iteratorVar, (function (b, input, path) {
                         return parseWithTypeCheck(b, schema, input, path);
                       }));
                 var itemCode = allocateScope(bb);
                 var isTransformed = itemInput !== itemOutput;
-                var output = isTransformed ? val(b, "[]") : input;
+                var output = isTransformed ? ({
+                      v: false,
+                      i: "[]",
+                      a: false
+                    }) : input;
                 if (isTransformed || itemCode !== "") {
                   b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + (
                       isTransformed ? push(b, output, itemOutput) : ""
                     ) + "}");
                 }
                 if (itemOutput.a) {
-                  return asyncVal(b, "Promise.all(" + output.i + ")");
+                  return {
+                          v: false,
+                          i: "Promise.all(" + output.i + ")",
+                          a: true
+                        };
                 } else {
                   return output;
                 }
@@ -1387,14 +1414,26 @@ function factory$3(schema) {
             }, empty, (function (b, input, param, path) {
                 var inputVar = $$var(b, input);
                 var keyVar = varWithoutAllocation(b);
-                var bb = scope(b);
-                var itemInput = val(bb, inputVar + "[" + keyVar + "]");
+                var bb = {
+                  c: "",
+                  l: "",
+                  g: b.g
+                };
+                var itemInput = {
+                  v: false,
+                  i: inputVar + "[" + keyVar + "]",
+                  a: false
+                };
                 var itemOutput = withPathPrepend(bb, itemInput, path, keyVar, (function (b, input, path) {
                         return parseWithTypeCheck(b, schema, input, path);
                       }));
                 var itemCode = allocateScope(bb);
                 var isTransformed = itemInput !== itemOutput;
-                var output = isTransformed ? val(b, "{}") : input;
+                var output = isTransformed ? ({
+                      v: false,
+                      i: "{}",
+                      a: false
+                    }) : input;
                 if (isTransformed || itemCode !== "") {
                   b.c = b.c + ("for(let " + keyVar + " in " + inputVar + "){" + itemCode + (
                       isTransformed ? addKey(b, output, keyVar, itemOutput) : ""
@@ -1408,7 +1447,11 @@ function factory$3(schema) {
                 var asyncParseResultVar = varWithoutAllocation(b);
                 var counterVar = varWithoutAllocation(b);
                 var outputVar = $$var(b, output);
-                return asyncVal(b, "new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "].then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}})");
+                return {
+                        v: false,
+                        i: "new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "].then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}})",
+                        a: true
+                      };
               }), typeFilter$1, onlyChild(factory$3, schema));
 }
 
@@ -1449,7 +1492,11 @@ function factory$4(schema, spaceOpt) {
                                   _0: message
                                 };
                         }), "t.message") + "}");
-                var bb = scope(b);
+                var bb = {
+                  c: "",
+                  l: "",
+                  g: b.g
+                };
                 var val = parseWithTypeCheck(bb, schema, jsonVal, path);
                 b.c = b.c + allocateScope(bb);
                 return val;
@@ -1464,9 +1511,13 @@ function factory$4(schema, spaceOpt) {
                                       _0: reversed
                                     }, "");
                               }
-                              var output = val(b, "JSON.stringify(" + reversed.b(b, input, reversed, path).i + (
-                                    space > 0 ? ",null," + space : ""
-                                  ) + ")");
+                              var output = {
+                                v: false,
+                                i: "JSON.stringify(" + reversed.b(b, input, reversed, path).i + (
+                                  space > 0 ? ",null," + space : ""
+                                ) + ")",
+                                a: false
+                              };
                               b.g.o = prevFlag;
                               return output;
                             }), reversed.f);
@@ -1537,7 +1588,11 @@ function parse$1(b, schemas, path, input, output) {
     var schema = schemas[idx];
     var parserCode;
     try {
-      var bb = scope(b);
+      var bb = {
+        c: "",
+        l: "",
+        g: b.g
+      };
       var itemOutput = schema.b(bb, input, schema, "");
       if (itemOutput !== input) {
         bb.c = bb.c + set(bb, output, itemOutput);
@@ -1545,8 +1600,7 @@ function parse$1(b, schemas, path, input, output) {
       parserCode = allocateScope(bb);
     }
     catch (exn){
-      var value = getOrRethrow(exn);
-      parserCode = "throw " + ("e[" + (b.g.e.push(value) - 1) + "]");
+      parserCode = "throw " + embed(b, getOrRethrow(exn));
     }
     if (!isMultiple) {
       return parserCode;
@@ -1573,7 +1627,12 @@ function factory$5(schemas) {
               }, empty, (function (b, input, selfSchema, path) {
                   var schemas = selfSchema.t._0;
                   var inputVar = $$var(b, input);
-                  var output = val(b, inputVar);
+                  var output = {
+                    v: false,
+                    i: inputVar,
+                    a: false
+                  };
+                  $$var(b, output);
                   var byTypeFilter = {};
                   var typeFilters = [];
                   for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
@@ -1619,7 +1678,11 @@ function factory$5(schemas) {
                   };
                   b.c = b.c + loopTypeFilters(0, undefined);
                   if (output.a) {
-                    return asyncVal(b, "Promise.resolve(" + output.i + ")");
+                    return {
+                            v: false,
+                            i: "Promise.resolve(" + output.i + ")",
+                            a: true
+                          };
                   } else {
                     return output;
                   }
@@ -1734,7 +1797,7 @@ function json(validate) {
                                 received: input
                               }, path$1);
                   };
-                  return map(b, "e[" + (b.g.e.push(parse) - 1) + "]", input);
+                  return map(b, embed(b, parse), input);
                 }) : noop, undefined, (function () {
                 if (validate) {
                   return json(false);
@@ -1750,20 +1813,24 @@ function $$catch(schema, getFallbackValue) {
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, selfSchema, path) {
                 var inputVar = $$var(b, input);
                 return withCatch(b, input, (function (b, errorVar) {
-                              return val(b, "e[" + (b.g.e.push(function (input, internalError) {
-                                                return getFallbackValue({
-                                                            e: internalError,
-                                                            i: input,
-                                                            s: selfSchema,
-                                                            f: (function (message, customPathOpt) {
-                                                                var customPath = customPathOpt !== undefined ? customPathOpt : "";
-                                                                return raise(b, {
-                                                                            TAG: "OperationFailed",
-                                                                            _0: message
-                                                                          }, path + customPath);
-                                                              })
-                                                          });
-                                              }) - 1) + "](" + inputVar + "," + errorVar + ")");
+                              return {
+                                      v: false,
+                                      i: embed(b, (function (input, internalError) {
+                                              return getFallbackValue({
+                                                          e: internalError,
+                                                          i: input,
+                                                          s: selfSchema,
+                                                          f: (function (message, customPathOpt) {
+                                                              var customPath = customPathOpt !== undefined ? customPathOpt : "";
+                                                              return raise(b, {
+                                                                          TAG: "OperationFailed",
+                                                                          _0: message
+                                                                        }, path + customPath);
+                                                            })
+                                                        });
+                                            })) + "(" + inputVar + "," + errorVar + ")",
+                                      a: false
+                                    };
                             }), (function (b) {
                               return parseWithTypeCheck(b, schema, input, path);
                             }));
@@ -1838,7 +1905,11 @@ function getItemReversed(item) {
 
 function definitionToOutput(b, definition, getItemOutput) {
   if (!(typeof definition === "object" && definition !== null)) {
-    return val(b, "e[" + (b.g.e.push(definition) - 1) + "]");
+    return {
+            v: false,
+            i: embed(b, definition),
+            a: false
+          };
   }
   var item = definition[itemSymbol];
   if (item !== undefined) {
@@ -1944,15 +2015,18 @@ function definitionToRitem(definition, path, ritems) {
 function builder$1(schemas, inlinedLocations, isArray) {
   return function (parentB, input, selfSchema, path) {
     var unknownKeys = selfSchema.t.unknownKeys;
-    var b = scope(parentB);
+    var b = {
+      c: "",
+      l: "",
+      g: parentB.g
+    };
     var typeFilters = "";
-    var inputVar = $$var(b, input);
     var objectVal = make(b, isArray);
     for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
       var schema = schemas[idx];
       var inlinedLocation = inlinedLocations[idx];
       var itemPath = "[" + inlinedLocation + "]";
-      var itemInput = val(b, inputVar + itemPath);
+      var itemInput = get(b, input, inlinedLocation);
       var path$1 = path + itemPath;
       var typeFilter = schema.f;
       if (typeFilter !== undefined) {
@@ -1992,7 +2066,7 @@ function nested(fieldName) {
         fieldNames: fieldNames,
         fields: fields,
         unknownKeys: globalConfig.u
-      }, empty, builder$1(schemas, inlinedLocations, false), typeFilter$1, toSelf);
+      }, empty, builder$1(schemas, inlinedLocations, false), typeFilter$1, reverse$1(fieldNames, schemas, inlinedLocations));
   var target = parentCtx.f(fieldName, schema)[itemSymbol];
   var flatten = function (schema) {
     var match = schema.t;
@@ -2064,6 +2138,35 @@ function nested(fieldName) {
   return ctx$1;
 }
 
+function reverse$1(fieldNames, schemas, inlinedLocations) {
+  return function () {
+    var reversedFields = {};
+    var reversedSchemas = [];
+    var isTransformed = false;
+    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+      var fieldName = fieldNames[idx];
+      var schema = schemas[idx];
+      var reversed = schema["~r"]();
+      reversedFields[fieldName] = reversed;
+      reversedSchemas.push(reversed);
+      if (schema !== reversed) {
+        isTransformed = true;
+      }
+      
+    }
+    if (isTransformed) {
+      return makeReverseSchema(name, {
+                  TAG: "Object",
+                  fieldNames: fieldNames,
+                  fields: reversedFields,
+                  unknownKeys: globalConfig.u
+                }, empty, builder$1(reversedSchemas, inlinedLocations, false), typeFilter$1);
+    } else {
+      return this;
+    }
+  };
+}
+
 function advancedReverse(definition, kind, items) {
   return function () {
     var ritems = [];
@@ -2107,7 +2210,11 @@ function advancedReverse(definition, kind, items) {
                 var item$1 = match.i;
                 var ritemPath = match.p;
                 var itemPath = getFullItemPath(item$1);
-                var itemInput = val(b, $$var(b, input) + ritemPath);
+                var itemInput = {
+                  v: false,
+                  i: $$var(b, input) + ritemPath,
+                  a: false
+                };
                 var path$1 = path + ritemPath;
                 var embededOutput = outputsByPath[itemPath];
                 if (embededOutput !== undefined) {
@@ -2133,7 +2240,11 @@ function advancedReverse(definition, kind, items) {
             case 1 :
                 var reversed$2 = match.s;
                 var ritemPath$1 = match.p;
-                var itemInput$1 = val(b, $$var(b, input) + ritemPath$1);
+                var itemInput$1 = {
+                  v: false,
+                  i: $$var(b, input) + ritemPath$1,
+                  a: false
+                };
                 var path$2 = path + ritemPath$1;
                 typeFilters = typeFilters + typeFilterCode(b, reversed$2.f, reversed$2, itemInput$1, path$2);
                 break;
@@ -2155,7 +2266,11 @@ function advancedReverse(definition, kind, items) {
           } else {
             switch (literal.TAG) {
               case "Literal" :
-                  reversedInput = val(b, "e[" + (b.g.e.push(literal._0.value) - 1) + "]");
+                  reversedInput = {
+                    v: false,
+                    i: embed(b, literal._0.value),
+                    a: false
+                  };
                   break;
               case "Object" :
                   var fields = literal.fields;
@@ -2241,7 +2356,11 @@ function advancedBuilder(definition, items, inlinedLocations) {
   return function (parentB, input, selfSchema, path) {
     var outputs = new WeakMap();
     var unknownKeys = selfSchema.t.unknownKeys;
-    var b = scope(parentB);
+    var b = {
+      c: "",
+      l: "",
+      g: parentB.g
+    };
     var inputVar = $$var(b, input);
     var typeFilters = "";
     for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
@@ -2250,7 +2369,11 @@ function advancedBuilder(definition, items, inlinedLocations) {
         case 0 :
             var schema = item.s;
             var itemPath = "[" + item.i + "]";
-            var itemInput = val(b, inputVar + itemPath);
+            var itemInput = {
+              v: false,
+              i: inputVar + itemPath,
+              a: false
+            };
             var path$1 = path + itemPath;
             var typeFilter = schema.f;
             if (typeFilter !== undefined) {
@@ -2299,17 +2422,24 @@ function to(schema, definer) {
   var definition = definer(proxify(item));
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, param, path) {
                 var itemOutput = schema.b(b, input, schema, path);
+                var bb = {
+                  c: "",
+                  l: "",
+                  g: b.g
+                };
                 var getItemOutput = function (item) {
                   switch (item.k) {
                     case 1 :
-                        return get(b, getItemOutput(item.t), item.i);
+                        return get(bb, getItemOutput(item.t), item.i);
                     case 0 :
                     case 2 :
                         return itemOutput;
                     
                   }
                 };
-                return definitionToOutput(b, definition, getItemOutput);
+                var output = definitionToOutput(bb, definition, getItemOutput);
+                b.c = b.c + allocateScope(bb);
+                return output;
               }), schema.f, advancedReverse(definition, "To", [item]));
 }
 
@@ -2470,7 +2600,7 @@ function definitionToSchema(definition) {
       definition[idx] = schema;
       reversedSchemas[idx] = reversed;
       inlinedLocations[idx] = "\"" + idx + "\"";
-      if (!isTransformed && schema !== reversed) {
+      if (schema !== reversed) {
         isTransformed = true;
       }
       
@@ -2490,37 +2620,20 @@ function definitionToSchema(definition) {
   var length$1 = fieldNames.length;
   var schemas = new Array(length$1);
   var inlinedLocations$1 = new Array(length$1);
-  var reversedSchemas$1 = new Array(length$1);
-  var reversedFields = {};
-  var isTransformed$1 = false;
   for(var idx$1 = 0; idx$1 < length$1; ++idx$1){
     var $$location = fieldNames[idx$1];
     var inlinedLocation = JSON.stringify($$location);
     var schema$1 = definitionToSchema(definition[$$location]);
-    var reversed$1 = schema$1["~r"]();
     schemas[idx$1] = schema$1;
     inlinedLocations$1[idx$1] = inlinedLocation;
-    reversedSchemas$1[idx$1] = reversed$1;
-    reversedFields[fieldNames[idx$1]] = reversed$1;
     definition[$$location] = schema$1;
-    if (!isTransformed$1 && schema$1 !== reversed$1) {
-      isTransformed$1 = true;
-    }
-    
   }
   return makeSchema(name, {
               TAG: "Object",
               fieldNames: fieldNames,
               fields: definition,
               unknownKeys: globalConfig.u
-            }, empty, builder$1(schemas, inlinedLocations$1, false), typeFilter$1, isTransformed$1 ? (function () {
-                  return makeReverseSchema(name, {
-                              TAG: "Object",
-                              fieldNames: fieldNames,
-                              fields: reversedFields,
-                              unknownKeys: globalConfig.u
-                            }, empty, builder$1(reversedSchemas$1, inlinedLocations$1, false), typeFilter$1);
-                }) : toSelf);
+            }, empty, builder$1(schemas, inlinedLocations$1, false), typeFilter$1, reverse$1(fieldNames, schemas, inlinedLocations$1));
 }
 
 function matches(schema) {
@@ -2903,7 +3016,7 @@ function intMin(schema, minValue, maybeMessage) {
               },
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(" + inputVar + "<" + ("e[" + (b.g.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + inputVar + "<" + embed(b, minValue) + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2916,7 +3029,7 @@ function intMax(schema, maxValue, maybeMessage) {
               },
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(" + inputVar + ">" + ("e[" + (b.g.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + inputVar + ">" + embed(b, maxValue) + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2939,7 +3052,7 @@ function floatMin(schema, minValue, maybeMessage) {
               },
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(" + inputVar + "<" + ("e[" + (b.g.e.push(minValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + inputVar + "<" + embed(b, minValue) + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2952,7 +3065,7 @@ function floatMax(schema, maxValue, maybeMessage) {
               },
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(" + inputVar + ">" + ("e[" + (b.g.e.push(maxValue) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + inputVar + ">" + embed(b, maxValue) + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2965,7 +3078,7 @@ function arrayMinLength(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(" + inputVar + ".length<" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + inputVar + ".length<" + embed(b, length) + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2978,7 +3091,7 @@ function arrayMaxLength(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(" + inputVar + ".length>" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + inputVar + ".length>" + embed(b, length) + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -2991,7 +3104,7 @@ function arrayLength(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(" + inputVar + ".length!==" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + inputVar + ".length!==" + embed(b, length) + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -3004,7 +3117,7 @@ function stringMinLength(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(" + inputVar + ".length<" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + inputVar + ".length<" + embed(b, length) + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -3017,7 +3130,7 @@ function stringMaxLength(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(" + inputVar + ".length>" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + inputVar + ".length>" + embed(b, length) + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -3030,7 +3143,7 @@ function stringLength(schema, length, maybeMessage) {
               },
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(" + inputVar + ".length!==" + ("e[" + (b.g.e.push(length) - 1) + "]") + "){" + fail(b, message, path) + "}";
+                return "if(" + inputVar + ".length!==" + embed(b, length) + "){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -3040,7 +3153,7 @@ function email(schema, messageOpt) {
               kind: "Email",
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(!" + ("e[" + (b.g.e.push(emailRegex) - 1) + "]") + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
+                return "if(!" + embed(b, emailRegex) + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -3050,7 +3163,7 @@ function uuid(schema, messageOpt) {
               kind: "Uuid",
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(!" + ("e[" + (b.g.e.push(uuidRegex) - 1) + "]") + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
+                return "if(!" + embed(b, uuidRegex) + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -3060,7 +3173,7 @@ function cuid(schema, messageOpt) {
               kind: "Cuid",
               message: message
             }, (function (b, inputVar, param, path) {
-                return "if(!" + ("e[" + (b.g.e.push(cuidRegex) - 1) + "]") + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
+                return "if(!" + embed(b, cuidRegex) + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
               }));
 }
 
@@ -3083,7 +3196,11 @@ function pattern(schema, re, messageOpt) {
               },
               message: message
             }, (function (b, inputVar, param, path) {
-                var reVal = val(b, "e[" + (b.g.e.push(re) - 1) + "]");
+                var reVal = {
+                  v: false,
+                  i: embed(b, re),
+                  a: false
+                };
                 var reVar = $$var(b, reVal);
                 return reVar + ".lastIndex=0;if(!" + reVar + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
               }));
@@ -3239,7 +3356,11 @@ function js_merge(s1, s2) {
                 }, empty, (function (b, input, param, path) {
                     var s1Result = s1.b(b, input, s1, path);
                     var s2Result = s2.b(b, input, s2, path);
-                    return val(b, "Object.assign(" + s1Result.i + ", " + s2Result.i + ")");
+                    return {
+                            v: false,
+                            i: "{..." + s1Result.i + ", ..." + s2Result.i + "}",
+                            a: false
+                          };
                   }), typeFilter$1, (function () {
                     return makeReverseSchema(primitiveName, "Unknown", empty, (function (b, param, param$1, path) {
                                   return invalidOperation(b, path, "The S.merge serializing is not supported yet");
