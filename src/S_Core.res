@@ -721,7 +721,7 @@ module Builder = {
           ~input,
           ~catch=(b, ~errorVar) => {
             b.code = `${errorVar}.path=${path->Stdlib.Inlined.Value.fromString}+${switch maybeDynamicLocationVar {
-              | Some(var) => `'["'+${var}+'"]'+` // FIXME: Don't add "" for int var
+              | Some(var) => `'["'+${var}+'"]'+`
               | _ => ""
               }}${errorVar}.path`
             None
@@ -2834,9 +2834,9 @@ module Schema = {
     }
   }
 
-  let makeReverseOutput = (b, ~kind, ~items, ~outputs, ~outputsByPath, ~path) => {
-    let rec reversedToOutput = (reversed, ~originalPath) => {
-      let reversedInput = switch reversed->classify {
+  let makeReverseOutput = (b, ~kind, ~items, ~outputs, ~inputsByPath, ~path) => {
+    let rec reversedToInput = (reversed, ~originalPath) => {
+      switch reversed->classify {
       | Literal(literal) => b->B.val(b->B.embed(literal->Literal.value))
       | Tuple({items: schemas}) => {
           let objectVal = b->B.Val.Object.make(~isArray=true)
@@ -2844,9 +2844,9 @@ module Schema = {
             let schema = schemas->Js.Array2.unsafe_get(idx)
             let inlinedLocation = `"${idx->Stdlib.Int.unsafeToString}"`
             let itemPath = originalPath->Path.concat(Path.fromInlinedLocation(inlinedLocation))
-            let schemaOutput = switch outputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
+            let schemaOutput = switch inputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
             | Some(o) => o
-            | None => schema->reversedToOutput(~originalPath=itemPath)
+            | None => schema->reversedToInput(~originalPath=itemPath)
             }
             objectVal->B.Val.Object.add(inlinedLocation, schemaOutput)
           }
@@ -2859,9 +2859,9 @@ module Schema = {
             let schema = fields->Js.Dict.unsafeGet(fieldName)
             let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
             let itemPath = originalPath->Path.concat(Path.fromInlinedLocation(inlinedLocation))
-            let schemaOutput = switch outputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
+            let schemaOutput = switch inputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
             | Some(o) => o
-            | None => schema->reversedToOutput(~originalPath=itemPath)
+            | None => schema->reversedToInput(~originalPath=itemPath)
             }
             objectVal->B.Val.Object.add(inlinedLocation, schemaOutput)
           }
@@ -2878,12 +2878,6 @@ module Schema = {
           },
         )
       }
-      let prevFlag = b.global.flag
-      b.global.flag = prevFlag->Flag.without(Flag.typeValidation)->Flag.with(Flag.skipDiscriminant)
-      // FIXME: It reverses reversed items
-      let output = b->B.parse(~schema=reversed, ~input=reversedInput, ~path)
-      b.global.flag = prevFlag
-      output
     }
 
     let getItemOutput = item => {
@@ -2891,7 +2885,15 @@ module Schema = {
       | Some(o) => o
       | None =>
         // It's fine to use getUnsafeItemSchema here, because this will never be called on ItemField
-        reversedToOutput((item->getUnsafeItemSchema).reverse(), ~originalPath=item->getItemPath)
+        let reversed = (item->getUnsafeItemSchema).reverse()
+        let input = reversedToInput(reversed, ~originalPath=item->getItemPath)
+
+        let prevFlag = b.global.flag
+        b.global.flag =
+          prevFlag->Flag.without(Flag.typeValidation)->Flag.with(Flag.skipDiscriminant)
+        let output = b->B.parse(~schema=reversed, ~input, ~path)
+        b.global.flag = prevFlag
+        output
       }
     }
 
@@ -3169,7 +3171,7 @@ module Schema = {
 
     reversed.builder = Builder.make((b, ~input, ~selfSchema as _, ~path) => {
       let outputs = Stdlib.WeakMap.make()
-      let outputsByPath = Js.Dict.empty()
+      let inputsByPath = Js.Dict.empty()
 
       let prevCode = b.code
       b.code = ""
@@ -3177,11 +3179,10 @@ module Schema = {
 
       switch ritem {
       | Registred({item, reversed}) =>
-        let itemOutput = b->B.parse(~schema=reversed, ~input, ~path)
         outputs
-        ->Stdlib.WeakMap.set(item, itemOutput)
+        ->Stdlib.WeakMap.set(item, b->B.parse(~schema=reversed, ~input, ~path))
         ->ignore
-        outputsByPath->Js.Dict.set(item->getFullItemPath, itemOutput)->ignore
+        inputsByPath->Js.Dict.set(item->getFullItemPath, input)->ignore
       | _ => ()
       }
 
@@ -3217,19 +3218,16 @@ module Schema = {
           let itemPath = item->getFullItemPath
           let itemInput = b->B.val(`${b->B.Val.var(input)}${ritemPath}`)
           let path = path->Path.concat(ritemPath)
-          switch outputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
-          | Some(embededOutput) => {
-              let itemOutput = b->B.parse(~schema=reversed, ~input=itemInput, ~path)
-              b.code =
-                b.code ++
-                // TODO: Show values in the message
-                `if(${b->B.Val.var(embededOutput)}!==${itemOutput.inline}){${b->B.fail(
-                    ~message=`Another source has conflicting data${itemPath === Path.empty
-                        ? ""
-                        : ` for the field ${itemPath}`}`,
-                    ~path,
-                  )}}`
-            }
+          switch inputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
+          | Some(embededInput) => b.code =
+              b.code ++
+              // TODO: Show values in the message
+              `if(${b->B.Val.var(embededInput)}!==${itemInput.inline}){${b->B.fail(
+                  ~message=`Another source has conflicting data${itemPath === Path.empty
+                      ? ""
+                      : ` for the field ${itemPath}`}`,
+                  ~path,
+                )}}`
 
           | None => {
               switch reversed.maybeTypeFilter {
@@ -3248,7 +3246,7 @@ module Schema = {
               }
 
               let itemOutput = b->B.parse(~schema=reversed, ~input=itemInput, ~path)
-              outputsByPath->Js.Dict.set(itemPath, itemOutput)->ignore
+              inputsByPath->Js.Dict.set(itemPath, itemInput)->ignore
               outputs
               ->Stdlib.WeakMap.set(item, itemOutput)
               ->ignore
@@ -3259,7 +3257,7 @@ module Schema = {
       }
 
       b.code = prevCode ++ typeFilters.contents ++ b.code
-      b->makeReverseOutput(~items, ~kind, ~outputs, ~outputsByPath, ~path)
+      b->makeReverseOutput(~items, ~kind, ~outputs, ~inputsByPath, ~path)
     })
 
     reversed
