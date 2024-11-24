@@ -257,6 +257,7 @@ and tagged =
   | @as("string") String
   | @as("int32") Int
   | @as("number") Float
+  | @as("bigint") BigInt
   | @as("boolean") Bool
   | @as("literal") Literal(literal)
   | @as("option") Option(t<unknown>)
@@ -2347,11 +2348,10 @@ module BigInt = {
   let typeFilter = (_b, ~inputVar) => `typeof ${inputVar}!=="bigint"`
 
   let schema = makePrimitiveSchema(
-    ~tagged=Unknown, // TODO: Add BigInt in v9
+    ~tagged=BigInt,
     ~builder=Builder.invalidJson,
     ~maybeTypeFilter=Some(typeFilter),
   )
-  (schema->Obj.magic)["n"] = %raw(`() => "BigInt"`)
 }
 
 module Union = {
@@ -3696,7 +3696,7 @@ module Error = {
       `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object`
     | InvalidType({expected, received}) =>
       `Expected ${expected.name()}, received ${received->Literal.parse->Literal.toString}`
-    | InvalidJsonSchema(schema) => `The '${schema.name()}' schema is not compatible with JSON`
+    | InvalidJsonSchema(schema) => `The '${schema.name()}' schema cannot be converted to JSON`
     | InvalidUnion(errors) => {
         let lineBreak = `\n${" "->Js.String2.repeat(nestedLevel * 2)}`
         let reasonsDict = Js.Dict.empty()
@@ -3807,6 +3807,7 @@ let inline = {
     | String => `S.string`
     | Int => `S.int`
     | Float => `S.float`
+    | BigInt => `S.bigint`
     | Bool => `S.bool`
     | Option(schema) => `S.option(${schema->internalInline()})`
     | Null(schema) => `S.null(${schema->internalInline()})`
