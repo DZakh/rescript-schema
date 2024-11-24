@@ -81,7 +81,7 @@ test("Successfully parses string with built-in datetime transform", (t) => {
 });
 
 test("Successfully parses int", (t) => {
-  const schema = S.integer;
+  const schema = S.int32;
   const value = S.parseOrThrow(123, schema);
 
   t.deepEqual(value, 123);
@@ -1521,8 +1521,8 @@ test("Tuple with transform to object", (t) => {
   let pointSchema = S.tuple((s) => {
     s.tag(0, "point");
     return {
-      x: s.item(1, S.integer),
-      y: s.item(2, S.integer),
+      x: s.item(1, S.int32),
+      y: s.item(2, S.int32),
     };
   });
 
