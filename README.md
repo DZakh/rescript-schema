@@ -46,12 +46,12 @@ Besides the individual bundle size, the overall size of the library is also sign
 
 At the same time **rescript-schema** is the fastest composable validation library in the entire JavaScript ecosystem. This is achieved because of the JIT approach when an ultra optimized validator is created using `eval`.
 
-|                                          | rescript-schema@8.0.0 | Zod@3.22.2      | Valibot@0.36.0 |
+|                                          | rescript-schema@9.0.0 | Zod@3.23.8      | Valibot@0.42.1 |
 | ---------------------------------------- | --------------------- | --------------- | -------------- |
-| **Total size** (minified + gzipped)      | 9.71 kB               | 14.6 kB         | 10.4 kB        |
-| **Example size** (minified + gzipped)    | 5.48 kB               | 12.9 kB         | 1.22 B         |
-| **Parse with the same schema**           | 155,887 ops/ms        | 1,273 ops/ms    | 3,771 ops/ms   |
-| **Create schema & parse once**           | 146 ops/ms            | 108 ops/ms      | 2,485 ops/ms   |
+| **Total size** (minified + gzipped)      | 9.71 kB ?             | 14.6 kB ?       | 10.4 kB ?      |
+| **Example size** (minified + gzipped)    | 5.48 kB ?             | 12.9 kB ?       | 1.22 B ?       |
+| **Parse with the same schema**           | 100,070 ops/ms        | 1,325 ops/ms    | 3,946 ops/ms   |
+| **Create schema & parse once**           | 195 ops/ms            | 121 ops/ms      | 2,583 ops/ms   |
 | **Eval-free**                            | ❌                    | ✅              | ✅             |
 | **Codegen-free** (Doesn't need compiler) | ✅                    | ✅              | ✅             |
 | **Ecosystem**                            | ⭐️⭐️                | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️⭐️      |
