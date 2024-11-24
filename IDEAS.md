@@ -31,16 +31,9 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add schema input to the error ??? What about build errors?
 - Get rid of S.literal in Js/ts API and S.tuple shorthand
 - Use ReScript types for schema names
-  // FIXME: Return back s.flatten support for schemas created with S.schema
 - Rename Js integer to int32
 - Rename S.Object.strict to S.strict (the same for strip)
 - Fix unknownKeys for nested S.schema
-
-  // TODO: FIXME: PLAN
-  // 1. Move fields and fieldNames to the ctx and expose them in resi
-  // 2. Add merge logic to s.flatten and s.field - allow only duplicate fields with the same schema (===)
-  // 3. Add s.nested("fieldName") which would return a nested ctx.
-  // So it's possible to do s.nested("fieldName").field("nestedFieldName", S.string)
 
 ### Done
 
@@ -48,6 +41,9 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Tuples and Objects created by S.schema don't recreate the input if there are no transformed fields
 - Async for reversed object ???
 - S.compile changed some arg variant names and now supports reverse flag
+- Removed validation for multiple registered fields that they have the same data
+- Ability to spread any schema in S.object
+- Replace s.nestedField with S.nested
 
 ## v10
 

@@ -1970,7 +1970,7 @@ function proxify(item) {
             });
 }
 
-function definitionToRitem(definition, path, ritems) {
+function definitionToRitem(definition, path, ritems, ritemsByItemPath) {
   if (!(typeof definition === "object" && definition !== null)) {
     return {
             k: 1,
@@ -1980,12 +1980,16 @@ function definitionToRitem(definition, path, ritems) {
   }
   var item = definition[itemSymbol];
   if (item !== undefined) {
-    return {
-            k: 0,
-            p: path,
-            i: item,
-            s: getItemReversed(item)
-          };
+    var ritem_2 = getItemReversed(item);
+    var ritem = {
+      k: 0,
+      p: path,
+      i: item,
+      s: ritem_2
+    };
+    item.r = ritem;
+    ritemsByItemPath[getFullItemPath(item)] = ritem;
+    return ritem;
   }
   var keys = Object.keys(definition);
   var isArray = Array.isArray(definition);
@@ -1993,9 +1997,9 @@ function definitionToRitem(definition, path, ritems) {
   for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
     var $$location = keys[idx];
     var inlinedLocation = isArray ? "\"" + $$location + "\"" : JSON.stringify($$location);
-    var ritem = definitionToRitem(definition[$$location], path + ("[" + inlinedLocation + "]"), ritems);
-    ritems.push(ritem);
-    fields[$$location] = ritem.s;
+    var ritem$1 = definitionToRitem(definition[$$location], path + ("[" + inlinedLocation + "]"), ritems, ritemsByItemPath);
+    ritems.push(ritem$1);
+    fields[$$location] = ritem$1.s;
   }
   return {
           k: 2,
@@ -2175,8 +2179,9 @@ function reverse$1(fieldNames, schemas, inlinedLocations) {
 
 function advancedReverse(definition, kind, items) {
   return function () {
+    var ritemsByItemPath = {};
     var ritems = [];
-    var ritem = definitionToRitem(definition, "", ritems);
+    var ritem = definitionToRitem(definition, "", ritems, ritemsByItemPath);
     var reversed;
     switch (ritem.k) {
       case 0 :
@@ -2190,77 +2195,46 @@ function advancedReverse(definition, kind, items) {
       
     }
     reversed.b = (function (b, input, param, path) {
-        var outputs = new WeakMap();
-        var inputsByPath = {};
         var prevCode = b.c;
         b.c = "";
-        var typeFilters = "";
-        switch (ritem.k) {
-          case 0 :
-              var reversed = ritem.s;
-              var item = ritem.i;
-              outputs.set(item, reversed.b(b, input, reversed, path));
-              inputsByPath[getFullItemPath(item)] = input;
-              break;
-          case 1 :
-          case 2 :
-              break;
-          
-        }
+        var typeFilters = {
+          contents: ""
+        };
         for(var idx = 0 ,idx_finish = ritems.length; idx < idx_finish; ++idx){
           var match = ritems[idx];
           switch (match.k) {
             case 0 :
-                var reversed$1 = match.s;
-                var item$1 = match.i;
-                var ritemPath = match.p;
-                var itemPath = getFullItemPath(item$1);
-                var itemInput = {
-                  v: false,
-                  i: $$var(b, input) + ritemPath,
-                  a: false
-                };
-                var path$1 = path + ritemPath;
-                var embededInput = inputsByPath[itemPath];
-                if (embededInput !== undefined) {
-                  b.c = b.c + ("if(" + $$var(b, embededInput) + "!==" + itemInput.i + "){" + fail(b, "Another source has conflicting data" + (
-                          itemPath === "" ? "" : " for the field " + itemPath
-                        ), path$1) + "}");
-                } else {
-                  var typeFilter = reversed$1.f;
-                  if (typeFilter !== undefined) {
-                    if (reversed$1.t.TAG === "Literal" && !(b.g.o & 64)) {
-                      typeFilters = typeFilterCode(b, typeFilter, reversed$1, itemInput, path$1) + typeFilters;
-                    } else if (b.g.o & 1) {
-                      typeFilters = typeFilters + typeFilterCode(b, typeFilter, reversed$1, itemInput, path$1);
-                    }
-                    
-                  }
-                  var itemOutput = reversed$1.b(b, itemInput, reversed$1, path$1);
-                  inputsByPath[itemPath] = itemInput;
-                  outputs.set(item$1, itemOutput);
-                }
                 break;
             case 1 :
-                var reversed$2 = match.s;
-                var ritemPath$1 = match.p;
-                var itemInput$1 = {
+                var reversed = match.s;
+                var rpath = match.p;
+                var itemInput = {
                   v: false,
-                  i: $$var(b, input) + ritemPath$1,
+                  i: $$var(b, input) + rpath,
                   a: false
                 };
-                var path$2 = path + ritemPath$1;
-                typeFilters = typeFilters + typeFilterCode(b, reversed$2.f, reversed$2, itemInput$1, path$2);
+                var path$1 = path + rpath;
+                typeFilters.contents = typeFilters.contents + typeFilterCode(b, reversed.f, reversed, itemInput, path$1);
                 break;
             case 2 :
                 if (b.g.o & 1) {
-                  invalidOperation(b, path, "Type validation mode is not supported. Use convert operation instead");
+                  invalidOperation(b, path, "Type validation mode is not supported");
                 }
                 break;
             
           }
         }
-        b.c = prevCode + typeFilters + b.c;
+        var getRitemInput = function (ritem) {
+          if (ritem.p === "") {
+            return input;
+          } else {
+            return {
+                    v: false,
+                    i: $$var(b, input) + ritem.p,
+                    a: false
+                  };
+          }
+        };
         var reversedToInput = function (reversed, originalPath) {
           var literal = reversed.t;
           if (typeof literal === "object") {
@@ -2280,9 +2254,9 @@ function advancedReverse(definition, kind, items) {
                     var schema = fields[fieldName];
                     var inlinedLocation = JSON.stringify(fieldName);
                     var itemPath = originalPath + ("[" + inlinedLocation + "]");
-                    var o = inputsByPath[itemPath];
-                    var schemaOutput = o !== undefined ? o : reversedToInput(schema, itemPath);
-                    add(objectVal, inlinedLocation, schemaOutput);
+                    var ritem = ritemsByItemPath[itemPath];
+                    var itemInput = ritem !== undefined ? getRitemInput(ritem) : reversedToInput(schema, itemPath);
+                    add(objectVal, inlinedLocation, itemInput);
                   }
                   return complete(objectVal, false);
               case "Tuple" :
@@ -2292,9 +2266,9 @@ function advancedReverse(definition, kind, items) {
                     var schema$1 = schemas[idx$1];
                     var inlinedLocation$1 = "\"" + idx$1 + "\"";
                     var itemPath$1 = originalPath + ("[" + inlinedLocation$1 + "]");
-                    var o$1 = inputsByPath[itemPath$1];
-                    var schemaOutput$1 = o$1 !== undefined ? o$1 : reversedToInput(schema$1, itemPath$1);
-                    add(objectVal$1, inlinedLocation$1, schemaOutput$1);
+                    var ritem$1 = ritemsByItemPath[itemPath$1];
+                    var itemInput$1 = ritem$1 !== undefined ? getRitemInput(ritem$1) : reversedToInput(schema$1, itemPath$1);
+                    add(objectVal$1, inlinedLocation$1, itemInput$1);
                   }
                   return complete(objectVal$1, true);
               default:
@@ -2305,15 +2279,30 @@ function advancedReverse(definition, kind, items) {
           return invalidOperation(b, path, tmp);
         };
         var getItemOutput = function (item) {
-          var o = outputs.get(item);
-          if (o !== undefined) {
-            return o;
+          var ritem = item.r;
+          if (ritem !== undefined) {
+            var reversed = ritem.s;
+            var itemInput = getRitemInput(ritem);
+            var path$2 = path + ritem.p;
+            if (ritem.p !== "") {
+              var typeFilter = reversed.f;
+              if (typeFilter !== undefined) {
+                if (reversed.t.TAG === "Literal" && !(b.g.o & 64)) {
+                  typeFilters.contents = typeFilterCode(b, typeFilter, reversed, itemInput, path$2) + typeFilters.contents;
+                } else if (b.g.o & 1) {
+                  typeFilters.contents = typeFilters.contents + typeFilterCode(b, typeFilter, reversed, itemInput, path$2);
+                }
+                
+              }
+              
+            }
+            return reversed.b(b, itemInput, reversed, path$2);
           }
-          var reversed = item.s["~r"]();
-          var input = reversedToInput(reversed, item.p);
+          var reversed$1 = item.s["~r"]();
+          var input = reversedToInput(reversed$1, item.p);
           var prevFlag = b.g.o;
           b.g.o = (prevFlag | 1) ^ 1 | 64;
-          var output = reversed.b(b, input, reversed, path);
+          var output = reversed$1.b(b, input, reversed$1, path);
           b.g.o = prevFlag;
           return output;
         };
@@ -2335,13 +2324,11 @@ function advancedReverse(definition, kind, items) {
           }
           return complete(objectVal, isArray);
         };
-        if (kind === "To") {
-          return getItemOutput(items[0]);
-        } else if (kind === "Array") {
-          return schemaOutput(items, true);
-        } else {
-          return schemaOutput(items, false);
-        }
+        var output = kind === "To" ? getItemOutput(items[0]) : (
+            kind === "Array" ? schemaOutput(items, true) : schemaOutput(items, false)
+          );
+        b.c = prevCode + typeFilters.contents + b.c;
+        return output;
       });
     return reversed;
   };
