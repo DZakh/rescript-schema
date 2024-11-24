@@ -44,6 +44,7 @@ and tagged =
   | @as("string") String
   | @as("int32") Int
   | @as("number") Float
+  | @as("bigint") BigInt
   | @as("boolean") Bool
   | @as("literal") Literal(literal)
   | @as("option") Option(t<unknown>)

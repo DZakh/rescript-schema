@@ -1580,9 +1580,7 @@ function typeFilter$7(_b, inputVar) {
   return "typeof " + inputVar + "!==\"bigint\"";
 }
 
-var schema$6 = makePrimitiveSchema("unknown", invalidJson, typeFilter$7);
-
-schema$6.n = (() => "BigInt");
+var schema$6 = makePrimitiveSchema("bigint", invalidJson, typeFilter$7);
 
 function parse$1(b, schemas, path, input, output) {
   var isMultiple = schemas.length > 1;
@@ -2678,7 +2676,7 @@ function reason(error, nestedLevelOpt) {
         var uniqueReasons = Object.keys(reasonsDict);
         return "Invalid union with following errors" + lineBreak + uniqueReasons.join(lineBreak);
     case "InvalidJsonSchema" :
-        return "The '" + reason$1._0.n() + "' schema is not compatible with JSON";
+        return "The '" + reason$1._0.n() + "' schema cannot be converted to JSON";
     
   }
 }
@@ -2730,6 +2728,9 @@ function internalInline(schema, maybeVariant, param) {
           break;
       case "number" :
           inlinedSchema = "S.float";
+          break;
+      case "bigint" :
+          inlinedSchema = "S.bigint";
           break;
       case "boolean" :
           inlinedSchema = "S.bool";
