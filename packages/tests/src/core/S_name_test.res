@@ -1,7 +1,7 @@
 open Ava
 
 test("Name of primitive schema", t => {
-  t->Assert.deepEqual(S.string->S.name, "String", ())
+  t->Assert.deepEqual(S.string->S.name, "string", ())
 })
 
 test("Name of Literal schema", t => {
@@ -12,24 +12,28 @@ test("Name of Literal object schema", t => {
   t->Assert.deepEqual(S.literal({"abc": 123})->S.name, `{"abc":123}`, ())
 })
 
+test("Name of Literal array schema", t => {
+  t->Assert.deepEqual(S.literal((123, "abc"))->S.name, `[123, "abc"]`, ())
+})
+
 test("Name of Array schema", t => {
-  t->Assert.deepEqual(S.array(S.string)->S.name, "Array(String)", ())
+  t->Assert.deepEqual(S.array(S.string)->S.name, "string[]", ())
 })
 
 test("Name of Dict schema", t => {
-  t->Assert.deepEqual(S.dict(S.string)->S.name, "Dict(String)", ())
+  t->Assert.deepEqual(S.dict(S.string)->S.name, "dict<string>", ())
 })
 
 test("Name of Option schema", t => {
-  t->Assert.deepEqual(S.option(S.string)->S.name, "Option(String)", ())
+  t->Assert.deepEqual(S.option(S.string)->S.name, "string | undefined", ())
 })
 
 test("Name of Null schema", t => {
-  t->Assert.deepEqual(S.null(S.string)->S.name, "Null(String)", ())
+  t->Assert.deepEqual(S.null(S.string)->S.name, "string | null", ())
 })
 
 test("Name of Union schema", t => {
-  t->Assert.deepEqual(S.union([S.string, S.literal("foo")])->S.name, `Union(String, "foo")`, ())
+  t->Assert.deepEqual(S.union([S.string, S.literal("foo")])->S.name, `string | "foo"`, ())
 })
 
 test("Name of Object schema", t => {
@@ -40,9 +44,13 @@ test("Name of Object schema", t => {
         "bar": s.field("bar", S.int),
       }
     )->S.name,
-    `Object({"foo": String, "bar": Int})`,
+    `{ foo: string; bar: int32; }`,
     (),
   )
+})
+
+test("Name of empty Object schema", t => {
+  t->Assert.deepEqual(S.object(_ => ())->S.name, `{}`, ())
 })
 
 test("Name of Tuple schema", t => {
@@ -53,7 +61,7 @@ test("Name of Tuple schema", t => {
         "bar": s.item(1, S.int),
       }
     )->S.name,
-    `Tuple(String, Int)`,
+    `[string, int32]`,
     (),
   )
 })
@@ -65,7 +73,7 @@ test("Name of custom schema", t => {
 test("Name of renamed schema", t => {
   let originalSchema = S.never
   let renamedSchema = originalSchema->S.setName("Ethers.BigInt")
-  t->Assert.deepEqual(originalSchema->S.name, "Never", ())
+  t->Assert.deepEqual(originalSchema->S.name, "never", ())
   t->Assert.deepEqual(renamedSchema->S.name, "Ethers.BigInt", ())
   // Uses new name when failing
   t->U.assertRaised(

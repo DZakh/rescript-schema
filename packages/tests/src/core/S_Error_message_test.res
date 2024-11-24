@@ -55,7 +55,7 @@ test("InvalidType error", t => {
       operation: Parse,
       path: S.Path.empty,
     })->S.Error.message,
-    "Failed parsing at root. Reason: Expected String, received true",
+    "Failed parsing at root. Reason: Expected string, received true",
     (),
   )
 })
@@ -106,7 +106,7 @@ test("InvalidType error (replacement for InvalidTupleSize)", t => {
       operation: Parse,
       path: S.Path.empty,
     })->S.Error.message,
-    `Failed parsing at root. Reason: Expected Tuple(Bool, Int), received [1,2,"foo"]`,
+    `Failed parsing at root. Reason: Expected [boolean, int32], received [1, 2, "foo"]`,
     (),
   )
 })
@@ -175,7 +175,7 @@ test("InvalidUnion filters similar reasons", t => {
       path: S.Path.empty,
     })->S.Error.message,
     `Failed parsing at root. Reason: Invalid union with following errors
-- Expected Bool, received "Hello world!"`,
+- Expected boolean, received "Hello world!"`,
     (),
   )
 })
@@ -211,7 +211,7 @@ test("Nested InvalidUnion error", t => {
     })->S.Error.message,
     `Failed parsing at root. Reason: Invalid union with following errors
 - Invalid union with following errors
-  - Expected Bool, received "Hello world!"`,
+  - Expected boolean, received "Hello world!"`,
     (),
   )
 })
@@ -223,7 +223,7 @@ test("InvalidJsonSchema error", t => {
       operation: ReverseConvert,
       path: S.Path.empty,
     })->S.Error.message,
-    `Failed converting reverse at root. Reason: The Option(true) schema is not compatible with JSON`,
+    `Failed converting reverse at root. Reason: The 'true | undefined' schema is not compatible with JSON`,
     (),
   )
 })

@@ -252,26 +252,27 @@ type rec t<'value> = {
   metadataMap: dict<unknown>,
 }
 and tagged =
-  | Never
-  | Unknown
-  | String
-  | Int
-  | Float
-  | Bool
-  | Literal(literal)
-  | Option(t<unknown>)
-  | Null(t<unknown>)
-  | Array(t<unknown>)
-  | Object({
+  | @as("never") Never
+  | @as("unknown") Unknown
+  | @as("string") String
+  | @as("int32") Int
+  | @as("number") Float
+  | @as("boolean") Bool
+  | @as("literal") Literal(literal)
+  | @as("option") Option(t<unknown>)
+  | @as("null") Null(t<unknown>)
+  | @as("array") Array(t<unknown>)
+  | @as("object")
+  Object({
       fieldNames: array<string>,
       fields: dict<t<unknown>>,
       unknownKeys: unknownKeys,
       advanced: bool,
     })
-  | Tuple({items: array<t<unknown>>})
-  | Union(array<t<unknown>>)
-  | Dict(t<unknown>)
-  | JSON({validated: bool})
+  | @as("tuple") Tuple({items: array<t<unknown>>})
+  | @as("union") Union(array<t<unknown>>)
+  | @as("dict") Dict(t<unknown>)
+  | @as("JSON") JSON({validated: bool})
 and builder = (b, ~input: val, ~selfSchema: schema<unknown>, ~path: Path.t) => val
 and val = {
   @as("v")
@@ -319,11 +320,16 @@ external toUnknown: t<'any> => t<unknown> = "%identity"
 let unsafeGetVariantPayload = variant => (variant->Obj.magic)["_0"]
 let unsafeGetVarianTag = (variant): string => (variant->Obj.magic)["TAG"]
 
+@inline
+let optionTag = "option"
+@inline
+let literalTag = "literal"
+
 // A dirty check that this is rescript-schema object
 @inline
 let isSchemaObject = object => Obj.magic(object)["~r"]
 @inline
-let isLiteralSchema = schema => schema.tagged->unsafeGetVarianTag === "Literal"
+let isLiteralSchema = schema => schema.tagged->unsafeGetVarianTag === literalTag
 @inline
 let isPrimitiveSchema = schema => schema.tagged->Js.typeof === "string"
 
@@ -791,7 +797,7 @@ module Builder = {
   let compile = (builder, ~schema, ~flag) => {
     if (
       flag->Flag.unsafeHas(Flag.jsonableOutput) &&
-        schema.reverse().tagged->unsafeGetVarianTag === "Option"
+        schema.reverse().tagged->unsafeGetVarianTag === optionTag
     ) {
       Stdlib.Exn.raiseAny(
         InternalError.make(~code=InvalidJsonSchema(schema), ~flag, ~path=Path.empty),
@@ -1229,7 +1235,7 @@ module Literal = {
         isJsonable := false
       }
       if idx !== 0 {
-        string := string.contents ++ ","
+        string := string.contents ++ ", "
       }
       string := string.contents ++ itemLiteral.string
       items->Js.Array2.push(itemLiteral)->ignore
@@ -1475,11 +1481,6 @@ module Metadata = {
 
 let primitiveName = () => {
   (%raw(`this`): t<'a>).tagged->(Obj.magic: tagged => string)
-}
-
-let containerName = () => {
-  let tagged = (%raw(`this`): t<'a>).tagged
-  `${tagged->unsafeGetVarianTag}(${(tagged->unsafeGetVariantPayload).name()})`
 }
 
 let makePrimitiveSchema = (~tagged, ~builder, ~maybeTypeFilter) => {
@@ -1796,6 +1797,10 @@ module Option = {
     ~name="Option.default",
   )
 
+  let name = () => {
+    `${((%raw(`this`): t<'a>).tagged->unsafeGetVariantPayload).name()} | undefined`
+  }
+
   let default = schema => schema->Metadata.get(~id=defaultMetadataId)
 
   let makeBuilder = (~isNullInput, ~isNullOutput) =>
@@ -1807,8 +1812,8 @@ module Option = {
       let itemInput = if (
         !(b.global.flag->Flag.unsafeHas(Flag.typeValidation)) &&
         (childSchema->classify === Unknown ||
-        childSchemaTag === "Option" ||
-        (childSchemaTag === "Literal" &&
+        childSchemaTag === optionTag ||
+        (childSchemaTag === literalTag &&
           (childSchema->classify->unsafeGetVariantPayload: literal)->Literal.value ===
             %raw(`void 0`)))
       ) {
@@ -1856,7 +1861,7 @@ module Option = {
   let rec factory = schema => {
     let schema = schema->toUnknown
     makeSchema(
-      ~name=containerName,
+      ~name,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Option(schema),
       ~builder=makeBuilder(~isNullInput=false, ~isNullOutput=false),
@@ -1888,7 +1893,7 @@ module Option = {
       ~maybeTypeFilter=schema.maybeTypeFilter,
       ~reverse=() => {
         let reversed = schema.reverse()
-        if reversed.tagged->unsafeGetVarianTag === "Option" {
+        if reversed.tagged->unsafeGetVarianTag === optionTag {
           reversed.tagged->unsafeGetVariantPayload
         } else {
           reversed
@@ -1907,7 +1912,7 @@ module Null = {
   let factory = schema => {
     let schema = schema->toUnknown
     makeSchema(
-      ~name=containerName,
+      ~name=() => `${schema.name()} | null`,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Null(schema),
       ~builder=Option.makeBuilder(~isNullInput=true, ~isNullOutput=false),
@@ -1915,7 +1920,7 @@ module Null = {
       ~reverse=() => {
         let child = schema.reverse()
         makeReverseSchema(
-          ~name=containerName,
+          ~name=Option.name,
           ~tagged=Option(child),
           ~builder=Option.makeBuilder(~isNullInput=false, ~isNullOutput=true),
           ~maybeTypeFilter=Option.maybeTypeFilter(~schema, ~inlinedNoneValue="void 0"),
@@ -1984,7 +1989,7 @@ module Array = {
   let rec factory = schema => {
     let schema = schema->toUnknown
     makeSchema(
-      ~name=containerName,
+      ~name=() => `${schema.name()}[]`,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Array(schema),
       ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
@@ -1994,11 +1999,12 @@ module Array = {
         let bb = b->B.scope
         let itemInput = bb->B.val(`${inputVar}[${iteratorVar}]`)
         let itemOutput =
-          bb->B.withPathPrepend(~input=itemInput, ~path, ~dynamicLocationVar=iteratorVar, (
-            b,
-            ~input,
+          bb->B.withPathPrepend(
+            ~input=itemInput,
             ~path,
-          ) => b->B.parseWithTypeCheck(~schema, ~input, ~path))
+            ~dynamicLocationVar=iteratorVar,
+            (b, ~input, ~path) => b->B.parseWithTypeCheck(~schema, ~input, ~path),
+          )
         let itemCode = bb->B.allocateScope
         let isTransformed = itemInput !== itemOutput
         let output = isTransformed ? b->B.val("[]") : input
@@ -2038,12 +2044,15 @@ module Object = {
 
   let name = () => {
     let tagged = (%raw(`this`))["t"]
-    // TODO: Remove quotes around field name
-    `Object({${tagged["fieldNames"]
-      ->Js.Array2.map(fieldName => {
-        `"${fieldName}": ${(tagged["fields"]->Js.Dict.unsafeGet(fieldName)).name()}`
-      })
-      ->Js.Array2.joinWith(", ")}})`
+    if tagged["fieldNames"]->Js.Array2.length === 0 {
+      `{}`
+    } else {
+      `{ ${tagged["fieldNames"]
+        ->Js.Array2.map(fieldName => {
+          `${fieldName}: ${(tagged["fields"]->Js.Dict.unsafeGet(fieldName)).name()};`
+        })
+        ->Js.Array2.joinWith(" ")} }`
+    }
   }
 
   let setUnknownKeys = (schema, unknownKeys) => {
@@ -2084,9 +2093,9 @@ module Tuple = {
   }
 
   let name = () => {
-    `Tuple(${(%raw(`this`))["t"]["items"]
+    `[${(%raw(`this`))["t"]["items"]
       ->Js.Array2.map(schema => schema.name())
-      ->Js.Array2.joinWith(", ")})`
+      ->Js.Array2.joinWith(", ")}]`
   }
 
   let typeFilter = (~length) => (b, ~inputVar) =>
@@ -2097,7 +2106,7 @@ module Dict = {
   let rec factory = schema => {
     let schema = schema->toUnknown
     makeSchema(
-      ~name=containerName,
+      ~name=() => `dict<${schema.name()}>`,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Dict(schema),
       ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
@@ -2107,11 +2116,12 @@ module Dict = {
         let bb = b->B.scope
         let itemInput = bb->B.val(`${inputVar}[${keyVar}]`)
         let itemOutput =
-          bb->B.withPathPrepend(~path, ~input=itemInput, ~dynamicLocationVar=keyVar, (
-            b,
-            ~input,
+          bb->B.withPathPrepend(
             ~path,
-          ) => b->B.parseWithTypeCheck(~schema, ~input, ~path))
+            ~input=itemInput,
+            ~dynamicLocationVar=keyVar,
+            (b, ~input, ~path) => b->B.parseWithTypeCheck(~schema, ~input, ~path),
+          )
         let itemCode = bb->B.allocateScope
         let isTransformed = itemInput !== itemOutput
         let output = isTransformed ? b->B.val("{}") : input
@@ -2233,7 +2243,7 @@ module JsonString = {
           ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
             let prevFlag = b.global.flag
             b.global.flag = prevFlag->Flag.with(Flag.jsonableOutput)
-            if reversed.tagged->unsafeGetVarianTag === "Option" {
+            if reversed.tagged->unsafeGetVarianTag === optionTag {
               b->B.raise(~code=InvalidJsonSchema(reversed), ~path=Path.empty)
             }
             let output =
@@ -2390,7 +2400,7 @@ module Union = {
     | [schema] => schema->castUnknownSchemaToAnySchema
     | _ =>
       makeSchema(
-        ~name=() => `Union(${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(", ")})`,
+        ~name=() => `${schemas->Js.Array2.map(s => s.name())->Js.Array2.joinWith(" | ")}`,
         ~metadataMap=Metadata.Map.empty,
         ~tagged=Union(schemas),
         ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
@@ -2786,7 +2796,7 @@ module Schema = {
         }
         if maybeReversed === None {
           InternalError.panic(
-            `Impossible to reverse the ${inlinedLocation} access of ${targetReversed.name()} schema`,
+            `Impossible to reverse the ${inlinedLocation} access of '${targetReversed.name()}' schema`,
           )
         }
         maybeReversed->Stdlib.Option.unsafeUnwrap
@@ -3367,7 +3377,7 @@ module Schema = {
           | Object({fields: flattenedFields, fieldNames: flattenedFieldNames, advanced}) => {
               if advanced {
                 InternalError.panic(
-                  `Can't flatten advanced object schema ${schema.name()} in nested field`,
+                  `Unsupported nested flatten for advanced object schema '${schema.name()}'`,
                 )
               }
               switch schema.reverse().tagged {
@@ -3383,11 +3393,11 @@ module Schema = {
                 result->Obj.magic
               | _ =>
                 InternalError.panic(
-                  `Can't flatten transformed schema ${schema.name()} in nested field`,
+                  `Unsupported nested flatten for transformed schema '${schema.name()}'`,
                 )
               }
             }
-          | _ => InternalError.panic(`The ${schema.name()} schema can't be flattened`)
+          | _ => InternalError.panic(`The '${schema.name()}' schema can't be flattened`)
           }
         }
 
@@ -3444,7 +3454,7 @@ module Schema = {
             items->Js.Array2.push(item)->ignore
             item->proxify
           }
-        | _ => InternalError.panic(`The ${schema.name()} schema can't be flattened`)
+        | _ => InternalError.panic(`The '${schema.name()}' schema can't be flattened`)
         }
       }
 
@@ -3686,7 +3696,7 @@ module Error = {
       `Encountered disallowed excess key ${fieldName->Stdlib.Inlined.Value.fromString} on an object`
     | InvalidType({expected, received}) =>
       `Expected ${expected.name()}, received ${received->Literal.parse->Literal.toString}`
-    | InvalidJsonSchema(schema) => `The ${schema.name()} schema is not compatible with JSON`
+    | InvalidJsonSchema(schema) => `The '${schema.name()}' schema is not compatible with JSON`
     | InvalidUnion(errors) => {
         let lineBreak = `\n${" "->Js.String2.repeat(nestedLevel * 2)}`
         let reasonsDict = Js.Dict.empty()

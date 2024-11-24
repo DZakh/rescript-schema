@@ -31,5 +31,5 @@ test("Fails to parse with unwraped result", t => {
 
   t->Assert.throws(() => {
     %raw("123")->S.parseOrThrow(schema)
-  }, ~expectations={message: "Failed parsing at root. Reason: Expected Bool, received 123"}, ())
+  }, ~expectations={message: "Failed parsing at root. Reason: Expected boolean, received 123"}, ())
 })
