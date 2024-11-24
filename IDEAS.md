@@ -21,9 +21,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 ## v9
 
 - Add S.compile to Js/ts api
-- Fix reverse for object/tuple/to/recursive/schema
 - Rename disableNanNumberCheck to use validation
-- Add tag for BigInt
 - Add flatten to ts api
 - Add testWith
 - Add reverseConvert to js/ts api
@@ -44,6 +42,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Replace s.nestedField with S.nested
 - Rename Js integer to int32. Remove integerMax/integerMin
 - Use Js friendly names for schema names
+- Add tag for bigint schema
 
 ## v10
 

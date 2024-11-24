@@ -64,6 +64,40 @@ const schema = S.schema({
 });
 
 new B.Suite()
+  .add("rescript-schema (create)", () => {
+    return S.schema({
+      number: S.number,
+      negNumber: S.number,
+      maxNumber: S.number,
+      string: S.string,
+      longString: S.string,
+      boolean: S.boolean,
+      deeplyNested: {
+        foo: S.string,
+        num: S.number,
+        bool: S.boolean,
+      },
+    });
+  })
+  .add("rescript-schema (parse)", () => {
+    return S.parseOrThrow(data, schema);
+  })
+  .add("rescript-schema (create + parse)", () => {
+    const schema = S.schema({
+      number: S.number,
+      negNumber: S.number,
+      maxNumber: S.number,
+      string: S.string,
+      longString: S.string,
+      boolean: S.boolean,
+      deeplyNested: {
+        foo: S.string,
+        num: S.number,
+        bool: S.boolean,
+      },
+    });
+    return S.parseOrThrow(data, schema);
+  })
   .add("Zod (create)", () => {
     return z.object({
       number: z.number(),
@@ -133,40 +167,7 @@ new B.Suite()
     });
     return V.parse(valibotSchema, data);
   })
-  .add("rescript-schema (create)", () => {
-    return S.schema({
-      number: S.number,
-      negNumber: S.number,
-      maxNumber: S.number,
-      string: S.string,
-      longString: S.string,
-      boolean: S.boolean,
-      deeplyNested: {
-        foo: S.string,
-        num: S.number,
-        bool: S.boolean,
-      },
-    });
-  })
-  .add("rescript-schema (parse)", () => {
-    return S.parseOrThrow(data, schema);
-  })
-  .add("rescript-schema (create + parse)", () => {
-    const schema = S.schema({
-      number: S.number,
-      negNumber: S.number,
-      maxNumber: S.number,
-      string: S.string,
-      longString: S.string,
-      boolean: S.boolean,
-      deeplyNested: {
-        foo: S.string,
-        num: S.number,
-        bool: S.boolean,
-      },
-    });
-    return S.parseOrThrow(data, schema);
-  })
+
   .on("cycle", (event) => {
     console.log(String(event.target));
   })
