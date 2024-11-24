@@ -95,7 +95,7 @@ import * as S from "rescript-schema";
 // primitive values
 S.string;
 S.number;
-S.integer; // ReScript's S.int
+S.int32;
 S.boolean;
 S.bigint;
 
