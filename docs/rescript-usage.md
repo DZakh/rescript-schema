@@ -509,7 +509,7 @@ let nullSchema = S.literal(Null.null)
 let undefinedSchema = S.literal() // Building block for S.unit
 
 // Uses Number.isNaN to match NaN literals
-let nanSchema = S.literal(Float.Constants.nan)->S.variant(_ => ()) // For NaN literals I recomment adding S.variant to transform it to unit. It's better than having it as a float
+let nanSchema = S.literal(Float.Constants.nan)->S.to(_ => ()) // For NaN literals I recomment adding S.to to transform it to unit. It's better than having it as a float type
 
 // Supports symbols and BigInt
 let symbolSchema = S.literal(Symbol.asyncIterator)
@@ -773,11 +773,11 @@ type answer =
 
 let textSchema = S.schema(s => Text(s.matches(S.string)))
 // It'll create the following schema:
-// S.string->S.variant(string => Text(string))
+// S.string->S.to(string => Text(string))
 
 let multySelectSchema = S.schema(s => MultiSelect(s.matches(S.array(S.string))))
 // The same as:
-// S.array(S.string)->S.variant(array => MultiSelect(array))
+// S.array(S.string)->S.to(array => MultiSelect(array))
 
 let otherSchema = S.schema(s => Other({
   value: s.matches(S.string),
@@ -797,15 +797,15 @@ let tupleExampleSchema = S.schema(s => (#id, s.matches(S.string)))
 
 > 🧠 Note that `S.schema` relies on the runtime representation of your type, while `S.object`/`S.tuple` are more flexible and require you to describe the schema explicitly.
 
-### **`variant`**
+### **`to`**
 
-`(S.t<'value>, 'value => 'variant) => S.t<'variant>`
+`(S.t<'value>, 'value => 'to) => S.t<'to>`
 
 ```rescript
 type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
 // It will have the S.t<shape> type
-let schema = S.float->S.variant(radius => Circle({radius: radius}))
+let schema = S.float->S.to(radius => Circle({radius: radius}))
 
 %raw(`1`)->S.parseWith(schema)
 // Ok(Circle({radius: 1.}))

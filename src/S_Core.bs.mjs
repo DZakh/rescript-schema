@@ -3452,8 +3452,6 @@ var jsonString = factory$4;
 
 var union = factory$5;
 
-var variant = to;
-
 var Schema = {};
 
 var schema$7 = factory$6;
@@ -3542,7 +3540,6 @@ export {
   preprocess ,
   custom ,
   refine ,
-  variant ,
   to ,
   compile$1 as compile,
   parseOrThrow ,
