@@ -58,7 +58,6 @@ module Stdlib = {
     @new external make: unit => t<'k, 'v> = "WeakMap"
 
     @send external getUnsafe: (t<'k, 'v>, 'k) => 'v = "get"
-    @send external get: (t<'k, 'v>, 'k) => option<'v> = "get"
     @send external set: (t<'k, 'v>, 'k, 'v) => t<'k, 'v> = "set"
   }
 
@@ -2754,10 +2753,12 @@ module Schema = {
   }
 
   @inline
-  let getRitemReversed = (ritem: ritem) => (ritem->Obj.magic)["s"]
+  let getRitemReversed = (ritem: ritem): schema<unknown> => (ritem->Obj.magic)["s"]
+  @inline
+  let getRitemPath = (ritem: ritem): string => (ritem->Obj.magic)["p"]
 
   @inline
-  let getItemPath = (item: item) => (item->Obj.magic)["p"]
+  let getItemPath = (item: item): string => (item->Obj.magic)["p"]
 
   let rec getFullItemPath = (item: item) => {
     switch item {
@@ -2765,6 +2766,11 @@ module Schema = {
     | _ => item->getItemPath
     }
   }
+
+  @inline
+  let setItemRitem = (item: item, ritem: ritem) => (item->Obj.magic)["r"] = ritem
+  @inline
+  let getItemRitem = (item: item): option<ritem> => (item->Obj.magic)["r"]
 
   @inline
   let getUnsafeItemSchema = (item: item) => (item->Obj.magic)["s"]
@@ -2840,90 +2846,6 @@ module Schema = {
     }
   }
 
-  let makeReverseOutput = (b, ~kind, ~items, ~outputs, ~inputsByPath, ~path) => {
-    let rec reversedToInput = (reversed, ~originalPath) => {
-      switch reversed->classify {
-      | Literal(literal) => b->B.val(b->B.embed(literal->Literal.value))
-      | Tuple({items: schemas}) => {
-          let objectVal = b->B.Val.Object.make(~isArray=true)
-          for idx in 0 to schemas->Js.Array2.length - 1 {
-            let schema = schemas->Js.Array2.unsafe_get(idx)
-            let inlinedLocation = `"${idx->Stdlib.Int.unsafeToString}"`
-            let itemPath = originalPath->Path.concat(Path.fromInlinedLocation(inlinedLocation))
-            let schemaOutput = switch inputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
-            | Some(o) => o
-            | None => schema->reversedToInput(~originalPath=itemPath)
-            }
-            objectVal->B.Val.Object.add(inlinedLocation, schemaOutput)
-          }
-          objectVal->B.Val.Object.complete(~isArray=true)
-        }
-      | Object({fieldNames, fields}) => {
-          let objectVal = b->B.Val.Object.make(~isArray=false)
-          for idx in 0 to fieldNames->Js.Array2.length - 1 {
-            let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-            let schema = fields->Js.Dict.unsafeGet(fieldName)
-            let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
-            let itemPath = originalPath->Path.concat(Path.fromInlinedLocation(inlinedLocation))
-            let schemaOutput = switch inputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
-            | Some(o) => o
-            | None => schema->reversedToInput(~originalPath=itemPath)
-            }
-            objectVal->B.Val.Object.add(inlinedLocation, schemaOutput)
-          }
-          objectVal->B.Val.Object.complete(~isArray=false)
-        }
-      | _ =>
-        b->B.invalidOperation(
-          ~path,
-          ~description={
-            switch originalPath {
-            | "" => `Schema isn't registered`
-            | _ => `Schema for ${originalPath} isn't registered`
-            }
-          },
-        )
-      }
-    }
-
-    let getItemOutput = item => {
-      switch outputs->Stdlib.WeakMap.get(item) {
-      | Some(o) => o
-      | None =>
-        // It's fine to use getUnsafeItemSchema here, because this will never be called on ItemField
-        let reversed = (item->getUnsafeItemSchema).reverse()
-        let input = reversedToInput(reversed, ~originalPath=item->getItemPath)
-
-        let prevFlag = b.global.flag
-        b.global.flag =
-          prevFlag->Flag.without(Flag.typeValidation)->Flag.with(Flag.skipDiscriminant)
-        let output = b->B.parse(~schema=reversed, ~input, ~path)
-        b.global.flag = prevFlag
-        output
-      }
-    }
-
-    let schemaOutput = (~items, ~isArray) => {
-      let objectVal = b->B.Val.Object.make(~isArray)
-      for idx in 0 to items->Js.Array2.length - 1 {
-        let item = items->Js.Array2.unsafe_get(idx)
-        switch item {
-        | ItemField(_) => ()
-        | Root(_) => objectVal->B.Val.Object.merge(item->getItemOutput)
-        | Item({inlinedLocation}) =>
-          objectVal->B.Val.Object.add(inlinedLocation, item->getItemOutput)
-        }
-      }
-      objectVal->B.Val.Object.complete(~isArray)
-    }
-
-    switch kind {
-    | #To => items->Js.Array2.unsafe_get(0)->getItemOutput
-    | #Object => schemaOutput(~items, ~isArray=false)
-    | #Array => schemaOutput(~items, ~isArray=true)
-    }
-  }
-
   let rec proxify = (item: item): 'a =>
     Stdlib.Object.immutableEmpty->Stdlib.Proxy.make({
       get: (~target as _, ~prop) => {
@@ -2944,15 +2866,23 @@ module Schema = {
       },
     })
 
-  let rec definitionToRitem = (definition: Definition.t<item>, ~path, ~ritems) => {
+  let rec definitionToRitem = (
+    definition: Definition.t<item>,
+    ~path,
+    ~ritems,
+    ~ritemsByItemPath,
+  ) => {
     if definition->Definition.isNode {
       switch definition->Definition.toEmbededItem {
       | Some(item) =>
-        Registred({
+        let ritem = Registred({
           path,
           item,
           reversed: item->getItemReversed,
         })
+        item->setItemRitem(ritem)
+        ritemsByItemPath->Js.Dict.set(item->getFullItemPath, ritem)
+        ritem
       | None => {
           let node = definition->Definition.toNode
           let keys = node->Js.Dict.keys
@@ -2968,6 +2898,7 @@ module Schema = {
               node->Js.Dict.unsafeGet(location),
               ~path=path->Path.concat(Path.fromInlinedLocation(inlinedLocation)),
               ~ritems,
+              ~ritemsByItemPath,
             )
             ritems->Js.Array2.push(ritem)->ignore
             fields->Js.Dict.set(location, ritem->getRitemReversed)
@@ -3161,8 +3092,9 @@ module Schema = {
   and advancedReverse = (~definition, ~kind, ~items) => () => {
     let definition = definition->(Obj.magic: unknown => Definition.t<item>)
 
+    let ritemsByItemPath = Js.Dict.empty()
     let ritems = []
-    let ritem = definition->definitionToRitem(~path=Path.empty, ~ritems)
+    let ritem = definition->definitionToRitem(~path=Path.empty, ~ritems, ~ritemsByItemPath)
 
     let reversed = switch ritem {
     | Registred({reversed}) =>
@@ -3178,41 +3110,26 @@ module Schema = {
     }
 
     reversed.builder = Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-      let outputs = Stdlib.WeakMap.make()
-      let inputsByPath = Js.Dict.empty()
-
       let prevCode = b.code
       b.code = ""
       let typeFilters = ref("")
-
-      switch ritem {
-      | Registred({item, reversed}) =>
-        outputs
-        ->Stdlib.WeakMap.set(item, b->B.parse(~schema=reversed, ~input, ~path))
-        ->ignore
-        inputsByPath->Js.Dict.set(item->getFullItemPath, input)->ignore
-      | _ => ()
-      }
 
       // Skip the first ritem since it handled above
       for idx in 0 to ritems->Js.Array2.length - 1 {
         switch ritems->Js.Array2.unsafe_get(idx) {
         | Node(_) if b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
-          b->B.invalidOperation(
-            ~path,
-            ~description="Type validation mode is not supported. Use convert operation instead",
-          )
+          b->B.invalidOperation(~path, ~description="Type validation mode is not supported")
         // typeFilters :=
         //   typeFilters.contents ++
         //   b->B.typeFilterCode(
         //     ~schema=reversed,
         //     ~typeFilter=isArray ? Array.typeFilter : typeFilter,
-        //     ~input=b->B.val(`${inputVar}${ritemPath}`),
+        //     ~input=b->B.val(`${inputVar}${rpath}`),
         //     ~path,
         //   )
-        | Discriminant({reversed, path: ritemPath}) => {
-            let itemInput = b->B.val(`${b->B.Val.var(input)}${ritemPath}`)
-            let path = path->Path.concat(ritemPath)
+        | Discriminant({reversed, path: rpath}) => {
+            let itemInput = b->B.val(`${b->B.Val.var(input)}${rpath}`)
+            let path = path->Path.concat(rpath)
             typeFilters :=
               typeFilters.contents ++
               b->B.typeFilterCode(
@@ -3222,23 +3139,72 @@ module Schema = {
                 ~path,
               )
           }
-        | Registred({item, reversed, path: ritemPath}) =>
-          let itemPath = item->getFullItemPath
-          let itemInput = b->B.val(`${b->B.Val.var(input)}${ritemPath}`)
-          let path = path->Path.concat(ritemPath)
-          switch inputsByPath->Stdlib.Dict.unsafeGetOption(itemPath) {
-          | Some(embededInput) =>
-            b.code =
-              b.code ++
-              // TODO: Show values in the message
-              `if(${b->B.Val.var(embededInput)}!==${itemInput.inline}){${b->B.fail(
-                  ~message=`Another source has conflicting data${itemPath === Path.empty
-                      ? ""
-                      : ` for the field ${itemPath}`}`,
-                  ~path,
-                )}}`
+        | _ => ()
+        }
+      }
 
-          | None => {
+      // FIXME:
+      // Multiple registrations
+      // Obj for typeFilters ref
+
+      let getRitemInput = ritem => {
+        ritem->getRitemPath === Path.empty
+          ? input
+          : b->B.val(`${b->B.Val.var(input)}${ritem->getRitemPath}`)
+      }
+
+      let rec reversedToInput = (reversed, ~originalPath) => {
+        switch reversed->classify {
+        | Literal(literal) => b->B.val(b->B.embed(literal->Literal.value))
+        | Tuple({items: schemas}) => {
+            let objectVal = b->B.Val.Object.make(~isArray=true)
+            for idx in 0 to schemas->Js.Array2.length - 1 {
+              let schema = schemas->Js.Array2.unsafe_get(idx)
+              let inlinedLocation = `"${idx->Stdlib.Int.unsafeToString}"`
+              let itemPath = originalPath->Path.concat(Path.fromInlinedLocation(inlinedLocation))
+              let itemInput = switch ritemsByItemPath->Stdlib.Dict.unsafeGetOption(itemPath) {
+              | Some(ritem) => ritem->getRitemInput
+              | None => schema->reversedToInput(~originalPath=itemPath)
+              }
+              objectVal->B.Val.Object.add(inlinedLocation, itemInput)
+            }
+            objectVal->B.Val.Object.complete(~isArray=true)
+          }
+        | Object({fieldNames, fields}) => {
+            let objectVal = b->B.Val.Object.make(~isArray=false)
+            for idx in 0 to fieldNames->Js.Array2.length - 1 {
+              let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+              let schema = fields->Js.Dict.unsafeGet(fieldName)
+              let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
+              let itemPath = originalPath->Path.concat(Path.fromInlinedLocation(inlinedLocation))
+              let itemInput = switch ritemsByItemPath->Stdlib.Dict.unsafeGetOption(itemPath) {
+              | Some(ritem) => ritem->getRitemInput
+              | None => schema->reversedToInput(~originalPath=itemPath)
+              }
+              objectVal->B.Val.Object.add(inlinedLocation, itemInput)
+            }
+            objectVal->B.Val.Object.complete(~isArray=false)
+          }
+        | _ =>
+          b->B.invalidOperation(
+            ~path,
+            ~description={
+              switch originalPath {
+              | "" => `Schema isn't registered`
+              | _ => `Schema for ${originalPath} isn't registered`
+              }
+            },
+          )
+        }
+      }
+
+      let getItemOutput = item => {
+        switch item->getItemRitem {
+        | Some(ritem) => {
+            let reversed = ritem->getRitemReversed
+            let itemInput = ritem->getRitemInput
+            let path = path->Path.concat(ritem->getRitemPath)
+            if ritem->getRitemPath !== Path.empty {
               switch reversed.maybeTypeFilter {
               | Some(typeFilter)
                 if reversed->isLiteralSchema &&
@@ -3253,20 +3219,47 @@ module Schema = {
                   b->B.typeFilterCode(~schema=reversed, ~typeFilter, ~input=itemInput, ~path)
               | _ => ()
               }
-
-              let itemOutput = b->B.parse(~schema=reversed, ~input=itemInput, ~path)
-              inputsByPath->Js.Dict.set(itemPath, itemInput)->ignore
-              outputs
-              ->Stdlib.WeakMap.set(item, itemOutput)
-              ->ignore
             }
+            b->B.parse(~schema=reversed, ~input=itemInput, ~path)
           }
-        | _ => ()
+        | None =>
+          // It's fine to use getUnsafeItemSchema here, because this will never be called on ItemField
+          let reversed = (item->getUnsafeItemSchema).reverse()
+          let input = reversedToInput(reversed, ~originalPath=item->getItemPath)
+
+          let prevFlag = b.global.flag
+          b.global.flag =
+            prevFlag->Flag.without(Flag.typeValidation)->Flag.with(Flag.skipDiscriminant)
+          let output = b->B.parse(~schema=reversed, ~input, ~path)
+          b.global.flag = prevFlag
+          output
         }
       }
 
+      let schemaOutput = (~items, ~isArray) => {
+        let objectVal = b->B.Val.Object.make(~isArray)
+        for idx in 0 to items->Js.Array2.length - 1 {
+          let item = items->Js.Array2.unsafe_get(idx)
+          switch item {
+          | ItemField(_) => ()
+          | Root(_) => objectVal->B.Val.Object.merge(item->getItemOutput)
+          | Item({inlinedLocation}) =>
+            objectVal->B.Val.Object.add(inlinedLocation, item->getItemOutput)
+          }
+        }
+        objectVal->B.Val.Object.complete(~isArray)
+      }
+
+      let output = switch kind {
+      | #To => items->Js.Array2.unsafe_get(0)->getItemOutput
+      | #Object => schemaOutput(~items, ~isArray=false)
+      | #Array => schemaOutput(~items, ~isArray=true)
+      }
+
+      // FIXME:
       b.code = prevCode ++ typeFilters.contents ++ b.code
-      b->makeReverseOutput(~items, ~kind, ~outputs, ~inputsByPath, ~path)
+
+      output
     })
 
     reversed
