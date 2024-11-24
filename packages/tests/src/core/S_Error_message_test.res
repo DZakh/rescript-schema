@@ -223,7 +223,7 @@ test("InvalidJsonSchema error", t => {
       operation: ReverseConvert,
       path: S.Path.empty,
     })->S.Error.message,
-    `Failed converting reverse at root. Reason: The 'true | undefined' schema is not compatible with JSON`,
+    `Failed converting reverse at root. Reason: The 'true | undefined' schema cannot be converted to JSON`,
     (),
   )
 })

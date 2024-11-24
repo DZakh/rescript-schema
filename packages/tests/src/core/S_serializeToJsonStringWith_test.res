@@ -53,7 +53,7 @@ test("Fails to serialize Unknown schema", t => {
       Obj.magic(123)->S.reverseConvertToJsonStringOrThrow(schema)
     },
     ~expectations={
-      message: "Failed converting reverse to JSON at root. Reason: The 'unknown' schema is not compatible with JSON",
+      message: "Failed converting reverse to JSON at root. Reason: The 'unknown' schema cannot be converted to JSON",
     },
     (),
   )
