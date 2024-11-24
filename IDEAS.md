@@ -30,7 +30,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Change asyncParser from () => () => promise to () => promise
 - Add schema input to the error ??? What about build errors?
 - Get rid of S.literal in Js/ts API and S.tuple shorthand
-- Use ReScript types for schema names
 - Rename S.Object.strict to S.strict (the same for strip)
 - Fix unknownKeys for nested S.schema
 
@@ -44,6 +43,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Ability to spread any schema in S.object
 - Replace s.nestedField with S.nested
 - Rename Js integer to int32. Remove integerMax/integerMin
+- Use Js friendly names for schema names
 
 ## v10
 

@@ -350,7 +350,7 @@ test("s.nested.flattened doesn't work with S.object", t => {
       )
     },
     ~expectations={
-      message: `[rescript-schema] Can\'t flatten advanced object schema Object({"foo": String}) in nested field`,
+      message: `[rescript-schema] Unsupported nested flatten for advanced object schema '{ foo: string; }'`,
     },
     (),
   )
@@ -373,7 +373,7 @@ test("s.nested.flattened doesn't work with transformed S.schema", t => {
       )
     },
     ~expectations={
-      message: `[rescript-schema] Can\'t flatten transformed schema Object({"foo": String}) in nested field`,
+      message: `[rescript-schema] Unsupported nested flatten for transformed schema \'{ foo: string; }\'`,
     },
     (),
   )
@@ -396,7 +396,7 @@ test("s.nested.flattened doesn't work with S.schema->S.to", t => {
       )
     },
     ~expectations={
-      message: `[rescript-schema] Can\'t flatten transformed schema Object({"foo": String}) in nested field`,
+      message: `[rescript-schema] Unsupported nested flatten for transformed schema \'{ foo: string; }\'`,
     },
     (),
   )
@@ -412,7 +412,7 @@ test("s.nested.flattened doesn't work with S.string", t => {
       )
     },
     ~expectations={
-      message: `[rescript-schema] The String schema can\'t be flattened`,
+      message: `[rescript-schema] The 'string' schema can\'t be flattened`,
     },
     (),
   )

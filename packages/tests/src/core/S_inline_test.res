@@ -513,15 +513,15 @@ test("Supports empty Object (ignores transformations)", t => {
 test("Supports empty Object in union", t => {
   let schema = S.union([S.object(_ => ()), S.object(_ => ())])
   let schemaInlineResult = S.union([
-    S.object(_ => ())->S.to(v => #"Object({})"(v)),
-    S.object(_ => ())->S.to(v => #"Object({})2"(v)),
+    S.object(_ => ())->S.to(v => #"{}"(v)),
+    S.object(_ => ())->S.to(v => #"{}2"(v)),
   ])
 
-  schemaInlineResult->(U.magic: S.t<[#"Object({})"(unit) | #"Object({})2"(unit)]> => unit)
+  schemaInlineResult->(U.magic: S.t<[#"{}"(unit) | #"{}2"(unit)]> => unit)
 
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.union([S.object(_ => ())->S.to(v => #"Object({})"(v)), S.object(_ => ())->S.to(v => #"Object({})2"(v))])`,
+    `S.union([S.object(_ => ())->S.to(v => #"{}"(v)), S.object(_ => ())->S.to(v => #"{}2"(v))])`,
     (),
   )
 })
@@ -529,15 +529,15 @@ test("Supports empty Object in union", t => {
 test("Supports  Tuple in union", t => {
   let schema = S.union([S.tuple1(S.string), S.tuple1(S.string)])
   let schemaInlineResult = S.union([
-    S.tuple1(S.string)->S.to(v => #"Tuple(String)"(v)),
-    S.tuple1(S.string)->S.to(v => #"Tuple(String)2"(v)),
+    S.tuple1(S.string)->S.to(v => #"[string]"(v)),
+    S.tuple1(S.string)->S.to(v => #"[string]2"(v)),
   ])
 
-  schemaInlineResult->(U.magic: S.t<[#"Tuple(String)"(string) | #"Tuple(String)2"(string)]> => unit)
+  schemaInlineResult->(U.magic: S.t<[#"[string]"(string) | #"[string]2"(string)]> => unit)
 
   t->Assert.deepEqual(
     schema->S.inline,
-    `S.union([S.tuple1(S.string)->S.to(v => #"Tuple(String)"(v)), S.tuple1(S.string)->S.to(v => #"Tuple(String)2"(v))])`,
+    `S.union([S.tuple1(S.string)->S.to(v => #"[string]"(v)), S.tuple1(S.string)->S.to(v => #"[string]2"(v))])`,
     (),
   )
 })

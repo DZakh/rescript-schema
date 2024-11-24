@@ -31,7 +31,7 @@ module Common = {
     t->Assert.throws(
       () => value->S.convertToJsonOrThrow(schema),
       ~expectations={
-        message: "Failed converting to JSON at root. Reason: The BigInt schema is not compatible with JSON",
+        message: "Failed converting to JSON at root. Reason: The 'BigInt' schema is not compatible with JSON",
       },
       (),
     )
