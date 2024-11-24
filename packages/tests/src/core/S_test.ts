@@ -122,7 +122,7 @@ test("Fails to parse float when NaN is provided", (t) => {
     },
     {
       name: "RescriptSchemaError",
-      message: "Failed parsing at root. Reason: Expected Float, received NaN",
+      message: "Failed parsing at root. Reason: Expected number, received NaN",
     }
   );
 });
@@ -203,7 +203,7 @@ test("Fails to parse never", (t) => {
     },
     {
       name: "RescriptSchemaError",
-      message: "Failed parsing at root. Reason: Expected Never, received true",
+      message: "Failed parsing at root. Reason: Expected never, received true",
     }
   );
 });
@@ -217,7 +217,7 @@ test("Can get a reason from an error", (t) => {
     t.fail("Should fail");
     return;
   }
-  t.is(result.error.reason, "Expected Never, received true");
+  t.is(result.error.reason, "Expected never, received true");
 });
 
 test("Successfully parses array", (t) => {
@@ -371,7 +371,7 @@ test("Fails to parse with invalid data", (t) => {
     },
     {
       name: "RescriptSchemaError",
-      message: "Failed parsing at root. Reason: Expected String, received 123",
+      message: "Failed parsing at root. Reason: Expected string, received 123",
     }
   );
 });
@@ -395,7 +395,7 @@ test("Fails to serialize never", (t) => {
     },
     {
       name: "RescriptSchemaError",
-      message: `Failed converting at root. Reason: Expected Never, received "123"`,
+      message: `Failed converting at root. Reason: Expected never, received "123"`,
     }
   );
 });
@@ -953,7 +953,7 @@ test("Successfully parses intersected objects", (t) => {
   }
   t.is(
     result.error.message,
-    `Failed parsing at ["baz"]. Reason: Expected String, received undefined`
+    `Failed parsing at ["baz"]. Reason: Expected string, received undefined`
   );
 
   const value = S.parseOrThrow(
@@ -1016,7 +1016,7 @@ test("Successfully parses intersected objects with transform", (t) => {
   }
   t.is(
     result.error.message,
-    `Failed parsing at ["baz"]. Reason: Expected String, received undefined`
+    `Failed parsing at ["baz"]. Reason: Expected string, received undefined`
   );
 
   const value = S.parseOrThrow(
@@ -1075,10 +1075,7 @@ test("Name of merge schema", (t) => {
     })
   );
 
-  t.is(
-    S.name(schema),
-    `Object({"foo": String, "bar": Bool}) & Object({"baz": String})`
-  );
+  t.is(S.name(schema), `{ foo: string; bar: boolean; } & { baz: string; }`);
 });
 
 test("Successfully parses object using S.schema", (t) => {
@@ -1552,7 +1549,7 @@ test("Assert throws with invalid data", (t) => {
     {
       name: "RescriptSchemaError",
       message:
-        "Failed asserting at root. Reason: Expected String, received 123",
+        "Failed asserting at root. Reason: Expected string, received 123",
     }
   );
 });

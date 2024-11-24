@@ -170,7 +170,7 @@ test("Can flatten renamed object schema", t => {
     ~op=#Parse,
     `i=>{if(!i||i.constructor!==Object){e[2](i)}let v1=i["foo"];if(typeof v1!=="string"){e[1](v1)}let v0=i["bar"];if(typeof v0!=="string"){e[0](v0)}return {"bar":v0,"foo":v1,}}`,
   )
-  t->Assert.is(schema->S.name, `Object({"bar": String, "foo": String})`, ())
+  t->Assert.is(schema->S.name, `{ bar: string; foo: string; }`, ())
 })
 
 test("Can flatten transformed object schema", t => {
@@ -208,7 +208,7 @@ test("Fails to flatten non-object schema", t => {
       )
     },
     ~expectations={
-      message: `[rescript-schema] The String schema can\'t be flattened`,
+      message: `[rescript-schema] The 'string' schema can\'t be flattened`,
     },
     (),
   )

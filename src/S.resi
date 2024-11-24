@@ -39,26 +39,27 @@ module Path: {
 type rec t<'value>
 and tagged =
   private
-  | Never
-  | Unknown
-  | String
-  | Int
-  | Float
-  | Bool
-  | Literal(literal)
-  | Option(t<unknown>)
-  | Null(t<unknown>)
-  | Array(t<unknown>)
-  | Object({
+  | @as("never") Never
+  | @as("unknown") Unknown
+  | @as("string") String
+  | @as("int32") Int
+  | @as("number") Float
+  | @as("boolean") Bool
+  | @as("literal") Literal(literal)
+  | @as("option") Option(t<unknown>)
+  | @as("null") Null(t<unknown>)
+  | @as("array") Array(t<unknown>)
+  | @as("object")
+  Object({
       fieldNames: array<string>,
       fields: dict<t<unknown>>,
       unknownKeys: unknownKeys,
       advanced: bool,
     })
-  | Tuple({items: array<t<unknown>>})
-  | Union(array<t<unknown>>)
-  | Dict(t<unknown>)
-  | JSON({validated: bool})
+  | @as("tuple") Tuple({items: array<t<unknown>>})
+  | @as("union") Union(array<t<unknown>>)
+  | @as("dict") Dict(t<unknown>)
+  | @as("JSON") JSON({validated: bool})
 and schema<'value> = t<'value>
 and error = private {flag: flag, code: errorCode, path: Path.t}
 and errorCode =
