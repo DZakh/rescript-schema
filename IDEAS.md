@@ -31,7 +31,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add schema input to the error ??? What about build errors?
 - Get rid of S.literal in Js/ts API and S.tuple shorthand
 - Use ReScript types for schema names
-- Rename Js integer to int32
 - Rename S.Object.strict to S.strict (the same for strip)
 - Fix unknownKeys for nested S.schema
 
@@ -44,6 +43,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Removed validation for multiple registered fields that they have the same data
 - Ability to spread any schema in S.object
 - Replace s.nestedField with S.nested
+- Rename Js integer to int32. Remove integerMax/integerMin
 
 ## v10
 

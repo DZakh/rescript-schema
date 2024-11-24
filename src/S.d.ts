@@ -111,7 +111,7 @@ type _UnionTupleInput<
 
 export const string: Schema<string>;
 export const boolean: Schema<boolean>;
-export const integer: Schema<number>;
+export const int32: Schema<number>;
 export const number: Schema<number>;
 export const bigint: Schema<bigint>;
 export const never: Schema<never>;
@@ -317,16 +317,6 @@ export function description<Output, Input>(
   schema: Schema<Output, Input>
 ): string | undefined;
 
-export const integerMin: <Input>(
-  schema: Schema<number, Input>,
-  value: number,
-  message?: string
-) => Schema<number, Input>;
-export const integerMax: <Input>(
-  schema: Schema<number, Input>,
-  value: number,
-  message?: string
-) => Schema<number, Input>;
 export const port: <Input>(
   schema: Schema<number, Input>,
   message?: string

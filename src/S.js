@@ -3,7 +3,7 @@ import * as S from "./S_Core.bs.mjs";
 export const Error = S.$$Error.$$class;
 export const string = S.string;
 export const boolean = S.bool;
-export const integer = S.$$int;
+export const int32 = S.$$int;
 export const number = S.$$float;
 export const bigint = S.bigint;
 export const json = S.json;
@@ -42,8 +42,6 @@ export const name = S.js_name;
 export const setName = S.setName;
 export const removeTypeValidation = S.removeTypeValidation;
 
-export const integerMin = S.intMin;
-export const integerMax = S.intMax;
 export const port = S.port;
 
 export const numberMin = S.floatMin;
