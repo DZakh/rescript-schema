@@ -4333,20 +4333,6 @@ let js_optional = (schema, maybeOr) => {
   }
 }
 
-let js_tuple = definer => {
-  if Js.typeof(definer) === "function" {
-    let definer = definer->(Obj.magic: unknown => Tuple.s => 'a)
-    tuple(definer)
-  } else {
-    let schemas = definer->(Obj.magic: unknown => array<t<unknown>>)
-    tuple(s => {
-      schemas->Js.Array2.mapi((schema, idx) => {
-        s.item(idx, schema)
-      })
-    })
-  }
-}
-
 let js_custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer=?, ()) => {
   custom(name, s => {
     {
