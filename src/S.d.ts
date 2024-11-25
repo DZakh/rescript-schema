@@ -13,8 +13,6 @@ export type Output<T> = T extends Schema<infer Output, unknown>
   : never;
 export type Input<T> = T extends Schema<unknown, infer Input> ? Input : never;
 
-type UnknownSchema = Schema<unknown>;
-
 type UnknownToOuput<T> = T extends Schema<unknown>
   ? Output<T>
   : T extends {
@@ -35,79 +33,72 @@ type UnknownToInput<T> = T extends Schema<unknown>
     }
   : T;
 
-type SchemaTupleOutput<
-  Tuple extends UnknownSchema[],
-  Length extends number = Tuple["length"]
+type UnknownArrayToOutput<
+  T extends unknown[],
+  Length extends number = T["length"]
 > = Length extends Length
   ? number extends Length
-    ? Tuple
-    : _TupleOutput<Tuple, Length, []>
+    ? T
+    : _RestToOutput<T, Length, []>
   : never;
-type _TupleOutput<
-  Tuple extends UnknownSchema[],
+type _RestToOutput<
+  T extends unknown[],
   Length extends number,
   Accumulated extends unknown[],
   Index extends number = Accumulated["length"]
 > = Index extends Length
   ? Accumulated
-  : _TupleOutput<Tuple, Length, [...Accumulated, Output<Tuple[Index]>]>;
-type SchemaTupleInput<
-  Tuple extends UnknownSchema[],
-  Length extends number = Tuple["length"]
+  : _RestToOutput<T, Length, [...Accumulated, UnknownToOuput<T[Index]>]>;
+type UnknownArrayToInput<
+  T extends unknown[],
+  Length extends number = T["length"]
 > = Length extends Length
   ? number extends Length
-    ? Tuple
-    : _TupleInput<Tuple, Length, []>
+    ? T
+    : _RestToInput<T, Length, []>
   : never;
-type _TupleInput<
-  Tuple extends UnknownSchema[],
+type _RestToInput<
+  T extends unknown[],
   Length extends number,
   Accumulated extends unknown[],
   Index extends number = Accumulated["length"]
 > = Index extends Length
   ? Accumulated
-  : _TupleInput<Tuple, Length, [...Accumulated, Input<Tuple[Index]>]>;
+  : _RestToInput<T, Length, [...Accumulated, UnknownToInput<T[Index]>]>;
 
-type SchemaUnionTupleOutput<
-  Tuple extends unknown[],
-  Length extends number = Tuple["length"]
-> = Length extends Length
-  ? number extends Length
-    ? Tuple
-    : _UnionTupleOutput<Tuple, Length, []>
-  : never;
-type _UnionTupleOutput<
-  Tuple extends unknown[],
-  Length extends number,
-  Accumulated extends unknown[],
-  Index extends number = Accumulated["length"]
-> = Index extends Length
-  ? Accumulated
-  : _UnionTupleOutput<
-      Tuple,
-      Length,
-      [...Accumulated, UnknownToOuput<Tuple[Index]>]
-    >;
-type SchemaUnionTupleInput<
-  Tuple extends unknown[],
-  Length extends number = Tuple["length"]
-> = Length extends Length
-  ? number extends Length
-    ? Tuple
-    : _UnionTupleInput<Tuple, Length, []>
-  : never;
-type _UnionTupleInput<
-  Tuple extends unknown[],
-  Length extends number,
-  Accumulated extends unknown[],
-  Index extends number = Accumulated["length"]
-> = Index extends Length
-  ? Accumulated
-  : _UnionTupleInput<
-      Tuple,
-      Length,
-      [...Accumulated, UnknownToInput<Tuple[Index]>]
-    >;
+type Literal =
+  | string
+  | number
+  | boolean
+  | symbol
+  | bigint
+  | undefined
+  | null
+  | [];
+
+export function schema<T extends Literal>(value: T): Schema<T>;
+export function schema<T extends Literal[]>(
+  schemas: [...T]
+): Schema<[...T], [...T]>;
+export function schema<T extends unknown[]>(
+  schemas: [...T]
+): Schema<[...UnknownArrayToOutput<T>], [...UnknownArrayToInput<T>]>;
+export function schema<T>(
+  value: T
+): Schema<UnknownToOuput<T>, UnknownToInput<T>>;
+
+export function union<A extends Literal, B extends Literal[]>(
+  schemas: [A, ...B]
+): Schema<
+  A | UnknownArrayToOutput<B>[number],
+  A | UnknownArrayToInput<B>[number]
+>;
+export function union<A, B extends unknown[]>(
+  schemas: [A, ...B]
+): Schema<
+  UnknownToOuput<A> | UnknownArrayToOutput<B>[number],
+  UnknownToInput<A> | UnknownArrayToInput<B>[number]
+>;
 
 export const string: Schema<string>;
 export const boolean: Schema<boolean>;
@@ -151,40 +142,10 @@ export function assertOrThrow<Output, Input>(
   schema: Schema<Output, Input>
 ): asserts data is Input;
 
-export function literal<Literal extends string>(
-  value: Literal
-): Schema<Literal>;
-export function literal<Literal extends number>(
-  value: Literal
-): Schema<Literal>;
-export function literal<Literal extends boolean>(
-  value: Literal
-): Schema<Literal>;
-export function literal<Literal extends symbol>(
-  value: Literal
-): Schema<Literal>;
-export function literal<Literal extends BigInt>(
-  value: Literal
-): Schema<Literal>;
-export function literal(value: undefined): Schema<undefined>;
-export function literal(value: null): Schema<null>;
-export function literal<T>(value: T): Schema<T>;
-
-// TODO: Deprecate for V9
-export function tuple(schemas: []): Schema<[]>;
-export function tuple<Output, Input>(
-  schemas: [Schema<Output, Input>]
-): Schema<[Output], [Input]>;
-export function tuple<A extends UnknownSchema, B extends UnknownSchema[]>(
-  schemas: [A, ...B]
-): Schema<
-  [Output<A>, ...SchemaTupleOutput<B>],
-  [Input<A>, ...SchemaTupleInput<B>]
->;
 export function tuple<Output>(
   definer: (s: {
-    item: <InputIndex extends number, ItemOutput>(
-      inputIndex: InputIndex,
+    item: <ItemOutput>(
+      inputIndex: number,
       schema: Schema<ItemOutput, unknown>
     ) => ItemOutput;
     tag: (inputIndex: number, value: unknown) => void;
@@ -223,17 +184,6 @@ export const jsonString: <Output>(
   schema: Schema<Output, unknown>,
   space?: number
 ) => Schema<Output, string>;
-
-export const union: <A, B extends unknown[]>(
-  schemas: [A, ...B]
-) => Schema<
-  UnknownToOuput<A> | SchemaUnionTupleOutput<B>[number],
-  UnknownToInput<A> | SchemaUnionTupleInput<B>[number]
->;
-
-export function schema<T>(
-  value: T
-): Schema<UnknownToOuput<T>, UnknownToInput<T>>;
 
 export function object<Output>(
   definer: (s: {

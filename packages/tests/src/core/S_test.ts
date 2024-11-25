@@ -4,8 +4,14 @@ import { expectType, TypeEqual } from "ts-expect";
 import * as S from "../../../../src/S.js";
 import { stringSchema } from "../genType/GenType.gen.js";
 
+type SchemaEqual<
+  Schema extends S.Schema<unknown, unknown>,
+  Output,
+  Input = Output
+> = TypeEqual<S.Output<Schema>, Output> & TypeEqual<S.Input<Schema>, Input>;
+
 // Can use genType schema
-expectType<TypeEqual<typeof stringSchema, S.Schema<string, unknown>>>(true);
+expectType<SchemaEqual<typeof stringSchema, string, unknown>>(true);
 
 test("Successfully parses string", (t) => {
   const schema = S.string;
@@ -13,7 +19,7 @@ test("Successfully parses string", (t) => {
 
   t.deepEqual(value, "123");
 
-  expectType<TypeEqual<typeof schema, S.Schema<string, string>>>(true);
+  expectType<SchemaEqual<typeof schema, string, string>>(true);
   expectType<TypeEqual<typeof value, string>>(true);
 });
 
@@ -32,7 +38,7 @@ test("Successfully parses string with built-in refinement", (t) => {
     "Failed parsing at root. Reason: String must be exactly 5 characters long"
   );
 
-  expectType<TypeEqual<typeof schema, S.Schema<string, string>>>(true);
+  expectType<SchemaEqual<typeof schema, string, string>>(true);
   expectType<
     TypeEqual<
       typeof result,
@@ -57,7 +63,7 @@ test("Successfully parses string with built-in refinement and custom message", (
     "Failed parsing at root. Reason: Postcode must have 5 symbols"
   );
 
-  expectType<TypeEqual<typeof schema, S.Schema<string, string>>>(true);
+  expectType<SchemaEqual<typeof schema, string, string>>(true);
 });
 
 test("Successfully parses string with built-in transform", (t) => {
@@ -66,7 +72,7 @@ test("Successfully parses string with built-in transform", (t) => {
 
   t.deepEqual(value, "123");
 
-  expectType<TypeEqual<typeof schema, S.Schema<string, string>>>(true);
+  expectType<SchemaEqual<typeof schema, string, string>>(true);
   expectType<TypeEqual<typeof value, string>>(true);
 });
 
@@ -76,7 +82,7 @@ test("Successfully parses string with built-in datetime transform", (t) => {
 
   t.deepEqual(value, new Date("2020-01-01T00:00:00Z"));
 
-  expectType<TypeEqual<typeof schema, S.Schema<Date, string>>>(true);
+  expectType<SchemaEqual<typeof schema, Date, string>>(true);
   expectType<TypeEqual<typeof value, Date>>(true);
 });
 
@@ -86,7 +92,7 @@ test("Successfully parses int", (t) => {
 
   t.deepEqual(value, 123);
 
-  expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
+  expectType<SchemaEqual<typeof schema, number, number>>(true);
   expectType<TypeEqual<typeof value, number>>(true);
 });
 
@@ -96,7 +102,7 @@ test("Successfully parses float", (t) => {
 
   t.deepEqual(value, 123.4);
 
-  expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
+  expectType<SchemaEqual<typeof schema, number, number>>(true);
   expectType<TypeEqual<typeof value, number>>(true);
 });
 
@@ -106,7 +112,7 @@ test("Successfully parses BigInt", (t) => {
 
   t.deepEqual(value, 123n);
 
-  expectType<TypeEqual<typeof schema, S.Schema<bigint, bigint>>>(true);
+  expectType<SchemaEqual<typeof schema, bigint, bigint>>(true);
   expectType<TypeEqual<typeof value, bigint>>(true);
 });
 
@@ -117,7 +123,7 @@ test("Fails to parse float when NaN is provided", (t) => {
     () => {
       const value = S.parseOrThrow(NaN, schema);
 
-      expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
+      expectType<SchemaEqual<typeof schema, number, number>>(true);
       expectType<TypeEqual<typeof value, number>>(true);
     },
     {
@@ -137,7 +143,7 @@ test("Successfully parses float when NaN is provided and NaN check disabled in g
 
   t.deepEqual(value, NaN);
 
-  expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
+  expectType<SchemaEqual<typeof schema, number, number>>(true);
   expectType<TypeEqual<typeof value, number>>(true);
 });
 
@@ -147,7 +153,7 @@ test("Successfully parses bool", (t) => {
 
   t.deepEqual(value, true);
 
-  expectType<TypeEqual<typeof schema, S.Schema<boolean, boolean>>>(true);
+  expectType<SchemaEqual<typeof schema, boolean, boolean>>(true);
   expectType<TypeEqual<typeof value, boolean>>(true);
 });
 
@@ -157,7 +163,7 @@ test("Successfully parses unknown", (t) => {
 
   t.deepEqual(value, true);
 
-  expectType<TypeEqual<typeof schema, S.Schema<unknown, unknown>>>(true);
+  expectType<SchemaEqual<typeof schema, unknown, unknown>>(true);
   expectType<TypeEqual<typeof value, unknown>>(true);
 });
 
@@ -167,7 +173,7 @@ test("Successfully parses json", (t) => {
 
   t.deepEqual(value, true);
 
-  expectType<TypeEqual<typeof schema, S.Schema<S.Json, S.Json>>>(true);
+  expectType<SchemaEqual<typeof schema, S.Json, S.Json>>(true);
   expectType<TypeEqual<typeof value, S.Json>>(true);
 });
 
@@ -177,7 +183,7 @@ test("Successfully parses invalid json without validation", (t) => {
 
   t.deepEqual(value, undefined); // This is broken but it's intentional
 
-  expectType<TypeEqual<typeof schema, S.Schema<S.Json, S.Json>>>(true);
+  expectType<SchemaEqual<typeof schema, S.Json, S.Json>>(true);
   expectType<TypeEqual<typeof value, S.Json>>(true);
 });
 
@@ -187,7 +193,7 @@ test("Successfully parses undefined", (t) => {
 
   t.deepEqual(value, undefined);
 
-  expectType<TypeEqual<typeof schema, S.Schema<undefined, undefined>>>(true);
+  expectType<SchemaEqual<typeof schema, undefined, undefined>>(true);
   expectType<TypeEqual<typeof value, undefined>>(true);
 });
 
@@ -198,7 +204,7 @@ test("Fails to parse never", (t) => {
     () => {
       const value = S.parseOrThrow(true, schema);
 
-      expectType<TypeEqual<typeof schema, S.Schema<never, never>>>(true);
+      expectType<SchemaEqual<typeof schema, never, never>>(true);
       expectType<TypeEqual<typeof value, never>>(true);
     },
     {
@@ -226,7 +232,7 @@ test("Successfully parses array", (t) => {
 
   t.deepEqual(value, ["foo"]);
 
-  expectType<TypeEqual<typeof schema, S.Schema<string[], string[]>>>(true);
+  expectType<SchemaEqual<typeof schema, string[], string[]>>(true);
   expectType<TypeEqual<typeof value, string[]>>(true);
 });
 
@@ -251,7 +257,7 @@ test("Successfully parses JSON string", (t) => {
 
   t.deepEqual(value, true);
 
-  expectType<TypeEqual<typeof schema, S.Schema<boolean, string>>>(true);
+  expectType<SchemaEqual<typeof schema, boolean, string>>(true);
   expectType<TypeEqual<typeof value, boolean>>(true);
 });
 
@@ -573,7 +579,7 @@ test("Custom string schema", (t) => {
     }
   );
 
-  expectType<TypeEqual<typeof schema, S.Schema<string, string>>>(true);
+  expectType<SchemaEqual<typeof schema, string, string>>(true);
 });
 
 test("Successfully parses object by provided shape", (t) => {
@@ -1122,10 +1128,8 @@ test("Successfully parses tuple using S.schema", (t) => {
 
   t.deepEqual(value, ["bar", true]);
 
-  expectType<TypeEqual<typeof schema, S.Schema<readonly [string, boolean]>>>(
-    true
-  );
-  expectType<TypeEqual<typeof value, readonly [string, boolean]>>(true);
+  expectType<SchemaEqual<typeof schema, [string, boolean]>>(true);
+  expectType<TypeEqual<typeof value, [string, boolean]>>(true);
 });
 
 test("Successfully parses primitive schema passed to S.schema", (t) => {
@@ -1134,18 +1138,18 @@ test("Successfully parses primitive schema passed to S.schema", (t) => {
 
   t.deepEqual(value, "bar");
 
-  expectType<TypeEqual<typeof schema, S.Schema<string>>>(true);
+  expectType<SchemaEqual<typeof schema, string, string>>(true);
   expectType<TypeEqual<typeof value, string>>(true);
 });
 
-test("Successfully parses literal using S.schema", (t) => {
+test("Successfully parses literal using S.schema with as cost", (t) => {
   const schema = S.schema("foo" as const);
 
   const value = S.parseOrThrow("foo", schema);
 
   t.deepEqual(value, "foo");
 
-  expectType<TypeEqual<typeof schema, S.Schema<"foo">>>(true);
+  expectType<SchemaEqual<typeof schema, "foo">>(true);
   expectType<TypeEqual<typeof value, "foo">>(true);
 });
 
@@ -1280,9 +1284,16 @@ test("Successfully parses union", (t) => {
 
   t.deepEqual(value, { success: true, value: "123" });
 
-  expectType<
-    TypeEqual<typeof schema, S.Schema<string | number, string | number>>
-  >(true);
+  expectType<SchemaEqual<typeof schema, string | number>>(true);
+});
+
+test("Successfully parses union of literals", (t) => {
+  const schema = S.union(["foo", 123, true]);
+  const value = S.safe(() => S.parseOrThrow("foo", schema));
+
+  t.deepEqual(value, { success: true, value: "foo" });
+
+  expectType<SchemaEqual<typeof schema, "foo" | 123 | true>>(true);
 });
 
 test("Shape union", (t) => {
@@ -1345,76 +1356,99 @@ test("Successfully parses union with transformed items", (t) => {
 
   t.deepEqual(value, { success: true, value: 123 });
 
-  expectType<TypeEqual<typeof schema, S.Schema<number, string | number>>>(true);
+  expectType<SchemaEqual<typeof schema, number, string | number>>(true);
 });
 
 test("String literal", (t) => {
-  const schema = S.literal("tuna");
+  const schema = S.schema("tuna");
 
   t.deepEqual(S.parseOrThrow("tuna", schema), "tuna");
 
-  expectType<TypeEqual<typeof schema, S.Schema<"tuna", "tuna">>>(true);
+  expectType<SchemaEqual<typeof schema, "tuna">>(true);
+});
+
+test("Nested string literal", (t) => {
+  const schema = S.schema({
+    nested: "tuna" as const,
+    withoutAsConst: "tuna",
+    inSchema: S.schema("tuna"),
+  });
+
+  t.deepEqual(
+    S.parseOrThrow(
+      { nested: "tuna", withoutAsConst: "tuna", inSchema: "tuna" },
+      schema
+    ),
+    { nested: "tuna", withoutAsConst: "tuna", inSchema: "tuna" }
+  );
+
+  expectType<
+    SchemaEqual<
+      typeof schema,
+      { nested: "tuna"; withoutAsConst: string; inSchema: "tuna" }
+    >
+  >(true);
 });
 
 test("Boolean literal", (t) => {
-  const schema = S.literal(true);
+  const schema = S.schema(true);
 
   t.deepEqual(S.parseOrThrow(true, schema), true);
 
-  expectType<TypeEqual<typeof schema, S.Schema<true, true>>>(true);
+  expectType<SchemaEqual<typeof schema, true, true>>(true);
 });
 
 test("Number literal", (t) => {
-  const schema = S.literal(123);
+  const schema = S.schema(123);
 
   t.deepEqual(S.parseOrThrow(123, schema), 123);
 
-  expectType<TypeEqual<typeof schema, S.Schema<123, 123>>>(true);
+  expectType<SchemaEqual<typeof schema, 123, 123>>(true);
 });
 
 test("Undefined literal", (t) => {
-  const schema = S.literal(undefined);
+  const schema = S.schema(undefined);
 
   t.deepEqual(S.parseOrThrow(undefined, schema), undefined);
 
-  expectType<TypeEqual<typeof schema, S.Schema<undefined, undefined>>>(true);
+  expectType<SchemaEqual<typeof schema, undefined, undefined>>(true);
 });
 
 test("Null literal", (t) => {
-  const schema = S.literal(null);
+  const schema = S.schema(null);
 
   t.deepEqual(S.parseOrThrow(null, schema), null);
 
-  expectType<TypeEqual<typeof schema, S.Schema<null, null>>>(true);
+  expectType<SchemaEqual<typeof schema, null, null>>(true);
 });
 
 test("Symbol literal", (t) => {
   let symbol = Symbol();
-  const schema = S.literal(symbol);
+  const schema = S.schema(symbol);
 
   t.deepEqual(S.parseOrThrow(symbol, schema), symbol);
 
-  expectType<TypeEqual<typeof schema, S.Schema<symbol, symbol>>>(true);
+  expectType<SchemaEqual<typeof schema, symbol, symbol>>(true);
 });
 
 test("BigInt literal", (t) => {
-  const schema = S.literal(123n);
+  const schema = S.schema(123n);
 
   t.deepEqual(S.parseOrThrow(123n, schema), 123n);
 
-  expectType<TypeEqual<typeof schema, S.Schema<bigint, bigint>>>(true);
+  expectType<SchemaEqual<typeof schema, 123n, 123n>>(true);
 });
 
 test("NaN literal", (t) => {
-  const schema = S.literal(NaN);
+  const schema = S.schema(NaN);
 
   t.deepEqual(S.parseOrThrow(NaN, schema), NaN);
 
-  expectType<TypeEqual<typeof schema, S.Schema<number, number>>>(true);
+  expectType<SchemaEqual<typeof schema, number, number>>(true);
 });
 
 test("Tuple literal", (t) => {
-  const cliArgsSchema = S.literal(["help", "lint"] as const);
+  const cliArgsSchema = S.schema(["help", "lint"] as const);
 
   t.deepEqual(S.parseOrThrow(["help", "lint"], cliArgsSchema), [
     "help",
@@ -1431,7 +1465,7 @@ test("Tuple literal", (t) => {
 
 test("Correctly infers type", (t) => {
   const schema = S.transform(S.string, Number);
-  expectType<TypeEqual<typeof schema, S.Schema<number, string>>>(true);
+  expectType<SchemaEqual<typeof schema, number, string>>(true);
   expectType<TypeEqual<S.Input<typeof schema>, string>>(true);
   expectType<TypeEqual<S.Output<typeof schema>, number>>(true);
   t.pass();
@@ -1444,9 +1478,7 @@ test("Successfully parses undefined using the default value", (t) => {
 
   t.deepEqual(value, "foo");
 
-  expectType<TypeEqual<typeof schema, S.Schema<string, string | undefined>>>(
-    true
-  );
+  expectType<SchemaEqual<typeof schema, string, string | undefined>>(true);
 });
 
 test("Successfully parses undefined using the default value from callback", (t) => {
@@ -1456,9 +1488,7 @@ test("Successfully parses undefined using the default value from callback", (t) 
 
   t.deepEqual(value, "foo");
 
-  expectType<TypeEqual<typeof schema, S.Schema<string, string | undefined>>>(
-    true
-  );
+  expectType<SchemaEqual<typeof schema, string, string | undefined>>(true);
 });
 
 test("Creates schema with description", (t) => {
@@ -1489,29 +1519,73 @@ test("Creates schema with description", (t) => {
 });
 
 test("Empty tuple", (t) => {
-  const schema = S.tuple([]);
+  const schema = S.schema([]);
 
   t.deepEqual(S.parseOrThrow([], schema), []);
 
-  expectType<TypeEqual<typeof schema, S.Schema<[], []>>>(true);
+  expectType<SchemaEqual<typeof schema, [], []>>(true);
 });
 
 test("Tuple with single element", (t) => {
-  const schema = S.tuple([S.transform(S.string, (s) => Number(s))]);
+  const schema = S.schema([S.transform(S.string, (s) => Number(s))]);
 
   t.deepEqual(S.parseOrThrow(["123"], schema), [123]);
 
-  expectType<TypeEqual<typeof schema, S.Schema<[number], [string]>>>(true);
+  expectType<SchemaEqual<typeof schema, [number], [string]>>(true);
 });
 
 test("Tuple with multiple elements", (t) => {
-  const schema = S.tuple([S.transform(S.string, (s) => Number(s)), S.number]);
+  const schema = S.schema([S.string, S.number, true]);
 
-  t.deepEqual(S.parseOrThrow(["123", 123], schema), [123, 123]);
+  t.deepEqual(S.parseOrThrow(["123", 123, true], schema), ["123", 123, true]);
 
+  expectType<SchemaEqual<typeof schema, [string, number, boolean]>>(true);
+});
+
+test("Tuple types", (t) => {
+  const emptyTuple = S.schema([]);
+  expectType<SchemaEqual<typeof emptyTuple, []>>(true);
+
+  const tuple1WithLiteral = S.schema(["foo"]);
+  expectType<SchemaEqual<typeof tuple1WithLiteral, ["foo"]>>(true);
+
+  const tuple1WithSchema = S.schema([S.string]);
+  expectType<SchemaEqual<typeof tuple1WithSchema, [string]>>(true);
+
+  const tuple1WithObject = S.schema([{ foo: S.string }]);
   expectType<
-    TypeEqual<typeof schema, S.Schema<[number, number], [string, number]>>
+    SchemaEqual<
+      typeof tuple1WithObject,
+      [
+        {
+          foo: string;
+        }
+      ]
+    >
   >(true);
+
+  const tuple2WithLiterals = S.schema(["foo", 123]);
+  expectType<SchemaEqual<typeof tuple2WithLiterals, ["foo", 123]>>(true);
+
+  const tuple2WithSchemas = S.schema([S.string, S.boolean]);
+  expectType<SchemaEqual<typeof tuple2WithSchemas, [string, boolean]>>(true);
+
+  const tuple2LiteralAndSchema = S.schema(["foo", S.boolean]);
+  expectType<SchemaEqual<typeof tuple2LiteralAndSchema, [string, boolean]>>(
+    true
+  );
+
+  const tuple2LiteralAsCosntAndSchema = S.schema(["foo" as const, S.boolean]);
+  expectType<
+    SchemaEqual<typeof tuple2LiteralAsCosntAndSchema, ["foo", boolean]>
+  >(true);
+
+  const tuple2LiteralSchemaAndSchema = S.schema([S.schema("foo"), S.boolean]);
+  expectType<
+    SchemaEqual<typeof tuple2LiteralSchemaAndSchema, ["foo", boolean]>
+  >(true);
+
+  t.pass();
 });
 
 test("Tuple with transform to object", (t) => {
@@ -1526,15 +1600,13 @@ test("Tuple with transform to object", (t) => {
   t.deepEqual(S.parseOrThrow(["point", 1, -4], pointSchema), { x: 1, y: -4 });
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof pointSchema,
-      S.Schema<
-        {
-          x: number;
-          y: number;
-        },
-        unknown
-      >
+      {
+        x: number;
+        y: number;
+      },
+      unknown
     >
   >(true);
 });
@@ -1577,7 +1649,7 @@ test("Successfully parses recursive object", (t) => {
     })
   );
 
-  expectType<TypeEqual<typeof nodeSchema, S.Schema<Node, Node>>>(true);
+  expectType<SchemaEqual<typeof nodeSchema, Node, Node>>(true);
 
   t.deepEqual(
     S.parseOrThrow(
@@ -1633,12 +1705,10 @@ test("Example", (t) => {
   });
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof loginSchema,
-      S.Schema<
-        { email: string; password: string },
-        { email: string; password: string }
-      >
+      { email: string; password: string },
+      { email: string; password: string }
     >
   >(true);
   expectType<TypeEqual<LoginData, { email: string; password: string }>>(true);

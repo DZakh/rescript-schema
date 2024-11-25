@@ -116,19 +116,20 @@ S.never;
 Literal schemas represent a [literal type](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#literal-types), like `"hello world"` or `5`.
 
 ```ts
-const tuna = S.literal("tuna");
-const twelve = S.literal(12);
-const twobig = S.literal(2n); // bigint literal
-const tru = S.literal(true);
+const tuna = S.schema("tuna");
+const twelve = S.schema(12);
+const twobig = S.schema(2n);
+const tru = S.schema(true);
 
 const terrificSymbol = Symbol("terrific");
-const terrific = S.literal(terrificSymbol);
+const terrific = S.schema(terrificSymbol);
 ```
 
-Compared to other libraries, `S.literal` in **rescript-schema** supports literally any value. They are validated using strict equal checks. With the exception of plain objects and arrays, they are validated using deep equal checks. So the schema like this will work correctly:
+Compared to other libraries, `S.schema` in **rescript-schema** supports literally any value. They are validated using strict equal checks. With the exception of plain objects and arrays, they are validated using deep equal checks. So the schema like this will work correctly:
 
 ```ts
-const cliArgsSchema = S.literal(["help", "lint"] as const);
+const cliArgsSchema = S.schema(["help", "lint"]);
+// ^ This is going to be a S.Schema<["help", "lint"]> type
 ```
 
 ## Strings
@@ -190,10 +191,10 @@ S.numberMax(S.number, 5, "this👏is👏too👏big");
 
 ## NaNs
 
-There's no specific schema for NaN, but you can use `S.literal` for this.
+There's no specific schema for NaN, just use `S.schema` as for everything else:
 
 ```ts
-const nanSchema = S.literal(NaN);
+const nanSchema = S.schema(NaN);
 ```
 
 It's going to use `Number.isNaN` check under the hood.
@@ -275,24 +276,34 @@ type Dog = {
 };
 ```
 
-### Literal shorthand
+### Literal fields
 
-Besides passing schemas for values in `S.schema`, you can also pass **any** Js value.
+Besides passing schemas for values in `S.schema`, you can also pass **any** Js value and it'll be treated as a literal field.
 
 ```ts
 const meSchema = S.schema({
   id: S.number,
   name: "Dmitry Zakharov",
-  age: 23,
-  kind: "human" as const,
+  age: 23
+  kind: "human",
   metadata: {
     description: "What?? Even an object with NaN works! Yes 🔥",
     money: NaN,
-  },
+  } ,
 });
 ```
 
-This is a shorthand for `S.literal` and useful for discriminated unions.
+You can add `as const` or wrap the value with `S.schema` to adjust the schema type. The example below turns the `kind` field to be a `"human"` type instead of `string`:
+
+```ts
+S.schema({
+  kind: "human" as const,
+  // Or
+  kind: S.schema("human"),
+});
+```
+
+This is useful for discriminated unions.
 
 ### Advanced object schema
 
@@ -483,24 +494,6 @@ const numberCacheSchema = S.record(S.number);
 
 type NumberCache = S.Output<typeof numberCacheSchema>;
 // => { [k: string]: number }
-```
-
-### `schema`
-
-It's a helper built on `S.literal`, `S.object`, and `S.tuple` to create schemas more conveniently.
-
-```typescript
-type Shape = { kind: "circle"; radius: number } | { kind: "square"; x: number };
-
-let circleSchema: S.Schema<Shape> = S.schema({
-  kind: "circle" as const,
-  radius: S.number,
-});
-// The same as:
-// S.object(s => ({
-//   kind: s.field("kind", S.literal("circle")),
-//   radius: s.field("radius", S.number),
-// }))
 ```
 
 ## JSON
@@ -694,8 +687,8 @@ Given any schema, you can call `assert` to check `data` is valid. It returns `un
 ### **`name`**
 
 ```ts
-S.name(S.literal({ abc: 123 }));
-// `{"abc":123}`
+S.name(S.schema({ abc: 123 }));
+// `{ abc: 123; }`
 ```
 
 Used internally for readable error messages.
@@ -705,7 +698,7 @@ Used internally for readable error messages.
 ### **`setName`**
 
 ```ts
-const schema = S.setName(S.literal({ abc: 123 }, "Abc"));
+const schema = S.setName(S.schema({ abc: 123 }, "Abc"));
 
 S.name(schema);
 // `Abc`
@@ -718,7 +711,7 @@ You can customise a schema name using `S.setName`.
 **rescript-schema** provides a subclass of Error called `S.Error`. It contains detailed information about the validation problem.
 
 ```ts
-S.literal(false).parseOrThrow(true);
+S.schema(false).parseOrThrow(true);
 // => Throws S.Error with the following message: "Failed parsing at root. Reason: Expected false, received true".
 ```
 
