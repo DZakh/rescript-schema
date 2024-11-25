@@ -3291,18 +3291,6 @@ function js_optional(schema, maybeOr) {
   }
 }
 
-function js_tuple(definer) {
-  if (typeof definer === "function") {
-    return tuple(definer);
-  } else {
-    return tuple(function (s) {
-                return definer.map(function (schema, idx) {
-                            return s.item(idx, schema);
-                          });
-              });
-  }
-}
-
 function js_custom(name, maybeParser, maybeSerializer, param) {
   return custom(name, (function (s) {
                 return {
@@ -3597,7 +3585,6 @@ export {
   js_safeAsync ,
   js_union ,
   js_optional ,
-  js_tuple ,
   js_custom ,
   js_asyncParserRefine ,
   js_refine ,
