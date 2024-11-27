@@ -95,7 +95,7 @@ let makeAdvancedObjectSchema = () => {
 }
 
 S.setGlobalConfig({
-  disableNanNumberCheck: true,
+  disableNanNumberValidation: true,
 })
 
 // Reported in https://gist.github.com/cknitt/4ac6813a3f3bc907187105e01a4324ca
@@ -241,12 +241,12 @@ Suite.make()
 })
 ->Suite.addWithPrepare("S.schema - parse strict", () => {
   S.setGlobalConfig({
-    disableNanNumberCheck: true,
+    disableNanNumberValidation: true,
     defaultUnknownKeys: Strict,
   })
   let schema = makeAdvancedObjectSchema()
   S.setGlobalConfig({
-    disableNanNumberCheck: true,
+    disableNanNumberValidation: true,
   })
   let data = makeTestObject()
   () => {
@@ -293,12 +293,12 @@ Suite.make()
 })
 ->Suite.addWithPrepare("S.schema - assert strict", () => {
   S.setGlobalConfig({
-    disableNanNumberCheck: true,
+    disableNanNumberValidation: true,
     defaultUnknownKeys: Strict,
   })
   let schema = makeAdvancedObjectSchema()
   S.setGlobalConfig({
-    disableNanNumberCheck: true,
+    disableNanNumberValidation: true,
   })
   let data = makeTestObject()
   () => {

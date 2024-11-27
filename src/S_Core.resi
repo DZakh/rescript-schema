@@ -431,7 +431,7 @@ let js_name: t<'value> => string
 
 type globalConfigOverride = {
   defaultUnknownKeys?: unknownKeys,
-  disableNanNumberCheck?: bool,
+  disableNanNumberValidation?: bool,
 }
 
 let setGlobalConfig: globalConfigOverride => unit

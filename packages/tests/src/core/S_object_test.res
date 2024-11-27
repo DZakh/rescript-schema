@@ -730,7 +730,7 @@ module BenchmarkWithSObject = {
 
   test("Successfully parses object from benchmark - with S.object", t => {
     S.setGlobalConfig({
-      disableNanNumberCheck: true,
+      disableNanNumberValidation: true,
     })
     let schema = makeSchema()
 
@@ -746,7 +746,7 @@ module BenchmarkWithSObject = {
 
   test("Successfully asserts object from benchmark - with S.object", t => {
     S.setGlobalConfig({
-      disableNanNumberCheck: true,
+      disableNanNumberValidation: true,
     })
     let schema = makeSchema()
 
@@ -762,7 +762,7 @@ module BenchmarkWithSObject = {
 
   test("Successfully parses strict object from benchmark - with S.object", t => {
     S.setGlobalConfig({
-      disableNanNumberCheck: true,
+      disableNanNumberValidation: true,
       defaultUnknownKeys: Strict,
     })
     let schema = makeSchema()
@@ -779,7 +779,7 @@ module BenchmarkWithSObject = {
 
   test("Successfully asserts strict object from benchmark - with S.object", t => {
     S.setGlobalConfig({
-      disableNanNumberCheck: true,
+      disableNanNumberValidation: true,
       defaultUnknownKeys: Strict,
     })
     let schema = makeSchema()
@@ -796,7 +796,7 @@ module BenchmarkWithSObject = {
 
   test("Successfully serializes object from benchmark - with S.object", t => {
     S.setGlobalConfig({
-      disableNanNumberCheck: true,
+      disableNanNumberValidation: true,
     })
     let schema = makeSchema()
 
@@ -849,7 +849,7 @@ module Benchmark = {
 
   test("Successfully parses object from benchmark", t => {
     S.setGlobalConfig({
-      disableNanNumberCheck: true,
+      disableNanNumberValidation: true,
     })
     let schema = makeSchema()
 
@@ -865,7 +865,7 @@ module Benchmark = {
 
   test("Successfully asserts object from benchmark", t => {
     S.setGlobalConfig({
-      disableNanNumberCheck: true,
+      disableNanNumberValidation: true,
     })
     let schema = makeSchema()
 
@@ -881,7 +881,7 @@ module Benchmark = {
 
   test("Successfully parses strict object from benchmark", t => {
     S.setGlobalConfig({
-      disableNanNumberCheck: true,
+      disableNanNumberValidation: true,
       defaultUnknownKeys: Strict,
     })
     let schema = makeSchema()
@@ -898,7 +898,7 @@ module Benchmark = {
 
   test("Successfully asserts strict object from benchmark", t => {
     S.setGlobalConfig({
-      disableNanNumberCheck: true,
+      disableNanNumberValidation: true,
       defaultUnknownKeys: Strict,
     })
     let schema = makeSchema()
@@ -915,7 +915,7 @@ module Benchmark = {
 
   test("Successfully serializes object from benchmark", t => {
     S.setGlobalConfig({
-      disableNanNumberCheck: true,
+      disableNanNumberValidation: true,
     })
     let schema = makeSchema()
 

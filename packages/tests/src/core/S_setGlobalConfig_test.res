@@ -1,10 +1,10 @@
 open Ava
 
-asyncTest("Resets S.float cache after disableNanNumberCheck=true removed", async t => {
+asyncTest("Resets S.float cache after disableNanNumberValidation=true removed", async t => {
   let nan = %raw(`NaN`)
 
   S.setGlobalConfig({
-    disableNanNumberCheck: true,
+    disableNanNumberValidation: true,
   })
   t->Assert.deepEqual(nan->S.parseOrThrow(S.float), nan, ())
   t->Assert.deepEqual(await nan->S.parseAsyncOrThrow(S.float), nan, ())
