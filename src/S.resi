@@ -391,7 +391,7 @@ let trim: t<string> => t<string>
 
 type globalConfigOverride = {
   defaultUnknownKeys?: unknownKeys,
-  disableNanNumberCheck?: bool,
+  disableNanNumberValidation?: bool,
 }
 
 let setGlobalConfig: globalConfigOverride => unit

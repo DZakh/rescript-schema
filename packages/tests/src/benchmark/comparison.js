@@ -47,7 +47,7 @@ const valibotSchema = V.object({
 });
 
 S.setGlobalConfig({
-  disableNanNumberCheck: true,
+  disableNanNumberValidation: true,
 });
 const schema = S.schema({
   number: S.number,

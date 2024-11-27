@@ -340,12 +340,12 @@ type globalConfig = {
   @as("u")
   mutable defaultUnknownKeys: unknownKeys,
   @as("n")
-  mutable disableNanNumberCheck: bool,
+  mutable disableNanNumberValidation: bool,
 }
 
 type globalConfigOverride = {
   defaultUnknownKeys?: unknownKeys,
-  disableNanNumberCheck?: bool,
+  disableNanNumberValidation?: bool,
 }
 
 let initialDefaultUnknownKeys = Strip
@@ -353,7 +353,7 @@ let initialDisableNanNumberProtection = false
 let globalConfig = {
   recCounter: 0,
   defaultUnknownKeys: initialDefaultUnknownKeys,
-  disableNanNumberCheck: initialDisableNanNumberProtection,
+  disableNanNumberValidation: initialDisableNanNumberProtection,
 }
 
 module InternalError = {
@@ -2331,7 +2331,7 @@ module Float = {
   }
 
   let typeFilter = (_b, ~inputVar) =>
-    `typeof ${inputVar}!=="number"` ++ if globalConfig.disableNanNumberCheck {
+    `typeof ${inputVar}!=="number"` ++ if globalConfig.disableNanNumberValidation {
       ""
     } else {
       `||Number.isNaN(${inputVar})`
@@ -4419,12 +4419,12 @@ let setGlobalConfig = override => {
   | Some(unknownKeys) => unknownKeys
   | None => initialDefaultUnknownKeys
   }
-  let prevDisableNanNumberCheck = globalConfig.disableNanNumberCheck
-  globalConfig.disableNanNumberCheck = switch override.disableNanNumberCheck {
-  | Some(disableNanNumberCheck) => disableNanNumberCheck
+  let prevDisableNanNumberCheck = globalConfig.disableNanNumberValidation
+  globalConfig.disableNanNumberValidation = switch override.disableNanNumberValidation {
+  | Some(disableNanNumberValidation) => disableNanNumberValidation
   | None => initialDisableNanNumberProtection
   }
-  if prevDisableNanNumberCheck != globalConfig.disableNanNumberCheck {
+  if prevDisableNanNumberCheck != globalConfig.disableNanNumberValidation {
     resetOperationsCache(float)
   }
 }

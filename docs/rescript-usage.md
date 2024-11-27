@@ -79,7 +79,7 @@
   - [`Error.message`](#errormessage)
 - [Global config](#global-config)
   - [`defaultUnknownKeys`](#defaultunknownkeys)
-  - [`disableNanNumberCheck`](#disablenannumbercheck)
+  - [`disableNanNumberValidation`](#disablenannumbervalidation)
 
 ## Install
 
@@ -1626,12 +1626,12 @@ S.setGlobalConfig({
 })
 ```
 
-### `disableNanNumberCheck`
+### `disableNanNumberValidation`
 
-`disableNanNumberCheck` is an option that controls whether the library should check for NaN values when parsing numbers. The default value is `false`, but you can globally change it to `true` to allow NaN values. If you parse many numbers which are guaranteed to be non-NaN, you can set it to `true` to improve performance ~10%, depending on the case.
+`disableNanNumberValidation` is an option that controls whether the library should check for NaN values when parsing numbers. The default value is `false`, but you can globally change it to `true` to allow NaN values. If you parse many numbers which are guaranteed to be non-NaN, you can set it to `true` to improve performance ~10%, depending on the case.
 
 ```rescript
 S.setGlobalConfig({
-  disableNanNumberCheck: true,
+  disableNanNumberValidation: true,
 })
 ```
