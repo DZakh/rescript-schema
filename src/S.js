@@ -23,7 +23,12 @@ export const safe = S.js_safe;
 export const safeAsync = S.js_safeAsync;
 export const reverse = S.reverse;
 export const convertOrThrow = S.convertOrThrow;
+export const convertToJsonOrThrow = S.convertToJsonOrThrow;
 export const convertToJsonStringOrThrow = S.convertToJsonStringOrThrow;
+export const reverseConvertOrThrow = S.reverseConvertOrThrow;
+export const reverseConvertToJsonOrThrow = S.reverseConvertToJsonOrThrow;
+export const reverseConvertToJsonStringOrThrow =
+  S.reverseConvertToJsonStringOrThrow;
 export const parseOrThrow = S.parseOrThrow;
 export const parseAsyncOrThrow = S.parseAsyncOrThrow;
 export const assertOrThrow = S.assertOrThrow;

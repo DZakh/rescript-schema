@@ -132,8 +132,25 @@ export function convertOrThrow<Output, Input>(
   data: Input,
   schema: Schema<Output, Input>
 ): Output;
+export function convertToJsonOrThrow<Output, Input>(
+  data: Input,
+  schema: Schema<Output, Input>
+): Json;
 export function convertToJsonStringOrThrow<Output, Input>(
   data: Input,
+  schema: Schema<Output, Input>
+): string;
+
+export function reverseConvertOrThrow<Output, Input>(
+  value: Output,
+  schema: Schema<Output, Input>
+): Input;
+export function reverseConvertToJsonOrThrow<Output, Input>(
+  value: Output,
+  schema: Schema<Output, Input>
+): Json;
+export function reverseConvertToJsonStringOrThrow<Output, Input>(
+  value: Output,
   schema: Schema<Output, Input>
 ): string;
 
