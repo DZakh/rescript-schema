@@ -269,9 +269,9 @@ test("Successfully serialized JSON object", (t) => {
   const value = S.convertOrThrow({ foo: [1, 2] }, S.reverse(schema));
   t.deepEqual(value, '{"foo":[1,2]}');
 
-  const valueWithSpace = S.convertOrThrow(
+  const valueWithSpace = S.reverseConvertOrThrow(
     { foo: [1, 2] },
-    S.reverse(schemaWithSpace)
+    schemaWithSpace
   );
   t.deepEqual(valueWithSpace, '{\n  "foo": [\n    1,\n    2\n  ]\n}');
 
@@ -382,11 +382,29 @@ test("Fails to parse with invalid data", (t) => {
   );
 });
 
-test("Successfully serializes with valid value", (t) => {
+test("Successfully reverse converts with valid value", (t) => {
   const schema = S.string;
-  const result = S.convertOrThrow("123", S.reverse(schema));
+  const result = S.reverseConvertOrThrow("123", schema);
 
   t.deepEqual(result, "123");
+
+  expectType<TypeEqual<typeof result, string>>(true);
+});
+
+test("Successfully reverse converts to Json with valid value", (t) => {
+  const schema = S.string;
+  const result = S.reverseConvertToJsonOrThrow("123", schema);
+
+  t.deepEqual(result, "123");
+
+  expectType<TypeEqual<typeof result, S.Json>>(true);
+});
+
+test("Successfully reverse converts to Json string with valid value", (t) => {
+  const schema = S.int32;
+  const result = S.reverseConvertToJsonStringOrThrow(123, schema);
+
+  t.deepEqual(result, `123`);
 
   expectType<TypeEqual<typeof result, string>>(true);
 });
@@ -438,7 +456,7 @@ test("Fails to parse with transform with user error", (t) => {
   );
 });
 
-test("Successfully serializes with transform to another type", (t) => {
+test("Successfully reverse converts with transform to another type", (t) => {
   const schema = S.transform(
     S.string,
     (string) => Number(string),
@@ -481,7 +499,7 @@ test("Successfully parses with refine", (t) => {
   expectType<TypeEqual<typeof value, string>>(true);
 });
 
-test("Successfully serializes with refine", (t) => {
+test("Successfully reverse converts with refine", (t) => {
   const schema = S.refine(S.string, (string) => {
     expectType<TypeEqual<typeof string, string>>(true);
   });
@@ -1249,7 +1267,7 @@ test("Successfully parses and returns result", (t) => {
   }
 });
 
-test("Successfully serializes and returns result", (t) => {
+test("Successfully reverse converts and returns result", (t) => {
   const schema = S.string;
   const value = S.safe(() => S.convertOrThrow("123", S.reverse(schema)));
 
