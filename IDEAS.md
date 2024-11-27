@@ -21,7 +21,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 ## v9
 
 - Add S.compile to Js/ts api
-- Add flatten to ts api
 - Add testWith
 - Change asyncParser from () => () => promise to () => promise
 - Add schema input to the error ??? What about build errors?
@@ -44,6 +43,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add tag for bigint schema
 - Get rid of S.literal in Js/ts API and S.tuple shorthand
 - Renamed disableNanNumberCheck to use validation
+- Add flatten to ts api
 
 ## v10
 
@@ -59,6 +59,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v???
 
+- Add S.string->S.coerce(S.int) to coerce string to int and other types
 - Rename S.inline to S.toRescriptCode + Codegen type + Codegen schema using type
 - Make `error.reason` tree-shakeable
 - S.toJSON/S.castToJson ???

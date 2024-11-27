@@ -162,7 +162,7 @@ export function assertOrThrow<Output, Input>(
   schema: Schema<Output, Input>
 ): asserts data is Input;
 
-export function tuple<Output>(
+export function tuple<Output, Input extends unknown[]>(
   definer: (s: {
     item: <ItemOutput>(
       inputIndex: number,
@@ -170,7 +170,7 @@ export function tuple<Output>(
     ) => ItemOutput;
     tag: (inputIndex: number, value: unknown) => void;
   }) => Output
-): Schema<Output, unknown>;
+): Schema<Output, Input>;
 
 export function optional<Output, Input>(
   schema: Schema<Output, Input>
@@ -205,26 +205,33 @@ export const jsonString: <Output>(
   space?: number
 ) => Schema<Output, string>;
 
-export function object<Output>(
-  definer: (s: {
-    field: <InputFieldName extends string, FieldOutput>(
-      inputFieldName: InputFieldName,
-      schema: Schema<FieldOutput, unknown>
-    ) => FieldOutput;
-    fieldOr: <InputFieldName extends string, FieldOutput>(
-      name: InputFieldName,
-      schema: Schema<FieldOutput, unknown>,
-      or: FieldOutput
-    ) => FieldOutput;
-    tag: (name: string, value: unknown) => void;
-  }) => Output
-): Schema<Output, unknown>;
+type ObjectCtx<Input extends Record<string, unknown>> = {
+  field: <FieldOutput>(
+    name: string,
+    schema: Schema<FieldOutput, unknown>
+  ) => FieldOutput;
+  fieldOr: <FieldOutput>(
+    name: string,
+    schema: Schema<FieldOutput, unknown>,
+    or: FieldOutput
+  ) => FieldOutput;
+  tag: <TagName extends keyof Input>(
+    name: TagName,
+    value: Input[TagName]
+  ) => void;
+  flatten: <FieldOutput>(schema: Schema<FieldOutput, unknown>) => FieldOutput;
+  nested: (name: string) => ObjectCtx<Record<string, unknown>>;
+};
+
+export function object<Output, Input extends Record<string, unknown>>(
+  definer: (ctx: ObjectCtx<Input>) => Output
+): Schema<Output, Input>;
 
 export const Object: {
-  strip: <Output, Input>(
+  strip: <Output, Input extends Record<string, unknown>>(
     schema: Schema<Output, Input>
   ) => Schema<Output, Input>;
-  strict: <Output, Input>(
+  strict: <Output, Input extends Record<string, unknown>>(
     schema: Schema<Output, Input>
   ) => Schema<Output, Input>;
 };

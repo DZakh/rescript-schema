@@ -242,12 +242,7 @@ test("Successfully parses record", (t) => {
 
   t.deepEqual(value, { foo: "bar" });
 
-  expectType<
-    TypeEqual<
-      typeof schema,
-      S.Schema<Record<string, string>, Record<string, string>>
-    >
-  >(true);
+  expectType<SchemaEqual<typeof schema, Record<string, string>>>(true);
   expectType<TypeEqual<typeof value, Record<string, string>>>(true);
 });
 
@@ -276,17 +271,21 @@ test("Successfully serialized JSON object", (t) => {
   t.deepEqual(valueWithSpace, '{\n  "foo": [\n    1,\n    2\n  ]\n}');
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof schema,
-      S.Schema<
-        {
-          foo: number[];
-        },
-        string
-      >
+      {
+        foo: number[];
+      },
+      string
     >
   >(true);
-  expectType<TypeEqual<typeof schema, typeof schemaWithSpace>>(true);
+  expectType<
+    SchemaEqual<
+      typeof schema,
+      S.Output<typeof schemaWithSpace>,
+      S.Input<typeof schemaWithSpace>
+    >
+  >(true);
   expectType<TypeEqual<typeof value, string>>(true);
 });
 
@@ -619,18 +618,16 @@ test("Successfully parses object by provided shape", (t) => {
   });
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof schema,
-      S.Schema<
-        {
-          foo: string;
-          bar: boolean;
-        },
-        {
-          foo: string;
-          bar: boolean;
-        }
-      >
+      {
+        foo: string;
+        bar: boolean;
+      },
+      {
+        foo: string;
+        bar: boolean;
+      }
     >
   >(true);
   expectType<
@@ -663,18 +660,16 @@ test("Successfully parses tagged object", (t) => {
   });
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof schema,
-      S.Schema<
-        {
-          tag: "block";
-          bar: boolean;
-        },
-        {
-          tag: "block";
-          bar: boolean;
-        }
-      >
+      {
+        tag: "block";
+        bar: boolean;
+      },
+      {
+        tag: "block";
+        bar: boolean;
+      }
     >
   >(true);
   expectType<
@@ -699,11 +694,11 @@ test("Successfully parses and reverse convert object with optional field", (t) =
   t.deepEqual(reversed, { bar: undefined });
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof schema,
-      S.Schema<{
+      {
         bar: boolean | undefined;
-      }>
+      }
     >
   >(true);
   expectType<
@@ -735,15 +730,13 @@ test("Successfully parses object with field names transform", (t) => {
   });
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof schema,
-      S.Schema<
-        {
-          foo: string;
-          bar: boolean;
-        },
-        unknown
-      >
+      {
+        foo: string;
+        bar: boolean;
+      },
+      Record<string, unknown>
     >
   >(true);
   expectType<
@@ -753,6 +746,52 @@ test("Successfully parses object with field names transform", (t) => {
         foo: string;
         bar: boolean;
       }
+    >
+  >(true);
+});
+
+test("Successfully parses advanced object with all features", (t) => {
+  const schema = S.object((s) => {
+    s.tag("type", 0);
+    return {
+      nested: s.nested("nested").field("field", S.number),
+      flattened: s.flatten(S.schema({ id: S.string })),
+      foo: s.field("Foo", S.string),
+      bar: s.fieldOr("Bar", S.boolean, true),
+    };
+  });
+
+  const value = S.parseOrThrow(
+    {
+      nested: {
+        field: 123,
+      },
+      type: 0,
+      id: "id",
+      Foo: "bar",
+    },
+    schema
+  );
+
+  t.deepEqual(value, {
+    nested: 123,
+    flattened: { id: "id" },
+    foo: "bar",
+    bar: true,
+  });
+
+  expectType<
+    SchemaEqual<
+      typeof schema,
+      {
+        nested: number;
+        flattened: {
+          id: string;
+        };
+        foo: string;
+        bar: boolean;
+      },
+      Record<string, unknown>
     >
   >(true);
 });
@@ -776,18 +815,16 @@ test("Successfully parses object with transformed field", (t) => {
   });
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof schema,
-      S.Schema<
-        {
-          foo: number;
-          bar: boolean;
-        },
-        {
-          foo: string;
-          bar: boolean;
-        }
-      >
+      {
+        foo: number;
+        bar: boolean;
+      },
+      {
+        foo: string;
+        bar: boolean;
+      }
     >
   >(true);
   expectType<
@@ -914,16 +951,14 @@ test("Resets object strict mode with strip method", (t) => {
   t.deepEqual(value, { foo: "bar" });
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof schema,
-      S.Schema<
-        {
-          foo: string;
-        },
-        {
-          foo: string;
-        }
-      >
+      {
+        foo: string;
+      },
+      {
+        foo: string;
+      }
     >
   >(true);
   expectType<
@@ -948,17 +983,15 @@ test("Successfully parses intersected objects", (t) => {
   );
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof schema,
-      S.Schema<
-        {
-          foo: string;
-          bar: boolean;
-        } & {
-          baz: string;
-        },
-        Record<string, unknown>
-      >
+      {
+        foo: string;
+        bar: boolean;
+      } & {
+        baz: string;
+      },
+      Record<string, unknown>
     >
   >(true);
 
@@ -1012,16 +1045,14 @@ test("Successfully parses intersected objects with transform", (t) => {
   );
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof schema,
-      S.Schema<
-        {
-          abc: string;
-        } & {
-          baz: string;
-        },
-        Record<string, unknown>
-      >
+      {
+        abc: string;
+      } & {
+        baz: string;
+      },
+      Record<string, unknown>
     >
   >(true);
 
@@ -1121,12 +1152,12 @@ test("Successfully parses object using S.schema", (t) => {
   });
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof schema,
-      S.Schema<{
+      {
         foo: string;
         bar: boolean;
-      }>
+      }
     >
   >(true);
   expectType<
@@ -1189,11 +1220,11 @@ test("Successfully parses nested object using S.schema", (t) => {
   });
 
   expectType<
-    TypeEqual<
+    SchemaEqual<
       typeof schema,
-      S.Schema<{
+      {
         foo: { bar: number };
-      }>
+      }
     >
   >(true);
   expectType<
@@ -1624,7 +1655,7 @@ test("Tuple with transform to object", (t) => {
         x: number;
         y: number;
       },
-      unknown
+      unknown[]
     >
   >(true);
 });
