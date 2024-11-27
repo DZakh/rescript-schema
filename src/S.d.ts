@@ -74,12 +74,15 @@ type Literal =
   | bigint
   | undefined
   | null
-  | [];
+  | []
+  | Schema<unknown>;
 
-export function schema<T extends Literal>(value: T): Schema<T>;
+export function schema<T extends Literal>(
+  value: T
+): Schema<UnknownToOuput<T>, UnknownToInput<T>>;
 export function schema<T extends Literal[]>(
   schemas: [...T]
-): Schema<[...T], [...T]>;
+): Schema<[...UnknownArrayToOutput<T>], [...UnknownArrayToInput<T>]>;
 export function schema<T extends unknown[]>(
   schemas: [...T]
 ): Schema<[...UnknownArrayToOutput<T>], [...UnknownArrayToInput<T>]>;
@@ -90,8 +93,8 @@ export function schema<T>(
 export function union<A extends Literal, B extends Literal[]>(
   schemas: [A, ...B]
 ): Schema<
-  A | UnknownArrayToOutput<B>[number],
-  A | UnknownArrayToInput<B>[number]
+  UnknownToOuput<A> | UnknownArrayToOutput<B>[number],
+  UnknownToInput<A> | UnknownArrayToInput<B>[number]
 >;
 export function union<A, B extends unknown[]>(
   schemas: [A, ...B]
