@@ -24,7 +24,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Rename disableNanNumberCheck to use validation
 - Add flatten to ts api
 - Add testWith
-- Add reverseConvert to js/ts api
 - Change asyncParser from () => () => promise to () => promise
 - Add schema input to the error ??? What about build errors?
 - Rename S.Object.strict to S.strict (the same for strip)

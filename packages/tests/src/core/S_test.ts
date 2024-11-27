@@ -1557,7 +1557,7 @@ test("Tuple with multiple elements", (t) => {
 
   t.deepEqual(S.parseOrThrow(["123", 123, true], schema), ["123", 123, true]);
 
-  expectType<SchemaEqual<typeof schema, [string, number, boolean]>>(true);
+  expectType<SchemaEqual<typeof schema, [string, number, true]>>(true);
 });
 
 test("Tuple types", (t) => {
@@ -1589,7 +1589,7 @@ test("Tuple types", (t) => {
   expectType<SchemaEqual<typeof tuple2WithSchemas, [string, boolean]>>(true);
 
   const tuple2LiteralAndSchema = S.schema(["foo", S.boolean]);
-  expectType<SchemaEqual<typeof tuple2LiteralAndSchema, [string, boolean]>>(
+  expectType<SchemaEqual<typeof tuple2LiteralAndSchema, ["foo", boolean]>>(
     true
   );
 
