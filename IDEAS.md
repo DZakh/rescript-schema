@@ -21,7 +21,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 ## v9
 
 - Add S.compile to Js/ts api
-- Rename disableNanNumberCheck to use validation
 - Add flatten to ts api
 - Add testWith
 - Change asyncParser from () => () => promise to () => promise
@@ -44,6 +43,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Use Js friendly names for schema names
 - Add tag for bigint schema
 - Get rid of S.literal in Js/ts API and S.tuple shorthand
+- Renamed disableNanNumberCheck to use validation
 
 ## v10
 

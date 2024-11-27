@@ -3372,8 +3372,8 @@ function setGlobalConfig(override) {
   var unknownKeys = override.defaultUnknownKeys;
   globalConfig.u = unknownKeys !== undefined ? unknownKeys : "Strip";
   var prevDisableNanNumberCheck = globalConfig.n;
-  var disableNanNumberCheck = override.disableNanNumberCheck;
-  globalConfig.n = disableNanNumberCheck !== undefined ? disableNanNumberCheck : false;
+  var disableNanNumberValidation = override.disableNanNumberValidation;
+  globalConfig.n = disableNanNumberValidation !== undefined ? disableNanNumberValidation : false;
   if (prevDisableNanNumberCheck !== globalConfig.n) {
     return resetOperationsCache(schema$5);
   }

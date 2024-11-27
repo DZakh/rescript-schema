@@ -135,7 +135,7 @@ test("Fails to parse float when NaN is provided", (t) => {
 
 test("Successfully parses float when NaN is provided and NaN check disabled in global config", (t) => {
   S.setGlobalConfig({
-    disableNanNumberCheck: true,
+    disableNanNumberValidation: true,
   });
   const schema = S.number;
   const value = S.parseOrThrow(NaN, schema);

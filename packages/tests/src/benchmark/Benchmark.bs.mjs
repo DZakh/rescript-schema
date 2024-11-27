@@ -70,7 +70,7 @@ function makeAdvancedObjectSchema() {
 }
 
 S$RescriptSchema.setGlobalConfig({
-      disableNanNumberCheck: true
+      disableNanNumberValidation: true
     });
 
 var schema = S$RescriptSchema.recursive(function (schema) {
@@ -225,11 +225,11 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
                                                                     })), "S.schema - parse strict", (function () {
                                                                   S$RescriptSchema.setGlobalConfig({
                                                                         defaultUnknownKeys: "Strict",
-                                                                        disableNanNumberCheck: true
+                                                                        disableNanNumberValidation: true
                                                                       });
                                                                   var schema = makeAdvancedObjectSchema();
                                                                   S$RescriptSchema.setGlobalConfig({
-                                                                        disableNanNumberCheck: true
+                                                                        disableNanNumberValidation: true
                                                                       });
                                                                   var data = makeTestObject();
                                                                   return function () {
@@ -272,11 +272,11 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
                                           })), "S.schema - assert strict", (function () {
                                         S$RescriptSchema.setGlobalConfig({
                                               defaultUnknownKeys: "Strict",
-                                              disableNanNumberCheck: true
+                                              disableNanNumberValidation: true
                                             });
                                         var schema = makeAdvancedObjectSchema();
                                         S$RescriptSchema.setGlobalConfig({
-                                              disableNanNumberCheck: true
+                                              disableNanNumberValidation: true
                                             });
                                         var data = makeTestObject();
                                         return function () {

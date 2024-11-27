@@ -367,7 +367,7 @@ export type UnknownKeys = "Strip" | "Strict";
 
 export type GlobalConfigOverride = {
   defaultUnknownKeys?: UnknownKeys;
-  disableNanNumberCheck?: boolean;
+  disableNanNumberValidation?: boolean;
 };
 
 export function setGlobalConfig(
