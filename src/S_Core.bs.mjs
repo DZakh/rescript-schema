@@ -483,11 +483,14 @@ function operationFn(s, o) {
   return f;
 }
 
-function compile$1(schema, input, output, mode, typeValidation) {
+function compile$1(schema, input, output, mode, typeValidationOpt) {
+  var typeValidation = typeValidationOpt !== undefined ? typeValidationOpt : true;
   var flag = 0;
+  var exit = 0;
   switch (output) {
-    case "Value" :
-    case "Unknown" :
+    case "Output" :
+    case "Input" :
+        exit = 1;
         break;
     case "Assert" :
         flag = flag | 4;
@@ -500,16 +503,16 @@ function compile$1(schema, input, output, mode, typeValidation) {
         break;
     
   }
+  if (exit === 1 && output === input) {
+    throw new Error("[rescript-schema] Can't compile operation to converting value to self");
+  }
   if (mode !== "Sync") {
     flag = flag | 2;
   }
   if (typeValidation) {
     flag = flag | 1;
   }
-  if (input === "Value") {
-    if (output === "Value") {
-      throw new Error("[rescript-schema] Can't compile Value input to Value output");
-    }
+  if (input === "Output") {
     flag = flag | 32;
   }
   var fn = operationFn(schema, flag);
@@ -950,7 +953,7 @@ function recursive(fn) {
   globalConfig.r = globalConfig.r + 1 | 0;
   var placeholder = {
     m: empty,
-    t: "Unknown",
+    t: "Input",
     n: (function () {
         return "<recursive>";
       }),
@@ -2063,6 +2066,36 @@ function builder$1(schemas, inlinedLocations, isArray) {
   };
 }
 
+function reverse$1(fieldNames, schemas, inlinedLocations) {
+  return function () {
+    var reversedFields = {};
+    var reversedSchemas = [];
+    var isTransformed = false;
+    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+      var fieldName = fieldNames[idx];
+      var schema = schemas[idx];
+      var reversed = schema["~r"]();
+      reversedFields[fieldName] = reversed;
+      reversedSchemas.push(reversed);
+      if (schema !== reversed) {
+        isTransformed = true;
+      }
+      
+    }
+    if (isTransformed) {
+      return makeReverseSchema(name$1, {
+                  TAG: "object",
+                  fieldNames: fieldNames,
+                  fields: reversedFields,
+                  unknownKeys: globalConfig.u,
+                  advanced: false
+                }, empty, builder$1(reversedSchemas, inlinedLocations, false), typeFilter$1);
+    } else {
+      return this;
+    }
+  };
+}
+
 function nested(fieldName) {
   var parentCtx = this;
   var cacheId = "~" + fieldName;
@@ -2154,33 +2187,64 @@ function nested(fieldName) {
   return ctx$1;
 }
 
-function reverse$1(fieldNames, schemas, inlinedLocations) {
-  return function () {
-    var reversedFields = {};
-    var reversedSchemas = [];
-    var isTransformed = false;
-    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-      var fieldName = fieldNames[idx];
-      var schema = schemas[idx];
-      var reversed = schema["~r"]();
-      reversedFields[fieldName] = reversed;
-      reversedSchemas.push(reversed);
-      if (schema !== reversed) {
-        isTransformed = true;
+function advancedBuilder(definition, items, inlinedLocations) {
+  return function (parentB, input, selfSchema, path) {
+    var outputs = new WeakMap();
+    var unknownKeys = selfSchema.t.unknownKeys;
+    var b = {
+      c: "",
+      l: "",
+      g: parentB.g
+    };
+    var inputVar = $$var(b, input);
+    var typeFilters = "";
+    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+      var item = items[idx];
+      switch (item.k) {
+        case 0 :
+            var schema = item.s;
+            var itemPath = "[" + item.i + "]";
+            var itemInput = {
+              v: false,
+              i: inputVar + itemPath,
+              a: false
+            };
+            var path$1 = path + itemPath;
+            var typeFilter = schema.f;
+            if (typeFilter !== undefined) {
+              if (schema.t.TAG === "literal" && !(b.g.o & 64)) {
+                typeFilters = typeFilterCode(b, typeFilter, schema, itemInput, path$1) + typeFilters;
+              } else if (b.g.o & 1) {
+                typeFilters = typeFilters + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
+              }
+              
+            }
+            outputs.set(item, schema.b(b, itemInput, schema, path$1));
+            break;
+        case 1 :
+            break;
+        case 2 :
+            var schema$1 = item.s;
+            outputs.set(item, schema$1.b(b, input, schema$1, path));
+            break;
+        
       }
-      
     }
-    if (isTransformed) {
-      return makeReverseSchema(name$1, {
-                  TAG: "object",
-                  fieldNames: fieldNames,
-                  fields: reversedFields,
-                  unknownKeys: globalConfig.u,
-                  advanced: false
-                }, empty, builder$1(reversedSchemas, inlinedLocations, false), typeFilter$1);
-    } else {
-      return this;
-    }
+    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
+    var getItemOutput = function (item) {
+      switch (item.k) {
+        case 1 :
+            return get(b, getItemOutput(item.t), item.i);
+        case 0 :
+        case 2 :
+            return outputs.get(item);
+        
+      }
+    };
+    var output = definitionToOutput(b, definition, getItemOutput);
+    b.c = typeFilters + b.c;
+    parentB.c = parentB.c + allocateScope(b);
+    return output;
   };
 }
 
@@ -2338,67 +2402,6 @@ function advancedReverse(definition, kind, items) {
         return output;
       });
     return reversed;
-  };
-}
-
-function advancedBuilder(definition, items, inlinedLocations) {
-  return function (parentB, input, selfSchema, path) {
-    var outputs = new WeakMap();
-    var unknownKeys = selfSchema.t.unknownKeys;
-    var b = {
-      c: "",
-      l: "",
-      g: parentB.g
-    };
-    var inputVar = $$var(b, input);
-    var typeFilters = "";
-    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-      var item = items[idx];
-      switch (item.k) {
-        case 0 :
-            var schema = item.s;
-            var itemPath = "[" + item.i + "]";
-            var itemInput = {
-              v: false,
-              i: inputVar + itemPath,
-              a: false
-            };
-            var path$1 = path + itemPath;
-            var typeFilter = schema.f;
-            if (typeFilter !== undefined) {
-              if (schema.t.TAG === "literal" && !(b.g.o & 64)) {
-                typeFilters = typeFilterCode(b, typeFilter, schema, itemInput, path$1) + typeFilters;
-              } else if (b.g.o & 1) {
-                typeFilters = typeFilters + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
-              }
-              
-            }
-            outputs.set(item, schema.b(b, itemInput, schema, path$1));
-            break;
-        case 1 :
-            break;
-        case 2 :
-            var schema$1 = item.s;
-            outputs.set(item, schema$1.b(b, input, schema$1, path));
-            break;
-        
-      }
-    }
-    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
-    var getItemOutput = function (item) {
-      switch (item.k) {
-        case 1 :
-            return get(b, getItemOutput(item.t), item.i);
-        case 0 :
-        case 2 :
-            return outputs.get(item);
-        
-      }
-    };
-    var output = definitionToOutput(b, definition, getItemOutput);
-    b.c = typeFilters + b.c;
-    parentB.c = parentB.c + allocateScope(b);
-    return output;
   };
 }
 

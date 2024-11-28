@@ -45,6 +45,7 @@ export const describe = S.describe;
 export const name = S.js_name;
 export const setName = S.setName;
 export const removeTypeValidation = S.removeTypeValidation;
+export const compile = S.compile;
 
 export const port = S.port;
 

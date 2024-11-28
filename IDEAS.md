@@ -21,13 +21,14 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 ## v9
 
 - Add S.compile to Js/ts api
-- Add testWith
+- Add S.test
 - Change asyncParser from () => () => promise to () => promise
 - Add schema input to the error ??? What about build errors?
 - Rename S.Object.strict to S.strict (the same for strip)
 - Fix unknownKeys for nested S.schema
 - Add Enums section to js docs
 - Remove object and tuple literals in favor of S.schema
+- Add s.strict s.strip to ppx
 
 ### Done
 

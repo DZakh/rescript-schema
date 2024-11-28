@@ -190,14 +190,14 @@ let refine: (t<'value>, s<'value> => 'value => unit) => t<'value>
 let to: (t<'value>, 'value => 'variant) => t<'variant>
 
 type rec input<'value, 'computed> =
-  | Value: input<'value, 'value>
+  | @as("Output") Value: input<'value, 'value>
+  | @as("Input") Unknown: input<'value, unknown>
   | Any: input<'value, 'any>
-  | Unknown: input<'value, unknown>
   | Json: input<'value, Js.Json.t>
   | JsonString: input<'value, string>
 type rec output<'value, 'computed> =
-  | Value: output<'value, 'value>
-  | Unknown: output<'value, unknown>
+  | @as("Output") Value: output<'value, 'value>
+  | @as("Input") Unknown: output<'value, unknown>
   | Assert: output<'value, unit>
   | Json: output<'value, Js.Json.t>
   | JsonString: output<'value, string>
@@ -210,7 +210,7 @@ let compile: (
   ~input: input<'value, 'input>,
   ~output: output<'value, 'transformedOutput>,
   ~mode: mode<'transformedOutput, 'output>,
-  ~typeValidation: bool,
+  ~typeValidation: bool=?,
 ) => 'input => 'output
 
 let parseOrThrow: ('any, t<'value>) => 'value

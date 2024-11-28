@@ -95,12 +95,12 @@ async function assertRaisedAsync(t, cb, errorPayload) {
 function getCompiledCodeString(schema, op) {
   return (
             op === "Parse" || op === "ParseAsync" ? (
-                op === "ParseAsync" || S$RescriptSchema.isAsync(schema) ? S$RescriptSchema.compile(schema, "Any", "Value", "Async", true) : S$RescriptSchema.compile(schema, "Any", "Value", "Sync", true)
+                op === "ParseAsync" || S$RescriptSchema.isAsync(schema) ? S$RescriptSchema.compile(schema, "Any", "Output", "Async", true) : S$RescriptSchema.compile(schema, "Any", "Output", "Sync", true)
               ) : (
-                op === "ReverseConvertToJson" ? S$RescriptSchema.compile(schema, "Value", "Json", "Sync", false) : (
-                    op === "ReverseConvert" ? S$RescriptSchema.compile(schema, "Value", "Unknown", "Sync", false) : (
+                op === "ReverseConvertToJson" ? S$RescriptSchema.compile(schema, "Output", "Json", "Sync", false) : (
+                    op === "ReverseConvert" ? S$RescriptSchema.compile(schema, "Output", "Input", "Sync", false) : (
                         op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : (
-                            op === "ReverseParse" ? S$RescriptSchema.compile(schema, "Value", "Unknown", "Sync", true) : S$RescriptSchema.compile(schema, "Value", "Unknown", "Async", false)
+                            op === "ReverseParse" ? S$RescriptSchema.compile(schema, "Output", "Input", "Sync", true) : S$RescriptSchema.compile(schema, "Output", "Input", "Async", false)
                           )
                       )
                   )
