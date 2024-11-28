@@ -1423,7 +1423,7 @@ Async version for the `convertAnyWith` operation.
 
 ### **`compile`**
 
-`(S.t<'value>, ~input: input<'value, 'input>, ~output: output<'value, 'transformedOutput>, ~mode: mode<'transformedOutput, 'output>, ~typeValidation: bool) => 'input => 'output`
+`(S.t<'value>, ~input: input<'value, 'input>, ~output: output<'value, 'transformedOutput>, ~mode: mode<'transformedOutput, 'output>, ~typeValidation: bool=?) => 'input => 'output`
 
 If you want to have the most possible performance, or the built-in operations doesn't cover your specific use case, you can use `compile` to create fine-tuned operation functions.
 
@@ -1433,7 +1433,6 @@ let fn = S.compile(
   ~input=Any,
   ~output=Assert,
   ~mode=Async,
-  ~typeValidation=true,
 )
 await fn("Hello world!")
 // Ok("Hello world!")
@@ -1464,7 +1463,7 @@ You can configure compiled function `mode` with the following options:
 
 And you can configure compiled function `typeValidation` with the following options:
 
-- `true` - performs type validation
+- `true (default)` - performs type validation
 - `false` - doesn't perform type validation and only converts data to the output format. Note that refines are still applied.
 
 ### **`classify`**

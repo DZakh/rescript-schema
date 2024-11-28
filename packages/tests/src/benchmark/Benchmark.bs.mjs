@@ -252,7 +252,7 @@ run(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(addWithPrepare(a
                                                       })), "S.schema - reverse convert (compiled)", (function () {
                                                     var schema = makeAdvancedObjectSchema();
                                                     var data = makeTestObject();
-                                                    var fn = S$RescriptSchema.compile(schema, "Value", "Unknown", "Sync", false);
+                                                    var fn = S$RescriptSchema.compile(schema, "Output", "Input", "Sync", false);
                                                     return function () {
                                                       return fn(data);
                                                     };

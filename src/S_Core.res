@@ -889,14 +889,14 @@ let operationFn = (s, o) => {
 }
 
 type rec input<'value, 'computed> =
-  | Value: input<'value, 'value>
+  | @as("Output") Value: input<'value, 'value>
+  | @as("Input") Unknown: input<'value, unknown>
   | Any: input<'value, 'any>
-  | Unknown: input<'value, unknown>
   | Json: input<'value, Js.Json.t>
   | JsonString: input<'value, string>
 type rec output<'value, 'computed> =
-  | Value: output<'value, 'value>
-  | Unknown: output<'value, unknown>
+  | @as("Output") Value: output<'value, 'value>
+  | @as("Input") Unknown: output<'value, unknown>
   | Assert: output<'value, unit>
   | Json: output<'value, Js.Json.t>
   | JsonString: output<'value, string>
@@ -906,14 +906,14 @@ type rec mode<'output, 'computed> =
 
 @@warning("-37")
 type internalInput =
-  | Value
+  | Output
+  | Input
   | Any
-  | Unknown
   | Json
   | JsonString
 type internalOutput =
-  | Value
-  | Unknown
+  | Output
+  | Input
   | Assert
   | Json
   | JsonString
@@ -927,7 +927,7 @@ let compile = (
   ~input: input<'value, 'input>,
   ~output: output<'value, 'transformedOutput>,
   ~mode: mode<'transformedOutput, 'output>,
-  ~typeValidation,
+  ~typeValidation=true,
 ): ('input => 'output) => {
   let output = output->(Obj.magic: output<'value, 'transformedOutput> => internalOutput)
   let input = input->(Obj.magic: input<'schemaInput, 'input> => internalInput)
@@ -937,8 +937,13 @@ let compile = (
 
   let flag = ref(Flag.none)
   switch output {
-  | Value
-  | Unknown => ()
+  | Output
+  | Input => {
+      if output === input->Obj.magic {
+        InternalError.panic(`Can't compile operation to converting value to self`)
+      }
+      ()
+    }
   | Assert => flag := flag.contents->Flag.with(Flag.assertOutput)
   | Json => flag := flag.contents->Flag.with(Flag.jsonableOutput)
   | JsonString =>
@@ -951,10 +956,7 @@ let compile = (
   if typeValidation {
     flag := flag.contents->Flag.with(Flag.typeValidation)
   }
-  if input === Value {
-    if output === Value {
-      InternalError.panic(`Can't compile Value input to Value output`)
-    }
+  if input === Output {
     flag := flag.contents->Flag.with(Flag.reverse)
   }
   let fn = schema->operationFn(flag.contents)->Obj.magic
