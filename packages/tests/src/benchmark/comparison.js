@@ -62,6 +62,7 @@ const schema = S.schema({
     bool: S.boolean,
   },
 });
+let parseOrThrow = S.compile(schema, "Input", "Output", "Sync", true);
 
 new B.Suite()
   .add("rescript-schema (create)", () => {
@@ -81,6 +82,9 @@ new B.Suite()
   })
   .add("rescript-schema (parse)", () => {
     return S.parseOrThrow(data, schema);
+  })
+  .add("rescript-schema (precompiled parse)", () => {
+    return parseOrThrow(data, schema);
   })
   .add("rescript-schema (create + parse)", () => {
     const schema = S.schema({

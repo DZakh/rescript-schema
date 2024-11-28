@@ -1,4 +1,4 @@
-import test from "ava";
+import test, { ExecutionContext } from "ava";
 import { expectType, TypeEqual } from "ts-expect";
 
 import * as S from "../../../../src/S.js";
@@ -1761,4 +1761,71 @@ test("Example", (t) => {
     >
   >(true);
   expectType<TypeEqual<LoginData, { email: string; password: string }>>(true);
+});
+
+test("Compile types", async (t) => {
+  const schema = S.nullable(S.string);
+
+  const fn1 = S.compile(schema, "Input", "Output", "Sync");
+  expectType<
+    TypeEqual<typeof fn1, (input: string | null) => string | undefined>
+  >(true);
+  t.deepEqual(fn1("hello"), "hello");
+  t.deepEqual(fn1(null), undefined);
+
+  const fn2 = S.compile(schema, "Output", "Input", "Sync", false);
+  expectType<
+    TypeEqual<typeof fn2, (input: string | undefined) => string | null>
+  >(true);
+  t.deepEqual(fn2("hello"), "hello");
+  t.deepEqual(fn2(undefined), null);
+
+  const fn3 = S.compile(schema, "Any", "Output", "Sync", true);
+  expectType<TypeEqual<typeof fn3, (input: unknown) => string | undefined>>(
+    true
+  );
+  t.deepEqual(fn3("hello"), "hello");
+  t.deepEqual(fn3(null), undefined);
+
+  const fn4 = S.compile(schema, "Json", "Output", "Sync");
+  expectType<TypeEqual<typeof fn4, (input: S.Json) => string | undefined>>(
+    true
+  );
+  t.deepEqual(fn4("hello"), "hello");
+  t.deepEqual(fn4(null), undefined);
+
+  const fn5 = S.compile(schema, "JsonString", "Output", "Sync");
+  expectType<TypeEqual<typeof fn5, (input: string) => string | undefined>>(
+    true
+  );
+  t.deepEqual(fn5(`"hello"`), "hello");
+  t.deepEqual(fn5("null"), undefined);
+
+  const fn6 = S.compile(schema, "Output", "Json", "Sync");
+  expectType<TypeEqual<typeof fn6, (input: string | undefined) => S.Json>>(
+    true
+  );
+  t.deepEqual(fn6("hello"), "hello");
+  t.deepEqual(fn6(undefined), null);
+
+  const fn7 = S.compile(schema, "Output", "JsonString", "Sync");
+  expectType<TypeEqual<typeof fn7, (input: string | undefined) => string>>(
+    true
+  );
+  t.deepEqual(fn7("hello"), `"hello"`);
+  t.deepEqual(fn7(undefined), "null");
+
+  const fn8 = S.compile(schema, "Output", "Assert", "Sync", true);
+  expectType<TypeEqual<typeof fn8, (input: string | undefined) => void>>(true);
+  t.deepEqual(fn8("hello"), undefined);
+  t.deepEqual(fn8(undefined), undefined);
+
+  const fn9 = S.compile(schema, "Output", "JsonString", "Async");
+  expectType<
+    TypeEqual<typeof fn9, (input: string | undefined) => Promise<string>>
+  >(true);
+  t.deepEqual(await fn9("hello"), `"hello"`);
+  t.deepEqual(await fn9(undefined), "null");
+
+  t.pass();
 });

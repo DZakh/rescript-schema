@@ -380,3 +380,43 @@ export type GlobalConfigOverride = {
 export function setGlobalConfig(
   globalConfigOverride: GlobalConfigOverride
 ): void;
+
+type CompileInputMappings<Input, Output> = {
+  Input: Input;
+  Output: Output;
+  Any: unknown;
+  Json: Json;
+  JsonString: string;
+};
+
+type CompileOutputMappings<Input, Output> = {
+  Output: Output;
+  Input: Input;
+  Assert: void;
+  Json: Json;
+  JsonString: string;
+};
+
+export type CompileInputOption = keyof CompileInputMappings<unknown, unknown>;
+export type CompileOutputOption = keyof CompileOutputMappings<unknown, unknown>;
+export type CompileModeOption = "Sync" | "Async";
+
+export function compile<
+  Output,
+  Input,
+  InputOption extends CompileInputOption,
+  OutputOption extends CompileOutputOption,
+  ModeOption extends CompileModeOption
+>(
+  schema: Schema<Output, Input>,
+  input: InputOption,
+  output: OutputOption,
+  mode: ModeOption,
+  typeValidation?: boolean
+): (
+  input: CompileInputMappings<Input, Output>[InputOption]
+) => ModeOption extends "Sync"
+  ? CompileOutputMappings<Input, Output>[OutputOption]
+  : ModeOption extends "Async"
+  ? Promise<CompileOutputMappings<Input, Output>[OutputOption]>
+  : never;
