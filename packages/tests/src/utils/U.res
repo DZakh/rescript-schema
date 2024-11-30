@@ -74,6 +74,7 @@ let getCompiledCodeString = (
   ~op: [
     | #Parse
     | #ParseAsync
+    | #Convert
     | #ReverseConvertAsync
     | #ReverseConvert
     | #ReverseParse
@@ -92,6 +93,9 @@ let getCompiledCodeString = (
         let fn = schema->S.compile(~input=Any, ~output=Value, ~mode=Sync, ~typeValidation=true)
         fn->magic
       }
+    | #Convert =>
+      let fn = schema->S.compile(~input=Any, ~output=Value, ~mode=Sync, ~typeValidation=false)
+      fn->magic
     | #Assert =>
       let fn = schema->S.compile(~input=Any, ~output=Assert, ~mode=Sync, ~typeValidation=true)
       fn->magic
