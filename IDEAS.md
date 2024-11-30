@@ -20,9 +20,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v9
 
-- Add S.compile to Js/ts api
 - Add S.test
-- Change asyncParser from () => () => promise to () => promise
 - Add schema input to the error ??? What about build errors?
 - Rename S.Object.strict to S.strict (the same for strip)
 - Fix unknownKeys for nested S.schema
@@ -45,6 +43,8 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Get rid of S.literal in Js/ts API and S.tuple shorthand
 - Renamed disableNanNumberCheck to use validation
 - Add flatten to ts api
+- Add S.compile to Js/ts api
+- Changed asyncParser from (i) => () => promise to (i) => promise
 
 ## v10
 

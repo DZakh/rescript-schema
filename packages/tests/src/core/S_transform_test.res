@@ -17,7 +17,7 @@ asyncTest(
   "Asynchronously parses unknown primitive with transformation to another type",
   async t => {
     let schema = S.int->S.transform(_ => {
-      asyncParser: value => () => Promise.resolve()->Promise.thenResolve(() => value->Int.toFloat),
+      asyncParser: value => Promise.resolve()->Promise.thenResolve(() => value->Int.toFloat),
     })
 
     t->Assert.deepEqual(await 123->S.parseAsyncOrThrow(schema), 123., ())
@@ -209,8 +209,7 @@ test(
 )
 
 test("Fails to parse schema with transform having both parser and asyncParser", t => {
-  let schema =
-    S.string->S.transform(_ => {parser: _ => (), asyncParser: _ => () => Promise.resolve()})
+  let schema = S.string->S.transform(_ => {parser: _ => (), asyncParser: _ => Promise.resolve()})
 
   t->U.assertRaised(
     () => "foo"->S.parseOrThrow(schema),
@@ -225,7 +224,7 @@ test("Fails to parse schema with transform having both parser and asyncParser", 
 })
 
 test("Fails to parse async using parseOrThrow", t => {
-  let schema = S.string->S.transform(_ => {asyncParser: value => () => Promise.resolve(value)})
+  let schema = S.string->S.transform(_ => {asyncParser: value => Promise.resolve(value)})
 
   t->U.assertRaised(
     () => %raw(`"Hello world!"`)->S.parseOrThrow(schema),
@@ -246,7 +245,7 @@ test("Successfully serializes with empty transform", t => {
 })
 
 asyncTest("Successfully parses async using parseAsyncOrThrow", t => {
-  let schema = S.string->S.transform(_ => {asyncParser: value => () => Promise.resolve(value)})
+  let schema = S.string->S.transform(_ => {asyncParser: value => Promise.resolve(value)})
 
   %raw(`"Hello world!"`)
   ->S.parseAsyncOrThrow(schema)
@@ -256,7 +255,7 @@ asyncTest("Successfully parses async using parseAsyncOrThrow", t => {
 })
 
 asyncTest("Fails to parse async with user error", t => {
-  let schema = S.string->S.transform(s => {asyncParser: _ => () => s.fail("User error")})
+  let schema = S.string->S.transform(s => {asyncParser: _ => s.fail("User error")})
 
   t->U.assertRaisedAsync(
     () => %raw(`"Hello world!"`)->S.parseAsyncOrThrow(schema),
@@ -267,9 +266,9 @@ asyncTest("Fails to parse async with user error", t => {
 asyncTest("Can apply other actions after async transform", t => {
   let schema =
     S.string
-    ->S.transform(_ => {asyncParser: value => () => Promise.resolve(value)})
+    ->S.transform(_ => {asyncParser: value => Promise.resolve(value)})
     ->S.trim
-    ->S.transform(_ => {asyncParser: value => () => Promise.resolve(value)})
+    ->S.transform(_ => {asyncParser: value => Promise.resolve(value)})
 
   t->U.assertCompiledCode(
     ~schema,
@@ -299,7 +298,7 @@ test("Compiled parse code snapshot", t => {
 
 test("Compiled async parse code snapshot", t => {
   let schema = S.int->S.transform(_ => {
-    asyncParser: int => () => int->Int.toFloat->Promise.resolve,
+    asyncParser: int => int->Int.toFloat->Promise.resolve,
     serializer: value => value->Int.fromFloat,
   })
 

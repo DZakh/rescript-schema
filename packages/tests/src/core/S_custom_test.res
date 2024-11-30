@@ -85,7 +85,7 @@ test("Fails to serialize with serializer is missing", t => {
 
 asyncTest("Parses with asyncParser", async t => {
   let schema = S.custom("Test", _ => {
-    asyncParser: _ => () => Promise.resolve(),
+    asyncParser: _ => Promise.resolve(),
   })
 
   t->Assert.deepEqual(await %raw(`undefined`)->S.parseAsyncOrThrow(schema), (), ())
