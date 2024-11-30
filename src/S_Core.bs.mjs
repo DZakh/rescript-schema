@@ -380,9 +380,9 @@ function withPathPrepend(b, input, path, maybeDynamicLocationVar, fn) {
   }
 }
 
-function typeFilterCode(b, typeFilter, schema, input, path) {
+function typeFilterCode(b, schema, input, path) {
   var inputVar = $$var(b, input);
-  return "if(" + typeFilter(b, inputVar) + "){" + failWithArg(b, path, (function (input) {
+  return "if(" + schema.f(b, inputVar) + "){" + failWithArg(b, path, (function (input) {
                 return {
                         TAG: "InvalidType",
                         expected: schema,
@@ -391,15 +391,11 @@ function typeFilterCode(b, typeFilter, schema, input, path) {
               }), inputVar) + "}";
 }
 
-function parseWithTypeCheck(b, schema, input, path) {
-  var typeFilter = schema.f;
-  if (typeFilter === undefined) {
+function parseWithTypeValidation(b, schema, input, path) {
+  if (!(schema.f !== undefined && (schema.t.TAG === "literal" || b.g.o & 1))) {
     return schema.b(b, input, schema, path);
   }
-  if (!(schema.t.TAG === "literal" || b.g.o & 1)) {
-    return schema.b(b, input, schema, path);
-  }
-  b.c = b.c + typeFilterCode(b, typeFilter, schema, input, path);
+  b.c = b.c + typeFilterCode(b, schema, input, path);
   var bb = {
     c: "",
     l: "",
@@ -450,12 +446,8 @@ function compile(builder, schema, flag) {
   if (b.l !== "") {
     b.c = "let " + b.l + ";" + b.c;
   }
-  if (flag & 1 || schema.t.TAG === "literal") {
-    var typeFilter = schema.f;
-    if (typeFilter !== undefined) {
-      b.c = typeFilterCode(b, typeFilter, schema, input, "") + b.c;
-    }
-    
+  if ((flag & 1 || schema.t.TAG === "literal") && schema.f !== undefined) {
+    b.c = typeFilterCode(b, schema, input, "") + b.c;
   }
   if (b.c === "" && output === input && !(flag & 22)) {
     return noopOperation;
@@ -1213,10 +1205,9 @@ function makeBuilder(isNullInput, isNullOutput) {
 }
 
 function maybeTypeFilter(schema, inlinedNoneValue) {
-  var typeFilter = schema.f;
-  if (typeFilter !== undefined) {
+  if (schema.f !== undefined) {
     return (function (b, inputVar) {
-              return inputVar + "!==" + inlinedNoneValue + "&&(" + typeFilter(b, inputVar) + ")";
+              return inputVar + "!==" + inlinedNoneValue + "&&(" + schema.f(b, inputVar) + ")";
             });
   }
   
@@ -1332,7 +1323,7 @@ function factory$2(schema) {
                   a: false
                 };
                 var itemOutput = withPathPrepend(bb, itemInput, path, iteratorVar, (function (b, input, path) {
-                        return parseWithTypeCheck(b, schema, input, path);
+                        return parseWithTypeValidation(b, schema, input, path);
                       }));
                 var itemCode = allocateScope(bb);
                 var isTransformed = itemInput !== itemOutput;
@@ -1436,7 +1427,7 @@ function factory$3(schema) {
                   a: false
                 };
                 var itemOutput = withPathPrepend(bb, itemInput, path, keyVar, (function (b, input, path) {
-                        return parseWithTypeCheck(b, schema, input, path);
+                        return parseWithTypeValidation(b, schema, input, path);
                       }));
                 var itemCode = allocateScope(bb);
                 var isTransformed = itemInput !== itemOutput;
@@ -1503,14 +1494,7 @@ function factory$4(schema, spaceOpt) {
                                   _0: message
                                 };
                         }), "t.message") + "}");
-                var bb = {
-                  c: "",
-                  l: "",
-                  g: b.g
-                };
-                var val = parseWithTypeCheck(bb, schema, jsonVal, path);
-                b.c = b.c + allocateScope(bb);
-                return val;
+                return parseWithTypeValidation(b, schema, jsonVal, path);
               }), typeFilter$3, (function () {
                 var reversed = schema["~r"]();
                 return makeReverseSchema(reversed.n, reversed.t, reversed.m, (function (b, input, param, path) {
@@ -1646,8 +1630,7 @@ function factory$5(schemas) {
                   var typeFilters = [];
                   for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
                     var schema = schemas[idx];
-                    var typeFilter = schema.f;
-                    var typeFilterCode = typeFilter !== undefined ? typeFilter(b, inputVar) : "";
+                    var typeFilterCode = schema.f !== undefined ? schema.f(b, inputVar) : "";
                     var schemas$1 = Js_dict.get(byTypeFilter, typeFilterCode);
                     if (schemas$1 !== undefined) {
                       schemas$1.push(schema);
@@ -1727,16 +1710,16 @@ function preprocess(schema, transformer) {
                   if (match.a !== undefined) {
                     return invalidOperation(b, path, "The S.preprocess doesn't allow parser and asyncParser at the same time. Remove parser in favor of asyncParser");
                   } else {
-                    return parseWithTypeCheck(b, schema, embedSyncOperation(b, input, parser), path);
+                    return parseWithTypeValidation(b, schema, embedSyncOperation(b, input, parser), path);
                   }
                 }
                 var asyncParser = match.a;
                 if (asyncParser !== undefined) {
                   return transform(b, embedAsyncOperation(b, input, asyncParser), (function (b, input) {
-                                return parseWithTypeCheck(b, schema, input, path);
+                                return parseWithTypeValidation(b, schema, input, path);
                               }));
                 } else {
-                  return parseWithTypeCheck(b, schema, input, path);
+                  return parseWithTypeValidation(b, schema, input, path);
                 }
               }), undefined, (function () {
                 var reversed = schema["~r"]();
@@ -1841,7 +1824,7 @@ function $$catch(schema, getFallbackValue) {
                                       a: false
                                     };
                             }), (function (b) {
-                              return parseWithTypeCheck(b, schema, input, path);
+                              return parseWithTypeValidation(b, schema, input, path);
                             }));
               }), undefined, (function () {
                 return schema["~r"]();
@@ -2042,12 +2025,11 @@ function builder$1(schemas, inlinedLocations, isArray) {
       var itemPath = "[" + inlinedLocation + "]";
       var itemInput = get(b, input, inlinedLocation);
       var path$1 = path + itemPath;
-      var typeFilter = schema.f;
-      if (typeFilter !== undefined) {
+      if (schema.f !== undefined) {
         if (schema.t.TAG === "literal" && !(b.g.o & 64)) {
-          typeFilters = typeFilterCode(b, typeFilter, schema, itemInput, path$1) + typeFilters;
+          typeFilters = typeFilterCode(b, schema, itemInput, path$1) + typeFilters;
         } else if (b.g.o & 1) {
-          typeFilters = typeFilters + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
+          typeFilters = typeFilters + typeFilterCode(b, schema, itemInput, path$1);
         }
         
       }
@@ -2214,7 +2196,6 @@ function advancedReverse(definition, kind, items) {
             case 0 :
                 break;
             case 1 :
-                var reversed = match.s;
                 var rpath = match.p;
                 var itemInput = {
                   v: false,
@@ -2222,7 +2203,7 @@ function advancedReverse(definition, kind, items) {
                   a: false
                 };
                 var path$1 = path + rpath;
-                typeFilters.contents = typeFilters.contents + typeFilterCode(b, reversed.f, reversed, itemInput, path$1);
+                typeFilters.contents = typeFilters.contents + typeFilterCode(b, match.s, itemInput, path$1);
                 break;
             case 2 :
                 if (b.g.o & 1) {
@@ -2292,15 +2273,11 @@ function advancedReverse(definition, kind, items) {
             var reversed = ritem.s;
             var itemInput = getRitemInput(ritem);
             var path$2 = path + ritem.p;
-            if (ritem.p !== "") {
-              var typeFilter = reversed.f;
-              if (typeFilter !== undefined) {
-                if (reversed.t.TAG === "literal" && !(b.g.o & 64)) {
-                  typeFilters.contents = typeFilterCode(b, typeFilter, reversed, itemInput, path$2) + typeFilters.contents;
-                } else if (b.g.o & 1) {
-                  typeFilters.contents = typeFilters.contents + typeFilterCode(b, typeFilter, reversed, itemInput, path$2);
-                }
-                
+            if (ritem.p !== "" && reversed.f !== undefined) {
+              if (reversed.t.TAG === "literal" && !(b.g.o & 64)) {
+                typeFilters.contents = typeFilterCode(b, reversed, itemInput, path$2) + typeFilters.contents;
+              } else if (b.g.o & 1) {
+                typeFilters.contents = typeFilters.contents + typeFilterCode(b, reversed, itemInput, path$2);
               }
               
             }
@@ -2365,12 +2342,11 @@ function advancedBuilder(definition, items, inlinedLocations) {
               a: false
             };
             var path$1 = path + itemPath;
-            var typeFilter = schema.f;
-            if (typeFilter !== undefined) {
+            if (schema.f !== undefined) {
               if (schema.t.TAG === "literal" && !(b.g.o & 64)) {
-                typeFilters = typeFilterCode(b, typeFilter, schema, itemInput, path$1) + typeFilters;
+                typeFilters = typeFilterCode(b, schema, itemInput, path$1) + typeFilters;
               } else if (b.g.o & 1) {
-                typeFilters = typeFilters + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
+                typeFilters = typeFilters + typeFilterCode(b, schema, itemInput, path$1);
               }
               
             }
