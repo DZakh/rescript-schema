@@ -2,14 +2,14 @@ open Ava
 open RescriptCore
 
 let validAsyncRefine = S.transform(_, _ => {
-  asyncParser: value => () => value->Promise.resolve,
+  asyncParser: value => value->Promise.resolve,
 })
 let invalidSyncRefine = S.refine(_, s => _ => s.fail("Sync user error"))
 let unresolvedPromise = Promise.make((_, _) => ())
 let makeInvalidPromise = (s: S.s<'a>) =>
   Promise.resolve()->Promise.then(() => s.fail("Async user error"))
 let invalidAsyncRefine = S.transform(_, s => {
-  asyncParser: _ => () => makeInvalidPromise(s),
+  asyncParser: _ => makeInvalidPromise(s),
 })
 
 // asyncTest("Successfully parses without asyncRefine", t => {
@@ -553,18 +553,14 @@ module Union = {
     let schema = S.union([
       S.literal(2)->S.transform(_ => {
         asyncParser: _ => {
-          () => {
-            actionCounter.contents = actionCounter.contents + 1
-            unresolvedPromise
-          }
+          actionCounter.contents = actionCounter.contents + 1
+          unresolvedPromise
         },
       }),
       S.literal(2)->S.transform(_ => {
         asyncParser: _ => {
-          () => {
-            actionCounter.contents = actionCounter.contents + 1
-            unresolvedPromise
-          }
+          actionCounter.contents = actionCounter.contents + 1
+          unresolvedPromise
         },
       }),
     ])

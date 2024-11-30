@@ -159,7 +159,7 @@ type transformDefinition<'input, 'output> = {
   @as("p")
   parser?: 'input => 'output,
   @as("a")
-  asyncParser?: 'input => unit => promise<'output>,
+  asyncParser?: 'input => promise<'output>,
   @as("s")
   serializer?: 'output => 'input,
 }
@@ -169,7 +169,7 @@ type preprocessDefinition<'input, 'output> = {
   @as("p")
   parser?: unknown => 'output,
   @as("a")
-  asyncParser?: unknown => unit => promise<'output>,
+  asyncParser?: unknown => promise<'output>,
   @as("s")
   serializer?: unknown => 'input,
 }
@@ -179,7 +179,7 @@ type customDefinition<'input, 'output> = {
   @as("p")
   parser?: unknown => 'output,
   @as("a")
-  asyncParser?: unknown => unit => promise<'output>,
+  asyncParser?: unknown => promise<'output>,
   @as("s")
   serializer?: 'output => 'input,
 }

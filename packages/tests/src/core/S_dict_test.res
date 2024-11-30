@@ -57,7 +57,7 @@ module CommonWithNested = {
   })
 
   test("Compiled async parse code snapshot", t => {
-    let schema = S.dict(S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
+    let schema = S.dict(S.unknown->S.transform(_ => {asyncParser: i => Promise.resolve(i)}))
 
     t->U.assertCompiledCode(
       ~schema,

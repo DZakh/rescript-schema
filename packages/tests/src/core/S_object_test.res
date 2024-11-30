@@ -1173,10 +1173,7 @@ module Compiled = {
   test("Compiled parse code snapshot for simple object with async", t => {
     let schema = S.object(s =>
       {
-        "foo": s.field(
-          "foo",
-          S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}),
-        ),
+        "foo": s.field("foo", S.unknown->S.transform(_ => {asyncParser: i => Promise.resolve(i)})),
         "bar": s.field("bar", S.bool),
       }
     )
@@ -1190,7 +1187,7 @@ module Compiled = {
 
   test("Compiled parse code snapshot with async field registered as return", t => {
     let schema = S.object(s =>
-      s.field("foo", S.unknown->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
+      s.field("foo", S.unknown->S.transform(_ => {asyncParser: i => Promise.resolve(i)}))
     )
 
     t->U.assertCompiledCode(
