@@ -189,17 +189,26 @@ test("Reverse convert of tagged tuple with destructured literal", t => {
 })
 
 test("Reverse convert of tagged tuple with destructured bool", t => {
-  let schema = S.tuple2(S.literal(true), S.bool)->S.to(((_, item)) => item)
+  let schema =
+    S.tuple3(S.literal(true), S.literal("foo"), S.bool)->S.to(((_, literal, item)) => (
+      item,
+      literal,
+    ))
 
-  t->U.assertEqualSchemas(schema->S.reverse, S.bool->S.toUnknown)
+  t->U.assertEqualSchemas(schema->S.reverse, S.tuple2(S.bool, S.literal("foo"))->S.toUnknown)
 
-  t->Assert.deepEqual(false->S.reverseConvertOrThrow(schema), %raw(`[true, false]`), ())
+  t->Assert.deepEqual(
+    (false, "foo")->S.reverseConvertOrThrow(schema),
+    %raw(`[true, "foo",false]`),
+    (),
+  )
 
-  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return [e[0],i,]}`)
+  // FIXME: This is incorrect
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return [e[0],i["1"],i["0"],]}`)
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseParse,
-    `i=>{if(typeof i!=="boolean"){e[1](i)}return [e[0],i,]}`,
+    `i=>{if(!Array.isArray(i)||i.length!==2){e[1](i)}return [e[0],i["1"],i["0"],]}`,
   )
 })
 

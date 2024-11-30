@@ -20,6 +20,13 @@ module Stdlib = {
 
   module Option = {
     external unsafeUnwrap: option<'a> => 'a = "%identity"
+
+    @inline
+    let isSome = x =>
+      switch x {
+      | None => false
+      | Some(_) => true
+      }
   }
 
   module Type = {
@@ -752,9 +759,9 @@ module Builder = {
       }
     }
 
-    let typeFilterCode = (b: b, ~typeFilter, ~schema, ~input, ~path) => {
+    let typeFilterCode = (b: b, ~schema, ~input, ~path) => {
       let inputVar = b->Val.var(input)
-      `if(${b->typeFilter(~inputVar)}){${b->failWithArg(
+      `if(${b->(schema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(~inputVar)}){${b->failWithArg(
           ~path,
           input => InvalidType({
             expected: schema,
@@ -769,16 +776,18 @@ module Builder = {
       schema.builder(b, ~input, ~selfSchema=schema, ~path)
     }
 
-    let parseWithTypeCheck = (b: b, ~schema, ~input, ~path) => {
-      switch schema.maybeTypeFilter {
-      | Some(typeFilter)
-        if schema->isLiteralSchema || b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
-        b.code = b.code ++ b->typeFilterCode(~schema, ~typeFilter, ~input, ~path)
+    let parseWithTypeValidation = (b: b, ~schema, ~input, ~path) => {
+      if (
+        schema.maybeTypeFilter->Stdlib.Option.isSome &&
+          (schema->isLiteralSchema || b.global.flag->Flag.unsafeHas(Flag.typeValidation))
+      ) {
+        b.code = b.code ++ b->typeFilterCode(~schema, ~input, ~path)
         let bb = b->scope
         let val = bb->parse(~schema, ~input, ~path)
         b.code = b.code ++ bb->allocateScope
         val
-      | _ => b->parse(~schema, ~input, ~path)
+      } else {
+        b->parse(~schema, ~input, ~path)
       }
     }
   }
@@ -825,10 +834,8 @@ module Builder = {
     }
 
     if flag->Flag.unsafeHas(Flag.typeValidation) || schema->isLiteralSchema {
-      switch schema.maybeTypeFilter {
-      | Some(typeFilter) =>
-        b.code = b->B.typeFilterCode(~schema, ~typeFilter, ~input, ~path=Path.empty) ++ b.code
-      | _ => ()
+      if schema.maybeTypeFilter->Stdlib.Option.isSome {
+        b.code = b->B.typeFilterCode(~schema, ~input, ~path=Path.empty) ++ b.code
       }
     }
 
@@ -1850,14 +1857,16 @@ module Option = {
     })
 
   let maybeTypeFilter = (~schema, ~inlinedNoneValue) => {
-    switch schema.maybeTypeFilter {
-    | Some(typeFilter) =>
+    if schema.maybeTypeFilter->Stdlib.Option.isSome {
       Some(
         (b, ~inputVar) => {
-          `${inputVar}!==${inlinedNoneValue}&&(${b->typeFilter(~inputVar)})`
+          `${inputVar}!==${inlinedNoneValue}&&(${b->(
+              schema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap
+            )(~inputVar)})`
         },
       )
-    | None => None
+    } else {
+      None
     }
   }
 
@@ -2006,7 +2015,7 @@ module Array = {
             ~input=itemInput,
             ~path,
             ~dynamicLocationVar=iteratorVar,
-            (b, ~input, ~path) => b->B.parseWithTypeCheck(~schema, ~input, ~path),
+            (b, ~input, ~path) => b->B.parseWithTypeValidation(~schema, ~input, ~path),
           )
         let itemCode = bb->B.allocateScope
         let isTransformed = itemInput !== itemOutput
@@ -2123,7 +2132,7 @@ module Dict = {
             ~path,
             ~input=itemInput,
             ~dynamicLocationVar=keyVar,
-            (b, ~input, ~path) => b->B.parseWithTypeCheck(~schema, ~input, ~path),
+            (b, ~input, ~path) => b->B.parseWithTypeValidation(~schema, ~input, ~path),
           )
         let itemCode = bb->B.allocateScope
         let isTransformed = itemInput !== itemOutput
@@ -2231,10 +2240,7 @@ module JsonString = {
               "t.message",
             )}}`
 
-        let bb = b->B.scope
-        let val = bb->B.parseWithTypeCheck(~schema, ~input=jsonVal, ~path)
-        b.code = b.code ++ bb->B.allocateScope
-        val
+        b->B.parseWithTypeValidation(~schema, ~input=jsonVal, ~path)
       }),
       ~maybeTypeFilter=Some(String.typeFilter),
       ~reverse=() => {
@@ -2415,9 +2421,10 @@ module Union = {
           let typeFilters = []
           for idx in 0 to schemas->Js.Array2.length - 1 {
             let schema = schemas->Js.Array2.unsafe_get(idx)
-            let typeFilterCode = switch schema.maybeTypeFilter {
-            | Some(typeFilter) => b->typeFilter(~inputVar)
-            | None => ""
+            let typeFilterCode = if schema.maybeTypeFilter->Stdlib.Option.isSome {
+              b->(schema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(~inputVar)
+            } else {
+              ""
             }
 
             switch byTypeFilter->Js.Dict.get(typeFilterCode) {
@@ -2513,7 +2520,7 @@ let rec preprocess = (schema, transformer) => {
       ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         switch transformer(b->B.effectCtx(~selfSchema, ~path)) {
         | {parser, asyncParser: ?None} =>
-          b->B.parseWithTypeCheck(
+          b->B.parseWithTypeValidation(
             ~schema,
             ~input=b->B.embedSyncOperation(~input, ~fn=parser),
             ~path,
@@ -2522,10 +2529,11 @@ let rec preprocess = (schema, transformer) => {
           b->B.transform(
             ~input=b->B.embedAsyncOperation(~input, ~fn=asyncParser),
             (b, ~input) => {
-              b->B.parseWithTypeCheck(~schema, ~input, ~path)
+              b->B.parseWithTypeValidation(~schema, ~input, ~path)
             },
           )
-        | {parser: ?None, asyncParser: ?None} => b->B.parseWithTypeCheck(~schema, ~input, ~path)
+        | {parser: ?None, asyncParser: ?None} =>
+          b->B.parseWithTypeValidation(~schema, ~input, ~path)
         | {parser: _, asyncParser: _} =>
           b->B.invalidOperation(
             ~path,
@@ -2666,7 +2674,7 @@ let catch = (schema, getFallbackValue) => {
           ),
         ),
         b => {
-          b->B.parseWithTypeCheck(~schema, ~input, ~path)
+          b->B.parseWithTypeValidation(~schema, ~input, ~path)
         },
       )
     }),
@@ -2973,16 +2981,15 @@ module Schema = {
       let itemInput = b->B.Val.get(input, inlinedLocation)
       let path = path->Path.concat(itemPath)
 
-      switch schema.maybeTypeFilter {
-      | Some(typeFilter)
-        if schema->isLiteralSchema && !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant)) =>
-        // Check literal fields first, because they are most often used as discriminants
-        typeFilters :=
-          b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path) ++ typeFilters.contents
-      | Some(typeFilter) if b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
-        typeFilters :=
-          typeFilters.contents ++ b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path)
-      | _ => ()
+      if schema.maybeTypeFilter->Stdlib.Option.isSome {
+        if schema->isLiteralSchema && !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant)) {
+          // Check literal fields first, because they are most often used as discriminants
+          typeFilters :=
+            b->B.typeFilterCode(~schema, ~input=itemInput, ~path) ++ typeFilters.contents
+        } else if b.global.flag->Flag.unsafeHas(Flag.typeValidation) {
+          typeFilters :=
+            typeFilters.contents ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
+        }
       }
 
       objectVal->B.Val.Object.add(inlinedLocation, b->B.parse(~schema, ~input=itemInput, ~path))
@@ -3057,18 +3064,15 @@ module Schema = {
           let itemInput = b->B.val(`${inputVar}${itemPath}`)
           let path = path->Path.concat(itemPath)
 
-          switch schema.maybeTypeFilter {
-          | Some(typeFilter)
-            if schema->isLiteralSchema && !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant)) =>
-            // Check literal fields first, because they are most often used as discriminants
-            typeFilters :=
-              b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path) ++
-                typeFilters.contents
-          | Some(typeFilter) if b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
-            typeFilters :=
-              typeFilters.contents ++
-              b->B.typeFilterCode(~schema, ~typeFilter, ~input=itemInput, ~path)
-          | _ => ()
+          if schema.maybeTypeFilter->Stdlib.Option.isSome {
+            if schema->isLiteralSchema && !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant)) {
+              // Check literal fields first, because they are most often used as discriminants
+              typeFilters :=
+                b->B.typeFilterCode(~schema, ~input=itemInput, ~path) ++ typeFilters.contents
+            } else if b.global.flag->Flag.unsafeHas(Flag.typeValidation) {
+              typeFilters :=
+                typeFilters.contents ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
+            }
           }
 
           outputs->Stdlib.WeakMap.set(item, b->B.parse(~schema, ~input=itemInput, ~path))->ignore
@@ -3142,14 +3146,9 @@ module Schema = {
         | Discriminant({reversed, path: rpath}) => {
             let itemInput = b->B.val(`${b->B.Val.var(input)}${rpath}`)
             let path = path->Path.concat(rpath)
+            // Discriminant should always have a typeFilter, so don't check for it
             typeFilters :=
-              typeFilters.contents ++
-              b->B.typeFilterCode(
-                ~schema=reversed,
-                ~typeFilter=reversed.maybeTypeFilter->Stdlib.Option.unsafeUnwrap,
-                ~input=itemInput,
-                ~path,
-              )
+              typeFilters.contents ++ b->B.typeFilterCode(~schema=reversed, ~input=itemInput, ~path)
           }
         | _ => ()
         }
@@ -3217,19 +3216,20 @@ module Schema = {
             let itemInput = ritem->getRitemInput
             let path = path->Path.concat(ritem->getRitemPath)
             if ritem->getRitemPath !== Path.empty {
-              switch reversed.maybeTypeFilter {
-              | Some(typeFilter)
-                if reversed->isLiteralSchema &&
-                  !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant)) =>
-                // Check literal fields first, because they are most often used as discriminants
-                typeFilters :=
-                  b->B.typeFilterCode(~schema=reversed, ~typeFilter, ~input=itemInput, ~path) ++
-                    typeFilters.contents
-              | Some(typeFilter) if b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
-                typeFilters :=
-                  typeFilters.contents ++
-                  b->B.typeFilterCode(~schema=reversed, ~typeFilter, ~input=itemInput, ~path)
-              | _ => ()
+              if reversed.maybeTypeFilter->Stdlib.Option.isSome {
+                if (
+                  reversed->isLiteralSchema &&
+                    !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant))
+                ) {
+                  // Check literal fields first, because they are most often used as discriminants
+                  typeFilters :=
+                    b->B.typeFilterCode(~schema=reversed, ~input=itemInput, ~path) ++
+                      typeFilters.contents
+                } else if b.global.flag->Flag.unsafeHas(Flag.typeValidation) {
+                  typeFilters :=
+                    typeFilters.contents ++
+                    b->B.typeFilterCode(~schema=reversed, ~input=itemInput, ~path)
+                }
               }
             }
             b->B.parse(~schema=reversed, ~input=itemInput, ~path)

@@ -99,8 +99,10 @@ function getCompiledCodeString(schema, op) {
               ) : (
                 op === "ReverseConvertToJson" ? S$RescriptSchema.compile(schema, "Output", "Json", "Sync", false) : (
                     op === "ReverseConvert" ? S$RescriptSchema.compile(schema, "Output", "Input", "Sync", false) : (
-                        op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : (
-                            op === "ReverseParse" ? S$RescriptSchema.compile(schema, "Output", "Input", "Sync", true) : S$RescriptSchema.compile(schema, "Output", "Input", "Async", false)
+                        op === "Convert" ? S$RescriptSchema.compile(schema, "Any", "Output", "Sync", false) : (
+                            op === "Assert" ? S$RescriptSchema.compile(schema, "Any", "Assert", "Sync", true) : (
+                                op === "ReverseParse" ? S$RescriptSchema.compile(schema, "Output", "Input", "Sync", true) : S$RescriptSchema.compile(schema, "Output", "Input", "Async", false)
+                              )
                           )
                       )
                   )
