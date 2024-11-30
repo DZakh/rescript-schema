@@ -489,10 +489,7 @@ test("Creates schema with async parse function using S.recursive", t => {
       nodeSchema => {
         S.object(
           s => {
-            id: s.field(
-              "Id",
-              S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}),
-            ),
+            id: s.field("Id", S.string->S.transform(_ => {asyncParser: i => Promise.resolve(i)})),
             children: s.field("Children", S.array(nodeSchema)),
           },
         )
@@ -507,7 +504,7 @@ asyncTest("Successfully parses recursive object with async parse function", t =>
   let nodeSchema = S.recursive(nodeSchema => {
     S.object(
       s => {
-        id: s.field("Id", S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})),
+        id: s.field("Id", S.string->S.transform(_ => {asyncParser: i => Promise.resolve(i)})),
         children: s.field("Children", S.array(nodeSchema)),
       },
     )
@@ -552,9 +549,7 @@ test("Parses recursive object with async fields in parallel", t => {
             _ => {
               asyncParser: _ => {
                 actionCounter.contents = actionCounter.contents + 1
-                () => {
-                  unresolvedPromise
-                }
+                unresolvedPromise
               },
             },
           ),

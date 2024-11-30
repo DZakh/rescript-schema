@@ -82,7 +82,7 @@ test("Can use s.fail inside of S.catch", t => {
 asyncTest("Uses fallback value when async schema parsing failed during the sync part", async t => {
   let schema =
     S.string
-    ->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})
+    ->S.transform(_ => {asyncParser: i => Promise.resolve(i)})
     ->S.catch(_ => "fallback")
 
   t->Assert.deepEqual(await 123->S.parseAsyncOrThrow(schema), "fallback", ())
@@ -101,7 +101,7 @@ asyncTest(
     let schema =
       S.string
       ->S.transform(s => {
-        asyncParser: _ => () => Promise.resolve()->Promise.thenResolve(() => s.fail("fail")),
+        asyncParser: _ => Promise.resolve()->Promise.thenResolve(() => s.fail("fail")),
       })
       ->S.catch(_ => "fallback")
 
@@ -120,8 +120,7 @@ test("Compiled parse code snapshot", t => {
 })
 
 test("Compiled async parse code snapshot", t => {
-  let schema =
-    S.bool->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})->S.catch(_ => false)
+  let schema = S.bool->S.transform(_ => {asyncParser: i => Promise.resolve(i)})->S.catch(_ => false)
 
   t->U.assertCompiledCode(
     ~schema,

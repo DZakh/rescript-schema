@@ -83,7 +83,7 @@ test("Preprocess operations applyed in the right order when serializing", t => {
 })
 
 test("Fails to parse async using parseOrThrow", t => {
-  let schema = S.string->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
+  let schema = S.string->S.preprocess(_ => {asyncParser: value => Promise.resolve(value)})
 
   t->U.assertRaised(
     () => %raw(`"Hello world!"`)->S.parseOrThrow(schema),
@@ -92,13 +92,13 @@ test("Fails to parse async using parseOrThrow", t => {
 })
 
 asyncTest("Successfully parses async using parseAsyncOrThrow", async t => {
-  let schema = S.string->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
+  let schema = S.string->S.preprocess(_ => {asyncParser: value => Promise.resolve(value)})
 
   t->Assert.deepEqual(await %raw(`"Hello world!"`)->S.parseAsyncOrThrow(schema), "Hello world!", ())
 })
 
 asyncTest("Fails to parse async with user error", t => {
-  let schema = S.string->S.preprocess(s => {asyncParser: _ => () => s.fail("User error")})
+  let schema = S.string->S.preprocess(s => {asyncParser: _ => s.fail("User error")})
 
   t->U.assertRaisedAsync(
     () => %raw(`"Hello world!"`)->S.parseAsyncOrThrow(schema),
@@ -121,9 +121,9 @@ test("Successfully serializes with empty preprocess", t => {
 asyncTest("Can apply other actions after async preprocess", async t => {
   let schema =
     S.string
-    ->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
+    ->S.preprocess(_ => {asyncParser: value => Promise.resolve(value)})
     ->S.trim
-    ->S.preprocess(_ => {asyncParser: value => () => Promise.resolve(value)})
+    ->S.preprocess(_ => {asyncParser: value => Promise.resolve(value)})
 
   // TODO: Can improve builder to use string schema and trim without .then in between
   t->U.assertCompiledCode(
@@ -241,7 +241,7 @@ test("Compiled parse code snapshot", t => {
 
 test("Compiled async parse code snapshot", t => {
   let schema = S.int->S.preprocess(_ => {
-    asyncParser: _ => () => 1->Int.toFloat->Promise.resolve,
+    asyncParser: _ => 1->Int.toFloat->Promise.resolve,
     serializer: _ => 1.->Int.fromFloat,
   })
 
@@ -258,7 +258,7 @@ test("Compiled async parse code snapshot for object", t => {
       "foo": s.field("foo", S.string),
     }
   )->S.preprocess(_ => {
-    asyncParser: _ => () => 1->Int.toFloat->Promise.resolve,
+    asyncParser: _ => 1->Int.toFloat->Promise.resolve,
     serializer: _ => 1.->Int.fromFloat,
   })
 

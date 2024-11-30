@@ -88,7 +88,7 @@ test("Compiled parse code snapshot", t => {
 })
 
 test("Compiled async parse code snapshot", t => {
-  let schema = S.jsonString(S.bool->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)}))
+  let schema = S.jsonString(S.bool->S.transform(_ => {asyncParser: i => Promise.resolve(i)}))
 
   t->U.assertCompiledCode(
     ~schema,

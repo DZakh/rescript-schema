@@ -93,7 +93,7 @@ test("Compiled parse code snapshot", t => {
 test("Compiled async parse code snapshot", t => {
   let schema =
     S.bool
-    ->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})
+    ->S.transform(_ => {asyncParser: i => Promise.resolve(i)})
     ->S.option
     ->S.Option.getOr(false)
 

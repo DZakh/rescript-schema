@@ -275,9 +275,7 @@ function embedAsyncOperation(b, input, fn) {
   if (!(b.g.o & 2)) {
     raise(b, "UnexpectedAsync", "");
   }
-  var val = embedSyncOperation(b, input, (function (v) {
-          return fn(v)();
-        }));
+  var val = embedSyncOperation(b, input, fn);
   val.a = true;
   return val;
 }
@@ -2187,67 +2185,6 @@ function nested(fieldName) {
   return ctx$1;
 }
 
-function advancedBuilder(definition, items, inlinedLocations) {
-  return function (parentB, input, selfSchema, path) {
-    var outputs = new WeakMap();
-    var unknownKeys = selfSchema.t.unknownKeys;
-    var b = {
-      c: "",
-      l: "",
-      g: parentB.g
-    };
-    var inputVar = $$var(b, input);
-    var typeFilters = "";
-    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-      var item = items[idx];
-      switch (item.k) {
-        case 0 :
-            var schema = item.s;
-            var itemPath = "[" + item.i + "]";
-            var itemInput = {
-              v: false,
-              i: inputVar + itemPath,
-              a: false
-            };
-            var path$1 = path + itemPath;
-            var typeFilter = schema.f;
-            if (typeFilter !== undefined) {
-              if (schema.t.TAG === "literal" && !(b.g.o & 64)) {
-                typeFilters = typeFilterCode(b, typeFilter, schema, itemInput, path$1) + typeFilters;
-              } else if (b.g.o & 1) {
-                typeFilters = typeFilters + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
-              }
-              
-            }
-            outputs.set(item, schema.b(b, itemInput, schema, path$1));
-            break;
-        case 1 :
-            break;
-        case 2 :
-            var schema$1 = item.s;
-            outputs.set(item, schema$1.b(b, input, schema$1, path));
-            break;
-        
-      }
-    }
-    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
-    var getItemOutput = function (item) {
-      switch (item.k) {
-        case 1 :
-            return get(b, getItemOutput(item.t), item.i);
-        case 0 :
-        case 2 :
-            return outputs.get(item);
-        
-      }
-    };
-    var output = definitionToOutput(b, definition, getItemOutput);
-    b.c = typeFilters + b.c;
-    parentB.c = parentB.c + allocateScope(b);
-    return output;
-  };
-}
-
 function advancedReverse(definition, kind, items) {
   return function () {
     var ritemsByItemPath = {};
@@ -2402,6 +2339,67 @@ function advancedReverse(definition, kind, items) {
         return output;
       });
     return reversed;
+  };
+}
+
+function advancedBuilder(definition, items, inlinedLocations) {
+  return function (parentB, input, selfSchema, path) {
+    var outputs = new WeakMap();
+    var unknownKeys = selfSchema.t.unknownKeys;
+    var b = {
+      c: "",
+      l: "",
+      g: parentB.g
+    };
+    var inputVar = $$var(b, input);
+    var typeFilters = "";
+    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+      var item = items[idx];
+      switch (item.k) {
+        case 0 :
+            var schema = item.s;
+            var itemPath = "[" + item.i + "]";
+            var itemInput = {
+              v: false,
+              i: inputVar + itemPath,
+              a: false
+            };
+            var path$1 = path + itemPath;
+            var typeFilter = schema.f;
+            if (typeFilter !== undefined) {
+              if (schema.t.TAG === "literal" && !(b.g.o & 64)) {
+                typeFilters = typeFilterCode(b, typeFilter, schema, itemInput, path$1) + typeFilters;
+              } else if (b.g.o & 1) {
+                typeFilters = typeFilters + typeFilterCode(b, typeFilter, schema, itemInput, path$1);
+              }
+              
+            }
+            outputs.set(item, schema.b(b, itemInput, schema, path$1));
+            break;
+        case 1 :
+            break;
+        case 2 :
+            var schema$1 = item.s;
+            outputs.set(item, schema$1.b(b, input, schema$1, path));
+            break;
+        
+      }
+    }
+    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
+    var getItemOutput = function (item) {
+      switch (item.k) {
+        case 1 :
+            return get(b, getItemOutput(item.t), item.i);
+        case 0 :
+        case 2 :
+            return outputs.get(item);
+        
+      }
+    };
+    var output = definitionToOutput(b, definition, getItemOutput);
+    b.c = typeFilters + b.c;
+    parentB.c = parentB.c + allocateScope(b);
+    return output;
   };
 }
 
@@ -3270,11 +3268,9 @@ function js_asyncParserRefine(schema, refine) {
   return transform$1(schema, (function (s) {
                 return {
                         a: (function (v) {
-                            return function () {
-                              return refine(v, s).then(function () {
-                                          return v;
-                                        });
-                            };
+                            return refine(v, s).then(function () {
+                                        return v;
+                                      });
                           }),
                         s: noop$1
                       };

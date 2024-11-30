@@ -636,11 +636,11 @@ module Builder = {
       }
     }
 
-    let embedAsyncOperation = (b: b, ~input, ~fn: 'input => unit => promise<'output>) => {
+    let embedAsyncOperation = (b: b, ~input, ~fn: 'input => promise<'output>) => {
       if !(b.global.flag->Flag.unsafeHas(Flag.async)) {
         b->raise(~code=UnexpectedAsync, ~path=Path.empty)
       }
-      let val = b->embedSyncOperation(~input, ~fn=v => fn(v)())
+      let val = b->embedSyncOperation(~input, ~fn)
       val.isAsync = true
       val
     }
@@ -1673,7 +1673,7 @@ type transformDefinition<'input, 'output> = {
   @as("p")
   parser?: 'input => 'output,
   @as("a")
-  asyncParser?: 'input => unit => promise<'output>,
+  asyncParser?: 'input => promise<'output>,
   @as("s")
   serializer?: 'output => 'input,
 }
@@ -1730,7 +1730,7 @@ type customDefinition<'input, 'output> = {
   @as("p")
   parser?: unknown => 'output,
   @as("a")
-  asyncParser?: unknown => unit => promise<'output>,
+  asyncParser?: unknown => promise<'output>,
   @as("s")
   serializer?: 'output => 'input,
 }
@@ -2486,7 +2486,7 @@ type preprocessDefinition<'input, 'output> = {
   @as("p")
   parser?: unknown => 'output,
   @as("a")
-  asyncParser?: unknown => unit => promise<'output>,
+  asyncParser?: unknown => promise<'output>,
   @as("s")
   serializer?: unknown => 'input,
 }
@@ -4320,7 +4320,7 @@ let noop = a => a
 let js_asyncParserRefine = (schema, refine) => {
   schema->transform(s => {
     {
-      asyncParser: v => () => refine(v, s)->Stdlib.Promise.thenResolve(() => v),
+      asyncParser: v => refine(v, s)->Stdlib.Promise.thenResolve(() => v),
       serializer: noop,
     }
   })
