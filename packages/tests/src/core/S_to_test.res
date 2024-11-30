@@ -183,7 +183,8 @@ test("Reverse convert of tagged tuple with destructured literal", t => {
 
   t->Assert.deepEqual(12->S.reverseConvertOrThrow(schema), %raw(`[true, 12]`), ())
 
-  let code = `i=>{if(i!==12){e[1](i)}return [e[0],i,]}`
+  // FIXME: Can be improved
+  let code = `i=>{if(i!==12){e[2](i)}if(i!==12){e[1](i)}return [e[0],i,]}`
   t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
   t->U.assertCompiledCode(~schema, ~op=#ReverseParse, code)
 })
@@ -203,12 +204,15 @@ test("Reverse convert of tagged tuple with destructured bool", t => {
     (),
   )
 
-  // FIXME: This is incorrect
-  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return [e[0],i["1"],i["0"],]}`)
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    `i=>{let v0=i["1"];if(v0!=="foo"){e[1](v0)}return [e[0],i["1"],i["0"],]}`,
+  )
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseParse,
-    `i=>{if(!Array.isArray(i)||i.length!==2){e[1](i)}return [e[0],i["1"],i["0"],]}`,
+    `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i["1"];if(v0!=="foo"){e[1](v0)}return [e[0],i["1"],i["0"],]}`,
   )
 })
 
