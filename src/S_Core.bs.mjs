@@ -1898,7 +1898,7 @@ function getItemReversed(item) {
 function definitionToOutput(b, definition, getItemOutput) {
   if (!(typeof definition === "object" && definition !== null)) {
     return {
-            v: false,
+            v: true,
             i: embed(b, definition),
             a: false
           };
@@ -2026,7 +2026,7 @@ function builder$1(schemas, inlinedLocations, isArray) {
       var itemInput = get(b, input, inlinedLocation);
       var path$1 = path + itemPath;
       if (schema.f !== undefined) {
-        if (schema.t.TAG === "literal" && !(b.g.o & 64)) {
+        if (schema.t.TAG === "literal" && !(itemInput.v && itemInput.i[0] === "e")) {
           typeFilters = typeFilterCode(b, schema, itemInput, path$1) + typeFilters;
         } else if (b.g.o & 1) {
           typeFilters = typeFilters + typeFilterCode(b, schema, itemInput, path$1);
@@ -2042,36 +2042,6 @@ function builder$1(schemas, inlinedLocations, isArray) {
       return input;
     } else {
       return complete(objectVal, isArray);
-    }
-  };
-}
-
-function reverse$1(fieldNames, schemas, inlinedLocations) {
-  return function () {
-    var reversedFields = {};
-    var reversedSchemas = [];
-    var isTransformed = false;
-    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-      var fieldName = fieldNames[idx];
-      var schema = schemas[idx];
-      var reversed = schema["~r"]();
-      reversedFields[fieldName] = reversed;
-      reversedSchemas.push(reversed);
-      if (schema !== reversed) {
-        isTransformed = true;
-      }
-      
-    }
-    if (isTransformed) {
-      return makeReverseSchema(name$1, {
-                  TAG: "object",
-                  fieldNames: fieldNames,
-                  fields: reversedFields,
-                  unknownKeys: globalConfig.u,
-                  advanced: false
-                }, empty, builder$1(reversedSchemas, inlinedLocations, false), typeFilter$1);
-    } else {
-      return this;
     }
   };
 }
@@ -2167,6 +2137,36 @@ function nested(fieldName) {
   return ctx$1;
 }
 
+function reverse$1(fieldNames, schemas, inlinedLocations) {
+  return function () {
+    var reversedFields = {};
+    var reversedSchemas = [];
+    var isTransformed = false;
+    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+      var fieldName = fieldNames[idx];
+      var schema = schemas[idx];
+      var reversed = schema["~r"]();
+      reversedFields[fieldName] = reversed;
+      reversedSchemas.push(reversed);
+      if (schema !== reversed) {
+        isTransformed = true;
+      }
+      
+    }
+    if (isTransformed) {
+      return makeReverseSchema(name$1, {
+                  TAG: "object",
+                  fieldNames: fieldNames,
+                  fields: reversedFields,
+                  unknownKeys: globalConfig.u,
+                  advanced: false
+                }, empty, builder$1(reversedSchemas, inlinedLocations, false), typeFilter$1);
+    } else {
+      return this;
+    }
+  };
+}
+
 function advancedReverse(definition, kind, items) {
   return function () {
     var ritemsByItemPath = {};
@@ -2230,7 +2230,7 @@ function advancedReverse(definition, kind, items) {
             switch (literal.TAG) {
               case "literal" :
                   return {
-                          v: false,
+                          v: true,
                           i: embed(b, literal._0.value),
                           a: false
                         };
@@ -2274,7 +2274,7 @@ function advancedReverse(definition, kind, items) {
             var itemInput = getRitemInput(ritem);
             var path$2 = path + ritem.p;
             if (ritem.p !== "" && reversed.f !== undefined) {
-              if (reversed.t.TAG === "literal" && !(b.g.o & 64)) {
+              if (reversed.t.TAG === "literal") {
                 typeFilters.contents = typeFilterCode(b, reversed, itemInput, path$2) + typeFilters.contents;
               } else if (b.g.o & 1) {
                 typeFilters.contents = typeFilters.contents + typeFilterCode(b, reversed, itemInput, path$2);
@@ -2286,7 +2286,7 @@ function advancedReverse(definition, kind, items) {
           var reversed$1 = item.s["~r"]();
           var input = reversedToInput(reversed$1, item.p);
           var prevFlag = b.g.o;
-          b.g.o = (prevFlag | 1) ^ 1 | 64;
+          b.g.o = (prevFlag | 1) ^ 1;
           var output = reversed$1.b(b, input, reversed$1, path);
           b.g.o = prevFlag;
           return output;
@@ -2343,7 +2343,7 @@ function advancedBuilder(definition, items, inlinedLocations) {
             };
             var path$1 = path + itemPath;
             if (schema.f !== undefined) {
-              if (schema.t.TAG === "literal" && !(b.g.o & 64)) {
+              if (schema.t.TAG === "literal") {
                 typeFilters = typeFilterCode(b, schema, itemInput, path$1) + typeFilters;
               } else if (b.g.o & 1) {
                 typeFilters = typeFilters + typeFilterCode(b, schema, itemInput, path$1);
@@ -3168,12 +3168,11 @@ function pattern(schema, re, messageOpt) {
               message: message
             }, (function (b, inputVar, param, path) {
                 var reVal = {
-                  v: false,
+                  v: true,
                   i: embed(b, re),
                   a: false
                 };
-                var reVar = $$var(b, reVal);
-                return reVar + ".lastIndex=0;if(!" + reVar + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
+                return reVal.i + ".lastIndex=0;if(!" + reVal.i + ".test(" + inputVar + ")){" + fail(b, message, path) + "}";
               }));
 }
 
