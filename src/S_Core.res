@@ -417,7 +417,6 @@ module Flag = {
   @inline let jsonableOutput = 8
   @inline let jsonStringOutput = 16
   @inline let reverse = 32
-  @inline let skipDiscriminant = 64
 
   external with: (flag, flag) => flag = "%orint"
   @inline
@@ -470,6 +469,11 @@ module Builder = {
 
     let val = (_b: b, initial: string): val => {
       {isVar: false, inline: initial, isAsync: false}
+    }
+
+    @inline
+    let embedVal = (b: b, value): val => {
+      {isVar: true, inline: b->embed(value), isAsync: false}
     }
 
     let asyncVal = (_b: b, initial: string): val => {
@@ -542,6 +546,9 @@ module Builder = {
           (objectVal :> val)
         }
       }
+
+      @inline
+      let isEmbed = (val: val) => val.isVar && val.inline->Js.String2.get(0) === "e"
 
       let var = (b: b, val: val) => {
         if val.isVar {
@@ -2840,7 +2847,7 @@ module Schema = {
       }
     } else {
       let constant = definition->Definition.toConstant
-      b->B.val(b->B.embed(constant))
+      b->B.embedVal(constant)
     }
   }
 
@@ -2982,7 +2989,7 @@ module Schema = {
       let path = path->Path.concat(itemPath)
 
       if schema.maybeTypeFilter->Stdlib.Option.isSome {
-        if schema->isLiteralSchema && !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant)) {
+        if schema->isLiteralSchema && !(itemInput->B.Val.isEmbed) {
           // Check literal fields first, because they are most often used as discriminants
           typeFilters :=
             b->B.typeFilterCode(~schema, ~input=itemInput, ~path) ++ typeFilters.contents
@@ -3065,7 +3072,7 @@ module Schema = {
           let path = path->Path.concat(itemPath)
 
           if schema.maybeTypeFilter->Stdlib.Option.isSome {
-            if schema->isLiteralSchema && !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant)) {
+            if schema->isLiteralSchema {
               // Check literal fields first, because they are most often used as discriminants
               typeFilters :=
                 b->B.typeFilterCode(~schema, ~input=itemInput, ~path) ++ typeFilters.contents
@@ -3166,7 +3173,7 @@ module Schema = {
 
       let rec reversedToInput = (reversed, ~originalPath) => {
         switch reversed->classify {
-        | Literal(literal) => b->B.val(b->B.embed(literal->Literal.value))
+        | Literal(literal) => b->B.embedVal(literal->Literal.value)
         | Tuple({items: schemas}) => {
             let objectVal = b->B.Val.Object.make(~isArray=true)
             for idx in 0 to schemas->Js.Array2.length - 1 {
@@ -3217,10 +3224,7 @@ module Schema = {
             let path = path->Path.concat(ritem->getRitemPath)
             if ritem->getRitemPath !== Path.empty {
               if reversed.maybeTypeFilter->Stdlib.Option.isSome {
-                if (
-                  reversed->isLiteralSchema &&
-                    !(b.global.flag->Flag.unsafeHas(Flag.skipDiscriminant))
-                ) {
+                if reversed->isLiteralSchema {
                   // Check literal fields first, because they are most often used as discriminants
                   typeFilters :=
                     b->B.typeFilterCode(~schema=reversed, ~input=itemInput, ~path) ++
@@ -3240,8 +3244,7 @@ module Schema = {
           let input = reversedToInput(reversed, ~originalPath=item->getItemPath)
 
           let prevFlag = b.global.flag
-          b.global.flag =
-            prevFlag->Flag.without(Flag.typeValidation)->Flag.with(Flag.skipDiscriminant)
+          b.global.flag = prevFlag->Flag.without(Flag.typeValidation)
           let output = b->B.parse(~schema=reversed, ~input, ~path)
           b.global.flag = prevFlag
           output
@@ -4247,9 +4250,11 @@ let pattern = (schema, re, ~message=`Invalid`) => {
   schema->addRefinement(
     ~metadataId=String.Refinement.metadataId,
     ~refiner=(b, ~inputVar, ~selfSchema as _, ~path) => {
-      let reVal = b->B.val(b->B.embed(re))
-      let reVar = b->B.Val.var(reVal)
-      `${reVar}.lastIndex=0;if(!${reVar}.test(${inputVar})){${b->B.fail(~message, ~path)}}`
+      let reVal = b->B.embedVal(re)
+      `${reVal.inline}.lastIndex=0;if(!${reVal.inline}.test(${inputVar})){${b->B.fail(
+          ~message,
+          ~path,
+        )}}`
     },
     ~refinement={
       kind: Pattern({re: re}),
