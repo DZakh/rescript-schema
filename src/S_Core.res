@@ -786,7 +786,7 @@ module Builder = {
     let parseWithTypeValidation = (b: b, ~schema, ~input, ~path) => {
       if (
         schema.maybeTypeFilter->Stdlib.Option.isSome &&
-          (schema->isLiteralSchema || b.global.flag->Flag.unsafeHas(Flag.typeValidation))
+          (b.global.flag->Flag.unsafeHas(Flag.typeValidation) || schema->isLiteralSchema)
       ) {
         b.code = b.code ++ b->typeFilterCode(~schema, ~input, ~path)
         let bb = b->scope
@@ -840,10 +840,11 @@ module Builder = {
       b.code = `let ${b.varsAllocation};${b.code}`
     }
 
-    if flag->Flag.unsafeHas(Flag.typeValidation) || schema->isLiteralSchema {
-      if schema.maybeTypeFilter->Stdlib.Option.isSome {
-        b.code = b->B.typeFilterCode(~schema, ~input, ~path=Path.empty) ++ b.code
-      }
+    if (
+      schema.maybeTypeFilter->Stdlib.Option.isSome &&
+        (flag->Flag.unsafeHas(Flag.typeValidation) || schema->isLiteralSchema)
+    ) {
+      b.code = b->B.typeFilterCode(~schema, ~input, ~path=Path.empty) ++ b.code
     }
 
     if (
@@ -1519,7 +1520,7 @@ let recursive = fn => {
     // metadataMap
     "m": Metadata.Map.empty,
     // tagged
-    "t": Unknown,
+    "t": (Unknown: tagged),
     // name
     "n": () => "<recursive>",
     // builder
@@ -1544,6 +1545,7 @@ let recursive = fn => {
 
   // maybeTypeFilter
   (placeholder->Obj.magic)["f"] = schema.maybeTypeFilter
+  (placeholder->Obj.magic)["t"] = schema.tagged
 
   let initialParseOperationBuilder = schema.builder
   schema.builder = Builder.make((b, ~input, ~selfSchema, ~path) => {
@@ -2059,7 +2061,25 @@ module Object = {
     fieldNames: array<string>,
   }
 
-  let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
+  let typeFilter = (b, ~inputVar) => {
+    let code = ref(`!${inputVar}||${inputVar}.constructor!==Object`)
+    let tagged = %raw(`this`)->classify->Obj.magic
+    let fieldNames = tagged["fieldNames"]
+    let fields = tagged["fields"]
+    for idx in 0 to fieldNames->Js.Array2.length - 1 {
+      let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+      let schema = fields->Js.Dict.unsafeGet(fieldName)
+      if schema->isLiteralSchema {
+        code :=
+          code.contents ++
+          "||" ++
+          b->(schema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(
+            ~inputVar=Path.concat(inputVar, Path.fromLocation(fieldName)),
+          ) // FIXME: Use inlinedLocation
+      }
+    }
+    code.contents
+  }
 
   let name = () => {
     let tagged = (%raw(`this`))["t"]
@@ -2117,11 +2137,35 @@ module Tuple = {
       ->Js.Array2.joinWith(", ")}]`
   }
 
-  let typeFilter = (~length) => (b, ~inputVar) =>
-    b->Array.typeFilter(~inputVar) ++ `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`
+  let typeFilter = (b, ~inputVar) => {
+    let schemas = (%raw(`this`)->classify->Obj.magic)["items"]
+    let length = schemas->Js.Array2.length
+    let code = ref(
+      b->Array.typeFilter(~inputVar) ++
+        `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`,
+    )
+    for idx in 0 to length - 1 {
+      let schema = schemas->Js.Array2.unsafe_get(idx)
+      if schema->isLiteralSchema {
+        code :=
+          code.contents ++
+          "||" ++
+          b->(schema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(
+            ~inputVar=Path.concat(
+              inputVar,
+              // FIXME: Can improve by allocating a var here
+              Path.fromInlinedLocation(`"${idx->Stdlib.Int.unsafeToString}"`),
+            ),
+          )
+      }
+    }
+    code.contents
+  }
 }
 
 module Dict = {
+  let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
+
   let rec factory = schema => {
     let schema = schema->toUnknown
     makeSchema(
@@ -2166,7 +2210,7 @@ module Dict = {
           output
         }
       }),
-      ~maybeTypeFilter=Some(Object.typeFilter),
+      ~maybeTypeFilter=Some(typeFilter),
       ~reverse=Reverse.onlyChild(~factory, ~schema),
     )
   }
@@ -2945,15 +2989,7 @@ module Schema = {
                     advanced: true,
                   }),
               ~metadataMap=Metadata.Map.empty,
-              ~maybeTypeFilter=Some(
-                isArray
-                  ? Tuple.typeFilter(
-                      ~length=fields
-                      ->(Obj.magic: dict<t<unknown>> => array<t<unknown>>)
-                      ->Js.Array2.length,
-                    )
-                  : Object.typeFilter,
-              ),
+              ~maybeTypeFilter=Some(isArray ? Tuple.typeFilter : Object.typeFilter),
               ~builder=Never.builder,
             ),
           })
@@ -2975,9 +3011,8 @@ module Schema = {
   ) => {
     let unknownKeys = (selfSchema->classify->Obj.magic)["unknownKeys"]
 
-    let b = parentB->B.scope
+    let b = parentB->B.scope // FIXME: Remove the scope by grouping all typeFilters together
 
-    let typeFilters = ref("")
     let objectVal = b->B.Val.Object.make(~isArray)
 
     for idx in 0 to schemas->Js.Array2.length - 1 {
@@ -2988,15 +3023,14 @@ module Schema = {
       let itemInput = b->B.Val.get(input, inlinedLocation)
       let path = path->Path.concat(itemPath)
 
-      if schema.maybeTypeFilter->Stdlib.Option.isSome {
-        if schema->isLiteralSchema && !(itemInput->B.Val.isEmbed) {
-          // Check literal fields first, because they are most often used as discriminants
-          typeFilters :=
-            b->B.typeFilterCode(~schema, ~input=itemInput, ~path) ++ typeFilters.contents
-        } else if b.global.flag->Flag.unsafeHas(Flag.typeValidation) {
-          typeFilters :=
-            typeFilters.contents ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
-        }
+      if (
+        schema.maybeTypeFilter->Stdlib.Option.isSome && (
+            b.global.flag->Flag.unsafeHas(Flag.typeValidation)
+              ? !(schema->isLiteralSchema)
+              : schema->isLiteralSchema && !(itemInput->B.Val.isEmbed)
+          )
+      ) {
+        b.code = b.code ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
       }
 
       objectVal->B.Val.Object.add(inlinedLocation, b->B.parse(~schema, ~input=itemInput, ~path))
@@ -3004,7 +3038,6 @@ module Schema = {
 
     b->objectStrictModeCheck(~input, ~inlinedLocations, ~unknownKeys, ~path)
 
-    b.code = typeFilters.contents ++ b.code
     parentB.code = parentB.code ++ b->B.allocateScope
 
     if (
@@ -3060,7 +3093,6 @@ module Schema = {
 
     let b = parentB->B.scope
     let inputVar = b->B.Val.var(input)
-    let typeFilters = ref("")
 
     for idx in 0 to items->Js.Array2.length - 1 {
       let item = items->Js.Array2.unsafe_get(idx)
@@ -3071,15 +3103,15 @@ module Schema = {
           let itemInput = b->B.val(`${inputVar}${itemPath}`)
           let path = path->Path.concat(itemPath)
 
-          if schema.maybeTypeFilter->Stdlib.Option.isSome {
-            if schema->isLiteralSchema {
-              // Check literal fields first, because they are most often used as discriminants
-              typeFilters :=
-                b->B.typeFilterCode(~schema, ~input=itemInput, ~path) ++ typeFilters.contents
-            } else if b.global.flag->Flag.unsafeHas(Flag.typeValidation) {
-              typeFilters :=
-                typeFilters.contents ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
-            }
+          if (
+            schema.maybeTypeFilter->Stdlib.Option.isSome && (
+                b.global.flag->Flag.unsafeHas(Flag.typeValidation)
+                  ? !(schema->isLiteralSchema)
+                  : // FIXME: Is isEmbed needed here?
+                    schema->isLiteralSchema && !(itemInput->B.Val.isEmbed)
+              )
+          ) {
+            b.code = b.code ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
           }
 
           outputs->Stdlib.WeakMap.set(item, b->B.parse(~schema, ~input=itemInput, ~path))->ignore
@@ -3107,7 +3139,6 @@ module Schema = {
         ~getItemOutput,
       )
 
-    b.code = typeFilters.contents ++ b.code
     parentB.code = parentB.code ++ b->B.allocateScope
 
     output
@@ -3133,14 +3164,11 @@ module Schema = {
     }
 
     reversed.builder = Builder.make((b, ~input, ~selfSchema as _, ~path) => {
-      let prevCode = b.code
-      b.code = ""
-      let typeFilters = ref("")
-
-      // Skip the first ritem since it handled above
+      let hasTypeValidation = b.global.flag->Flag.unsafeHas(Flag.typeValidation)
+      // FIXME: Optimise the for loop
       for idx in 0 to ritems->Js.Array2.length - 1 {
         switch ritems->Js.Array2.unsafe_get(idx) {
-        | Node(_) if b.global.flag->Flag.unsafeHas(Flag.typeValidation) =>
+        | Node(_) if hasTypeValidation =>
           b->B.invalidOperation(~path, ~description="Type validation mode is not supported")
         // typeFilters :=
         //   typeFilters.contents ++
@@ -3150,20 +3178,16 @@ module Schema = {
         //     ~input=b->B.val(`${inputVar}${rpath}`),
         //     ~path,
         //   )
-        | Discriminant({reversed, path: rpath}) => {
+        | Discriminant({reversed, path: rpath}) if !hasTypeValidation => {
             let itemInput = b->B.val(`${b->B.Val.var(input)}${rpath}`)
             let path = path->Path.concat(rpath)
+
             // Discriminant should always have a typeFilter, so don't check for it
-            typeFilters :=
-              typeFilters.contents ++ b->B.typeFilterCode(~schema=reversed, ~input=itemInput, ~path)
+            b.code = b.code ++ b->B.typeFilterCode(~schema=reversed, ~input=itemInput, ~path)
           }
         | _ => ()
         }
       }
-
-      // FIXME:
-      // Multiple registrations
-      // Obj for typeFilters ref
 
       let getRitemInput = ritem => {
         ritem->getRitemPath === Path.empty
@@ -3222,19 +3246,13 @@ module Schema = {
             let reversed = ritem->getRitemReversed
             let itemInput = ritem->getRitemInput
             let path = path->Path.concat(ritem->getRitemPath)
-            if ritem->getRitemPath !== Path.empty {
-              if reversed.maybeTypeFilter->Stdlib.Option.isSome {
-                if reversed->isLiteralSchema {
-                  // Check literal fields first, because they are most often used as discriminants
-                  typeFilters :=
-                    b->B.typeFilterCode(~schema=reversed, ~input=itemInput, ~path) ++
-                      typeFilters.contents
-                } else if b.global.flag->Flag.unsafeHas(Flag.typeValidation) {
-                  typeFilters :=
-                    typeFilters.contents ++
-                    b->B.typeFilterCode(~schema=reversed, ~input=itemInput, ~path)
-                }
-              }
+            if (
+              ritem->getRitemPath !== Path.empty &&
+              reversed.maybeTypeFilter->Stdlib.Option.isSome && (
+                hasTypeValidation ? !(reversed->isLiteralSchema) : reversed->isLiteralSchema
+              )
+            ) {
+              b.code = b.code ++ b->B.typeFilterCode(~schema=reversed, ~input=itemInput, ~path)
             }
             b->B.parse(~schema=reversed, ~input=itemInput, ~path)
           }
@@ -3270,9 +3288,6 @@ module Schema = {
       | #Object => schemaOutput(~items, ~isArray=false)
       | #Array => schemaOutput(~items, ~isArray=true)
       }
-
-      // FIXME:
-      b.code = prevCode ++ typeFilters.contents ++ b.code
 
       output
     })
@@ -3561,9 +3576,7 @@ module Schema = {
     }
     let definition = definer(ctx)->(Obj.magic: 'any => unknown)
 
-    let length = items->Js.Array2.length
-
-    for idx in 0 to length - 1 {
+    for idx in 0 to items->Js.Array2.length - 1 {
       if schemas->Js.Array2.unsafe_get(idx)->Obj.magic->not {
         let inlinedLocation = `"${idx->Stdlib.Int.unsafeToString}"`
         let item = Item({
@@ -3583,7 +3596,7 @@ module Schema = {
         items: schemas,
       }),
       ~builder=advancedBuilder(~definition, ~items, ~inlinedLocations),
-      ~maybeTypeFilter=Some(Tuple.typeFilter(~length)),
+      ~maybeTypeFilter=Some(Tuple.typeFilter),
       ~metadataMap=Metadata.Map.empty,
       ~reverse=advancedReverse(~definition, ~items, ~kind=#Array),
     )
@@ -3611,7 +3624,7 @@ module Schema = {
           }
         }
         let schemas = node->(Obj.magic: array<unknown> => array<t<unknown>>)
-        let maybeTypeFilter = Some(Tuple.typeFilter(~length))
+        let maybeTypeFilter = Some(Tuple.typeFilter)
         makeSchema(
           ~name=Tuple.name,
           ~tagged=Tuple({
@@ -3740,6 +3753,7 @@ module Error = {
       },
     )
 
+    // FIXME: Move it before operation
     if op->Flag.unsafeHas(Flag.reverse) {
       text := text.contents ++ " reverse"
     }

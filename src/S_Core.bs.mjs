@@ -392,7 +392,7 @@ function typeFilterCode(b, schema, input, path) {
 }
 
 function parseWithTypeValidation(b, schema, input, path) {
-  if (!(schema.f !== undefined && (schema.t.TAG === "literal" || b.g.o & 1))) {
+  if (!(schema.f !== undefined && (b.g.o & 1 || schema.t.TAG === "literal"))) {
     return schema.b(b, input, schema, path);
   }
   b.c = b.c + typeFilterCode(b, schema, input, path);
@@ -446,7 +446,7 @@ function compile(builder, schema, flag) {
   if (b.l !== "") {
     b.c = "let " + b.l + ";" + b.c;
   }
-  if ((flag & 1 || schema.t.TAG === "literal") && schema.f !== undefined) {
+  if (schema.f !== undefined && (flag & 1 || schema.t.TAG === "literal")) {
     b.c = typeFilterCode(b, schema, input, "") + b.c;
   }
   if (b.c === "" && output === input && !(flag & 22)) {
@@ -943,7 +943,7 @@ function recursive(fn) {
   globalConfig.r = globalConfig.r + 1 | 0;
   var placeholder = {
     m: empty,
-    t: "Input",
+    t: "unknown",
     n: (function () {
         return "<recursive>";
       }),
@@ -960,6 +960,7 @@ function recursive(fn) {
   };
   var schema = fn(placeholder);
   placeholder.f = schema.f;
+  placeholder.t = schema.t;
   var initialParseOperationBuilder = schema.b;
   schema.b = (function (b, input, selfSchema, path) {
       var inputVar = $$var(b, input);
@@ -1349,8 +1350,20 @@ function factory$2(schema) {
               }), typeFilter, onlyChild(factory$2, schema));
 }
 
-function typeFilter$1(_b, inputVar) {
-  return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
+function typeFilter$1(b, inputVar) {
+  var code = "!" + inputVar + "||" + inputVar + ".constructor!==Object";
+  var tagged = this.t;
+  var fieldNames = tagged.fieldNames;
+  var fields = tagged.fields;
+  for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+    var fieldName = fieldNames[idx];
+    var schema = fields[fieldName];
+    if (schema.t.TAG === "literal") {
+      code = code + "||" + schema.f(b, inputVar + ("[" + JSON.stringify(fieldName) + "]"));
+    }
+    
+  }
+  return code;
 }
 
 function name$1() {
@@ -1401,10 +1414,22 @@ function name$2() {
               }).join(", ") + "]";
 }
 
-function typeFilter$2(length) {
-  return function (b, inputVar) {
-    return typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
-  };
+function typeFilter$2(b, inputVar) {
+  var schemas = this.t.items;
+  var length = schemas.length;
+  var code = typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
+  for(var idx = 0; idx < length; ++idx){
+    var schema = schemas[idx];
+    if (schema.t.TAG === "literal") {
+      code = code + "||" + schema.f(b, inputVar + ("[" + ("\"" + idx + "\"") + "]"));
+    }
+    
+  }
+  return code;
+}
+
+function typeFilter$3(_b, inputVar) {
+  return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
 }
 
 function factory$3(schema) {
@@ -1454,7 +1479,7 @@ function factory$3(schema) {
                         i: "new Promise((" + resolveVar + "," + rejectVar + ")=>{let " + counterVar + "=Object.keys(" + outputVar + ").length;for(let " + keyVar + " in " + outputVar + "){" + outputVar + "[" + keyVar + "].then(" + asyncParseResultVar + "=>{" + outputVar + "[" + keyVar + "]=" + asyncParseResultVar + ";if(" + counterVar + "--===1){" + resolveVar + "(" + outputVar + ")}}," + rejectVar + ")}})",
                         a: true
                       };
-              }), typeFilter$1, onlyChild(factory$3, schema));
+              }), typeFilter$3, onlyChild(factory$3, schema));
 }
 
 var schema$1 = makeSchema(primitiveName, "unknown", empty, invalidJson, undefined, toSelf);
@@ -1478,11 +1503,11 @@ var emailRegex = /^(?!\.)(?!.*\.\.)([A-Z0-9_'+\-\.]*)[A-Z0-9_+-]@([A-Z0-9][A-Z0-
 
 var datetimeRe = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
-function typeFilter$3(_b, inputVar) {
+function typeFilter$4(_b, inputVar) {
   return "typeof " + inputVar + "!==\"string\"";
 }
 
-var schema$2 = makePrimitiveSchema("string", noop, typeFilter$3);
+var schema$2 = makePrimitiveSchema("string", noop, typeFilter$4);
 
 function factory$4(schema, spaceOpt) {
   var space = spaceOpt !== undefined ? spaceOpt : 0;
@@ -1495,7 +1520,7 @@ function factory$4(schema, spaceOpt) {
                                 };
                         }), "t.message") + "}");
                 return parseWithTypeValidation(b, schema, jsonVal, path);
-              }), typeFilter$3, (function () {
+              }), typeFilter$4, (function () {
                 var reversed = schema["~r"]();
                 return makeReverseSchema(reversed.n, reversed.t, reversed.m, (function (b, input, param, path) {
                               var prevFlag = b.g.o;
@@ -1519,11 +1544,11 @@ function factory$4(schema, spaceOpt) {
               }));
 }
 
-function typeFilter$4(_b, inputVar) {
+function typeFilter$5(_b, inputVar) {
   return "typeof " + inputVar + "!==\"boolean\"";
 }
 
-var schema$3 = makePrimitiveSchema("boolean", noop, typeFilter$4);
+var schema$3 = makePrimitiveSchema("boolean", noop, typeFilter$5);
 
 var metadataId$2 = "rescript-schema:Int.refinements";
 
@@ -1536,11 +1561,11 @@ function refinements$2(schema) {
   }
 }
 
-function typeFilter$5(_b, inputVar) {
+function typeFilter$6(_b, inputVar) {
   return "typeof " + inputVar + "!==\"number\"||" + inputVar + ">2147483647||" + inputVar + "<-2147483648||" + inputVar + "%1!==0";
 }
 
-var schema$4 = makePrimitiveSchema("int32", noop, typeFilter$5);
+var schema$4 = makePrimitiveSchema("int32", noop, typeFilter$6);
 
 var metadataId$3 = "rescript-schema:Float.refinements";
 
@@ -1553,19 +1578,19 @@ function refinements$3(schema) {
   }
 }
 
-function typeFilter$6(_b, inputVar) {
+function typeFilter$7(_b, inputVar) {
   return "typeof " + inputVar + "!==\"number\"" + (
           globalConfig.n ? "" : "||Number.isNaN(" + inputVar + ")"
         );
 }
 
-var schema$5 = makePrimitiveSchema("number", noop, typeFilter$6);
+var schema$5 = makePrimitiveSchema("number", noop, typeFilter$7);
 
-function typeFilter$7(_b, inputVar) {
+function typeFilter$8(_b, inputVar) {
   return "typeof " + inputVar + "!==\"bigint\"";
 }
 
-var schema$6 = makePrimitiveSchema("bigint", invalidJson, typeFilter$7);
+var schema$6 = makePrimitiveSchema("bigint", invalidJson, typeFilter$8);
 
 function parse$1(b, schemas, path, input, output) {
   var isMultiple = schemas.length > 1;
@@ -2004,7 +2029,7 @@ function definitionToRitem(definition, path, ritems, ritemsByItemPath) {
                     fields: fields,
                     unknownKeys: globalConfig.u,
                     advanced: true
-                  }), empty, builder, isArray ? typeFilter$2(fields.length) : typeFilter$1),
+                  }), empty, builder, isArray ? typeFilter$2 : typeFilter$1),
           a: isArray
         };
 }
@@ -2017,7 +2042,6 @@ function builder$1(schemas, inlinedLocations, isArray) {
       l: "",
       g: parentB.g
     };
-    var typeFilters = "";
     var objectVal = make(b, isArray);
     for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
       var schema = schemas[idx];
@@ -2025,23 +2049,49 @@ function builder$1(schemas, inlinedLocations, isArray) {
       var itemPath = "[" + inlinedLocation + "]";
       var itemInput = get(b, input, inlinedLocation);
       var path$1 = path + itemPath;
-      if (schema.f !== undefined) {
-        if (schema.t.TAG === "literal" && !(itemInput.v && itemInput.i[0] === "e")) {
-          typeFilters = typeFilterCode(b, schema, itemInput, path$1) + typeFilters;
-        } else if (b.g.o & 1) {
-          typeFilters = typeFilters + typeFilterCode(b, schema, itemInput, path$1);
-        }
-        
+      if (schema.f !== undefined && (
+          b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal" && !(itemInput.v && itemInput.i[0] === "e")
+        )) {
+        b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
       }
       add(objectVal, inlinedLocation, schema.b(b, itemInput, schema, path$1));
     }
     objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
-    b.c = typeFilters + b.c;
     parentB.c = parentB.c + allocateScope(b);
     if ((unknownKeys !== "Strip" || b.g.o & 32) && selfSchema === selfSchema["~r"]()) {
       return input;
     } else {
       return complete(objectVal, isArray);
+    }
+  };
+}
+
+function reverse$1(fieldNames, schemas, inlinedLocations) {
+  return function () {
+    var reversedFields = {};
+    var reversedSchemas = [];
+    var isTransformed = false;
+    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+      var fieldName = fieldNames[idx];
+      var schema = schemas[idx];
+      var reversed = schema["~r"]();
+      reversedFields[fieldName] = reversed;
+      reversedSchemas.push(reversed);
+      if (schema !== reversed) {
+        isTransformed = true;
+      }
+      
+    }
+    if (isTransformed) {
+      return makeReverseSchema(name$1, {
+                  TAG: "object",
+                  fieldNames: fieldNames,
+                  fields: reversedFields,
+                  unknownKeys: globalConfig.u,
+                  advanced: false
+                }, empty, builder$1(reversedSchemas, inlinedLocations, false), typeFilter$1);
+    } else {
+      return this;
     }
   };
 }
@@ -2137,33 +2187,58 @@ function nested(fieldName) {
   return ctx$1;
 }
 
-function reverse$1(fieldNames, schemas, inlinedLocations) {
-  return function () {
-    var reversedFields = {};
-    var reversedSchemas = [];
-    var isTransformed = false;
-    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-      var fieldName = fieldNames[idx];
-      var schema = schemas[idx];
-      var reversed = schema["~r"]();
-      reversedFields[fieldName] = reversed;
-      reversedSchemas.push(reversed);
-      if (schema !== reversed) {
-        isTransformed = true;
+function advancedBuilder(definition, items, inlinedLocations) {
+  return function (parentB, input, selfSchema, path) {
+    var outputs = new WeakMap();
+    var unknownKeys = selfSchema.t.unknownKeys;
+    var b = {
+      c: "",
+      l: "",
+      g: parentB.g
+    };
+    var inputVar = $$var(b, input);
+    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+      var item = items[idx];
+      switch (item.k) {
+        case 0 :
+            var schema = item.s;
+            var itemPath = "[" + item.i + "]";
+            var itemInput = {
+              v: false,
+              i: inputVar + itemPath,
+              a: false
+            };
+            var path$1 = path + itemPath;
+            if (schema.f !== undefined && (
+                b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal" && !(itemInput.v && itemInput.i[0] === "e")
+              )) {
+              b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
+            }
+            outputs.set(item, schema.b(b, itemInput, schema, path$1));
+            break;
+        case 1 :
+            break;
+        case 2 :
+            var schema$1 = item.s;
+            outputs.set(item, schema$1.b(b, input, schema$1, path));
+            break;
+        
       }
-      
     }
-    if (isTransformed) {
-      return makeReverseSchema(name$1, {
-                  TAG: "object",
-                  fieldNames: fieldNames,
-                  fields: reversedFields,
-                  unknownKeys: globalConfig.u,
-                  advanced: false
-                }, empty, builder$1(reversedSchemas, inlinedLocations, false), typeFilter$1);
-    } else {
-      return this;
-    }
+    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
+    var getItemOutput = function (item) {
+      switch (item.k) {
+        case 1 :
+            return get(b, getItemOutput(item.t), item.i);
+        case 0 :
+        case 2 :
+            return outputs.get(item);
+        
+      }
+    };
+    var output = definitionToOutput(b, definition, getItemOutput);
+    parentB.c = parentB.c + allocateScope(b);
+    return output;
   };
 }
 
@@ -2185,28 +2260,26 @@ function advancedReverse(definition, kind, items) {
       
     }
     reversed.b = (function (b, input, param, path) {
-        var prevCode = b.c;
-        b.c = "";
-        var typeFilters = {
-          contents: ""
-        };
+        var hasTypeValidation = b.g.o & 1;
         for(var idx = 0 ,idx_finish = ritems.length; idx < idx_finish; ++idx){
           var match = ritems[idx];
           switch (match.k) {
             case 0 :
                 break;
             case 1 :
-                var rpath = match.p;
-                var itemInput = {
-                  v: false,
-                  i: $$var(b, input) + rpath,
-                  a: false
-                };
-                var path$1 = path + rpath;
-                typeFilters.contents = typeFilters.contents + typeFilterCode(b, match.s, itemInput, path$1);
+                if (!hasTypeValidation) {
+                  var rpath = match.p;
+                  var itemInput = {
+                    v: false,
+                    i: $$var(b, input) + rpath,
+                    a: false
+                  };
+                  var path$1 = path + rpath;
+                  b.c = b.c + typeFilterCode(b, match.s, itemInput, path$1);
+                }
                 break;
             case 2 :
-                if (b.g.o & 1) {
+                if (hasTypeValidation) {
                   invalidOperation(b, path, "Type validation mode is not supported");
                 }
                 break;
@@ -2273,13 +2346,10 @@ function advancedReverse(definition, kind, items) {
             var reversed = ritem.s;
             var itemInput = getRitemInput(ritem);
             var path$2 = path + ritem.p;
-            if (ritem.p !== "" && reversed.f !== undefined) {
-              if (reversed.t.TAG === "literal") {
-                typeFilters.contents = typeFilterCode(b, reversed, itemInput, path$2) + typeFilters.contents;
-              } else if (b.g.o & 1) {
-                typeFilters.contents = typeFilters.contents + typeFilterCode(b, reversed, itemInput, path$2);
-              }
-              
+            if (ritem.p !== "" && reversed.f !== undefined && (
+                hasTypeValidation ? reversed.t.TAG !== "literal" : reversed.t.TAG === "literal"
+              )) {
+              b.c = b.c + typeFilterCode(b, reversed, itemInput, path$2);
             }
             return reversed.b(b, itemInput, reversed, path$2);
           }
@@ -2309,73 +2379,15 @@ function advancedReverse(definition, kind, items) {
           }
           return complete(objectVal, isArray);
         };
-        var output = kind === "To" ? getItemOutput(items[0]) : (
-            kind === "Array" ? schemaOutput(items, true) : schemaOutput(items, false)
-          );
-        b.c = prevCode + typeFilters.contents + b.c;
-        return output;
+        if (kind === "To") {
+          return getItemOutput(items[0]);
+        } else if (kind === "Array") {
+          return schemaOutput(items, true);
+        } else {
+          return schemaOutput(items, false);
+        }
       });
     return reversed;
-  };
-}
-
-function advancedBuilder(definition, items, inlinedLocations) {
-  return function (parentB, input, selfSchema, path) {
-    var outputs = new WeakMap();
-    var unknownKeys = selfSchema.t.unknownKeys;
-    var b = {
-      c: "",
-      l: "",
-      g: parentB.g
-    };
-    var inputVar = $$var(b, input);
-    var typeFilters = "";
-    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-      var item = items[idx];
-      switch (item.k) {
-        case 0 :
-            var schema = item.s;
-            var itemPath = "[" + item.i + "]";
-            var itemInput = {
-              v: false,
-              i: inputVar + itemPath,
-              a: false
-            };
-            var path$1 = path + itemPath;
-            if (schema.f !== undefined) {
-              if (schema.t.TAG === "literal") {
-                typeFilters = typeFilterCode(b, schema, itemInput, path$1) + typeFilters;
-              } else if (b.g.o & 1) {
-                typeFilters = typeFilters + typeFilterCode(b, schema, itemInput, path$1);
-              }
-              
-            }
-            outputs.set(item, schema.b(b, itemInput, schema, path$1));
-            break;
-        case 1 :
-            break;
-        case 2 :
-            var schema$1 = item.s;
-            outputs.set(item, schema$1.b(b, input, schema$1, path));
-            break;
-        
-      }
-    }
-    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
-    var getItemOutput = function (item) {
-      switch (item.k) {
-        case 1 :
-            return get(b, getItemOutput(item.t), item.i);
-        case 0 :
-        case 2 :
-            return outputs.get(item);
-        
-      }
-    };
-    var output = definitionToOutput(b, definition, getItemOutput);
-    b.c = typeFilters + b.c;
-    parentB.c = parentB.c + allocateScope(b);
-    return output;
   };
 }
 
@@ -2526,8 +2538,7 @@ function tuple(definer) {
     tag: tag
   };
   var definition = definer(ctx);
-  var length = items.length;
-  for(var idx = 0; idx < length; ++idx){
+  for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
     if (!schemas[idx]) {
       var inlinedLocation = "\"" + idx + "\"";
       var item_2 = "[" + inlinedLocation + "]";
@@ -2546,7 +2557,7 @@ function tuple(definer) {
   return makeSchema(name$2, {
               TAG: "tuple",
               items: schemas
-            }, empty, advancedBuilder(definition, items, inlinedLocations), typeFilter$2(length), advancedReverse(definition, "Array", items));
+            }, empty, advancedBuilder(definition, items, inlinedLocations), typeFilter$2, advancedReverse(definition, "Array", items));
 }
 
 function definitionToSchema(definition) {
@@ -2572,7 +2583,7 @@ function definitionToSchema(definition) {
       }
       
     }
-    var maybeTypeFilter = typeFilter$2(length);
+    var maybeTypeFilter = typeFilter$2;
     return makeSchema(name$2, {
                 TAG: "tuple",
                 items: definition

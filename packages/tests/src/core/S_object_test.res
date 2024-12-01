@@ -1087,9 +1087,12 @@ test("Object schema parsing checks order", t => {
         schema,
       ),
     {
-      code: InvalidType({expected: S.literal("value")->S.toUnknown, received: %raw(`"wrong"`)}),
+      code: InvalidType({
+        expected: schema->S.toUnknown,
+        received: %raw(`{tag: "wrong", key: 123, unknownKey: "value", unknownKey2: "value"}`),
+      }),
       operation: Parse,
-      path: S.Path.fromLocation("tag"),
+      path: S.Path.empty,
     },
   )
   // Field check should be the third
@@ -1161,7 +1164,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["foo"],v1=i["bar"];if(v0!==12){e[0](v0)}if(!v1||v1.constructor!==Object){e[1](v1)}let v2=v1["baz"];if(typeof v2!=="string"){e[2](v2)}let v3={"baz":v2,};e[3](v3);return {"foo":v0,"bar":v3,}}`,
+      `i=>{if(!i||i.constructor!==Object||i["foo"]!==12){e[3](i)}let v0=i["bar"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["baz"];if(typeof v1!=="string"){e[1](v1)}let v2={"baz":v1,};e[2](v2);return {"foo":i["foo"],"bar":v2,}}`,
     )
     t->U.assertCompiledCode(
       ~schema,
@@ -1261,7 +1264,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#Parse,
-        `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["tag"],v1=i["FOO"],v2=i["BAR"],v3;if(v0!==0){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}for(v3 in i){if(v3!=="tag"&&v3!=="FOO"&&v3!=="BAR"){e[3](v3)}}return {"foo":v1,"bar":v2,"zoo":e[4],}}`,
+        `i=>{if(!i||i.constructor!==Object||i["tag"]!==0){e[4](i)}let v0=i["FOO"],v1=i["BAR"],v2;if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}for(v2 in i){if(v2!=="tag"&&v2!=="FOO"&&v2!=="BAR"){e[2](v2)}}return {"foo":v0,"bar":v1,"zoo":e[3],}}`,
       )
     },
   )
