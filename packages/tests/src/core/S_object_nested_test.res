@@ -106,7 +106,7 @@ test("Object with a nested tag and optional field", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["nested"],v3=i["bar"];if(!v0||v0.constructor!==Object){e[0](v0)}if(typeof v3!=="string"){e[4](v3)}let v1=v0["tag"],v2=v0["foo"];if(v1!=="value"){e[1](v1)}if(v2!==void 0&&(typeof v2!=="string")){e[2](v2)}return {"foo":v2===void 0?e[3]:v2,"bar":v3,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["nested"],v2=i["bar"];if(!v0||v0.constructor!==Object||v0["tag"]!=="value"){e[0](v0)}let v1=v0["foo"];if(v1!==void 0&&(typeof v1!=="string")){e[1](v1)}if(typeof v2!=="string"){e[3](v2)}return {"foo":v1===void 0?e[2]:v1,"bar":v2,}}`,
   )
   t->U.assertCompiledCode(
     ~schema,

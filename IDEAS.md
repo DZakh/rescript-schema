@@ -27,6 +27,8 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add Enums section to js docs
 - Remove object and tuple literals in favor of S.schema
 - Add s.strict s.strip to ppx
+- Improve received formatting in the error. Don't use S.literal for it
+  // TODO: Add inlined field names and discriminants to the obj tagged
 
 ### Done
 
@@ -45,6 +47,7 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add flatten to ts api
 - Add S.compile to Js/ts api
 - Changed asyncParser from (i) => () => promise to (i) => promise
+- Look at the discriminant in unions - error message improvements
 
 ## v10
 
