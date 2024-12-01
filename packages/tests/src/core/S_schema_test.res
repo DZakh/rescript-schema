@@ -106,7 +106,7 @@ test("Strict object with embeded returns input without object recreation", t => 
 
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#Parse),
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["foo"],v1=i["zoo"],v2;if(v0!=="bar"){e[0](v0)}if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[1](v1)}for(v2 in i){if(v2!=="foo"&&v2!=="zoo"){e[2](v2)}}return i}`,
+    `i=>{if(!i||i.constructor!==Object||i["foo"]!=="bar"){e[2](i)}let v0=i["zoo"],v1;if(typeof v0!=="number"||v0>2147483647||v0<-2147483648||v0%1!==0){e[0](v0)}for(v1 in i){if(v1!=="foo"&&v1!=="zoo"){e[1](v1)}}return i}`,
     (),
   )
   t->Assert.is(
@@ -128,22 +128,22 @@ test("Tuple with embeded schema", t => {
   // S.schema does return i without tuple recreation
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#Parse),
-    `i=>{if(!Array.isArray(i)||i.length!==3){e[3](i)}let v0=i["0"],v1=i["1"],v2=i["2"];if(v2!=="bar"){e[2](v2)}if(v1!==undefined){e[1](v1)}if(typeof v0!=="string"){e[0](v0)}return i}`,
+    `i=>{if(!Array.isArray(i)||i.length!==3||i["1"]!==undefined||i["2"]!=="bar"){e[1](i)}let v0=i["0"];if(typeof v0!=="string"){e[0](v0)}return i}`,
     (),
   )
   t->Assert.is(
     tupleSchema->U.getCompiledCodeString(~op=#Parse),
-    `i=>{if(!Array.isArray(i)||i.length!==3){e[3](i)}let v0=i["0"],v1=i["1"],v2=i["2"];if(v2!=="bar"){e[2](v2)}if(v1!==undefined){e[1](v1)}if(typeof v0!=="string"){e[0](v0)}return [v0,v1,v2,]}`,
+    `i=>{if(!Array.isArray(i)||i.length!==3||i["1"]!==undefined||i["2"]!=="bar"){e[1](i)}let v0=i["0"];if(typeof v0!=="string"){e[0](v0)}return [v0,i["1"],i["2"],]}`,
     (),
   )
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#ReverseConvert),
-    `i=>{let v0=i["1"],v1=i["2"];if(v1!=="bar"){e[1](v1)}if(v0!==undefined){e[0](v0)}return i}`,
+    `i=>{let v0=i["1"],v1=i["2"];if(v0!==undefined){e[0](v0)}if(v1!=="bar"){e[1](v1)}return i}`,
     (),
   )
   t->Assert.is(
     tupleSchema->U.getCompiledCodeString(~op=#ReverseConvert),
-    `i=>{let v0=i["1"],v1=i["2"];if(v1!=="bar"){e[1](v1)}if(v0!==undefined){e[0](v0)}return [i["0"],v0,v1,]}`,
+    `i=>{let v0=i["1"],v1=i["2"];if(v0!==undefined){e[0](v0)}if(v1!=="bar"){e[1](v1)}return [i["0"],v0,v1,]}`,
     (),
   )
 })
@@ -164,7 +164,7 @@ test("Tuple with embeded transformed schema", t => {
   )
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#ReverseConvert),
-    `i=>{let v0=i["0"],v1,v2=i["1"],v3=i["2"];if(v3!=="bar"){e[1](v3)}if(v2!==undefined){e[0](v2)}if(v0!==void 0){v1=v0}else{v1=null}return [v1,v2,v3,]}`,
+    `i=>{let v0=i["0"],v1,v2=i["1"],v3=i["2"];if(v0!==void 0){v1=v0}else{v1=null}if(v2!==undefined){e[0](v2)}if(v3!=="bar"){e[1](v3)}return [v1,v2,v3,]}`,
     (),
   )
   t->Assert.is(

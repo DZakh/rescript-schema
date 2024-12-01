@@ -68,9 +68,9 @@ test("Fails to parse tuple with holes", t => {
   t->U.assertRaised(
     () => %raw(`["value", "smth", 123]`)->S.parseOrThrow(schema),
     {
-      code: InvalidType({expected: S.literal(None)->S.toUnknown, received: %raw(`"smth"`)}),
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`["value", "smth", 123]`)}),
       operation: Parse,
-      path: S.Path.fromLocation("1"),
+      path: S.Path.empty,
     },
   )
 })
@@ -234,9 +234,9 @@ test("Tuple schema parsing checks order", t => {
   t->U.assertRaised(
     () => %raw(`["value", "wrong"]`)->S.parseOrThrow(schema),
     {
-      code: InvalidType({expected: S.literal("value")->S.toUnknown, received: %raw(`"wrong"`)}),
+      code: InvalidType({expected: schema->S.toUnknown, received: %raw(`["value", "wrong"]`)}),
       operation: Parse,
-      path: S.Path.fromLocation("1"),
+      path: S.Path.empty,
     },
   )
   // Field check should be the last
@@ -321,7 +321,7 @@ module Compiled = {
       t->U.assertCompiledCode(
         ~schema,
         ~op=#Parse,
-        `i=>{if(!Array.isArray(i)||i.length!==3){e[4](i)}let v0=i["0"],v1=i["1"],v2=i["2"];if(v0!==0){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}if(typeof v2!=="boolean"){e[2](v2)}return {"foo":v1,"bar":v2,"zoo":e[3],}}`,
+        `i=>{if(!Array.isArray(i)||i.length!==3||i["0"]!==0){e[3](i)}let v0=i["1"],v1=i["2"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}return {"foo":v0,"bar":v1,"zoo":e[2],}}`,
       )
     },
   )

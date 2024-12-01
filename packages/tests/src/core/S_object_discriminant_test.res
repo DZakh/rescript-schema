@@ -382,7 +382,7 @@ test(`Serializes constant fields before registered non-literal fields`, t => {
     {
       code: InvalidType({expected: S.literal(true)->S.toUnknown, received: Obj.magic(false)}),
       operation: ReverseConvert,
-      path: S.Path.fromArray(["literalField"]),
+      path: S.Path.fromArray(["constant"]),
     },
   )
 
