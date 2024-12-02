@@ -1,14 +1,34 @@
 (i) => {
-  let v0, v1;
-  try {
-    v0 = JSON.parse(i);
-  } catch (t) {
-    e[0](t.message);
+  if (!Array.isArray(i) || i.length !== 3) {
+    e[3](i);
   }
-  if (v0 !== null) {
-    v1 = v0;
-  } else {
-    v1 = void 0;
+  let v0 = i["0"],
+    v1 = i["1"],
+    v2 = i["2"];
+  if (v2 !== "bar") {
+    e[2](v2);
   }
-  return v1;
+  if (v1 !== undefined) {
+    e[1](v1);
+  }
+  if (typeof v0 !== "string") {
+    e[0](v0);
+  }
+  return i;
+};
+
+(i) => {
+  if (
+    !Array.isArray(i) ||
+    i.length !== 3 ||
+    i["1"] !== undefined ||
+    i["2"] !== "bar"
+  ) {
+    e[1](i);
+  }
+  let v0 = i["0"];
+  if (typeof v0 !== "string") {
+    e[0](v0);
+  }
+  return i;
 };
