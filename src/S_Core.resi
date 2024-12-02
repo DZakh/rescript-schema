@@ -260,12 +260,12 @@ module Object: {
     fields: dict<t<unknown>>,
     fieldNames: array<string>,
   }
-
-  let strip: t<'value> => t<'value>
-  let strict: t<'value> => t<'value>
 }
 
 let object: (Object.s => 'value) => t<'value>
+
+let strip: t<'value> => t<'value>
+let strict: t<'value> => t<'value>
 
 module Tuple: {
   type s = {

@@ -872,7 +872,7 @@ test("Successfully parses object with transformed field", (t) => {
 });
 
 test("Fails to parse strict object with exccess fields", (t) => {
-  const schema = S.Object.strict(
+  const schema = S.strict(
     S.schema({
       foo: S.string,
     })
@@ -965,8 +965,8 @@ test("Fails to parse strict object with exccess fields which created using globa
 });
 
 test("Resets object strict mode with strip method", (t) => {
-  const schema = S.Object.strip(
-    S.Object.strict(
+  const schema = S.strip(
+    S.strict(
       S.schema({
         foo: S.string,
       })

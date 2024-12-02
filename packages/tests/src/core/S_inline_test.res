@@ -492,14 +492,14 @@ test("Supports Object (ignores transformations)", t => {
   )
 })
 
-test("Supports Object.strip", t => {
-  let schema = S.object(_ => ())->S.Object.strip
+test("Supports strip", t => {
+  let schema = S.object(_ => ())->S.strip
   t->Assert.deepEqual(schema->S.inline, `S.object(_ => ())`, ())
 })
 
-test("Supports Object.strict", t => {
-  let schema = S.object(_ => ())->S.Object.strict
-  t->Assert.deepEqual(schema->S.inline, `S.object(_ => ())->S.Object.strict`, ())
+test("Supports strict", t => {
+  let schema = S.object(_ => ())->S.strict
+  t->Assert.deepEqual(schema->S.inline, `S.object(_ => ())->S.strict`, ())
 })
 
 test("Supports empty Object (ignores transformations)", t => {

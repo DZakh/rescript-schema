@@ -52,7 +52,7 @@ test("Can flatten S.schema", t => {
 test("Can flatten strict object", t => {
   let schema = S.object(s =>
     {
-      "bar": s.flatten(S.object(s => s.field("bar", S.string))->S.Object.strict),
+      "bar": s.flatten(S.object(s => s.field("bar", S.string))->S.strict),
       "foo": s.field("foo", S.string),
     }
   )
@@ -87,7 +87,7 @@ test("Flatten inside of a strict object", t => {
       "bar": s.flatten(S.object(s => s.field("bar", S.string))),
       "foo": s.field("foo", S.string),
     }
-  )->S.Object.strict
+  )->S.strict
 
   t->U.unsafeAssertEqualSchemas(
     schema,
@@ -96,7 +96,7 @@ test("Flatten inside of a strict object", t => {
         "bar": s.field("bar", S.string),
         "foo": s.field("foo", S.string),
       }
-    )->S.Object.strict,
+    )->S.strict,
   )
   t->U.assertCompiledCode(
     ~schema,

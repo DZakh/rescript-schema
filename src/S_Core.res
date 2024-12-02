@@ -1223,7 +1223,7 @@ module Literal = {
   }
   and dict = value => {
     let items = Js.Dict.empty()
-    let string = ref("{")
+    let string = ref("{ ")
     let isJsonable = ref(true)
     let fields = value->Js.Dict.keys
     let numberOfFields = fields->Js.Array2.length
@@ -1235,10 +1235,10 @@ module Literal = {
         isJsonable := false
       }
       if idx !== 0 {
-        string := string.contents ++ ","
+        string := string.contents ++ ", "
       }
       string.contents =
-        string.contents ++ `${field->Inlined.Value.fromString}:${itemLiteral.string}`
+        string.contents ++ `${field->Inlined.Value.fromString}: ${itemLiteral.string}`
       items->Js.Dict.set(field, itemLiteral)
     }
 
@@ -1246,7 +1246,7 @@ module Literal = {
       kind: Dict,
       value: value->castAnyToUnknown,
       items: items->castAnyToUnknown,
-      string: string.contents ++ "}",
+      string: string.contents ++ " }",
       isJsonable: isJsonable.contents,
       filterBuilder: dictFilterBuilder,
     }
@@ -2128,14 +2128,14 @@ module Object = {
     | _ => schema
     }
   }
+}
 
-  let strip = schema => {
-    schema->setUnknownKeys(Strip)
-  }
+let strip = schema => {
+  schema->Object.setUnknownKeys(Strip)
+}
 
-  let strict = schema => {
-    schema->setUnknownKeys(Strict)
-  }
+let strict = schema => {
+  schema->Object.setUnknownKeys(Strict)
 }
 
 module Tuple = {
@@ -3894,7 +3894,7 @@ let inline = {
     }
 
     let inlinedSchema = switch schema->classify {
-    | Object({unknownKeys: Strict}) => inlinedSchema ++ `->S.Object.strict`
+    | Object({unknownKeys: Strict}) => inlinedSchema ++ `->S.strict`
     | _ => inlinedSchema
     }
 

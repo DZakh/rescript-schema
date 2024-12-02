@@ -253,7 +253,7 @@ test("Object with a strict flattened nested field", t => {
           {
             "foo": s.matches(S.string),
           },
-      )->S.Object.strict,
+      )->S.strict,
     )
   )
 

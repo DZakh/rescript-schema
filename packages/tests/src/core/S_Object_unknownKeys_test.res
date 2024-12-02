@@ -15,7 +15,7 @@ test("Fails fast and shows only one excees key in the error message", t => {
     {
       "key": s.field("key", S.string),
     }
-  )->S.Object.strict
+  )->S.strict
 
   t->U.assertRaised(
     () =>
@@ -28,7 +28,7 @@ test("Successfully parses Object with unknown keys when Strip strategy applyed",
   let value = "value"
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
-  let schema = S.object(s => s.field("key", S.string))->S.Object.strip
+  let schema = S.object(s => s.field("key", S.string))->S.strip
 
   t->Assert.deepEqual(any->S.parseOrThrow(schema), value, ())
 })
@@ -37,25 +37,24 @@ test("Works correctly when the same unknown keys strategy applyed multiple times
   let value = "value"
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
-  let schema =
-    S.object(s => s.field("key", S.string))->S.Object.strip->S.Object.strip->S.Object.strip
+  let schema = S.object(s => s.field("key", S.string))->S.strip->S.strip->S.strip
 
   t->Assert.deepEqual(any->S.parseOrThrow(schema), value, ())
 })
 
 test("Doesn't raise an error when unknown keys strategy applyed to a non Object schema", t => {
   t->Assert.notThrows(() => {
-    S.string->S.Object.strip->ignore
+    S.string->S.strip->ignore
   }, ())
   t->Assert.notThrows(() => {
-    S.string->S.Object.strict->ignore
+    S.string->S.strict->ignore
   }, ())
 })
 
 test("Can reset unknown keys strategy applying Strict strategy", t => {
   let any = %raw(`{key: "value", unknownKey: "value2"}`)
 
-  let schema = S.object(s => s.field("key", S.string))->S.Object.strip->S.Object.strict
+  let schema = S.object(s => s.field("key", S.string))->S.strip->S.strict
 
   t->U.assertRaised(
     () => any->S.parseOrThrow(schema),

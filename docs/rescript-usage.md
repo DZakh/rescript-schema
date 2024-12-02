@@ -31,8 +31,8 @@
     - [`s.nestedField`](#snestedfield)
     - [`Object destructuring`](#object-destructuring)
     - [`Extend field with another object schema`](#extend-field-with-another-object-schema)
-  - [`Object.strict`](#objectstrict)
-  - [`Object.strip`](#objectstrip)
+  - [`strict`](#strict)
+  - [`strip`](#strip)
   - [`schema`](#schema)
   - [`variant`](#variant)
   - [`union`](#union)
@@ -722,13 +722,13 @@ let entitySchema = S.object(s => {
 
 > 🧠 Destructuring works only with not-transformed object schemas. Be careful, since it's not protected by typesystem.
 
-### **`Object.strict`**
+### **`strict`**
 
 `S.t<'value> => S.t<'value>`
 
 ```rescript
 // Represents an object without fields
-let schema = S.object(_ => ())->S.Object.strict
+let schema = S.object(_ => ())->S.strict
 
 %raw(`{
   "someField": "value",
@@ -740,15 +740,15 @@ let schema = S.object(_ => ())->S.Object.strict
 // })
 ```
 
-By default **rescript-schema** silently strips unrecognized keys when parsing objects. You can change the behaviour to disallow unrecognized keys with the `S.Object.strict` function.
+By default **rescript-schema** silently strips unrecognized keys when parsing objects. You can change the behaviour to disallow unrecognized keys with the `S.strict` function.
 
-### **`Object.strip`**
+### **`strip`**
 
 `S.t<'value> => S.t<'value>`
 
 ```rescript
 // Represents an object with any fields
-let schema = S.object(_ => ())->S.Object.strip
+let schema = S.object(_ => ())->S.strip
 
 %raw(`{
   "someField": "value",
@@ -756,7 +756,7 @@ let schema = S.object(_ => ())->S.Object.strip
 // Ok()
 ```
 
-You can use the `S.Object.strip` function to reset a object schema to the default behavior (stripping unrecognized keys).
+You can use the `S.strip` function to reset a object schema to the default behavior (stripping unrecognized keys).
 
 ### **`schema`**
 
@@ -1496,7 +1496,7 @@ Determines if the schema is async. It can be useful to decide whether you should
 
 ```rescript
 S.literal({"abc": 123})->S.name
-// `{"abc":123}`
+// `{ "abc": 123 }`
 ```
 
 Used internally for readable error messages.
