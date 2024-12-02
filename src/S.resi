@@ -53,6 +53,7 @@ and tagged =
   | @as("object")
   Object({
       fieldNames: array<string>,
+      inlinedFieldNames: array<string>,
       fields: dict<t<unknown>>,
       unknownKeys: unknownKeys,
       advanced: bool,

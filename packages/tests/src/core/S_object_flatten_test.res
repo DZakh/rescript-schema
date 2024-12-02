@@ -81,6 +81,30 @@ test("Can flatten strict object", t => {
   )
 })
 
+test("Flatten inside of a strict object", t => {
+  let schema = S.object(s =>
+    {
+      "bar": s.flatten(S.object(s => s.field("bar", S.string))),
+      "foo": s.field("foo", S.string),
+    }
+  )->S.Object.strict
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s =>
+      {
+        "bar": s.field("bar", S.string),
+        "foo": s.field("foo", S.string),
+      }
+    )->S.Object.strict,
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v1=i["foo"],v2;let v0=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}for(v2 in i){if(v2!=="bar"&&v2!=="foo"){e[2](v2)}}return {"bar":v0,"foo":v1,}}`,
+  )
+})
+
 // FIXME: Should work
 test("Flatten schema with duplicated field of the same type (flatten first)", t => {
   t->Assert.throws(
