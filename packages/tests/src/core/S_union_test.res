@@ -333,7 +333,7 @@ module Advanced = {
 
     t->Assert.is(
       error->U.error->S.Error.message,
-      `Failed converting reverse at root. Reason: Expected { TAG: "Circle"; radius: number; } | { TAG: "Square"; x: number; }, received {"TAG":"Triangle","x":2,"y":3}`,
+      `Failed reverse converting at root. Reason: Expected { TAG: "Circle"; radius: number; } | { TAG: "Square"; x: number; }, received {"TAG":"Triangle","x":2,"y":3}`,
       (),
     )
   })

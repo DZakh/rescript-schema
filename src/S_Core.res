@@ -165,8 +165,16 @@ module Stdlib = {
         }
       }
 
-      @inline
-      let fromString = (string: string): string => string->Js.Json.stringifyAny->Obj.magic
+      let fromString = (string: string): string => {
+        let rec loop = idx => {
+          switch string->Js.String2.get(idx)->(Obj.magic: string => option<string>) {
+          | None => `"${string}"`
+          | Some("\"") => string->Js.Json.stringifyAny->Obj.magic
+          | Some(_) => loop(idx + 1)
+          }
+        }
+        loop(0)
+      }
     }
 
     module Float = {
@@ -247,7 +255,7 @@ type rec t<'value> = {
   @as("n")
   name: unit => string,
   @as("~r")
-  mutable // FIXME: Use a better way to check for isSchema
+  mutable // TODO: Use a better way to check for isSchema
   reverse: unit => t<unknown>,
   @as("b")
   mutable builder: builder,
@@ -2153,7 +2161,6 @@ module Tuple = {
           b->(schema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(
             ~inputVar=Path.concat(
               inputVar,
-              // FIXME: Can improve by allocating a var here
               Path.fromInlinedLocation(`"${idx->Stdlib.Int.unsafeToString}"`),
             ),
           )
@@ -3011,7 +3018,7 @@ module Schema = {
   ) => {
     let unknownKeys = (selfSchema->classify->Obj.magic)["unknownKeys"]
 
-    let b = parentB->B.scope // FIXME: Remove the scope by grouping all typeFilters together
+    let b = parentB->B.scope // TODO: Remove the scope by grouping all typeFilters together
 
     let objectVal = b->B.Val.Object.make(~isArray)
 
@@ -3107,8 +3114,7 @@ module Schema = {
             schema.maybeTypeFilter->Stdlib.Option.isSome && (
                 b.global.flag->Flag.unsafeHas(Flag.typeValidation)
                   ? !(schema->isLiteralSchema)
-                  : // FIXME: Is isEmbed needed here?
-                    schema->isLiteralSchema && !(itemInput->B.Val.isEmbed)
+                  : schema->isLiteralSchema
               )
           ) {
             b.code = b.code ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
@@ -3165,7 +3171,8 @@ module Schema = {
 
     reversed.builder = Builder.make((b, ~input, ~selfSchema as _, ~path) => {
       let hasTypeValidation = b.global.flag->Flag.unsafeHas(Flag.typeValidation)
-      // FIXME: Optimise the for loop
+
+      // TODO: Optimise the for loop
       for idx in 0 to ritems->Js.Array2.length - 1 {
         switch ritems->Js.Array2.unsafe_get(idx) {
         | Node(_) if hasTypeValidation =>
@@ -3528,7 +3535,7 @@ module Schema = {
         tagged: Object({
           fieldNames,
           fields,
-          unknownKeys: globalConfig.defaultUnknownKeys, // FIXME: Idea? Add mutable unknownKeys to ctx??
+          unknownKeys: globalConfig.defaultUnknownKeys,
           advanced: true,
         }),
         builder: advancedBuilder(~definition, ~items, ~inlinedLocations),
@@ -3654,7 +3661,7 @@ module Schema = {
         let inlinedLocations = Belt.Array.makeUninitializedUnsafe(length)
         for idx in 0 to length - 1 {
           let location = fieldNames->Js.Array2.unsafe_get(idx)
-          let inlinedLocation = location->Stdlib.Inlined.Value.fromString // FIXME: Test a location with "
+          let inlinedLocation = location->Stdlib.Inlined.Value.fromString
           let schema = node->Js.Dict.unsafeGet(location)->definitionToSchema
           schemas->Js.Array2.unsafe_set(idx, schema)
           inlinedLocations->Js.Array2.unsafe_set(idx, inlinedLocation)
@@ -3741,8 +3748,16 @@ module Error = {
   let message = (error: error) => {
     let op = error.flag
 
-    let text = ref(
-      "Failed " ++ if op->Flag.unsafeHas(Flag.typeValidation) {
+    let text = ref("Failed ")
+    if op->Flag.unsafeHas(Flag.reverse) {
+      text := text.contents ++ "reverse "
+    }
+    if op->Flag.unsafeHas(Flag.async) {
+      text := text.contents ++ "async "
+    }
+
+    text :=
+      text.contents ++ if op->Flag.unsafeHas(Flag.typeValidation) {
         if op->Flag.unsafeHas(Flag.assertOutput) {
           "asserting"
         } else {
@@ -3750,16 +3765,8 @@ module Error = {
         }
       } else {
         "converting"
-      },
-    )
+      }
 
-    // FIXME: Move it before operation
-    if op->Flag.unsafeHas(Flag.reverse) {
-      text := text.contents ++ " reverse"
-    }
-    if op->Flag.unsafeHas(Flag.async) {
-      text := text.contents ++ " async"
-    }
     if op->Flag.unsafeHas(Flag.jsonableOutput) {
       text :=
         text.contents ++ " to JSON" ++ (op->Flag.unsafeHas(Flag.jsonStringOutput) ? " string" : "")
