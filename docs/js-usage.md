@@ -19,8 +19,8 @@
 - [Objects](#objects)
   - [Literal shorthand](#literal-shorthand)
   - [Advanced object schema](#advanced-object-schema)
-  - [`Object.strict`](#objectstrict)
-  - [`Object.strip`](#objectstrip)
+  - [`strict`](#strict)
+  - [`strip`](#strip)
   - [`merge`](#merge)
 - [Arrays](#arrays)
 - [Tuples](#tuples)
@@ -341,12 +341,12 @@ S.convertOrThrow(
 // => returns { USER_ID: 1, USER_NAME: "John" }
 ```
 
-### `Object.strict`
+### `strict`
 
-By default **rescript-schema** object schema strip out unrecognized keys during parsing. You can disallow unknown keys with `S.Object.strict` function. If there are any unknown keys in the input, **rescript-schema** will fail with an error.
+By default **rescript-schema** object schema strip out unrecognized keys during parsing. You can disallow unknown keys with `S.strict` function. If there are any unknown keys in the input, **rescript-schema** will fail with an error.
 
 ```ts
-const personSchema = S.Object.strict(
+const personSchema = S.strict(
   S.schema({
     name: S.string,
   })
@@ -362,9 +362,9 @@ S.parseWith(
 // => throws S.Error
 ```
 
-### `Object.strip`
+### `strip`
 
-You can use the `S.Object.strip` function to reset an object schema to the default behavior (stripping unrecognized keys).
+You can use the `S.strip` function to reset an object schema to the default behavior (stripping unrecognized keys).
 
 ### `merge`
 

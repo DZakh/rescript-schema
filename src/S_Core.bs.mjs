@@ -688,7 +688,7 @@ function parseInternal(value) {
             };
     } else if (value.constructor === Object) {
       var items$1 = {};
-      var string$1 = "{";
+      var string$1 = "{ ";
       var isJsonable$1 = true;
       var fields = Object.keys(value);
       var numberOfFields = fields.length;
@@ -700,15 +700,15 @@ function parseInternal(value) {
           isJsonable$1 = false;
         }
         if (idx$1 !== 0) {
-          string$1 = string$1 + ",";
+          string$1 = string$1 + ", ";
         }
-        string$1 = string$1 + (fromString(field) + ":" + itemLiteral$1.s);
+        string$1 = string$1 + (fromString(field) + ": " + itemLiteral$1.s);
         items$1[field] = itemLiteral$1;
       }
       return {
               kind: "Dict",
               value: value,
-              s: string$1 + "}",
+              s: string$1 + " }",
               f: dictFilterBuilder,
               j: isJsonable$1,
               i: Caml_option.some(items$1)
@@ -2857,7 +2857,7 @@ function internalInline(schema, maybeVariant, param) {
         ) + ")")) : inlinedSchema$2;
   var match = schema.t;
   var inlinedSchema$4;
-  inlinedSchema$4 = typeof match !== "object" || !(match.TAG === "object" && match.unknownKeys !== "Strip") ? inlinedSchema$3 : inlinedSchema$3 + "->S.Object.strict";
+  inlinedSchema$4 = typeof match !== "object" || !(match.TAG === "object" && match.unknownKeys !== "Strip") ? inlinedSchema$3 : inlinedSchema$3 + "->S.strict";
   var match$1 = schema.t;
   var inlinedSchema$5;
   var exit$1 = 0;
@@ -3459,10 +3459,7 @@ var Schema = {};
 
 var schema$7 = factory$6;
 
-var $$Object = {
-  strip: strip,
-  strict: strict
-};
+var $$Object = {};
 
 var Tuple = {};
 
@@ -3564,6 +3561,8 @@ export {
   schema$7 as schema,
   $$Object ,
   object ,
+  strip ,
+  strict ,
   Tuple ,
   tuple ,
   tuple1 ,
