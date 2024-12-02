@@ -209,10 +209,11 @@ test("Reverse convert of tagged tuple with destructured bool", t => {
     ~op=#ReverseConvert,
     `i=>{let v0=i["1"];if(v0!=="foo"){e[1](v0)}return [e[0],i["1"],i["0"],]}`,
   )
+  // FIXME: Can be improved
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseParse,
-    `i=>{if(!Array.isArray(i)||i.length!==2){e[2](i)}let v0=i["1"];if(v0!=="foo"){e[1](v0)}return [e[0],i["1"],i["0"],]}`,
+    `i=>{if(!Array.isArray(i)||i.length!==2||i["1"]!=="foo"){e[2](i)}let v0=i["1"];if(v0!=="foo"){e[1](v0)}return [e[0],i["1"],i["0"],]}`,
   )
 })
 
