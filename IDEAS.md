@@ -20,14 +20,8 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v9
 
-- Add S.test
-- Add schema input to the error ??? What about build errors?
-- Rename S.Object.strict to S.strict (the same for strip)
-- Fix unknownKeys for nested S.schema
-- Add Enums section to js docs
-- Remove object and tuple literals in favor of S.schema
-- Add s.strict s.strip to ppx
-- Improve received formatting in the error. Don't use S.literal for it
+- Update documentation:
+  - Add Enums section to js docs
 
 ### Done
 
@@ -47,9 +41,18 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Add S.compile to Js/ts api
 - Changed asyncParser from (i) => () => promise to (i) => promise
 - Look at the discriminant in unions - error message improvements
+- Rename S.strict to S.strict (the same for strip)
+
+## v9.1
+
+- Add s.strict s.strip to ppx
+- Add S.deepStrict
+- Add S.test
 
 ## v10
 
+- Add schema input to the error ??? What about build errors?
+- Remove Literal.parse in favor of S.literal and make it create Object/Tuple schema instead of Literal(Object)
 - S.transform(s => {
   s.reverse(input => input) // Or s.asyncReverse(input => Promise.resolve(input))
   input => input

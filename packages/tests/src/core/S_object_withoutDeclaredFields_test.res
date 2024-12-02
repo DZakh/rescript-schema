@@ -13,13 +13,13 @@ test("Successfully parses object with excess keys", t => {
 })
 
 test("Successfully parses empty object when UnknownKeys are strict", t => {
-  let schema = S.object(_ => ())->S.Object.strict
+  let schema = S.object(_ => ())->S.strict
 
   t->Assert.deepEqual(%raw(`{}`)->S.parseOrThrow(schema), (), ())
 })
 
 test("Fails to parse object with excess keys when UnknownKeys are strict", t => {
-  let schema = S.object(_ => ())->S.Object.strict
+  let schema = S.object(_ => ())->S.strict
 
   t->U.assertRaised(
     () => %raw(`{field:"bar"}`)->S.parseOrThrow(schema),

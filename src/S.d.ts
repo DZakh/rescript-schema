@@ -227,14 +227,12 @@ export function object<Output, Input extends Record<string, unknown>>(
   definer: (ctx: ObjectCtx<Input>) => Output
 ): Schema<Output, Input>;
 
-export const Object: {
-  strip: <Output, Input extends Record<string, unknown>>(
-    schema: Schema<Output, Input>
-  ) => Schema<Output, Input>;
-  strict: <Output, Input extends Record<string, unknown>>(
-    schema: Schema<Output, Input>
-  ) => Schema<Output, Input>;
-};
+export function strip<Output, Input extends Record<string, unknown>>(
+  schema: Schema<Output, Input>
+): Schema<Output, Input>;
+export function strict<Output, Input extends Record<string, unknown>>(
+  schema: Schema<Output, Input>
+): Schema<Output, Input>;
 
 export function merge<O1, O2>(
   schema1: Schema<O1, Record<string, unknown>>,

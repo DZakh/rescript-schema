@@ -1069,7 +1069,7 @@ test("Object schema parsing checks order", t => {
     {
       "key": s.field("key", S.string),
     }
-  })->S.Object.strict
+  })->S.strict
 
   // Type check should be the first
   t->U.assertRaised(
@@ -1206,7 +1206,7 @@ module Compiled = {
         "foo": s.field("foo", S.string),
         "bar": s.field("bar", S.bool),
       }
-    )->S.Object.strict
+    )->S.strict
 
     t->U.assertCompiledCode(
       ~schema,
@@ -1221,7 +1221,7 @@ module Compiled = {
         "foo": s.field("foo", S.string),
         "bar": s.field("bar", S.bool),
       }
-    )->S.Object.strict
+    )->S.strict
 
     t->U.assertCompiledCode(
       ~schema,
@@ -1233,7 +1233,7 @@ module Compiled = {
   test("Compiled code snapshot for nested empty object with strict unknown keys", t => {
     let schema = S.schema(s =>
       {
-        "nested": s.matches(S.object(_ => ())->S.Object.strict),
+        "nested": s.matches(S.object(_ => ())->S.strict),
       }
     )
 
@@ -1259,7 +1259,7 @@ module Compiled = {
           "bar": s.field("BAR", S.bool),
           "zoo": 1,
         }
-      })->S.Object.strict
+      })->S.strict
 
       t->U.assertCompiledCode(
         ~schema,
@@ -1279,7 +1279,7 @@ module Compiled = {
           "bar": s.field("BAR", S.bool),
           "zoo": 1,
         }
-      })->S.Object.strict
+      })->S.strict
 
       t->U.assertCompiledCode(
         ~schema,
