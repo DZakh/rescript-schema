@@ -551,7 +551,7 @@ test("Fails to parses async schema", async (t) => {
   }
   t.is(
     result.error.message,
-    "Failed parsing async at root. Reason: User error"
+    "Failed async parsing at root. Reason: User error"
   );
   t.true(result.error instanceof S.Error);
 });
@@ -636,6 +636,39 @@ test("Successfully parses object by provided shape", (t) => {
       {
         foo: string;
         bar: boolean;
+      }
+    >
+  >(true);
+});
+
+test("Successfully parses object with quoted keys", (t) => {
+  const schema = S.schema({
+    [`"`]: S.string,
+    [`'`]: S.string,
+    ["`"]: S.string,
+  });
+  const value = S.parseOrThrow(
+    {
+      '"': '"',
+      "'": "'",
+      "`": "`",
+    },
+    schema
+  );
+
+  t.deepEqual(value, {
+    '"': '"',
+    "'": "'",
+    "`": "`",
+  });
+
+  expectType<
+    SchemaEqual<
+      typeof schema,
+      {
+        '"': string;
+        "'": string;
+        "`": string;
       }
     >
   >(true);

@@ -8,7 +8,19 @@ import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
 var immutableEmpty = {};
 
 function fromString(string) {
-  return JSON.stringify(string);
+  var _idx = 0;
+  while(true) {
+    var idx = _idx;
+    var match = string[idx];
+    if (match === undefined) {
+      return "\"" + string + "\"";
+    }
+    if (match === "\"") {
+      return JSON.stringify(string);
+    }
+    _idx = idx + 1 | 0;
+    continue ;
+  };
 }
 
 function toArray(path) {
@@ -20,7 +32,7 @@ function toArray(path) {
 }
 
 function fromLocation($$location) {
-  return "[" + JSON.stringify($$location) + "]";
+  return "[" + fromString($$location) + "]";
 }
 
 function fromArray(array) {
@@ -33,7 +45,7 @@ function fromArray(array) {
     }
   }
   var $$location = array[0];
-  return "[" + JSON.stringify($$location) + "]";
+  return "[" + fromString($$location) + "]";
 }
 
 function concat(path, concatedPath) {
@@ -367,7 +379,7 @@ function withPathPrepend(b, input, path, maybeDynamicLocationVar, fn) {
   }
   try {
     return withCatch(b, input, (function (b, errorVar) {
-                  b.c = errorVar + ".path=" + JSON.stringify(path) + "+" + (
+                  b.c = errorVar + ".path=" + fromString(path) + "+" + (
                     maybeDynamicLocationVar !== undefined ? "'[\"'+" + maybeDynamicLocationVar + "+'\"]'+" : ""
                   ) + errorVar + ".path";
                 }), (function (b) {
@@ -566,7 +578,7 @@ function dictFilterBuilder(b, inputVar, literal) {
   return inputVar + "!==" + embed(b, value) + "&&(!" + inputVar + "||" + inputVar + ".constructor!==Object||Object.keys(" + inputVar + ").length!==" + numberOfFields + (
           numberOfFields > 0 ? "||" + fields.map(function (field) {
                     var literal = items[field];
-                    return literal.f(b, inputVar + "[" + JSON.stringify(field) + "]", literal);
+                    return literal.f(b, inputVar + "[" + fromString(field) + "]", literal);
                   }).join("||") : ""
         ) + ")";
 }
@@ -635,7 +647,7 @@ function parseInternal(value) {
     return {
             kind: "String",
             value: value,
-            s: JSON.stringify(value),
+            s: fromString(value),
             f: inlinedStrictEqualFilterBuilder,
             j: true
           };
@@ -690,7 +702,7 @@ function parseInternal(value) {
         if (idx$1 !== 0) {
           string$1 = string$1 + ",";
         }
-        string$1 = string$1 + (JSON.stringify(field) + ":" + itemLiteral$1.s);
+        string$1 = string$1 + (fromString(field) + ":" + itemLiteral$1.s);
         items$1[field] = itemLiteral$1;
       }
       return {
@@ -1359,7 +1371,7 @@ function typeFilter$1(b, inputVar) {
     var fieldName = fieldNames[idx];
     var schema = fields[fieldName];
     if (schema.t.TAG === "literal") {
-      code = code + "||" + schema.f(b, inputVar + ("[" + JSON.stringify(fieldName) + "]"));
+      code = code + "||" + schema.f(b, inputVar + ("[" + fromString(fieldName) + "]"));
     }
     
   }
@@ -1792,7 +1804,7 @@ function json(validate) {
                         for(var idx = 0 ,idx_finish = input.length; idx < idx_finish; ++idx){
                           var inputItem = input[idx];
                           var $$location = idx.toString();
-                          output.push(parse(inputItem, path$1 + ("[" + JSON.stringify($$location) + "]")));
+                          output.push(parse(inputItem, path$1 + ("[" + fromString($$location) + "]")));
                         }
                         return output;
                       }
@@ -1801,7 +1813,7 @@ function json(validate) {
                       for(var idx$1 = 0 ,idx_finish$1 = keys.length; idx$1 < idx_finish$1; ++idx$1){
                         var key = keys[idx$1];
                         var field = input[key];
-                        output$1[key] = parse(field, path$1 + ("[" + JSON.stringify(key) + "]"));
+                        output$1[key] = parse(field, path$1 + ("[" + fromString(key) + "]"));
                       }
                       return output$1;
                     }
@@ -1937,7 +1949,7 @@ function definitionToOutput(b, definition, getItemOutput) {
   var objectVal = make(b, isArray);
   for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
     var key = keys[idx];
-    add(objectVal, isArray ? "\"" + key + "\"" : JSON.stringify(key), definitionToOutput(b, definition[key], getItemOutput));
+    add(objectVal, isArray ? "\"" + key + "\"" : fromString(key), definitionToOutput(b, definition[key], getItemOutput));
   }
   return complete(objectVal, isArray);
 }
@@ -1974,7 +1986,7 @@ function proxify(item) {
                   if (prop === itemSymbol) {
                     return item;
                   }
-                  var inlinedLocation = JSON.stringify(prop);
+                  var inlinedLocation = fromString(prop);
                   return proxify({
                               k: 1,
                               i: inlinedLocation,
@@ -2012,7 +2024,7 @@ function definitionToRitem(definition, path, ritems, ritemsByItemPath) {
   var fields = isArray ? [] : ({});
   for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
     var $$location = keys[idx];
-    var inlinedLocation = isArray ? "\"" + $$location + "\"" : JSON.stringify($$location);
+    var inlinedLocation = isArray ? "\"" + $$location + "\"" : fromString($$location);
     var ritem$1 = definitionToRitem(definition[$$location], path + ("[" + inlinedLocation + "]"), ritems, ritemsByItemPath);
     ritems.push(ritem$1);
     fields[$$location] = ritem$1.s;
@@ -2066,36 +2078,6 @@ function builder$1(schemas, inlinedLocations, isArray) {
   };
 }
 
-function reverse$1(fieldNames, schemas, inlinedLocations) {
-  return function () {
-    var reversedFields = {};
-    var reversedSchemas = [];
-    var isTransformed = false;
-    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-      var fieldName = fieldNames[idx];
-      var schema = schemas[idx];
-      var reversed = schema["~r"]();
-      reversedFields[fieldName] = reversed;
-      reversedSchemas.push(reversed);
-      if (schema !== reversed) {
-        isTransformed = true;
-      }
-      
-    }
-    if (isTransformed) {
-      return makeReverseSchema(name$1, {
-                  TAG: "object",
-                  fieldNames: fieldNames,
-                  fields: reversedFields,
-                  unknownKeys: globalConfig.u,
-                  advanced: false
-                }, empty, builder$1(reversedSchemas, inlinedLocations, false), typeFilter$1);
-    } else {
-      return this;
-    }
-  };
-}
-
 function nested(fieldName) {
   var parentCtx = this;
   var cacheId = "~" + fieldName;
@@ -2116,7 +2098,7 @@ function nested(fieldName) {
       }, empty, builder$1(schemas, inlinedLocations, false), typeFilter$1, reverse$1(fieldNames, schemas, inlinedLocations));
   var target = parentCtx.f(fieldName, schema)[itemSymbol];
   var field = function (fieldName, schema) {
-    var inlinedLocation = JSON.stringify(fieldName);
+    var inlinedLocation = fromString(fieldName);
     if (fields[fieldName]) {
       throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice"));
     }
@@ -2187,6 +2169,36 @@ function nested(fieldName) {
   return ctx$1;
 }
 
+function reverse$1(fieldNames, schemas, inlinedLocations) {
+  return function () {
+    var reversedFields = {};
+    var reversedSchemas = [];
+    var isTransformed = false;
+    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+      var fieldName = fieldNames[idx];
+      var schema = schemas[idx];
+      var reversed = schema["~r"]();
+      reversedFields[fieldName] = reversed;
+      reversedSchemas.push(reversed);
+      if (schema !== reversed) {
+        isTransformed = true;
+      }
+      
+    }
+    if (isTransformed) {
+      return makeReverseSchema(name$1, {
+                  TAG: "object",
+                  fieldNames: fieldNames,
+                  fields: reversedFields,
+                  unknownKeys: globalConfig.u,
+                  advanced: false
+                }, empty, builder$1(reversedSchemas, inlinedLocations, false), typeFilter$1);
+    } else {
+      return this;
+    }
+  };
+}
+
 function advancedBuilder(definition, items, inlinedLocations) {
   return function (parentB, input, selfSchema, path) {
     var outputs = new WeakMap();
@@ -2210,7 +2222,7 @@ function advancedBuilder(definition, items, inlinedLocations) {
             };
             var path$1 = path + itemPath;
             if (schema.f !== undefined && (
-                b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal" && !(itemInput.v && itemInput.i[0] === "e")
+                b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal"
               )) {
               b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
             }
@@ -2314,7 +2326,7 @@ function advancedReverse(definition, kind, items) {
                   for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
                     var fieldName = fieldNames[idx];
                     var schema = fields[fieldName];
-                    var inlinedLocation = JSON.stringify(fieldName);
+                    var inlinedLocation = fromString(fieldName);
                     var itemPath = originalPath + ("[" + inlinedLocation + "]");
                     var ritem = ritemsByItemPath[itemPath];
                     var itemInput = ritem !== undefined ? getRitemInput(ritem) : reversedToInput(schema, itemPath);
@@ -2458,7 +2470,7 @@ function object(definer) {
     throw new Error("[rescript-schema] " + message);
   };
   var field = function (fieldName, schema) {
-    var inlinedLocation = JSON.stringify(fieldName);
+    var inlinedLocation = fromString(fieldName);
     if (fields[fieldName]) {
       throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice with incompatible schemas"));
     }
@@ -2600,7 +2612,7 @@ function definitionToSchema(definition) {
   var inlinedLocations$1 = new Array(length$1);
   for(var idx$1 = 0; idx$1 < length$1; ++idx$1){
     var $$location = fieldNames[idx$1];
-    var inlinedLocation = JSON.stringify($$location);
+    var inlinedLocation = fromString($$location);
     var schema$1 = definitionToSchema(definition[$$location]);
     schemas[idx$1] = schema$1;
     inlinedLocations$1[idx$1] = inlinedLocation;
@@ -2651,7 +2663,7 @@ function reason(error, nestedLevelOpt) {
     case "InvalidType" :
         return "Expected " + reason$1.expected.n() + ", received " + parseInternal(reason$1.received).s;
     case "ExcessField" :
-        return "Encountered disallowed excess key " + JSON.stringify(reason$1._0) + " on an object";
+        return "Encountered disallowed excess key " + fromString(reason$1._0) + " on an object";
     case "InvalidUnion" :
         var lineBreak = "\n" + " ".repeat((nestedLevel << 1));
         var reasonsDict = {};
@@ -2675,17 +2687,18 @@ function reason$1(error) {
 
 function message(error) {
   var op = error.flag;
-  var text = "Failed " + (
+  var text = "Failed ";
+  if (op & 32) {
+    text = text + "reverse ";
+  }
+  if (op & 2) {
+    text = text + "async ";
+  }
+  text = text + (
     op & 1 ? (
         op & 4 ? "asserting" : "parsing"
       ) : "converting"
   );
-  if (op & 32) {
-    text = text + " reverse";
-  }
-  if (op & 2) {
-    text = text + " async";
-  }
   if (op & 8) {
     text = text + " to JSON" + (
       op & 16 ? " string" : ""
@@ -2745,7 +2758,7 @@ function internalInline(schema, maybeVariant, param) {
             var fields = literal.fields;
             inlinedSchema = "S.object(s =>\n  {\n    " + fieldNames.map(function (fieldName) {
                     var schema = fields[fieldName];
-                    var inlinedLocation = JSON.stringify(fieldName);
+                    var inlinedLocation = fromString(fieldName);
                     return inlinedLocation + ": s.field(" + inlinedLocation + ", " + internalInline(schema, undefined, undefined) + ")";
                   }).join(",\n    ") + ",\n  }\n)";
           } else {
@@ -2795,7 +2808,7 @@ function internalInline(schema, maybeVariant, param) {
                   var numberOfVariantNames = n !== undefined ? n : 0;
                   variantNamesCounter[variantName] = numberOfVariantNames + 1;
                   var variantName$1 = numberOfVariantNames !== 0 ? variantName + (numberOfVariantNames + 1) : variantName;
-                  var inlinedVariant = "#" + JSON.stringify(variantName$1);
+                  var inlinedVariant = "#" + fromString(variantName$1);
                   return internalInline(s, inlinedVariant, undefined);
                 }).join(", ") + "])";
           break;
@@ -2827,7 +2840,7 @@ function internalInline(schema, maybeVariant, param) {
     inlinedSchema$1 = inlinedSchema;
   }
   var message = deprecation(schema);
-  var inlinedSchema$2 = message !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, deprecationMetadataId), inlinedSchema$1 + ("->S.deprecate(" + JSON.stringify(message) + ")")) : inlinedSchema$1;
+  var inlinedSchema$2 = message !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, deprecationMetadataId), inlinedSchema$1 + ("->S.deprecate(" + fromString(message) + ")")) : inlinedSchema$1;
   var message$1 = description(schema);
   var inlinedSchema$3 = message$1 !== undefined ? (Js_dict.unsafeDeleteKey(metadataMap, descriptionMetadataId), inlinedSchema$2 + ("->S.describe(" + (
           message$1 === (void 0) ? "undefined" : JSON.stringify(message$1)
@@ -2850,11 +2863,11 @@ function internalInline(schema, maybeVariant, param) {
             inlinedSchema$5 = inlinedSchema$4 + refinements$4.map(function (refinement) {
                     var match = refinement.kind;
                     if (typeof match !== "object") {
-                      return "->S.port(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.port(~message=" + fromString(refinement.message) + ")";
                     } else if (match.TAG === "Min") {
-                      return "->S.intMin(" + match.value + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.intMin(" + match.value + ", ~message=" + fromString(refinement.message) + ")";
                     } else {
-                      return "->S.intMax(" + match.value + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.intMax(" + match.value + ", ~message=" + fromString(refinement.message) + ")";
                     }
                   }).join("");
           } else {
@@ -2871,12 +2884,12 @@ function internalInline(schema, maybeVariant, param) {
                       var value = match.value;
                       return "->S.floatMin(" + (value.toString() + (
                                 value % 1 === 0 ? "." : ""
-                              )) + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                              )) + ", ~message=" + fromString(refinement.message) + ")";
                     }
                     var value$1 = match.value;
                     return "->S.floatMax(" + (value$1.toString() + (
                               value$1 % 1 === 0 ? "." : ""
-                            )) + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                            )) + ", ~message=" + fromString(refinement.message) + ")";
                   }).join("");
           } else {
             inlinedSchema$5 = inlinedSchema$4;
@@ -2902,11 +2915,11 @@ function internalInline(schema, maybeVariant, param) {
                     var match = refinement.kind;
                     switch (match.TAG) {
                       case "Min" :
-                          return "->S.arrayMinLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                          return "->S.arrayMinLength(" + match.length + ", ~message=" + fromString(refinement.message) + ")";
                       case "Max" :
-                          return "->S.arrayMaxLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                          return "->S.arrayMaxLength(" + match.length + ", ~message=" + fromString(refinement.message) + ")";
                       case "Length" :
-                          return "->S.arrayLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                          return "->S.arrayLength(" + match.length + ", ~message=" + fromString(refinement.message) + ")";
                       
                     }
                   }).join("");
@@ -2927,27 +2940,27 @@ function internalInline(schema, maybeVariant, param) {
               if (typeof match !== "object") {
                 switch (match) {
                   case "Email" :
-                      return "->S.email(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.email(~message=" + fromString(refinement.message) + ")";
                   case "Uuid" :
-                      return "->S.uuid(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.uuid(~message=" + fromString(refinement.message) + ")";
                   case "Cuid" :
-                      return "->S.cuid(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.cuid(~message=" + fromString(refinement.message) + ")";
                   case "Url" :
-                      return "->S.url(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.url(~message=" + fromString(refinement.message) + ")";
                   case "Datetime" :
-                      return "->S.datetime(~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.datetime(~message=" + fromString(refinement.message) + ")";
                   
                 }
               } else {
                 switch (match.TAG) {
                   case "Min" :
-                      return "->S.stringMinLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.stringMinLength(" + match.length + ", ~message=" + fromString(refinement.message) + ")";
                   case "Max" :
-                      return "->S.stringMaxLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.stringMaxLength(" + match.length + ", ~message=" + fromString(refinement.message) + ")";
                   case "Length" :
-                      return "->S.stringLength(" + match.length + ", ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.stringLength(" + match.length + ", ~message=" + fromString(refinement.message) + ")";
                   case "Pattern" :
-                      return "->S.pattern(%re(" + JSON.stringify(match.re.toString()) + "), ~message=" + JSON.stringify(refinement.message) + ")";
+                      return "->S.pattern(%re(" + fromString(match.re.toString()) + "), ~message=" + fromString(refinement.message) + ")";
                   
                 }
               }
