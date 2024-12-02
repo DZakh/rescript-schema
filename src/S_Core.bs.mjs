@@ -1366,12 +1366,12 @@ function typeFilter$1(b, inputVar) {
   var code = "!" + inputVar + "||" + inputVar + ".constructor!==Object";
   var tagged = this.t;
   var fieldNames = tagged.fieldNames;
+  var inlinedFieldNames = tagged.inlinedFieldNames;
   var fields = tagged.fields;
   for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-    var fieldName = fieldNames[idx];
-    var schema = fields[fieldName];
+    var schema = fields[fieldNames[idx]];
     if (schema.t.TAG === "literal") {
-      code = code + "||" + schema.f(b, inputVar + ("[" + fromString(fieldName) + "]"));
+      code = code + "||" + schema.f(b, inputVar + ("[" + inlinedFieldNames[idx] + "]"));
     }
     
   }
@@ -1398,6 +1398,7 @@ function setUnknownKeys(schema, unknownKeys) {
             t: {
               TAG: "object",
               fieldNames: match.fieldNames,
+              inlinedFieldNames: match.inlinedFieldNames,
               fields: match.fields,
               unknownKeys: unknownKeys,
               advanced: match.advanced
@@ -2022,10 +2023,12 @@ function definitionToRitem(definition, path, ritems, ritemsByItemPath) {
   var keys = Object.keys(definition);
   var isArray = Array.isArray(definition);
   var fields = isArray ? [] : ({});
+  var inlinedLocations = [];
   for(var idx = 0 ,idx_finish = keys.length; idx < idx_finish; ++idx){
     var $$location = keys[idx];
     var inlinedLocation = isArray ? "\"" + $$location + "\"" : fromString($$location);
     var ritem$1 = definitionToRitem(definition[$$location], path + ("[" + inlinedLocation + "]"), ritems, ritemsByItemPath);
+    inlinedLocations.push(inlinedLocation);
     ritems.push(ritem$1);
     fields[$$location] = ritem$1.s;
   }
@@ -2038,6 +2041,7 @@ function definitionToRitem(definition, path, ritems, ritemsByItemPath) {
                   }) : ({
                     TAG: "object",
                     fieldNames: keys,
+                    inlinedFieldNames: inlinedLocations,
                     fields: fields,
                     unknownKeys: globalConfig.u,
                     advanced: true
@@ -2092,6 +2096,7 @@ function nested(fieldName) {
   var schema = makeSchema(name$1, {
         TAG: "object",
         fieldNames: fieldNames,
+        inlinedFieldNames: inlinedLocations,
         fields: fields,
         unknownKeys: globalConfig.u,
         advanced: false
@@ -2189,6 +2194,7 @@ function reverse$1(fieldNames, schemas, inlinedLocations) {
       return makeReverseSchema(name$1, {
                   TAG: "object",
                   fieldNames: fieldNames,
+                  inlinedFieldNames: inlinedLocations,
                   fields: reversedFields,
                   unknownKeys: globalConfig.u,
                   advanced: false
@@ -2196,61 +2202,6 @@ function reverse$1(fieldNames, schemas, inlinedLocations) {
     } else {
       return this;
     }
-  };
-}
-
-function advancedBuilder(definition, items, inlinedLocations) {
-  return function (parentB, input, selfSchema, path) {
-    var outputs = new WeakMap();
-    var unknownKeys = selfSchema.t.unknownKeys;
-    var b = {
-      c: "",
-      l: "",
-      g: parentB.g
-    };
-    var inputVar = $$var(b, input);
-    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-      var item = items[idx];
-      switch (item.k) {
-        case 0 :
-            var schema = item.s;
-            var itemPath = "[" + item.i + "]";
-            var itemInput = {
-              v: false,
-              i: inputVar + itemPath,
-              a: false
-            };
-            var path$1 = path + itemPath;
-            if (schema.f !== undefined && (
-                b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal"
-              )) {
-              b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
-            }
-            outputs.set(item, schema.b(b, itemInput, schema, path$1));
-            break;
-        case 1 :
-            break;
-        case 2 :
-            var schema$1 = item.s;
-            outputs.set(item, schema$1.b(b, input, schema$1, path));
-            break;
-        
-      }
-    }
-    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
-    var getItemOutput = function (item) {
-      switch (item.k) {
-        case 1 :
-            return get(b, getItemOutput(item.t), item.i);
-        case 0 :
-        case 2 :
-            return outputs.get(item);
-        
-      }
-    };
-    var output = definitionToOutput(b, definition, getItemOutput);
-    parentB.c = parentB.c + allocateScope(b);
-    return output;
   };
 }
 
@@ -2321,12 +2272,12 @@ function advancedReverse(definition, kind, items) {
                         };
               case "object" :
                   var fields = literal.fields;
+                  var inlinedFieldNames = literal.inlinedFieldNames;
                   var fieldNames = literal.fieldNames;
                   var objectVal = make(b, false);
                   for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
-                    var fieldName = fieldNames[idx];
-                    var schema = fields[fieldName];
-                    var inlinedLocation = fromString(fieldName);
+                    var schema = fields[fieldNames[idx]];
+                    var inlinedLocation = inlinedFieldNames[idx];
                     var itemPath = originalPath + ("[" + inlinedLocation + "]");
                     var ritem = ritemsByItemPath[itemPath];
                     var itemInput = ritem !== undefined ? getRitemInput(ritem) : reversedToInput(schema, itemPath);
@@ -2403,6 +2354,61 @@ function advancedReverse(definition, kind, items) {
   };
 }
 
+function advancedBuilder(definition, items, inlinedLocations) {
+  return function (parentB, input, selfSchema, path) {
+    var outputs = new WeakMap();
+    var unknownKeys = selfSchema.t.unknownKeys;
+    var b = {
+      c: "",
+      l: "",
+      g: parentB.g
+    };
+    var inputVar = $$var(b, input);
+    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+      var item = items[idx];
+      switch (item.k) {
+        case 0 :
+            var schema = item.s;
+            var itemPath = "[" + item.i + "]";
+            var itemInput = {
+              v: false,
+              i: inputVar + itemPath,
+              a: false
+            };
+            var path$1 = path + itemPath;
+            if (schema.f !== undefined && (
+                b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal"
+              )) {
+              b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
+            }
+            outputs.set(item, schema.b(b, itemInput, schema, path$1));
+            break;
+        case 1 :
+            break;
+        case 2 :
+            var schema$1 = item.s;
+            outputs.set(item, schema$1.b(b, input, schema$1, path));
+            break;
+        
+      }
+    }
+    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
+    var getItemOutput = function (item) {
+      switch (item.k) {
+        case 1 :
+            return get(b, getItemOutput(item.t), item.i);
+        case 0 :
+        case 2 :
+            return outputs.get(item);
+        
+      }
+    };
+    var output = definitionToOutput(b, definition, getItemOutput);
+    parentB.c = parentB.c + allocateScope(b);
+    return output;
+  };
+}
+
 function to(schema, definer) {
   var item = {
     k: 2,
@@ -2442,6 +2448,7 @@ function object(definer) {
     var match = schema.t;
     if (typeof match === "object" && match.TAG === "object") {
       var flattenedFields = match.fields;
+      var flattnedIfn = match.inlinedFieldNames;
       var flattenedFieldNames = match.fieldNames;
       for(var idx = 0 ,idx_finish = flattenedFieldNames.length; idx < idx_finish; ++idx){
         var fieldName = flattenedFieldNames[idx];
@@ -2455,6 +2462,7 @@ function object(definer) {
         } else {
           fields[fieldName] = schema$1;
           fieldNames.push(fieldName);
+          inlinedLocations.push(flattnedIfn[idx]);
         }
       }
       var item_0 = setUnknownKeys(schema, "Strip");
@@ -2508,6 +2516,7 @@ function object(definer) {
           t: {
             TAG: "object",
             fieldNames: fieldNames,
+            inlinedFieldNames: inlinedLocations,
             fields: fields,
             unknownKeys: globalConfig.u,
             advanced: true
@@ -2621,6 +2630,7 @@ function definitionToSchema(definition) {
   return makeSchema(name$1, {
               TAG: "object",
               fieldNames: fieldNames,
+              inlinedFieldNames: inlinedLocations$1,
               fields: definition,
               unknownKeys: globalConfig.u,
               advanced: false
@@ -3306,16 +3316,20 @@ function js_merge(s1, s2) {
   var match = s1.t;
   if (typeof match === "object" && match.TAG === "object") {
     var s1Fields = match.fields;
+    var s1Ifn = match.inlinedFieldNames;
     var s1FieldNames = match.fieldNames;
     var match$1 = s2.t;
     if (typeof match$1 === "object" && match$1.TAG === "object") {
       var s2Fields = match$1.fields;
+      var s2Ifn = match$1.inlinedFieldNames;
       var s2FieldNames = match$1.fieldNames;
       var fieldNames = [];
+      var inlinedFieldNames = [];
       var fields = {};
       for(var idx = 0 ,idx_finish = s1FieldNames.length; idx < idx_finish; ++idx){
         var fieldName = s1FieldNames[idx];
         fieldNames.push(fieldName);
+        inlinedFieldNames.push(s1Ifn[idx]);
         fields[fieldName] = s1Fields[fieldName];
       }
       for(var idx$1 = 0 ,idx_finish$1 = s2FieldNames.length; idx$1 < idx_finish$1; ++idx$1){
@@ -3324,6 +3338,7 @@ function js_merge(s1, s2) {
           throw new Error("[rescript-schema] " + ("The field \"" + fieldName$1 + "\" is defined multiple times"));
         }
         fieldNames.push(fieldName$1);
+        inlinedFieldNames.push(s2Ifn[idx$1]);
         fields[fieldName$1] = s2Fields[fieldName$1];
       }
       return makeSchema((function () {
@@ -3331,6 +3346,7 @@ function js_merge(s1, s2) {
                   }), {
                   TAG: "object",
                   fieldNames: fieldNames,
+                  inlinedFieldNames: inlinedFieldNames,
                   fields: fields,
                   unknownKeys: match$1.unknownKeys,
                   advanced: true

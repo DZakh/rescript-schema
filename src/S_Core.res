@@ -281,6 +281,7 @@ and tagged =
   | @as("object")
   Object({
       fieldNames: array<string>,
+      inlinedFieldNames: array<string>,
       fields: dict<t<unknown>>,
       unknownKeys: unknownKeys,
       advanced: bool,
@@ -2073,17 +2074,20 @@ module Object = {
     let code = ref(`!${inputVar}||${inputVar}.constructor!==Object`)
     let tagged = %raw(`this`)->classify->Obj.magic
     let fieldNames = tagged["fieldNames"]
+    let inlinedFieldNames = tagged["inlinedFieldNames"]
     let fields = tagged["fields"]
     for idx in 0 to fieldNames->Js.Array2.length - 1 {
-      let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-      let schema = fields->Js.Dict.unsafeGet(fieldName)
+      let schema = fields->Js.Dict.unsafeGet(fieldNames->Js.Array2.unsafe_get(idx))
       if schema->isLiteralSchema {
         code :=
           code.contents ++
           "||" ++
           b->(schema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(
-            ~inputVar=Path.concat(inputVar, Path.fromLocation(fieldName)),
-          ) // FIXME: Use inlinedLocation
+            ~inputVar=Path.concat(
+              inputVar,
+              Path.fromInlinedLocation(inlinedFieldNames->Js.Array2.unsafe_get(idx)),
+            ),
+          )
       }
     }
     code.contents
@@ -2104,11 +2108,12 @@ module Object = {
 
   let setUnknownKeys = (schema, unknownKeys) => {
     switch schema->classify {
-    | Object({unknownKeys: schemaUnknownKeys, fieldNames, fields, advanced})
+    | Object({unknownKeys: schemaUnknownKeys, fieldNames, inlinedFieldNames, fields, advanced})
       if schemaUnknownKeys !== unknownKeys => {
         name: schema.name,
         tagged: Object({
           unknownKeys,
+          inlinedFieldNames,
           fieldNames,
           fields,
           advanced,
@@ -2473,7 +2478,7 @@ module Union = {
           let schemas = selfSchema->classify->unsafeGetVariantPayload
           let inputVar = b->B.Val.var(input)
           let output = {isVar: false, inline: inputVar, isAsync: false}
-          let _ = b->B.Val.var(output) // FIXME: Improve how the scoping done
+          let _ = b->B.Val.var(output) // TODO: Improve how the scoping done
 
           let byTypeFilter = Js.Dict.empty()
           let typeFilters = []
@@ -2967,6 +2972,7 @@ module Schema = {
           let isArray = node->Stdlib.Array.isArray
 
           let fields = isArray ? %raw(`[]`) : Js.Dict.empty()
+          let inlinedLocations = []
           for idx in 0 to keys->Js.Array2.length - 1 {
             let location = keys->Js.Array2.unsafe_get(idx)
             let inlinedLocation = isArray
@@ -2978,6 +2984,7 @@ module Schema = {
               ~ritems,
               ~ritemsByItemPath,
             )
+            inlinedLocations->Js.Array2.push(inlinedLocation)->ignore
             ritems->Js.Array2.push(ritem)->ignore
             fields->Js.Dict.set(location, ritem->getRitemReversed)
           }
@@ -2991,6 +2998,7 @@ module Schema = {
                 ? Tuple({items: fields->(Obj.magic: dict<t<unknown>> => array<t<unknown>>)})
                 : Object({
                     fieldNames: keys,
+                    inlinedFieldNames: inlinedLocations,
                     fields,
                     unknownKeys: globalConfig.defaultUnknownKeys,
                     advanced: true,
@@ -3076,6 +3084,7 @@ module Schema = {
           ~name=Object.name,
           ~tagged=Object({
             fieldNames,
+            inlinedFieldNames: inlinedLocations,
             fields: reversedFields,
             unknownKeys: globalConfig.defaultUnknownKeys,
             advanced: false,
@@ -3219,12 +3228,11 @@ module Schema = {
             }
             objectVal->B.Val.Object.complete(~isArray=true)
           }
-        | Object({fieldNames, fields}) => {
+        | Object({fieldNames, inlinedFieldNames, fields}) => {
             let objectVal = b->B.Val.Object.make(~isArray=false)
             for idx in 0 to fieldNames->Js.Array2.length - 1 {
-              let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
-              let schema = fields->Js.Dict.unsafeGet(fieldName)
-              let inlinedLocation = fieldName->Stdlib.Inlined.Value.fromString
+              let schema = fields->Js.Dict.unsafeGet(fieldNames->Js.Array2.unsafe_get(idx))
+              let inlinedLocation = inlinedFieldNames->Js.Array2.unsafe_get(idx)
               let itemPath = originalPath->Path.concat(Path.fromInlinedLocation(inlinedLocation))
               let itemInput = switch ritemsByItemPath->Stdlib.Dict.unsafeGetOption(itemPath) {
               | Some(ritem) => ritem->getRitemInput
@@ -3356,6 +3364,7 @@ module Schema = {
           ~name=Object.name,
           ~tagged=Object({
             fieldNames,
+            inlinedFieldNames: inlinedLocations,
             fields,
             unknownKeys: globalConfig.defaultUnknownKeys,
             advanced: false,
@@ -3459,7 +3468,11 @@ module Schema = {
       let flatten = schema => {
         let schema = schema->toUnknown
         switch schema.tagged {
-        | Object({fields: flattenedFields, fieldNames: flattenedFieldNames}) => {
+        | Object({
+            fields: flattenedFields,
+            fieldNames: flattenedFieldNames,
+            inlinedFieldNames: flattnedIfn,
+          }) => {
             for idx in 0 to flattenedFieldNames->Js.Array2.length - 1 {
               let fieldName = flattenedFieldNames->Js.Array2.unsafe_get(idx)
               let schema = flattenedFields->Js.Dict.unsafeGet(fieldName)
@@ -3472,6 +3485,7 @@ module Schema = {
               | None =>
                 fields->Js.Dict.set(fieldName, schema)
                 fieldNames->Js.Array2.push(fieldName)->ignore
+                inlinedLocations->Js.Array2.push(flattnedIfn->Js.Array2.unsafe_get(idx))->ignore
               }
             }
             let item = Root({
@@ -3533,6 +3547,7 @@ module Schema = {
 
       {
         tagged: Object({
+          inlinedFieldNames: inlinedLocations,
           fieldNames,
           fields,
           unknownKeys: globalConfig.defaultUnknownKeys,
@@ -3671,6 +3686,7 @@ module Schema = {
           ~name=Object.name,
           ~tagged=Object({
             fieldNames,
+            inlinedFieldNames: inlinedLocations,
             fields: node->(Obj.magic: dict<unknown> => dict<t<unknown>>),
             unknownKeys: globalConfig.defaultUnknownKeys,
             advanced: false,
@@ -4379,14 +4395,23 @@ let js_custom = (~name, ~parser as maybeParser=?, ~serializer as maybeSerializer
 let js_merge = (s1, s2) => {
   switch (s1, s2) {
   | (
-      {tagged: Object({fieldNames: s1FieldNames, fields: s1Fields})},
-      {tagged: Object({fieldNames: s2FieldNames, fields: s2Fields, unknownKeys})},
+      {tagged: Object({fieldNames: s1FieldNames, fields: s1Fields, inlinedFieldNames: s1Ifn})},
+      {
+        tagged: Object({
+          fieldNames: s2FieldNames,
+          fields: s2Fields,
+          unknownKeys,
+          inlinedFieldNames: s2Ifn,
+        }),
+      },
     ) =>
     let fieldNames = []
+    let inlinedFieldNames = []
     let fields = Js.Dict.empty()
     for idx in 0 to s1FieldNames->Js.Array2.length - 1 {
       let fieldName = s1FieldNames->Js.Array2.unsafe_get(idx)
       fieldNames->Js.Array2.push(fieldName)->ignore
+      inlinedFieldNames->Js.Array2.push(s1Ifn->Js.Array2.unsafe_get(idx))->ignore
       fields->Js.Dict.set(fieldName, s1Fields->Js.Dict.unsafeGet(fieldName))
     }
     for idx in 0 to s2FieldNames->Js.Array2.length - 1 {
@@ -4395,12 +4420,14 @@ let js_merge = (s1, s2) => {
         InternalError.panic(`The field "${fieldName}" is defined multiple times`)
       }
       fieldNames->Js.Array2.push(fieldName)->ignore
+      inlinedFieldNames->Js.Array2.push(s2Ifn->Js.Array2.unsafe_get(idx))->ignore
       fields->Js.Dict.set(fieldName, s2Fields->Js.Dict.unsafeGet(fieldName))
     }
     makeSchema(
       ~name=() => `${s1.name()} & ${s2.name()}`,
       ~tagged=Object({
         unknownKeys,
+        inlinedFieldNames,
         fieldNames,
         fields,
         advanced: true,

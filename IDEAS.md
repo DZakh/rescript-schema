@@ -28,7 +28,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Remove object and tuple literals in favor of S.schema
 - Add s.strict s.strip to ppx
 - Improve received formatting in the error. Don't use S.literal for it
-  // TODO: Add inlined field names and discriminants to the obj tagged
 
 ### Done
 
