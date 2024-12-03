@@ -1389,36 +1389,56 @@ function name$1() {
   }
 }
 
-function setUnknownKeys(schema, unknownKeys) {
+function setUnknownKeys(schema, unknownKeys, deep) {
   var match = schema.t;
-  if (typeof match !== "object" || !(match.TAG === "object" && match.unknownKeys !== unknownKeys)) {
+  if (typeof match !== "object") {
     return schema;
-  } else {
-    return {
-            t: {
-              TAG: "object",
-              fieldNames: match.fieldNames,
-              inlinedFieldNames: match.inlinedFieldNames,
-              fields: match.fields,
-              unknownKeys: unknownKeys,
-              advanced: match.advanced
-            },
-            n: schema.n,
-            "~r": schema["~r"],
-            b: schema.b,
-            f: schema.f,
-            i: schema.i,
-            m: schema.m
-          };
   }
+  if (match.TAG !== "object") {
+    return schema;
+  }
+  if (match.unknownKeys === unknownKeys) {
+    return schema;
+  }
+  var fields = match.fields;
+  var fieldNames = match.fieldNames;
+  var fields$1;
+  if (deep) {
+    var $$new = {};
+    for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+      var fieldName = fieldNames[idx];
+      $$new[fieldName] = setUnknownKeys(fields[fieldName], unknownKeys, deep);
+    }
+    fields$1 = $$new;
+  } else {
+    fields$1 = fields;
+  }
+  return {
+          t: {
+            TAG: "object",
+            fieldNames: fieldNames,
+            inlinedFieldNames: match.inlinedFieldNames,
+            fields: fields$1,
+            unknownKeys: unknownKeys,
+            advanced: match.advanced
+          },
+          n: schema.n,
+          "~r": schema["~r"],
+          b: schema.b,
+          f: schema.f,
+          i: schema.i,
+          m: schema.m
+        };
 }
 
-function strip(schema) {
-  return setUnknownKeys(schema, "Strip");
+function strip(schema, deepOpt) {
+  var deep = deepOpt !== undefined ? deepOpt : false;
+  return setUnknownKeys(schema, "Strip", deep);
 }
 
-function strict(schema) {
-  return setUnknownKeys(schema, "Strict");
+function strict(schema, deepOpt) {
+  var deep = deepOpt !== undefined ? deepOpt : false;
+  return setUnknownKeys(schema, "Strict", deep);
 }
 
 function name$2() {
@@ -2050,36 +2070,39 @@ function definitionToRitem(definition, path, ritems, ritemsByItemPath) {
         };
 }
 
-function builder$1(schemas, inlinedLocations, isArray) {
-  return function (parentB, input, selfSchema, path) {
-    var unknownKeys = selfSchema.t.unknownKeys;
-    var b = {
-      c: "",
-      l: "",
-      g: parentB.g
-    };
-    var objectVal = make(b, isArray);
-    for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
-      var schema = schemas[idx];
-      var inlinedLocation = inlinedLocations[idx];
-      var itemPath = "[" + inlinedLocation + "]";
-      var itemInput = get(b, input, inlinedLocation);
-      var path$1 = path + itemPath;
-      if (schema.f !== undefined && (
-          b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal" && !(itemInput.v && itemInput.i[0] === "e")
-        )) {
-        b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
-      }
-      add(objectVal, inlinedLocation, schema.b(b, itemInput, schema, path$1));
-    }
-    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
-    parentB.c = parentB.c + allocateScope(b);
-    if ((unknownKeys !== "Strip" || b.g.o & 32) && selfSchema === selfSchema["~r"]()) {
-      return input;
-    } else {
-      return complete(objectVal, isArray);
-    }
+function objectBuilder(parentB, input, selfSchema, path) {
+  var tagged = selfSchema.t;
+  var unknownKeys = tagged.unknownKeys;
+  var fieldNames = tagged.fieldNames;
+  var inlinedLocations = tagged.inlinedFieldNames;
+  var fields = tagged.fields;
+  var b = {
+    c: "",
+    l: "",
+    g: parentB.g
   };
+  var objectVal = make(b, false);
+  for(var idx = 0 ,idx_finish = fieldNames.length; idx < idx_finish; ++idx){
+    var fieldName = fieldNames[idx];
+    var schema = fields[fieldName];
+    var inlinedLocation = inlinedLocations[idx];
+    var itemPath = "[" + inlinedLocation + "]";
+    var itemInput = get(b, input, inlinedLocation);
+    var path$1 = path + itemPath;
+    if (schema.f !== undefined && (
+        b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal" && !(itemInput.v && itemInput.i[0] === "e")
+      )) {
+      b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
+    }
+    add(objectVal, inlinedLocation, schema.b(b, itemInput, schema, path$1));
+  }
+  objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
+  parentB.c = parentB.c + allocateScope(b);
+  if ((unknownKeys !== "Strip" || b.g.o & 32) && selfSchema === selfSchema["~r"]()) {
+    return input;
+  } else {
+    return complete(objectVal, false);
+  }
 }
 
 function nested(fieldName) {
@@ -2100,7 +2123,7 @@ function nested(fieldName) {
         fields: fields,
         unknownKeys: globalConfig.u,
         advanced: false
-      }, empty, builder$1(schemas, inlinedLocations, false), typeFilter$1, reverse$1(fieldNames, schemas, inlinedLocations));
+      }, empty, objectBuilder, typeFilter$1, reverse$1(fieldNames, schemas, inlinedLocations));
   var target = parentCtx.f(fieldName, schema)[itemSymbol];
   var field = function (fieldName, schema) {
     var inlinedLocation = fromString(fieldName);
@@ -2198,10 +2221,65 @@ function reverse$1(fieldNames, schemas, inlinedLocations) {
                   fields: reversedFields,
                   unknownKeys: globalConfig.u,
                   advanced: false
-                }, empty, builder$1(reversedSchemas, inlinedLocations, false), typeFilter$1);
+                }, empty, objectBuilder, typeFilter$1);
     } else {
       return this;
     }
+  };
+}
+
+function advancedBuilder(definition, items, inlinedLocations) {
+  return function (parentB, input, selfSchema, path) {
+    var outputs = new WeakMap();
+    var unknownKeys = selfSchema.t.unknownKeys;
+    var b = {
+      c: "",
+      l: "",
+      g: parentB.g
+    };
+    var inputVar = $$var(b, input);
+    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+      var item = items[idx];
+      switch (item.k) {
+        case 0 :
+            var schema = item.s;
+            var itemPath = "[" + item.i + "]";
+            var itemInput = {
+              v: false,
+              i: inputVar + itemPath,
+              a: false
+            };
+            var path$1 = path + itemPath;
+            if (schema.f !== undefined && (
+                b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal"
+              )) {
+              b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
+            }
+            outputs.set(item, schema.b(b, itemInput, schema, path$1));
+            break;
+        case 1 :
+            break;
+        case 2 :
+            var schema$1 = item.s;
+            outputs.set(item, schema$1.b(b, input, schema$1, path));
+            break;
+        
+      }
+    }
+    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
+    var getItemOutput = function (item) {
+      switch (item.k) {
+        case 1 :
+            return get(b, getItemOutput(item.t), item.i);
+        case 0 :
+        case 2 :
+            return outputs.get(item);
+        
+      }
+    };
+    var output = definitionToOutput(b, definition, getItemOutput);
+    parentB.c = parentB.c + allocateScope(b);
+    return output;
   };
 }
 
@@ -2354,59 +2432,33 @@ function advancedReverse(definition, kind, items) {
   };
 }
 
-function advancedBuilder(definition, items, inlinedLocations) {
-  return function (parentB, input, selfSchema, path) {
-    var outputs = new WeakMap();
-    var unknownKeys = selfSchema.t.unknownKeys;
-    var b = {
-      c: "",
-      l: "",
-      g: parentB.g
-    };
-    var inputVar = $$var(b, input);
-    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-      var item = items[idx];
-      switch (item.k) {
-        case 0 :
-            var schema = item.s;
-            var itemPath = "[" + item.i + "]";
-            var itemInput = {
-              v: false,
-              i: inputVar + itemPath,
-              a: false
-            };
-            var path$1 = path + itemPath;
-            if (schema.f !== undefined && (
-                b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal"
-              )) {
-              b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
-            }
-            outputs.set(item, schema.b(b, itemInput, schema, path$1));
-            break;
-        case 1 :
-            break;
-        case 2 :
-            var schema$1 = item.s;
-            outputs.set(item, schema$1.b(b, input, schema$1, path));
-            break;
-        
-      }
-    }
-    objectStrictModeCheck(b, input, inlinedLocations, unknownKeys, path);
-    var getItemOutput = function (item) {
-      switch (item.k) {
-        case 1 :
-            return get(b, getItemOutput(item.t), item.i);
-        case 0 :
-        case 2 :
-            return outputs.get(item);
-        
-      }
-    };
-    var output = definitionToOutput(b, definition, getItemOutput);
-    parentB.c = parentB.c + allocateScope(b);
-    return output;
+function tupleBuilder(parentB, input, selfSchema, path) {
+  var b = {
+    c: "",
+    l: "",
+    g: parentB.g
   };
+  var objectVal = make(b, true);
+  var schemas = selfSchema.t.items;
+  for(var idx = 0 ,idx_finish = schemas.length; idx < idx_finish; ++idx){
+    var schema = schemas[idx];
+    var inlinedLocation = "\"" + idx + "\"";
+    var itemPath = "[" + inlinedLocation + "]";
+    var itemInput = get(b, input, inlinedLocation);
+    var path$1 = path + itemPath;
+    if (schema.f !== undefined && (
+        b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal" && !(itemInput.v && itemInput.i[0] === "e")
+      )) {
+      b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
+    }
+    add(objectVal, inlinedLocation, schema.b(b, itemInput, schema, path$1));
+  }
+  parentB.c = parentB.c + allocateScope(b);
+  if (selfSchema === selfSchema["~r"]()) {
+    return input;
+  } else {
+    return complete(objectVal, true);
+  }
 }
 
 function to(schema, definer) {
@@ -2465,7 +2517,7 @@ function object(definer) {
           inlinedLocations.push(flattnedIfn[idx]);
         }
       }
-      var item_0 = setUnknownKeys(schema, "Strip");
+      var item_0 = setUnknownKeys(schema, "Strip", false);
       var item = {
         k: 2,
         s: item_0,
@@ -2608,11 +2660,11 @@ function definitionToSchema(definition) {
     return makeSchema(name$2, {
                 TAG: "tuple",
                 items: definition
-              }, empty, builder$1(definition, inlinedLocations, true), maybeTypeFilter, isTransformed ? (function () {
+              }, empty, tupleBuilder, maybeTypeFilter, isTransformed ? (function () {
                     return makeReverseSchema(name$2, {
                                 TAG: "tuple",
                                 items: reversedSchemas
-                              }, empty, builder$1(reversedSchemas, inlinedLocations, true), maybeTypeFilter);
+                              }, empty, tupleBuilder, maybeTypeFilter);
                   }) : toSelf);
   }
   var fieldNames = Object.keys(definition);
@@ -2634,7 +2686,7 @@ function definitionToSchema(definition) {
               fields: definition,
               unknownKeys: globalConfig.u,
               advanced: false
-            }, empty, builder$1(schemas, inlinedLocations$1, false), typeFilter$1, reverse$1(fieldNames, schemas, inlinedLocations$1));
+            }, empty, objectBuilder, typeFilter$1, reverse$1(fieldNames, schemas, inlinedLocations$1));
 }
 
 function matches(schema) {

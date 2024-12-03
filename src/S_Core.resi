@@ -264,8 +264,8 @@ module Object: {
 
 let object: (Object.s => 'value) => t<'value>
 
-let strip: t<'value> => t<'value>
-let strict: t<'value> => t<'value>
+let strip: (t<'value>, ~deep: bool=?) => t<'value>
+let strict: (t<'value>, ~deep: bool=?) => t<'value>
 
 module Tuple: {
   type s = {

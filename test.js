@@ -1,34 +1,26 @@
 (i) => {
-  if (!Array.isArray(i) || i.length !== 3) {
-    e[3](i);
+  if (!i || i.constructor !== Object) {
+    e[4](i);
   }
-  let v0 = i["0"],
-    v1 = i["1"],
-    v2 = i["2"];
-  if (v2 !== "bar") {
-    e[2](v2);
+  let v0 = i["nested"],
+    v3;
+  if (!v0 || v0.constructor !== Object) {
+    e[0](v0);
   }
-  if (v1 !== undefined) {
+  let v1 = v0["foo"],
+    v2;
+  if (typeof v1 !== "string") {
     e[1](v1);
   }
-  if (typeof v0 !== "string") {
-    e[0](v0);
+  for (v2 in v0) {
+    if (v2 !== "foo") {
+      e[2](v2);
+    }
   }
-  return i;
-};
-
-(i) => {
-  if (
-    !Array.isArray(i) ||
-    i.length !== 3 ||
-    i["1"] !== undefined ||
-    i["2"] !== "bar"
-  ) {
-    e[1](i);
-  }
-  let v0 = i["0"];
-  if (typeof v0 !== "string") {
-    e[0](v0);
+  for (v3 in i) {
+    if (v3 !== "nested") {
+      e[3](v3);
+    }
   }
   return i;
 };

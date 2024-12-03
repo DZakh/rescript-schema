@@ -280,6 +280,65 @@ test("Object with a strict flattened nested field", t => {
   t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":i["foo"],},}}`)
 })
 
+test("S.schema object with a deep strict applied to the nested field parent", t => {
+  let schema = S.schema(s =>
+    {
+      "nested": {
+        "foo": s.matches(S.string),
+      },
+    }
+  )->S.strict(~deep=true)
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s =>
+      s.field(
+        "nested",
+        S.schema(
+          s =>
+            {
+              "foo": s.matches(S.string),
+            },
+        )->S.strict,
+      )
+    )->S.strict,
+  )
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["nested"],v3;if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="foo"){e[2](v2)}}for(v3 in i){if(v3!=="nested"){e[3](v3)}}return i}`,
+  )
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{let v0=i["nested"];return i}`)
+})
+
+test("Object with a deep strict applied to the nested field parent", t => {
+  let schema = S.object(s => s.nested("nested").field("foo", S.string))->S.strict(~deep=true)
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s =>
+      s.field(
+        "nested",
+        S.schema(
+          s =>
+            {
+              "foo": s.matches(S.string),
+            },
+        )->S.strict,
+      )
+    )->S.strict,
+  )
+
+  // FIXME: Should have a strict check for nested foo
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"],v2;if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[1](v1)}for(v2 in i){if(v2!=="nested"){e[2](v2)}}return v1}`,
+  )
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":i,},}}`)
+})
+
 test("Object with nested field together with flatten", t => {
   let schema = S.object(s =>
     {
