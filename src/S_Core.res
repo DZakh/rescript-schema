@@ -2106,36 +2106,54 @@ module Object = {
     }
   }
 
-  let setUnknownKeys = (schema, unknownKeys) => {
+  let rec setUnknownKeys = (schema, unknownKeys, ~deep) => {
     switch schema->classify {
     | Object({unknownKeys: schemaUnknownKeys, fieldNames, inlinedFieldNames, fields, advanced})
       if schemaUnknownKeys !== unknownKeys => {
-        name: schema.name,
-        tagged: Object({
-          unknownKeys,
-          inlinedFieldNames,
-          fieldNames,
-          fields,
-          advanced,
-        }),
-        builder: schema.builder,
-        maybeTypeFilter: schema.maybeTypeFilter,
-        isAsyncSchema: schema.isAsyncSchema,
-        metadataMap: schema.metadataMap,
-        reverse: schema.reverse,
+        let fields = if deep {
+          let new = Js.Dict.empty()
+          for idx in 0 to fieldNames->Js.Array2.length - 1 {
+            let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+            new->Js.Dict.set(
+              fieldName,
+              fields
+              ->Js.Dict.unsafeGet(fieldName)
+              ->castUnknownSchemaToAnySchema
+              ->setUnknownKeys(unknownKeys, ~deep)
+              ->toUnknown,
+            )
+          }
+          new
+        } else {
+          fields
+        }
+        {
+          name: schema.name,
+          tagged: Object({
+            unknownKeys,
+            inlinedFieldNames,
+            fieldNames,
+            fields,
+            advanced,
+          }),
+          builder: schema.builder,
+          maybeTypeFilter: schema.maybeTypeFilter,
+          isAsyncSchema: schema.isAsyncSchema,
+          metadataMap: schema.metadataMap,
+          reverse: schema.reverse,
+        }
       }
-    // TODO: Should it throw for non Object schemas?
     | _ => schema
     }
   }
 }
 
-let strip = schema => {
-  schema->Object.setUnknownKeys(Strip)
+let strip = (schema, ~deep=false) => {
+  schema->Object.setUnknownKeys(Strip, ~deep)
 }
 
-let strict = schema => {
-  schema->Object.setUnknownKeys(Strict)
+let strict = (schema, ~deep=false) => {
+  schema->Object.setUnknownKeys(Strict, ~deep)
 }
 
 module Tuple = {
@@ -3018,20 +3036,20 @@ module Schema = {
     }
   }
 
-  let rec builder = (~schemas, ~inlinedLocations, ~isArray) => (
-    parentB,
-    ~input,
-    ~selfSchema,
-    ~path,
-  ) => {
-    let unknownKeys = (selfSchema->classify->Obj.magic)["unknownKeys"]
+  let rec objectBuilder = (parentB, ~input, ~selfSchema, ~path) => {
+    let tagged: {..} = selfSchema->classify->Obj.magic
+    let unknownKeys = tagged["unknownKeys"]
+    let fieldNames = tagged["fieldNames"]
+    let inlinedLocations = tagged["inlinedFieldNames"]
+    let fields = tagged["fields"]
 
     let b = parentB->B.scope // TODO: Remove the scope by grouping all typeFilters together
 
-    let objectVal = b->B.Val.Object.make(~isArray)
+    let objectVal = b->B.Val.Object.make(~isArray=false)
 
-    for idx in 0 to schemas->Js.Array2.length - 1 {
-      let schema = schemas->Js.Array2.unsafe_get(idx)
+    for idx in 0 to fieldNames->Js.Array2.length - 1 {
+      let fieldName = fieldNames->Js.Array2.unsafe_get(idx)
+      let schema = fields->Js.Dict.unsafeGet(fieldName)
       let inlinedLocation = inlinedLocations->Js.Array2.unsafe_get(idx)
       let itemPath = inlinedLocation->Path.fromInlinedLocation
 
@@ -3061,7 +3079,42 @@ module Schema = {
     ) {
       input
     } else {
-      objectVal->B.Val.Object.complete(~isArray)
+      objectVal->B.Val.Object.complete(~isArray=false)
+    }
+  }
+  and tupleBuilder = (parentB, ~input, ~selfSchema, ~path) => {
+    let b = parentB->B.scope // TODO: Remove the scope by grouping all typeFilters together
+
+    let objectVal = b->B.Val.Object.make(~isArray=true)
+
+    let schemas = (selfSchema->classify->Obj.magic)["items"]
+    for idx in 0 to schemas->Js.Array2.length - 1 {
+      let schema = schemas->Js.Array2.unsafe_get(idx)
+      let inlinedLocation = `"${idx->Stdlib.Int.unsafeToString}"`
+      let itemPath = inlinedLocation->Path.fromInlinedLocation
+
+      let itemInput = b->B.Val.get(input, inlinedLocation)
+      let path = path->Path.concat(itemPath)
+
+      if (
+        schema.maybeTypeFilter->Stdlib.Option.isSome && (
+            b.global.flag->Flag.unsafeHas(Flag.typeValidation)
+              ? !(schema->isLiteralSchema)
+              : schema->isLiteralSchema && !(itemInput->B.Val.isEmbed)
+          )
+      ) {
+        b.code = b.code ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
+      }
+
+      objectVal->B.Val.Object.add(inlinedLocation, b->B.parse(~schema, ~input=itemInput, ~path))
+    }
+
+    parentB.code = parentB.code ++ b->B.allocateScope
+
+    if selfSchema === selfSchema.reverse() {
+      input
+    } else {
+      objectVal->B.Val.Object.complete(~isArray=true)
     }
   }
   and reverse = (~fieldNames, ~schemas, ~inlinedLocations) => {
@@ -3089,7 +3142,7 @@ module Schema = {
             unknownKeys: globalConfig.defaultUnknownKeys,
             advanced: false,
           }),
-          ~builder=builder(~schemas=reversedSchemas, ~inlinedLocations, ~isArray=false),
+          ~builder=objectBuilder,
           ~maybeTypeFilter=Some(Object.typeFilter),
           ~metadataMap=Metadata.Map.empty,
         )
@@ -3369,7 +3422,7 @@ module Schema = {
             unknownKeys: globalConfig.defaultUnknownKeys,
             advanced: false,
           }),
-          ~builder=builder(~schemas, ~inlinedLocations, ~isArray=false),
+          ~builder=objectBuilder,
           ~maybeTypeFilter=Some(Object.typeFilter),
           ~metadataMap=Metadata.Map.empty,
           ~reverse=reverse(~fieldNames, ~schemas, ~inlinedLocations),
@@ -3489,7 +3542,7 @@ module Schema = {
               }
             }
             let item = Root({
-              schema: schema->Object.setUnknownKeys(Strip),
+              schema: schema->Object.setUnknownKeys(Strip, ~deep=false),
               path: Path.empty,
             })
             items->Js.Array2.push(item)->ignore
@@ -3652,7 +3705,7 @@ module Schema = {
           ~tagged=Tuple({
             items: schemas,
           }),
-          ~builder=builder(~schemas, ~inlinedLocations, ~isArray=true),
+          ~builder=tupleBuilder,
           ~maybeTypeFilter,
           ~metadataMap=Metadata.Map.empty,
           ~reverse=isTransformed.contents
@@ -3662,7 +3715,7 @@ module Schema = {
                   ~tagged=Tuple({
                     items: reversedSchemas,
                   }),
-                  ~builder=builder(~schemas=reversedSchemas, ~inlinedLocations, ~isArray=true),
+                  ~builder=tupleBuilder,
                   ~maybeTypeFilter,
                   ~metadataMap=Metadata.Map.empty,
                 )
@@ -3691,7 +3744,7 @@ module Schema = {
             unknownKeys: globalConfig.defaultUnknownKeys,
             advanced: false,
           }),
-          ~builder=builder(~schemas, ~inlinedLocations, ~isArray=false),
+          ~builder=objectBuilder,
           ~maybeTypeFilter=Some(Object.typeFilter),
           ~metadataMap=Metadata.Map.empty,
           ~reverse=reverse(~fieldNames, ~schemas, ~inlinedLocations),
