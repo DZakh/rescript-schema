@@ -114,7 +114,11 @@ var object = S_Core$RescriptSchema.object;
 
 var strip = S_Core$RescriptSchema.strip;
 
+var deepStrip = S_Core$RescriptSchema.deepStrip;
+
 var strict = S_Core$RescriptSchema.strict;
+
+var deepStrict = S_Core$RescriptSchema.deepStrict;
 
 var Tuple = S_Core$RescriptSchema.Tuple;
 
@@ -237,7 +241,9 @@ export {
   $$Object ,
   object ,
   strip ,
+  deepStrip ,
   strict ,
+  deepStrict ,
   Tuple ,
   tuple ,
   tuple1 ,

@@ -13,11 +13,11 @@ var ratingSchema = S$RescriptSchema.union([
 
 var filmSchema = S$RescriptSchema.schema(function (s) {
       return {
-              Id: s.matches(S$RescriptSchema.$$float),
-              Title: s.matches(S$RescriptSchema.string),
-              Tags: s.matches(S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.array(S$RescriptSchema.string)), [])),
-              Rating: s.matches(ratingSchema),
-              Age: s.matches(S$RescriptSchema.deprecate(S$RescriptSchema.option(S$RescriptSchema.$$int), "Use rating instead"))
+              Id: s.m(S$RescriptSchema.$$float),
+              Title: s.m(S$RescriptSchema.string),
+              Tags: s.m(S$RescriptSchema.$$Option.getOr(S$RescriptSchema.option(S$RescriptSchema.array(S$RescriptSchema.string)), [])),
+              Rating: s.m(ratingSchema),
+              Age: s.m(S$RescriptSchema.deprecate(S$RescriptSchema.option(S$RescriptSchema.$$int), "Use rating instead"))
             };
     });
 

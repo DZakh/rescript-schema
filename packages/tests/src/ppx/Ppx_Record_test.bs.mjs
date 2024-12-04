@@ -6,8 +6,8 @@ import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 
 var simpleRecordSchema = S$RescriptSchema.schema(function (s) {
       return {
-              label: s.matches(S$RescriptSchema.string),
-              value: s.matches(S$RescriptSchema.$$int)
+              label: s.m(S$RescriptSchema.string),
+              value: s.m(S$RescriptSchema.$$int)
             };
     });
 
@@ -26,8 +26,8 @@ Ava("Simple record schema", (function (t) {
 
 var recordWithAliasSchema = S$RescriptSchema.schema(function (s) {
       return {
-              "aliased-label": s.matches(S$RescriptSchema.string),
-              value: s.matches(S$RescriptSchema.$$int)
+              "aliased-label": s.m(S$RescriptSchema.string),
+              value: s.m(S$RescriptSchema.$$int)
             };
     });
 
@@ -46,8 +46,8 @@ Ava("Record schema with alias for field name", (function (t) {
 
 var recordWithOptionalSchema = S$RescriptSchema.schema(function (s) {
       return {
-              label: s.matches(S$RescriptSchema.option(S$RescriptSchema.string)),
-              value: s.matches(S$RescriptSchema.option(S$RescriptSchema.$$int))
+              label: s.m(S$RescriptSchema.option(S$RescriptSchema.string)),
+              value: s.m(S$RescriptSchema.option(S$RescriptSchema.$$int))
             };
     });
 
@@ -70,7 +70,7 @@ Ava("Record schema with optional fields", (function (t) {
 
 var recordWithNullableFieldSchema = S$RescriptSchema.schema(function (s) {
       return {
-              subscription: s.matches(S$RescriptSchema.option(S$RescriptSchema.$$null(S$RescriptSchema.string)))
+              subscription: s.m(S$RescriptSchema.option(S$RescriptSchema.$$null(S$RescriptSchema.string)))
             };
     });
 

@@ -6,8 +6,8 @@ import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
 
 var simpleObjectSchema = S$RescriptSchema.schema(function (s) {
       return {
-              label: s.matches(S$RescriptSchema.string),
-              value: s.matches(S$RescriptSchema.$$int)
+              label: s.m(S$RescriptSchema.string),
+              value: s.m(S$RescriptSchema.$$int)
             };
     });
 
@@ -26,8 +26,8 @@ Ava("Simple object schema", (function (t) {
 
 var objectWithAliasSchema = S$RescriptSchema.schema(function (s) {
       return {
-              label: s.matches(S$RescriptSchema.string),
-              value: s.matches(S$RescriptSchema.$$int)
+              label: s.m(S$RescriptSchema.string),
+              value: s.m(S$RescriptSchema.$$int)
             };
     });
 
