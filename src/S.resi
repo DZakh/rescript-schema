@@ -37,6 +37,7 @@ module Path: {
 }
 
 type rec t<'value>
+and schema<'value> = t<'value>
 and tagged =
   private
   | @as("never") Never
@@ -52,17 +53,20 @@ and tagged =
   | @as("array") Array(t<unknown>)
   | @as("object")
   Object({
-      fieldNames: array<string>,
-      inlinedFieldNames: array<string>,
-      fields: dict<t<unknown>>,
+      items: array<item>,
+      fields: dict<item>,
       unknownKeys: unknownKeys,
       advanced: bool,
     })
-  | @as("tuple") Tuple({items: array<t<unknown>>})
+  | @as("tuple") Tuple({items: array<item>})
   | @as("union") Union(array<t<unknown>>)
   | @as("dict") Dict(t<unknown>)
   | @as("JSON") JSON({validated: bool})
-and schema<'value> = t<'value>
+and item = {
+  schema: t<unknown>,
+  location: string,
+  inlinedLocation: string,
+}
 and error = private {flag: flag, code: errorCode, path: Path.t}
 and errorCode =
   | OperationFailed(string)
@@ -74,6 +78,7 @@ and errorCode =
   | InvalidJsonSchema(schema<unknown>)
 and flag
 and unknownKeys = Strip | Strict
+
 type exn += private Raised(error)
 
 type s<'value> = {
@@ -246,7 +251,7 @@ let removeTypeValidation: t<'value> => t<'value>
 external toUnknown: t<'any> => t<unknown> = "%identity"
 
 module Schema: {
-  type s = {matches: 'value. t<'value> => 'value}
+  type s = {@as("m") matches: 'value. t<'value> => 'value}
 }
 let schema: (Schema.s => 'value) => t<'value>
 
@@ -257,15 +262,15 @@ module Object: {
     tag: 'value. (string, 'value) => unit,
     nested: string => s,
     flatten: 'value. t<'value> => 'value,
-    fields: dict<t<unknown>>,
-    fieldNames: array<string>,
   }
 }
 
 let object: (Object.s => 'value) => t<'value>
 
-let strip: (t<'value>, ~deep: bool=?) => t<'value>
-let strict: (t<'value>, ~deep: bool=?) => t<'value>
+let strip: t<'value> => t<'value>
+let deepStrip: t<'value> => t<'value>
+let strict: t<'value> => t<'value>
+let deepStrict: t<'value> => t<'value>
 
 module Tuple: {
   type s = {

@@ -119,6 +119,9 @@ function cleanUpSchema(schema) {
           case "advanced" :
           case "c" :
           case "i" :
+          case "k" :
+          case "of" :
+          case "p" :
               return ;
           default:
             if (typeof value === "function") {

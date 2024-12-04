@@ -82,8 +82,8 @@ Ava("Json schema from Core", (function (t) {
 
 var myTupleSchema = S$RescriptSchema.schema(function (s) {
       return [
-              s.matches(S$RescriptSchema.string),
-              s.matches(S$RescriptSchema.$$int)
+              s.m(S$RescriptSchema.string),
+              s.m(S$RescriptSchema.$$int)
             ];
     });
 
@@ -93,18 +93,18 @@ Ava("Tuple schema", (function (t) {
 
 var myBigTupleSchema = S$RescriptSchema.schema(function (s) {
       return [
-              s.matches(S$RescriptSchema.string),
-              s.matches(S$RescriptSchema.string),
-              s.matches(S$RescriptSchema.string),
-              s.matches(S$RescriptSchema.$$int),
-              s.matches(S$RescriptSchema.$$int),
-              s.matches(S$RescriptSchema.$$int),
-              s.matches(S$RescriptSchema.$$float),
-              s.matches(S$RescriptSchema.$$float),
-              s.matches(S$RescriptSchema.$$float),
-              s.matches(S$RescriptSchema.bool),
-              s.matches(S$RescriptSchema.bool),
-              s.matches(S$RescriptSchema.bool)
+              s.m(S$RescriptSchema.string),
+              s.m(S$RescriptSchema.string),
+              s.m(S$RescriptSchema.string),
+              s.m(S$RescriptSchema.$$int),
+              s.m(S$RescriptSchema.$$int),
+              s.m(S$RescriptSchema.$$int),
+              s.m(S$RescriptSchema.$$float),
+              s.m(S$RescriptSchema.$$float),
+              s.m(S$RescriptSchema.$$float),
+              s.m(S$RescriptSchema.bool),
+              s.m(S$RescriptSchema.bool),
+              s.m(S$RescriptSchema.bool)
             ];
     });
 

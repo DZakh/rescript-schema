@@ -128,6 +128,8 @@ let rec cleanUpSchema = schema => {
   ->Array.forEach(((key, value)) => {
     switch key {
     | "i" | "c" | "advanced" => ()
+    // ditemToItem leftovers FIXME:
+    | "k" | "p" | "of" => ()
     | _ =>
       if typeof(value) === #function {
         ()

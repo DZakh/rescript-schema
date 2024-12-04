@@ -287,7 +287,7 @@ test("S.schema object with a deep strict applied to the nested field parent", t 
         "foo": s.matches(S.string),
       },
     }
-  )->S.strict(~deep=true)
+  )->S.deepStrict
 
   t->U.unsafeAssertEqualSchemas(
     schema,
@@ -313,7 +313,7 @@ test("S.schema object with a deep strict applied to the nested field parent", t 
 })
 
 test("Object with a deep strict applied to the nested field parent", t => {
-  let schema = S.object(s => s.nested("nested").field("foo", S.string))->S.strict(~deep=true)
+  let schema = S.object(s => s.nested("nested").field("foo", S.string))->S.deepStrict
 
   t->U.unsafeAssertEqualSchemas(
     schema,
@@ -334,7 +334,7 @@ test("Object with a deep strict applied to the nested field parent", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["nested"],v2;if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[1](v1)}for(v2 in i){if(v2!=="nested"){e[2](v2)}}return v1}`,
+    `i=>{if(!i||i.constructor!==Object) {e[3](i)}let v0=i["nested"],v2;if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"];if(typeof v1!=="string"){e[1](v1)}for(v2 in i){if(v2!=="nested"){e[2](v2)}}return v1}`,
   )
   t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":i,},}}`)
 })
