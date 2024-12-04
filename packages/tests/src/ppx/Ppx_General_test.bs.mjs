@@ -14,10 +14,10 @@ Ava("Creates schema with the type name and schema at the for non t types", (func
 
 var reusedTypesSchema = S$RescriptSchema.schema(function (s) {
       return [
-              s.matches(S$RescriptSchema.string),
-              s.matches(S$RescriptSchema.$$int),
-              s.matches(S$RescriptSchema.bool),
-              s.matches(S$RescriptSchema.$$float)
+              s.m(S$RescriptSchema.string),
+              s.m(S$RescriptSchema.$$int),
+              s.m(S$RescriptSchema.bool),
+              s.m(S$RescriptSchema.$$float)
             ];
     });
 

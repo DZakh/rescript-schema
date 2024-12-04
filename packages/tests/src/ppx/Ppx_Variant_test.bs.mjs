@@ -39,20 +39,20 @@ var variantWithPayloadsSchema = S$RescriptSchema.union([
       S$RescriptSchema.schema(function (s) {
             return {
                     TAG: "SinglePayload",
-                    _0: s.matches(S$RescriptSchema.$$int)
+                    _0: s.m(S$RescriptSchema.$$int)
                   };
           }),
       S$RescriptSchema.schema(function (s) {
             return {
                     TAG: "TuplePayload",
-                    _0: s.matches(S$RescriptSchema.$$int),
-                    _1: s.matches(S$RescriptSchema.string)
+                    _0: s.m(S$RescriptSchema.$$int),
+                    _1: s.m(S$RescriptSchema.string)
                   };
           }),
       S$RescriptSchema.schema(function (s) {
             return {
                     TAG: "RecordPayload",
-                    foo: s.matches(S$RescriptSchema.$$float)
+                    foo: s.m(S$RescriptSchema.$$float)
                   };
           })
     ]);
@@ -63,20 +63,20 @@ Ava("Variant with payloads", (function (t) {
                   S$RescriptSchema.schema(function (s) {
                         return {
                                 TAG: "SinglePayload",
-                                _0: s.matches(S$RescriptSchema.$$int)
+                                _0: s.m(S$RescriptSchema.$$int)
                               };
                       }),
                   S$RescriptSchema.schema(function (s) {
                         return {
                                 TAG: "TuplePayload",
-                                _0: s.matches(S$RescriptSchema.$$int),
-                                _1: s.matches(S$RescriptSchema.string)
+                                _0: s.m(S$RescriptSchema.$$int),
+                                _1: s.m(S$RescriptSchema.string)
                               };
                       }),
                   S$RescriptSchema.schema(function (s) {
                         return {
                                 TAG: "RecordPayload",
-                                foo: s.matches(S$RescriptSchema.$$float)
+                                foo: s.m(S$RescriptSchema.$$float)
                               };
                       })
                 ]), undefined);
@@ -85,10 +85,10 @@ Ava("Variant with payloads", (function (t) {
 var unboxedVariantSchema = S$RescriptSchema.union([
       S$RescriptSchema.literal("Constant"),
       S$RescriptSchema.schema(function (s) {
-            return s.matches(S$RescriptSchema.$$int);
+            return s.m(S$RescriptSchema.$$int);
           }),
       S$RescriptSchema.schema(function (s) {
-            return s.matches(S$RescriptSchema.string);
+            return s.m(S$RescriptSchema.string);
           })
     ]);
 
@@ -96,10 +96,10 @@ Ava("Unboxed variant", (function (t) {
         U.assertEqualSchemas(t, unboxedVariantSchema, S$RescriptSchema.union([
                   S$RescriptSchema.literal("Constant"),
                   S$RescriptSchema.schema(function (s) {
-                        return s.matches(S$RescriptSchema.$$int);
+                        return s.m(S$RescriptSchema.$$int);
                       }),
                   S$RescriptSchema.schema(function (s) {
-                        return s.matches(S$RescriptSchema.string);
+                        return s.m(S$RescriptSchema.string);
                       })
                 ]), undefined);
       }));
@@ -108,20 +108,20 @@ var taggedVariantSchema = S$RescriptSchema.union([
       S$RescriptSchema.schema(function (s) {
             return {
                     kind: "circle",
-                    radius: s.matches(S$RescriptSchema.$$float)
+                    radius: s.m(S$RescriptSchema.$$float)
                   };
           }),
       S$RescriptSchema.schema(function (s) {
             return {
                     kind: "square",
-                    x: s.matches(S$RescriptSchema.$$float)
+                    x: s.m(S$RescriptSchema.$$float)
                   };
           }),
       S$RescriptSchema.schema(function (s) {
             return {
                     kind: "triangle",
-                    x: s.matches(S$RescriptSchema.$$float),
-                    y: s.matches(S$RescriptSchema.$$float)
+                    x: s.m(S$RescriptSchema.$$float),
+                    y: s.m(S$RescriptSchema.$$float)
                   };
           })
     ]);
@@ -131,20 +131,20 @@ Ava("Tagged variant", (function (t) {
                   S$RescriptSchema.schema(function (s) {
                         return {
                                 kind: "circle",
-                                radius: s.matches(S$RescriptSchema.$$float)
+                                radius: s.m(S$RescriptSchema.$$float)
                               };
                       }),
                   S$RescriptSchema.schema(function (s) {
                         return {
                                 kind: "square",
-                                x: s.matches(S$RescriptSchema.$$float)
+                                x: s.m(S$RescriptSchema.$$float)
                               };
                       }),
                   S$RescriptSchema.schema(function (s) {
                         return {
                                 kind: "triangle",
-                                x: s.matches(S$RescriptSchema.$$float),
-                                y: s.matches(S$RescriptSchema.$$float)
+                                x: s.m(S$RescriptSchema.$$float),
+                                y: s.m(S$RescriptSchema.$$float)
                               };
                       })
                 ]), undefined);
@@ -154,13 +154,13 @@ var taggedInlinedAliasSchema = S$RescriptSchema.union([
       S$RescriptSchema.schema(function (s) {
             return {
                     type: "Foo",
-                    Foo: s.matches(S$RescriptSchema.string)
+                    Foo: s.m(S$RescriptSchema.string)
                   };
           }),
       S$RescriptSchema.schema(function (s) {
             return {
                     type: "Bar",
-                    Bar: s.matches(S$RescriptSchema.string)
+                    Bar: s.m(S$RescriptSchema.string)
                   };
           })
     ]);
@@ -170,13 +170,13 @@ Ava("Tagged variant with inlined alias", (function (t) {
                   S$RescriptSchema.schema(function (s) {
                         return {
                                 type: "Foo",
-                                Foo: s.matches(S$RescriptSchema.string)
+                                Foo: s.m(S$RescriptSchema.string)
                               };
                       }),
                   S$RescriptSchema.schema(function (s) {
                         return {
                                 type: "Bar",
-                                Bar: s.matches(S$RescriptSchema.string)
+                                Bar: s.m(S$RescriptSchema.string)
                               };
                       })
                 ]), undefined);

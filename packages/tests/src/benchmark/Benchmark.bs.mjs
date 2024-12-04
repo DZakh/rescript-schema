@@ -54,16 +54,16 @@ function makeAdvancedObjectSchemaWithSObject() {
 function makeAdvancedObjectSchema() {
   return S$RescriptSchema.schema(function (s) {
               return {
-                      number: s.matches(S$RescriptSchema.$$float),
-                      negNumber: s.matches(S$RescriptSchema.$$float),
-                      maxNumber: s.matches(S$RescriptSchema.$$float),
-                      string: s.matches(S$RescriptSchema.string),
-                      longString: s.matches(S$RescriptSchema.string),
-                      boolean: s.matches(S$RescriptSchema.bool),
+                      number: s.m(S$RescriptSchema.$$float),
+                      negNumber: s.m(S$RescriptSchema.$$float),
+                      maxNumber: s.m(S$RescriptSchema.$$float),
+                      string: s.m(S$RescriptSchema.string),
+                      longString: s.m(S$RescriptSchema.string),
+                      boolean: s.m(S$RescriptSchema.bool),
                       deeplyNested: {
-                        foo: s.matches(S$RescriptSchema.string),
-                        num: s.matches(S$RescriptSchema.$$float),
-                        bool: s.matches(S$RescriptSchema.bool)
+                        foo: s.m(S$RescriptSchema.string),
+                        num: s.m(S$RescriptSchema.$$float),
+                        bool: s.m(S$RescriptSchema.bool)
                       }
                     };
             });

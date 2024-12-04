@@ -40,7 +40,7 @@ Ava("Supported as a dict field", (function (t) {
 
 var recordFieldSchema = S$RescriptSchema.schema(function (s) {
       return {
-              poly: s.matches(S$RescriptSchema.literal("one"))
+              poly: s.m(S$RescriptSchema.literal("one"))
             };
     });
 
@@ -54,7 +54,7 @@ Ava("Supported as a record field", (function (t) {
 
 var objectFieldSchema = S$RescriptSchema.schema(function (s) {
       return {
-              poly: s.matches(S$RescriptSchema.literal("one"))
+              poly: s.m(S$RescriptSchema.literal("one"))
             };
     });
 
