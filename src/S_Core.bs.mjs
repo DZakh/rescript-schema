@@ -2307,7 +2307,7 @@ function advancedBuilder(definition, flattened) {
       }
       outputs[inlinedLocation] = schema.b(b, itemInput, schema, path$1);
     }
-    if (flattened !== undefined && flattened.length !== 0) {
+    if (flattened !== undefined) {
       for(var idx$1 = 0 ,idx_finish$1 = flattened.length; idx$1 < idx_finish$1; ++idx$1){
         var item = flattened[idx$1];
         var schema$1 = item.schema;
@@ -2511,7 +2511,7 @@ function to(schema, definer) {
 
 function object(definer) {
   var ditems = [];
-  var flattened = [];
+  var flattened = (void 0);
   var items = [];
   var fields = {};
   var flatten = function (schema) {
@@ -2539,15 +2539,16 @@ function object(definer) {
           fields[$$location] = item$1;
         }
       }
+      var f = (flattened || (flattened = []));
       var item_0 = setUnknownKeys(schema, "Strip", false);
-      var item_2 = flattened.length - 64 | 0;
+      var item_2 = f.length;
       var item$2 = {
         k: 2,
         schema: item_0,
         p: "",
         i: item_2
       };
-      flattened.push(item$2);
+      f.push(item$2);
       ditems.push(item$2);
       return proxify(item$2);
     }
