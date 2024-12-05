@@ -2791,14 +2791,7 @@ module Schema = {
   // Definition item
   @tag("k")
   type rec ditem =
-    | @as(0)
-    Item({
-        schema: schema<unknown>,
-        inlinedLocation: string,
-        location: string, // Needed only for ditemToItem
-        @as("p")
-        path: string,
-      })
+    | @as(0) Item({schema: schema<unknown>, inlinedLocation: string, location: string}) // Needed only for ditemToItem
     | @as(1)
     ItemField({
         inlinedLocation: string,
@@ -2855,13 +2848,14 @@ module Schema = {
   @inline
   let getRitemPath = (ritem: ritem): string => (ritem->Obj.magic)["p"]
 
-  @inline
-  let getItemPath = (item: ditem): string => (item->Obj.magic)["p"]
+  external ditemToItem: ditem => item = "%identity"
+  external itemToDitem: item => ditem = "%identity"
 
-  let rec getFullItemPath = (item: ditem) => {
-    switch item {
-    | ItemField({target, path}) => Path.concat(target->getFullItemPath, path)
-    | _ => item->getItemPath
+  let rec getFullDitemPath = (ditem: ditem) => {
+    switch ditem {
+    | ItemField({target, path}) => Path.concat(target->getFullDitemPath, path)
+    | Item({inlinedLocation}) => inlinedLocation->Path.fromInlinedLocation
+    | Root({path}) => path
     }
   }
 
@@ -2874,7 +2868,6 @@ module Schema = {
   let getUnsafeDitemSchema = (item: ditem) => (item->Obj.magic)["schema"]
   @inline
   let getUnsafeDitemIndex = (item: ditem): string => (item->Obj.magic)["i"]
-  external ditemToItem: ditem => item = "%identity"
 
   let rec getItemReversed = item => {
     switch item {
@@ -2982,7 +2975,7 @@ module Schema = {
           reversed: item->getItemReversed,
         })
         item->setItemRitem(ritem)
-        ritemsByItemPath->Js.Dict.set(item->getFullItemPath, ritem)
+        ritemsByItemPath->Js.Dict.set(item->getFullDitemPath, ritem)
         ritem
       | None => {
           let node = definition->Definition.toNode
@@ -3246,7 +3239,9 @@ module Schema = {
 
     output
   }
-  and advancedReverse = (~definition, ~kind, ~ditems) => () => {
+  and advancedReverse = (~definition, ~to=?, ~flattened=?) => () => {
+    let originalSchema = %raw(`this`)
+
     let definition = definition->(Obj.magic: unknown => Definition.t<ditem>)
 
     let ritemsByItemPath = Js.Dict.empty()
@@ -3331,7 +3326,7 @@ module Schema = {
         }
       }
 
-      let getItemOutput = item => {
+      let getItemOutput = (item, ~itemPath) => {
         switch item->getItemRitem {
         | Some(ritem) => {
             let reversed = ritem->getRitemReversed
@@ -3350,7 +3345,7 @@ module Schema = {
         | None =>
           // It's fine to use getUnsafeDitemSchema here, because this will never be called on ItemField
           let reversed = (item->getUnsafeDitemSchema).reverse()
-          let input = reversedToInput(reversed, ~originalPath=item->getItemPath)
+          let input = reversedToInput(reversed, ~originalPath=itemPath)
 
           let prevFlag = b.global.flag
 
@@ -3362,27 +3357,38 @@ module Schema = {
         }
       }
 
-      let schemaOutput = (~ditems, ~isArray) => {
-        let objectVal = b->B.Val.Object.make(~isArray)
-        for idx in 0 to ditems->Js.Array2.length - 1 {
-          let item = ditems->Js.Array2.unsafe_get(idx)
-          switch item {
-          | ItemField(_) => ()
-          | Root(_) => objectVal->B.Val.Object.merge(item->getItemOutput)
-          | Item({inlinedLocation}) =>
-            objectVal->B.Val.Object.add(inlinedLocation, item->getItemOutput)
+      switch to {
+      | Some(ditem) => ditem->getItemOutput(~itemPath=Path.empty)
+      | None => {
+          let isArray = originalSchema->classify->unsafeGetVarianTag === tupleTag
+          let items = (originalSchema->classify->Obj.magic)["items"]
+          let objectVal = b->B.Val.Object.make(~isArray)
+          switch flattened {
+          | None => ()
+          | Some(rootItems) =>
+            for idx in 0 to rootItems->Js.Array2.length - 1 {
+              objectVal->B.Val.Object.merge(
+                rootItems->Js.Array2.unsafe_get(idx)->getItemOutput(~itemPath=Path.empty),
+              )
+            }
           }
+          for idx in 0 to items->Js.Array2.length - 1 {
+            let item: item = items->Js.Array2.unsafe_get(idx)
+
+            // FIXME: A hack to ignore items belonging to a flattened schema
+            if !(objectVal->Obj.magic->Stdlib.Dict.has(item.inlinedLocation)) {
+              objectVal->B.Val.Object.add(
+                item.inlinedLocation,
+                item
+                ->itemToDitem
+                ->getItemOutput(~itemPath=item.inlinedLocation->Path.fromInlinedLocation),
+              )
+            }
+          }
+
+          objectVal->B.Val.Object.complete(~isArray)
         }
-        objectVal->B.Val.Object.complete(~isArray)
       }
-
-      let output = switch kind {
-      | #To => ditems->Js.Array2.unsafe_get(0)->getItemOutput
-      | #Object => schemaOutput(~ditems, ~isArray=false)
-      | #Array => schemaOutput(~ditems, ~isArray=true)
-      }
-
-      output
     })
 
     reversed
@@ -3423,7 +3429,7 @@ module Schema = {
         }),
         ~maybeTypeFilter=schema.maybeTypeFilter,
         ~metadataMap=schema.metadataMap,
-        ~reverse=advancedReverse(~definition, ~ditems=[item], ~kind=#To),
+        ~reverse=advancedReverse(~definition, ~to=item),
       )
     }
   }
@@ -3533,8 +3539,6 @@ module Schema = {
   and object:
     type value. (Object.s => value) => schema<value> =
     definer => {
-      // FIXME: Get rid of it
-      let ditems = []
       let flattened = %raw(`void 0`)
       let items = []
       let fields = Js.Dict.empty()
@@ -3553,11 +3557,11 @@ module Schema = {
                   `The field ${inlinedLocation} defined twice with incompatible schemas`,
                 )
               | None =>
-                let item = {
+                let item = Item({
                   schema: flattenedSchema,
                   location,
                   inlinedLocation,
-                }
+                })->ditemToItem
                 items->Js.Array2.push(item)->ignore
                 fields->Js.Dict.set(location, item)
               }
@@ -3569,7 +3573,6 @@ module Schema = {
               idx: f->Js.Array2.length,
             })
             f->Js.Array2.push(item)->ignore
-            ditems->Js.Array2.push(item)->ignore
             item->proxify
           }
         | _ => InternalError.panic(`The '${schema.name()}' schema can't be flattened`)
@@ -3590,12 +3593,10 @@ module Schema = {
             schema,
             inlinedLocation,
             location: fieldName,
-            path: Path.fromInlinedLocation(inlinedLocation),
           })
           let item = ditem->ditemToItem
           fields->Js.Dict.set(fieldName, item)
           items->Js.Array2.push(item)->ignore
-          ditems->Js.Array2.push(ditem)->ignore
           ditem->proxify
         }
 
@@ -3632,11 +3633,11 @@ module Schema = {
         maybeTypeFilter: Some(Object.typeFilter),
         name: Object.name,
         metadataMap: Metadata.Map.empty,
-        reverse: advancedReverse(~definition, ~ditems, ~kind=#Object),
+        reverse: advancedReverse(~definition, ~flattened),
       }
     }
   and tuple = definer => {
-    let ditems = []
+    let items = []
 
     let ctx: Tuple.s = {
       let item:
@@ -3645,16 +3646,15 @@ module Schema = {
           let schema = schema->toUnknown
           let location = idx->Js.Int.toString
           let inlinedLocation = `"${location}"`
-          if ditems->Stdlib.Array.has(idx) {
+          if items->Stdlib.Array.has(idx) {
             InternalError.panic(`The item [${inlinedLocation}] is defined multiple times`)
           } else {
             let ditem = Item({
               schema,
               location,
               inlinedLocation,
-              path: Path.fromInlinedLocation(inlinedLocation),
             })
-            ditems->Js.Array2.unsafe_set(idx, ditem)
+            items->Js.Array2.unsafe_set(idx, ditem->ditemToItem)
             ditem->proxify
           }
         }
@@ -3670,30 +3670,29 @@ module Schema = {
     }
     let definition = definer(ctx)->(Obj.magic: 'any => unknown)
 
-    for idx in 0 to ditems->Js.Array2.length - 1 {
-      if ditems->Js.Array2.unsafe_get(idx)->Obj.magic->not {
+    for idx in 0 to items->Js.Array2.length - 1 {
+      if items->Js.Array2.unsafe_get(idx)->Obj.magic->not {
         let location = idx->Js.Int.toString
         let inlinedLocation = `"${location}"`
-        let ditem = Item({
+        let ditem = {
           location,
           inlinedLocation,
           schema: unit->toUnknown,
-          path: Path.fromInlinedLocation(inlinedLocation),
-        })
+        }
 
-        ditems->Js.Array2.unsafe_set(idx, ditem)
+        items->Js.Array2.unsafe_set(idx, ditem)
       }
     }
 
     makeSchema(
       ~name=Tuple.name,
       ~tagged=Tuple({
-        items: ditems->(Obj.magic: array<ditem> => array<item>),
+        items: items,
       }),
       ~builder=advancedBuilder(~definition),
       ~maybeTypeFilter=Some(Tuple.typeFilter),
       ~metadataMap=Metadata.Map.empty,
-      ~reverse=advancedReverse(~definition, ~ditems, ~kind=#Array),
+      ~reverse=advancedReverse(~definition),
     )
   }
 

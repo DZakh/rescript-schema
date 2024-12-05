@@ -312,6 +312,45 @@ test("S.schema object with a deep strict applied to the nested field parent", t 
   t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{let v0=i["nested"];return i}`)
 })
 
+test("S.schema object with a deep strict applied to the nested field parent + reverse", t => {
+  let schema =
+    S.schema(s =>
+      {
+        "nested": {
+          "foo": s.matches(S.null(S.string)),
+        },
+      }
+    )
+    ->S.reverse
+    ->S.deepStrict
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s =>
+      s.field(
+        "nested",
+        S.schema(
+          s =>
+            {
+              "foo": s.matches(S.option(S.string)),
+            },
+        )->S.strict,
+      )
+    )->S.strict,
+  )
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["nested"],v4;if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2,v3;if(v1!==void 0&&(typeof v1!=="string")){e[1](v1)}if(v1!==void 0){v2=v1}else{v2=null}for(v3 in v0){if(v3!=="foo"){e[2](v3)}}for(v4 in i){if(v4!=="nested"){e[3](v4)}}return {"nested":{"foo":v2,},}}`,
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    `i=>{let v0=i["nested"],v1=v0["foo"],v2;if(v1!==null){v2=v1}else{v2=void 0}return {"nested":{"foo":v2,},}}`,
+  )
+})
+
 test("Object with a deep strict applied to the nested field parent", t => {
   let schema = S.object(s => s.nested("nested").field("foo", S.string))->S.deepStrict
 
@@ -336,6 +375,30 @@ test("Object with a deep strict applied to the nested field parent", t => {
     `i=>{if(!i||i.constructor!==Object){e[4](i)}let v0=i["nested"],v3;if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["foo"],v2;if(typeof v1!=="string"){e[1](v1)}for(v2 in v0){if(v2!=="foo"){e[2](v2)}}for(v3 in i){if(v3!=="nested"){e[3](v3)}}return v0["foo"]}`,
   )
   t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":i,},}}`)
+})
+
+test("Object with a deep strict applied to the nested field parent + reverse", t => {
+  let schema =
+    S.object(s => {"foo": s.nested("nested").field("foo", S.string)})
+    ->S.reverse
+    ->S.deepStrict
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.schema(s =>
+      {
+        "foo": s.matches(S.string),
+      }
+    )->S.strict,
+  )
+
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    // FIXME: Missing type validation and strictness check
+    `i=>{if(!i||i.constructor!==Object){e[0](i)}return {"nested":{"foo":i["foo"],},}}`,
+  )
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":i["foo"],},}}`)
 })
 
 test("Object with nested field together with flatten", t => {
