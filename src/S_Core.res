@@ -423,6 +423,7 @@ module Flag = {
   @inline let jsonableOutput = 8
   @inline let jsonStringOutput = 16
   @inline let reverse = 32
+  @inline let flatten = 64
 
   external with: (flag, flag) => flag = "%orint"
   @inline
@@ -3074,41 +3075,53 @@ module Schema = {
     let items = tagged["items"]
     let isArray = tagged->unsafeGetVarianTag === tupleTag
 
-    let b = parentB->B.scope // TODO: Remove the scope by grouping all typeFilters together
+    if parentB.global.flag->Flag.unsafeHas(Flag.flatten) {
+      let objectVal = parentB->B.Val.Object.make(~isArray)
+      for idx in 0 to items->Js.Array2.length - 1 {
+        let {inlinedLocation} = items->Js.Array2.unsafe_get(idx)
+        objectVal->B.Val.Object.add(
+          inlinedLocation,
+          input->Obj.magic->Js.Dict.unsafeGet(inlinedLocation),
+        )
+      }
+      objectVal->B.Val.Object.complete(~isArray)
+    } else {
+      let b = parentB->B.scope // TODO: Remove the scope by grouping all typeFilters together
 
-    let objectVal = b->B.Val.Object.make(~isArray)
+      let objectVal = b->B.Val.Object.make(~isArray)
 
-    for idx in 0 to items->Js.Array2.length - 1 {
-      let {schema, inlinedLocation} = items->Js.Array2.unsafe_get(idx)
-      let itemPath = inlinedLocation->Path.fromInlinedLocation
+      for idx in 0 to items->Js.Array2.length - 1 {
+        let {schema, inlinedLocation} = items->Js.Array2.unsafe_get(idx)
+        let itemPath = inlinedLocation->Path.fromInlinedLocation
 
-      let itemInput = b->B.Val.get(input, inlinedLocation)
-      let path = path->Path.concat(itemPath)
+        let itemInput = b->B.Val.get(input, inlinedLocation)
+        let path = path->Path.concat(itemPath)
 
-      if (
-        schema.maybeTypeFilter->Stdlib.Option.isSome && (
-            b.global.flag->Flag.unsafeHas(Flag.typeValidation)
-              ? !(schema->isLiteralSchema)
-              : schema->isLiteralSchema && !(itemInput->B.Val.isEmbed)
-          )
-      ) {
-        b.code = b.code ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
+        if (
+          schema.maybeTypeFilter->Stdlib.Option.isSome && (
+              b.global.flag->Flag.unsafeHas(Flag.typeValidation)
+                ? !(schema->isLiteralSchema)
+                : schema->isLiteralSchema && !(itemInput->B.Val.isEmbed)
+            )
+        ) {
+          b.code = b.code ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
+        }
+
+        objectVal->B.Val.Object.add(inlinedLocation, b->B.parse(~schema, ~input=itemInput, ~path))
       }
 
-      objectVal->B.Val.Object.add(inlinedLocation, b->B.parse(~schema, ~input=itemInput, ~path))
-    }
+      b->objectStrictModeCheck(~input, ~items, ~unknownKeys, ~path)
 
-    b->objectStrictModeCheck(~input, ~items, ~unknownKeys, ~path)
+      parentB.code = parentB.code ++ b->B.allocateScope
 
-    parentB.code = parentB.code ++ b->B.allocateScope
-
-    if (
-      (unknownKeys !== Strip || b.global.flag->Flag.unsafeHas(Flag.reverse)) &&
-        selfSchema === selfSchema.reverse()
-    ) {
-      input
-    } else {
-      objectVal->B.Val.Object.complete(~isArray)
+      if (
+        (unknownKeys !== Strip || b.global.flag->Flag.unsafeHas(Flag.reverse)) &&
+          selfSchema === selfSchema.reverse()
+      ) {
+        input
+      } else {
+        objectVal->B.Val.Object.complete(~isArray)
+      }
     }
   }
 
@@ -3156,55 +3169,63 @@ module Schema = {
     ~selfSchema,
     ~path,
   ) => {
-    let outputs = Js.Dict.empty()
-    let tagged = selfSchema->classify->Obj.magic
-    let unknownKeys = tagged["unknownKeys"]
-    let items = tagged["items"]
+    let isFlatten = parentB.global.flag->Flag.unsafeHas(Flag.flatten)
+    let outputs = isFlatten ? input->Obj.magic : Js.Dict.empty()
 
     let b = parentB->B.scope
-    let inputVar = b->B.Val.var(input)
 
-    for idx in 0 to items->Js.Array2.length - 1 {
-      let {schema, inlinedLocation} = items->Js.Array2.unsafe_get(idx)
+    if !isFlatten {
+      let tagged = selfSchema->classify->Obj.magic
+      let unknownKeys = tagged["unknownKeys"]
+      let items = tagged["items"]
 
-      // FIXME: Have items in the Object and Tuple tagged
-      // Get schema here from items by idx
-      // Test for deepStrict applying to flattened nested fields
-      // Test deepStrict for reversed schema
-      // Test strict & deepStrict for S.to
-      let itemPath = inlinedLocation->Path.fromInlinedLocation
+      let inputVar = b->B.Val.var(input)
 
-      let itemInput = b->B.val(`${inputVar}${itemPath}`)
-      let path = path->Path.concat(itemPath)
+      for idx in 0 to items->Js.Array2.length - 1 {
+        let {schema, inlinedLocation} = items->Js.Array2.unsafe_get(idx)
 
-      if (
-        schema.maybeTypeFilter->Stdlib.Option.isSome && (
-            b.global.flag->Flag.unsafeHas(Flag.typeValidation)
-              ? !(schema->isLiteralSchema)
-              : schema->isLiteralSchema
-          )
-      ) {
-        b.code = b.code ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
+        // FIXME: Have items in the Object and Tuple tagged
+        // Get schema here from items by idx
+        // Test for deepStrict applying to flattened nested fields
+        // Test deepStrict for reversed schema
+        // Test strict & deepStrict for S.to
+        let itemPath = inlinedLocation->Path.fromInlinedLocation
+
+        let itemInput = b->B.val(`${inputVar}${itemPath}`)
+        let path = path->Path.concat(itemPath)
+
+        if (
+          schema.maybeTypeFilter->Stdlib.Option.isSome && (
+              b.global.flag->Flag.unsafeHas(Flag.typeValidation)
+                ? !(schema->isLiteralSchema)
+                : schema->isLiteralSchema
+            )
+        ) {
+          b.code = b.code ++ b->B.typeFilterCode(~schema, ~input=itemInput, ~path)
+        }
+
+        outputs->Js.Dict.set(inlinedLocation, b->B.parse(~schema, ~input=itemInput, ~path))
       }
 
-      outputs->Js.Dict.set(inlinedLocation, b->B.parse(~schema, ~input=itemInput, ~path))
+      b->objectStrictModeCheck(~input, ~items, ~unknownKeys, ~path)
     }
 
     switch flattened {
     | None => ()
     | Some(rootItems) =>
+      let prevFlag = b.global.flag
+      b.global.flag = prevFlag->Flag.with(Flag.flatten)
       for idx in 0 to rootItems->Js.Array2.length - 1 {
         let item = rootItems->Js.Array2.unsafe_get(idx)
         outputs
         ->Js.Dict.set(
           item->getUnsafeDitemIndex,
-          b->B.parse(~schema=item->getUnsafeDitemSchema, ~input, ~path),
+          b->B.parse(~schema=item->getUnsafeDitemSchema, ~input=outputs->Obj.magic, ~path),
         )
         ->ignore
       }
+      b.global.flag = prevFlag
     }
-
-    b->objectStrictModeCheck(~input, ~items=tagged["items"], ~unknownKeys, ~path)
 
     let rec getItemOutput = item => {
       switch item {
@@ -3332,6 +3353,8 @@ module Schema = {
           let input = reversedToInput(reversed, ~originalPath=item->getItemPath)
 
           let prevFlag = b.global.flag
+
+          // FIXME: Maybe use flatten flag
           b.global.flag = prevFlag->Flag.without(Flag.typeValidation)
           let output = b->B.parse(~schema=reversed, ~input, ~path)
           b.global.flag = prevFlag
@@ -3510,6 +3533,7 @@ module Schema = {
   and object:
     type value. (Object.s => value) => schema<value> =
     definer => {
+      // FIXME: Get rid of it
       let ditems = []
       let flattened = %raw(`void 0`)
       let items = []
@@ -3540,7 +3564,7 @@ module Schema = {
             }
             let f = %raw(`flattened || (flattened = [])`)
             let item = Root({
-              schema: schema->Object.setUnknownKeys(Strip, ~deep=false),
+              schema,
               path: Path.empty,
               idx: f->Js.Array2.length,
             })

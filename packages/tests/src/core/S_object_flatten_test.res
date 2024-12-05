@@ -20,7 +20,7 @@ test("Has correct tagged type", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v1=i["foo"];let v0=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"bar":v0,"foo":v1,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["bar"],v1=i["foo"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"bar":v0,"foo":v1,}}`,
   )
 })
 
@@ -45,7 +45,7 @@ test("Can flatten S.schema", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v1=i["foo"];let v0=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"bar":v0,"foo":v1,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["bar"],v1=i["foo"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"bar":v0,"foo":v1,}}`,
   )
 })
 
@@ -77,7 +77,7 @@ test("Can flatten strict object", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v1=i["foo"];let v0=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"bar":v0,"foo":v1,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["bar"],v1=i["foo"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"bar":v0,"foo":v1,}}`,
   )
 })
 
@@ -101,7 +101,7 @@ test("Flatten inside of a strict object", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v1=i["foo"],v2;let v0=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}for(v2 in i){if(v2!=="bar"&&v2!=="foo"){e[2](v2)}}return {"bar":v0,"foo":v1,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["bar"],v1=i["foo"],v2;if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}for(v2 in i){if(v2!=="bar"&&v2!=="foo"){e[2](v2)}}return {"bar":v0,"foo":v1,}}`,
   )
 })
 
@@ -140,11 +140,11 @@ test("Flatten schema with duplicated field of the same type (flatten last)", t =
       }
     ),
   )
-  // FIXME: Can be improved
+
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}let v1=i["foo"];if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[1](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"foo":v0,"bar":v0,}}`,
   )
   // FIXME: Should validate that the fields are equal
   t->U.assertCompiledCode(
@@ -192,7 +192,7 @@ test("Can flatten renamed object schema", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v1=i["foo"];let v0=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"bar":v0,"foo":v1,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["bar"],v1=i["foo"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"bar":v0,"foo":v1,}}`,
   )
   t->Assert.is(schema->S.name, `{ bar: string; foo: string; }`, ())
 })
@@ -216,7 +216,7 @@ test("Can flatten transformed object schema", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v1=i["foo"];let v0=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[2](v1)}return {"bar":e[1](v0),"foo":v1,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["bar"],v1=i["foo"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"bar":e[2](v0),"foo":v1,}}`,
   )
 })
 
@@ -284,7 +284,7 @@ test("Can destructure flattened schema", t => {
   t->U.assertCompiledCode(
     ~op=#Parse,
     ~schema=entitySchema,
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v2=i["id"];let v0=i["name"],v1=i["age"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}return {"id":v2,"name":v0,"age":v1,}}`,
+    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v0=i["name"],v1=i["age"],v2=i["id"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[1](v1)}if(typeof v2!=="string"){e[2](v2)}return {"id":v2,"name":v0,"age":v1,}}`,
   )
 
   t->Assert.deepEqual(
