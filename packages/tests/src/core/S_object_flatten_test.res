@@ -146,12 +146,8 @@ test("Flatten schema with duplicated field of the same type (flatten last)", t =
     ~op=#Parse,
     `i=>{if(!i||i.constructor!==Object){e[1](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"foo":v0,"bar":v0,}}`,
   )
-  // FIXME: Should validate that the fields are equal
-  t->U.assertCompiledCode(
-    ~schema,
-    ~op=#ReverseConvert,
-    `i=>{return {"foo":i["foo"],"foo":i["bar"],}}`,
-  )
+  // FIXME: Should validate that the fields are equal and choose the right one depending on the order
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"foo":i["bar"],}}`)
 })
 
 test("Flatten schema with duplicated field of different type", t => {
@@ -254,7 +250,7 @@ test("Successfully serializes simple object with flatten", t => {
   t->U.assertCompiledCode(
     ~op=#ReverseConvert,
     ~schema,
-    `i=>{return {"foo":i["foo"],"bar":i["bar"],}}`,
+    `i=>{return {"bar":i["bar"],"foo":i["foo"],}}`,
   )
 })
 
