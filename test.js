@@ -3,24 +3,30 @@
     e[4](i);
   }
   let v0 = i["nested"],
-    v3;
+    v4;
   if (!v0 || v0.constructor !== Object) {
     e[0](v0);
   }
   let v1 = v0["foo"],
-    v2;
-  if (typeof v1 !== "string") {
+    v2,
+    v3;
+  if (v1 !== void 0 && typeof v1 !== "string") {
     e[1](v1);
   }
-  for (v2 in v0) {
-    if (v2 !== "foo") {
-      e[2](v2);
+  if (v1 !== void 0) {
+    v2 = v1;
+  } else {
+    v2 = null;
+  }
+  for (v3 in v0) {
+    if (v3 !== "foo") {
+      e[2](v3);
     }
   }
-  for (v3 in i) {
-    if (v3 !== "nested") {
-      e[3](v3);
+  for (v4 in i) {
+    if (v4 !== "nested") {
+      e[3](v4);
     }
   }
-  return i;
+  return { nested: { foo: v2 } };
 };

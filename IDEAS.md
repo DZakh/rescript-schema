@@ -42,11 +42,11 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 - Changed asyncParser from (i) => () => promise to (i) => promise
 - Look at the discriminant in unions - error message improvements
 - Rename S.strict to S.strict (the same for strip)
+- Added S.deepStrict
 
 ## v9.1
 
 - Add s.strict s.strip to ppx
-- Add S.deepStrict
 - Add S.test
 
 ## v10

@@ -1928,13 +1928,14 @@ function description(schema) {
   return schema.m[descriptionMetadataId];
 }
 
-function getFullItemPath(item) {
-  switch (item.k) {
-    case 1 :
-        return getFullItemPath(item.of) + item.p;
+function getFullDitemPath(ditem) {
+  switch (ditem.k) {
     case 0 :
+        return "[" + ditem.inlinedLocation + "]";
+    case 1 :
+        return getFullDitemPath(ditem.of) + ditem.p;
     case 2 :
-        return item.p;
+        return ditem.p;
     
   }
 }
@@ -2060,7 +2061,7 @@ function definitionToRitem(definition, path, ritems, ritemsByItemPath) {
       s: ritem_2
     };
     item.r = ritem;
-    ritemsByItemPath[getFullItemPath(item)] = ritem;
+    ritemsByItemPath[getFullDitemPath(item)] = ritem;
     return ritem;
   }
   if (Array.isArray(definition)) {
@@ -2286,8 +2287,9 @@ function nested(fieldName) {
   return ctx$1;
 }
 
-function advancedReverse(definition, kind, ditems) {
+function advancedReverse(definition, to, flattened) {
   return function () {
+    var originalSchema = this;
     var ritemsByItemPath = {};
     var ritems = [];
     var ritem = definitionToRitem(definition, "", ritems, ritemsByItemPath);
@@ -2381,7 +2383,7 @@ function advancedReverse(definition, kind, ditems) {
             
           }
         };
-        var getItemOutput = function (item) {
+        var getItemOutput = function (item, itemPath) {
           var ritem = item.r;
           if (ritem !== undefined) {
             var reversed = ritem.s;
@@ -2395,38 +2397,32 @@ function advancedReverse(definition, kind, ditems) {
             return reversed.b(b, itemInput, reversed, path$2);
           }
           var reversed$1 = item.schema["~r"]();
-          var input = reversedToInput(reversed$1, item.p);
+          var input = reversedToInput(reversed$1, itemPath);
           var prevFlag = b.g.o;
           b.g.o = (prevFlag | 1) ^ 1;
           var output = reversed$1.b(b, input, reversed$1, path);
           b.g.o = prevFlag;
           return output;
         };
-        var schemaOutput = function (ditems, isArray) {
-          var objectVal = make(b, isArray);
-          for(var idx = 0 ,idx_finish = ditems.length; idx < idx_finish; ++idx){
-            var item = ditems[idx];
-            switch (item.k) {
-              case 0 :
-                  add(objectVal, item.inlinedLocation, getItemOutput(item));
-                  break;
-              case 1 :
-                  break;
-              case 2 :
-                  merge(objectVal, getItemOutput(item));
-                  break;
-              
-            }
-          }
-          return complete(objectVal, isArray);
-        };
-        if (kind === "To") {
-          return getItemOutput(ditems[0]);
-        } else if (kind === "Array") {
-          return schemaOutput(ditems, true);
-        } else {
-          return schemaOutput(ditems, false);
+        if (to !== undefined) {
+          return getItemOutput(to, "");
         }
+        var isArray = originalSchema.t.TAG === "tuple";
+        var items = originalSchema.t.items;
+        var objectVal = make(b, isArray);
+        if (flattened !== undefined) {
+          for(var idx$1 = 0 ,idx_finish$1 = flattened.length; idx$1 < idx_finish$1; ++idx$1){
+            merge(objectVal, getItemOutput(flattened[idx$1], ""));
+          }
+        }
+        for(var idx$2 = 0 ,idx_finish$2 = items.length; idx$2 < idx_finish$2; ++idx$2){
+          var item = items[idx$2];
+          if (!objectVal[item.inlinedLocation]) {
+            add(objectVal, item.inlinedLocation, getItemOutput(item, "[" + item.inlinedLocation + "]"));
+          }
+          
+        }
+        return complete(objectVal, isArray);
       });
     return reversed;
   };
@@ -2521,11 +2517,10 @@ function to(schema, definer) {
                 var output = definitionToOutput(bb, definition, getItemOutput);
                 b.c = b.c + allocateScope(bb);
                 return output;
-              }), schema.f, advancedReverse(definition, "To", [item]));
+              }), schema.f, advancedReverse(definition, item, undefined));
 }
 
 function object(definer) {
-  var ditems = [];
   var flattened = (void 0);
   var items = [];
   var fields = {};
@@ -2546,9 +2541,10 @@ function object(definer) {
           
         } else {
           var item$1 = {
+            k: 0,
             schema: flattenedSchema,
-            location: $$location,
-            inlinedLocation: inlinedLocation
+            inlinedLocation: inlinedLocation,
+            location: $$location
           };
           items.push(item$1);
           fields[$$location] = item$1;
@@ -2563,7 +2559,6 @@ function object(definer) {
         i: item_2
       };
       f.push(item$2);
-      ditems.push(item$2);
       return proxify(item$2);
     }
     var message = "The '" + schema.n() + "' schema can't be flattened";
@@ -2574,17 +2569,14 @@ function object(definer) {
     if (fields[fieldName]) {
       throw new Error("[rescript-schema] " + ("The field " + inlinedLocation + " defined twice with incompatible schemas"));
     }
-    var ditem_3 = "[" + inlinedLocation + "]";
     var ditem = {
       k: 0,
       schema: schema,
       inlinedLocation: inlinedLocation,
-      location: fieldName,
-      p: ditem_3
+      location: fieldName
     };
     fields[fieldName] = ditem;
     items.push(ditem);
-    ditems.push(ditem);
     return proxify(ditem);
   };
   var tag = function (tag$1, asValue) {
@@ -2611,7 +2603,7 @@ function object(definer) {
             advanced: true
           },
           n: name$1,
-          "~r": advancedReverse(definition, "Object", ditems),
+          "~r": advancedReverse(definition, undefined, flattened),
           b: advancedBuilder(definition, flattened),
           f: typeFilter$1,
           i: 0,
@@ -2620,22 +2612,20 @@ function object(definer) {
 }
 
 function tuple(definer) {
-  var ditems = [];
+  var items = [];
   var item = function (idx, schema) {
     var $$location = idx.toString();
     var inlinedLocation = "\"" + $$location + "\"";
-    if (ditems[idx]) {
+    if (items[idx]) {
       throw new Error("[rescript-schema] " + ("The item [" + inlinedLocation + "] is defined multiple times"));
     }
-    var ditem_3 = "[" + inlinedLocation + "]";
     var ditem = {
       k: 0,
       schema: schema,
       inlinedLocation: inlinedLocation,
-      location: $$location,
-      p: ditem_3
+      location: $$location
     };
-    ditems[idx] = ditem;
+    items[idx] = ditem;
     return proxify(ditem);
   };
   var tag = function (idx, asValue) {
@@ -2646,26 +2636,23 @@ function tuple(definer) {
     tag: tag
   };
   var definition = definer(ctx);
-  for(var idx = 0 ,idx_finish = ditems.length; idx < idx_finish; ++idx){
-    if (!ditems[idx]) {
+  for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+    if (!items[idx]) {
       var $$location = idx.toString();
       var inlinedLocation = "\"" + $$location + "\"";
-      var ditem_3 = "[" + inlinedLocation + "]";
       var ditem = {
-        k: 0,
         schema: unit,
-        inlinedLocation: inlinedLocation,
         location: $$location,
-        p: ditem_3
+        inlinedLocation: inlinedLocation
       };
-      ditems[idx] = ditem;
+      items[idx] = ditem;
     }
     
   }
   return makeSchema(name$2, {
               TAG: "tuple",
-              items: ditems
-            }, empty, advancedBuilder(definition, undefined), typeFilter$2, advancedReverse(definition, "Array", ditems));
+              items: items
+            }, empty, advancedBuilder(definition, undefined), typeFilter$2, advancedReverse(definition, undefined, undefined));
 }
 
 function definitionToSchema(definition) {
