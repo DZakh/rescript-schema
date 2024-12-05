@@ -3191,7 +3191,6 @@ module Schema = {
     }
 
     switch flattened {
-    | Some([])
     | None => ()
     | Some(rootItems) =>
       for idx in 0 to rootItems->Js.Array2.length - 1 {
@@ -3512,7 +3511,7 @@ module Schema = {
     type value. (Object.s => value) => schema<value> =
     definer => {
       let ditems = []
-      let flattened = []
+      let flattened = %raw(`void 0`)
       let items = []
       let fields = Js.Dict.empty()
 
@@ -3539,12 +3538,13 @@ module Schema = {
                 fields->Js.Dict.set(location, item)
               }
             }
+            let f = %raw(`flattened || (flattened = [])`)
             let item = Root({
               schema: schema->Object.setUnknownKeys(Strip, ~deep=false),
               path: Path.empty,
-              idx: flattened->Js.Array2.length - 64,
+              idx: f->Js.Array2.length,
             })
-            flattened->Js.Array2.push(item)->ignore
+            f->Js.Array2.push(item)->ignore
             ditems->Js.Array2.push(item)->ignore
             item->proxify
           }
