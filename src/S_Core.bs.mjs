@@ -2124,32 +2124,41 @@ function builder$1(parentB, input, selfSchema, path) {
   var unknownKeys = tagged.unknownKeys;
   var items = tagged.items;
   var isArray = tagged.TAG === "tuple";
+  if (parentB.g.o & 64) {
+    var objectVal = make(parentB, isArray);
+    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+      var match = items[idx];
+      var inlinedLocation = match.inlinedLocation;
+      add(objectVal, inlinedLocation, input[inlinedLocation]);
+    }
+    return complete(objectVal, isArray);
+  }
   var b = {
     c: "",
     l: "",
     g: parentB.g
   };
-  var objectVal = make(b, isArray);
-  for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-    var match = items[idx];
-    var inlinedLocation = match.inlinedLocation;
-    var schema = match.schema;
-    var itemPath = "[" + inlinedLocation + "]";
-    var itemInput = get(b, input, inlinedLocation);
+  var objectVal$1 = make(b, isArray);
+  for(var idx$1 = 0 ,idx_finish$1 = items.length; idx$1 < idx_finish$1; ++idx$1){
+    var match$1 = items[idx$1];
+    var inlinedLocation$1 = match$1.inlinedLocation;
+    var schema = match$1.schema;
+    var itemPath = "[" + inlinedLocation$1 + "]";
+    var itemInput = get(b, input, inlinedLocation$1);
     var path$1 = path + itemPath;
     if (schema.f !== undefined && (
         b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal" && !(itemInput.v && itemInput.i[0] === "e")
       )) {
       b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
     }
-    add(objectVal, inlinedLocation, schema.b(b, itemInput, schema, path$1));
+    add(objectVal$1, inlinedLocation$1, schema.b(b, itemInput, schema, path$1));
   }
   objectStrictModeCheck(b, input, items, unknownKeys, path);
   parentB.c = parentB.c + allocateScope(b);
   if ((unknownKeys !== "Strip" || b.g.o & 32) && selfSchema === selfSchema["~r"]()) {
     return input;
   } else {
-    return complete(objectVal, isArray);
+    return complete(objectVal$1, isArray);
   }
 }
 
@@ -2275,61 +2284,6 @@ function nested(fieldName) {
   };
   parentCtx[cacheId] = ctx$1;
   return ctx$1;
-}
-
-function advancedBuilder(definition, flattened) {
-  return function (parentB, input, selfSchema, path) {
-    var outputs = {};
-    var tagged = selfSchema.t;
-    var unknownKeys = tagged.unknownKeys;
-    var items = tagged.items;
-    var b = {
-      c: "",
-      l: "",
-      g: parentB.g
-    };
-    var inputVar = $$var(b, input);
-    for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-      var match = items[idx];
-      var inlinedLocation = match.inlinedLocation;
-      var schema = match.schema;
-      var itemPath = "[" + inlinedLocation + "]";
-      var itemInput = {
-        v: false,
-        i: inputVar + itemPath,
-        a: false
-      };
-      var path$1 = path + itemPath;
-      if (schema.f !== undefined && (
-          b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal"
-        )) {
-        b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
-      }
-      outputs[inlinedLocation] = schema.b(b, itemInput, schema, path$1);
-    }
-    if (flattened !== undefined) {
-      for(var idx$1 = 0 ,idx_finish$1 = flattened.length; idx$1 < idx_finish$1; ++idx$1){
-        var item = flattened[idx$1];
-        var schema$1 = item.schema;
-        outputs[item.i] = schema$1.b(b, input, schema$1, path);
-      }
-    }
-    objectStrictModeCheck(b, input, tagged.items, unknownKeys, path);
-    var getItemOutput = function (item) {
-      switch (item.k) {
-        case 0 :
-            return outputs[item.inlinedLocation];
-        case 1 :
-            return get(b, getItemOutput(item.of), item.inlinedLocation);
-        case 2 :
-            return outputs[item.i];
-        
-      }
-    };
-    var output = definitionToOutput(b, definition, getItemOutput);
-    parentB.c = parentB.c + allocateScope(b);
-    return output;
-  };
 }
 
 function advancedReverse(definition, kind, ditems) {
@@ -2478,6 +2432,67 @@ function advancedReverse(definition, kind, ditems) {
   };
 }
 
+function advancedBuilder(definition, flattened) {
+  return function (parentB, input, selfSchema, path) {
+    var isFlatten = parentB.g.o & 64;
+    var outputs = isFlatten ? input : ({});
+    var b = {
+      c: "",
+      l: "",
+      g: parentB.g
+    };
+    if (!isFlatten) {
+      var tagged = selfSchema.t;
+      var unknownKeys = tagged.unknownKeys;
+      var items = tagged.items;
+      var inputVar = $$var(b, input);
+      for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+        var match = items[idx];
+        var inlinedLocation = match.inlinedLocation;
+        var schema = match.schema;
+        var itemPath = "[" + inlinedLocation + "]";
+        var itemInput = {
+          v: false,
+          i: inputVar + itemPath,
+          a: false
+        };
+        var path$1 = path + itemPath;
+        if (schema.f !== undefined && (
+            b.g.o & 1 ? schema.t.TAG !== "literal" : schema.t.TAG === "literal"
+          )) {
+          b.c = b.c + typeFilterCode(b, schema, itemInput, path$1);
+        }
+        outputs[inlinedLocation] = schema.b(b, itemInput, schema, path$1);
+      }
+      objectStrictModeCheck(b, input, items, unknownKeys, path);
+    }
+    if (flattened !== undefined) {
+      var prevFlag = b.g.o;
+      b.g.o = prevFlag | 64;
+      for(var idx$1 = 0 ,idx_finish$1 = flattened.length; idx$1 < idx_finish$1; ++idx$1){
+        var item = flattened[idx$1];
+        var schema$1 = item.schema;
+        outputs[item.i] = schema$1.b(b, outputs, schema$1, path);
+      }
+      b.g.o = prevFlag;
+    }
+    var getItemOutput = function (item) {
+      switch (item.k) {
+        case 0 :
+            return outputs[item.inlinedLocation];
+        case 1 :
+            return get(b, getItemOutput(item.of), item.inlinedLocation);
+        case 2 :
+            return outputs[item.i];
+        
+      }
+    };
+    var output = definitionToOutput(b, definition, getItemOutput);
+    parentB.c = parentB.c + allocateScope(b);
+    return output;
+  };
+}
+
 function to(schema, definer) {
   var item = {
     k: 2,
@@ -2540,11 +2555,10 @@ function object(definer) {
         }
       }
       var f = (flattened || (flattened = []));
-      var item_0 = setUnknownKeys(schema, "Strip", false);
       var item_2 = f.length;
       var item$2 = {
         k: 2,
-        schema: item_0,
+        schema: schema,
         p: "",
         i: item_2
       };
