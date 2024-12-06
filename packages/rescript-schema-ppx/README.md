@@ -76,7 +76,7 @@ let filmSchema = S.object(s => {
   "Title": "My first film",
   "Rating": "R",
   "Age": 17
-}`)->S.parseWith(filmSchema)
+}`)->S.parseOrThrow(filmSchema)
 // Ok({
 //   id: 1.,
 //   title: "My first film",
@@ -92,7 +92,7 @@ let filmSchema = S.object(s => {
   title: "Sad & sed",
   rating: ParentalStronglyCautioned,
   deprecatedAgeRestriction: None,
-}->S.serializeWith(filmSchema)
+}->S.reverseConvertOrThrow(filmSchema)
 // Ok(%raw(`{
 //   "Id": 2,
 //   "Title": "Sad & sed",
