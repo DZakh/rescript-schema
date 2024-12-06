@@ -395,8 +395,11 @@ test("Object with a deep strict applied to the nested field parent + reverse", t
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    // FIXME: Missing type validation and strictness check
-    `i=>{if(!i||i.constructor!==Object){e[0](i)}return {"nested":{"foo":i["foo"],},}}`,
+    // FIXME: Missing type validation for nested field
+    // FIXME: Test for deepStrict applying to flattened nested fields
+    // Test deepStrict for reversed schema
+    // Test strict & deepStrict for S.to
+    `i=>{if(!i||i.constructor!==Object){e[1](i)}let v0;for(v0 in i){if(v0!=="foo"){e[0](v0)}}return {"nested":{"foo":i["foo"],},}}`,
   )
   t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":i["foo"],},}}`)
 })
