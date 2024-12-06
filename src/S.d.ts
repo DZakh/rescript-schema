@@ -230,7 +230,13 @@ export function object<Output, Input extends Record<string, unknown>>(
 export function strip<Output, Input extends Record<string, unknown>>(
   schema: Schema<Output, Input>
 ): Schema<Output, Input>;
+export function deepStrip<Output, Input extends Record<string, unknown>>(
+  schema: Schema<Output, Input>
+): Schema<Output, Input>;
 export function strict<Output, Input extends Record<string, unknown>>(
+  schema: Schema<Output, Input>
+): Schema<Output, Input>;
+export function deepStrict<Output, Input extends Record<string, unknown>>(
   schema: Schema<Output, Input>
 ): Schema<Output, Input>;
 
