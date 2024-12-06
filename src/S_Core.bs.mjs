@@ -2305,7 +2305,7 @@ function advancedReverse(definition, to, flattened) {
           break;
       
     }
-    reversed.b = (function (b, input, param, path) {
+    reversed.b = (function (b, input, selfSchema, path) {
         var hasTypeValidation = b.g.o & 1;
         for(var idx = 0 ,idx_finish = ritems.length; idx < idx_finish; ++idx){
           var match = ritems[idx];
@@ -2406,6 +2406,9 @@ function advancedReverse(definition, to, flattened) {
         };
         if (to !== undefined) {
           return getItemOutput(to, "");
+        }
+        if (selfSchema.t.unknownKeys === "Strict") {
+          objectStrictModeCheck(b, input, selfSchema.t.items, "Strict", path);
         }
         var isArray = originalSchema.t.TAG === "tuple";
         var items = originalSchema.t.items;

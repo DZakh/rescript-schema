@@ -3177,11 +3177,6 @@ module Schema = {
       for idx in 0 to items->Js.Array2.length - 1 {
         let {schema, inlinedLocation} = items->Js.Array2.unsafe_get(idx)
 
-        // FIXME: Have items in the Object and Tuple tagged
-        // Get schema here from items by idx
-        // Test for deepStrict applying to flattened nested fields
-        // Test deepStrict for reversed schema
-        // Test strict & deepStrict for S.to
         let itemPath = inlinedLocation->Path.fromInlinedLocation
 
         let itemInput = b->B.val(`${inputVar}${itemPath}`)
@@ -3261,7 +3256,7 @@ module Schema = {
     | _ => ritem->getRitemReversed
     }
 
-    reversed.builder = Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+    reversed.builder = Builder.make((b, ~input, ~selfSchema, ~path) => {
       let hasTypeValidation = b.global.flag->Flag.unsafeHas(Flag.typeValidation)
 
       // TODO: Optimise the for loop
@@ -3349,7 +3344,7 @@ module Schema = {
 
           let prevFlag = b.global.flag
 
-          // FIXME: Maybe use flatten flag
+          // TODO: Should refactor to use Flag.flatten
           b.global.flag = prevFlag->Flag.without(Flag.typeValidation)
           let output = b->B.parse(~schema=reversed, ~input, ~path)
           b.global.flag = prevFlag
@@ -3360,6 +3355,15 @@ module Schema = {
       switch to {
       | Some(ditem) => ditem->getItemOutput(~itemPath=Path.empty)
       | None => {
+          if (selfSchema->classify->Obj.magic)["unknownKeys"] === Strict {
+            b->objectStrictModeCheck(
+              ~input,
+              ~items=(selfSchema->classify->Obj.magic)["items"],
+              ~unknownKeys=Strict,
+              ~path,
+            )
+          }
+
           let isArray = originalSchema->classify->unsafeGetVarianTag === tupleTag
           let items = (originalSchema->classify->Obj.magic)["items"]
           let objectVal = b->B.Val.Object.make(~isArray)
@@ -3375,7 +3379,7 @@ module Schema = {
           for idx in 0 to items->Js.Array2.length - 1 {
             let item: item = items->Js.Array2.unsafe_get(idx)
 
-            // FIXME: A hack to ignore items belonging to a flattened schema
+            // TODO: Improve a hack to ignore items belonging to a flattened schema
             if !(objectVal->Obj.magic->Stdlib.Dict.has(item.inlinedLocation)) {
               objectVal->B.Val.Object.add(
                 item.inlinedLocation,
