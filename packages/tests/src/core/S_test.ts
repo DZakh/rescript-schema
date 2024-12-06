@@ -916,6 +916,44 @@ test("Fails to parse strict object with exccess fields", (t) => {
   );
 });
 
+test("Fails to parse deep strict object with exccess fields", (t) => {
+  const schema = S.deepStrict(
+    S.schema({
+      foo: {
+        a: S.string,
+      },
+    })
+  );
+
+  t.throws(
+    () => {
+      const value = S.parseOrThrow(
+        {
+          foo: {
+            a: "bar",
+            b: true,
+          },
+        },
+        schema
+      );
+      expectType<
+        SchemaEqual<
+          typeof schema,
+          {
+            foo: {
+              a: string;
+            };
+          }
+        >
+      >(true);
+    },
+    {
+      name: "RescriptSchemaError",
+      message: `Failed parsing at ["foo"]. Reason: Encountered disallowed excess key "b" on an object`,
+    }
+  );
+});
+
 test("Fails to parse strict object with exccess fields which created using global config override", (t) => {
   S.setGlobalConfig({
     defaultUnknownKeys: "Strict",
