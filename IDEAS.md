@@ -20,7 +20,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v9
 
-- deepStrict for js/ts
 - Update documentation:
   - Add Enums section to js docs
 
