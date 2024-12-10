@@ -853,13 +853,14 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.parseOrThrow(schema), makeTestObject(), ())
-
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
       `i=>{if(!i||i.constructor!==Object){e[10](i)}let v0=i["number"],v1=i["negNumber"],v2=i["maxNumber"],v3=i["string"],v4=i["longString"],v5=i["boolean"],v6=i["deeplyNested"];if(typeof v0!=="number"){e[0](v0)}if(typeof v1!=="number"){e[1](v1)}if(typeof v2!=="number"){e[2](v2)}if(typeof v3!=="string"){e[3](v3)}if(typeof v4!=="string"){e[4](v4)}if(typeof v5!=="boolean"){e[5](v5)}if(!v6||v6.constructor!==Object){e[6](v6)}let v7=v6["foo"],v8=v6["num"],v9=v6["bool"];if(typeof v7!=="string"){e[7](v7)}if(typeof v8!=="number"){e[8](v8)}if(typeof v9!=="boolean"){e[9](v9)}return {"number":v0,"negNumber":v1,"maxNumber":v2,"string":v3,"longString":v4,"boolean":v5,"deeplyNested":{"foo":v7,"num":v8,"bool":v9,},}}`,
     )
+
+    t->Assert.deepEqual(makeTestObject()->S.parseOrThrow(schema), makeTestObject(), ())
+
     S.setGlobalConfig({})
   })
 
@@ -1164,7 +1165,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object||i["foo"]!==12){e[3](i)}let v0=i["bar"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["baz"];if(typeof v1!=="string"){e[1](v1)}let v2={"baz":v1,};e[2](v2);return {"foo":i["foo"],"bar":v2,}}`,
+      `i=>{if(!i||i.constructor!==Object||i["foo"]!==12){e[3](i)}let v2;let v0=i["bar"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["baz"];if(typeof v1!=="string"){e[1](v1)}v2={"baz":v1,};e[2](v2);return {"foo":i["foo"],"bar":v2,}}`,
     )
     t->U.assertCompiledCode(
       ~schema,
