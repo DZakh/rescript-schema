@@ -66,7 +66,7 @@ test("Parses when both schemas misses parser and have the same type", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{let v0=i;if(typeof i!=="string"){e[3](i)}else{try{throw e[0]}catch(e0){try{throw e[1]}catch(e1){e[2]([e0,e1,])}}}return v0}`,
+    `i=>{if(typeof i!=="string"){e[3](i)}else{try{throw e[0]}catch(e0){try{throw e[1]}catch(e1){e[2]([e0,e1,])}}}return i}`,
   )
 })
 
@@ -100,7 +100,7 @@ test("Parses when both schemas misses parser and have different types", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{let v0=i;if(i!=="apple"){if(typeof i!=="string"){e[2](i)}else{throw e[1]}}else{throw e[0]}return v0}`,
+    `i=>{if(i!=="apple"){if(typeof i!=="string"){e[2](i)}else{throw e[1]}}else{throw e[0]}return i}`,
   )
 })
 
@@ -133,7 +133,7 @@ test("Serializes when both schemas misses serializer", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0=i;try{throw e[0]}catch(e0){try{throw e[1]}catch(e1){e[2]([e0,e1,])}}return v0}`,
+    `i=>{try{throw e[0]}catch(e0){try{throw e[1]}catch(e1){e[2]([e0,e1,])}}return i}`,
   )
 })
 
@@ -158,7 +158,7 @@ test("Parses when second struct misses parser", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{let v0=i;if(i!=="apple"){if(typeof i!=="string"){e[1](i)}else{throw e[0]}}return v0}`,
+    `i=>{if(i!=="apple"){if(typeof i!=="string"){e[1](i)}else{throw e[0]}}return i}`,
   )
 })
 
@@ -167,11 +167,7 @@ test("Serializes when second struct misses serializer", t => {
 
   t->Assert.deepEqual(#apple->S.reverseConvertOrThrow(schema), %raw(`"apple"`), ())
 
-  t->U.assertCompiledCode(
-    ~schema,
-    ~op=#ReverseConvert,
-    `i=>{let v0=i;if(i!=="apple"){throw e[0]}return v0}`,
-  )
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{if(i!=="apple"){throw e[0]}return i}`)
 })
 
 module Advanced = {
@@ -376,7 +372,7 @@ module Advanced = {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
       ~op=#Parse,
-      `i=>{let v0=i;if(!i||i.constructor!==Object||i["kind"]!=="circle"){if(!i||i.constructor!==Object||i["kind"]!=="square"){if(!i||i.constructor!==Object||i["kind"]!=="triangle"){e[7](i)}else{let v3=i["x"],v4=i["y"];if(typeof v3!=="number"||Number.isNaN(v3)){e[4](v3)}if(typeof v4!=="number"||Number.isNaN(v4)){e[5](v4)}v0={"TAG":e[6],"x":v3,"y":v4,}}}else{let v2=i["x"];if(typeof v2!=="number"||Number.isNaN(v2)){e[2](v2)}v0={"TAG":e[3],"x":v2,}}}else{let v1=i["radius"];if(typeof v1!=="number"||Number.isNaN(v1)){e[0](v1)}v0={"TAG":e[1],"radius":v1,}}return v0}`,
+      `i=>{let v1=i;if(!i||i.constructor!==Object||i["kind"]!=="circle"){if(!i||i.constructor!==Object||i["kind"]!=="square"){if(!i||i.constructor!==Object||i["kind"]!=="triangle"){e[7](i)}else{let v3=i["x"],v4=i["y"];if(typeof v3!=="number"||Number.isNaN(v3)){e[4](v3)}if(typeof v4!=="number"||Number.isNaN(v4)){e[5](v4)}v1={"TAG":e[6],"x":v3,"y":v4,}}}else{let v2=i["x"];if(typeof v2!=="number"||Number.isNaN(v2)){e[2](v2)}v1={"TAG":e[3],"x":v2,}}}else{let v0=i["radius"];if(typeof v0!=="number"||Number.isNaN(v0)){e[0](v0)}v1={"TAG":e[1],"radius":v0,}}return v1}`,
     )
   })
 
@@ -384,7 +380,7 @@ module Advanced = {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
       ~op=#ReverseConvert,
-      `i=>{let v0=i;if(!i||i.constructor!==Object||i["TAG"]!=="Circle"){if(!i||i.constructor!==Object||i["TAG"]!=="Square"){if(!i||i.constructor!==Object||i["TAG"]!=="Triangle"){e[6](i)}else{let v3=i["TAG"];if(v3!=="Triangle"){e[4](v3)}v0={"kind":e[5],"x":i["x"],"y":i["y"],}}}else{let v2=i["TAG"];if(v2!=="Square"){e[2](v2)}v0={"kind":e[3],"x":i["x"],}}}else{let v1=i["TAG"];if(v1!=="Circle"){e[0](v1)}v0={"kind":e[1],"radius":i["radius"],}}return v0}`,
+      `i=>{let v1=i;if(!i||i.constructor!==Object||i["TAG"]!=="Circle"){if(!i||i.constructor!==Object||i["TAG"]!=="Square"){if(!i||i.constructor!==Object||i["TAG"]!=="Triangle"){e[6](i)}else{let v3=i["TAG"];if(v3!=="Triangle"){e[4](v3)}v1={"kind":e[5],"x":i["x"],"y":i["y"],}}}else{let v2=i["TAG"];if(v2!=="Square"){e[2](v2)}v1={"kind":e[3],"x":i["x"],}}}else{let v0=i["TAG"];if(v0!=="Circle"){e[0](v0)}v1={"kind":e[1],"radius":i["radius"],}}return v1}`,
     )
   })
 }
@@ -415,11 +411,7 @@ test("Successfully serializes unboxed variant", t => {
 test("Compiled parse code snapshot", t => {
   let schema = S.union([S.literal(0), S.literal(1)])
 
-  t->U.assertCompiledCode(
-    ~schema,
-    ~op=#Parse,
-    `i=>{let v0=i;if(i!==0){if(i!==1){e[0](i)}}return v0}`,
-  )
+  t->U.assertCompiledCode(~schema, ~op=#Parse, `i=>{if(i!==0){if(i!==1){e[0](i)}}return i}`)
 })
 
 test("Compiled async parse code snapshot", t => {
@@ -466,7 +458,7 @@ test("Union with nested variant", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0=i;if(!i||i.constructor!==Object){e[3](i)}else{try{let v1=i["foo"];let v2=v1["tag"],v3=v2["NAME"],v4=v2["VAL"],v5;if(v3!=="Null"){e[0](v3)}if(v4!==void 0){v5=v4}else{v5=null}v0={"foo":{"tag":{"NAME":v3,"VAL":v5,},},}}catch(e0){try{let v6=i["foo"];let v7=v6["tag"],v8=v7["NAME"];if(v8!=="Option"){e[1](v8)}}catch(e1){e[2]([e0,e1,])}}}return v0}`,
+    `i=>{let v5=i;if(!i||i.constructor!==Object){e[3](i)}else{try{let v0=i["foo"];let v1=v0["tag"];let v2=v1["NAME"],v3=v1["VAL"],v4;if(v2!=="Null"){e[0](v2)}if(v3!==void 0){v4=v3}else{v4=null}v5={"foo":{"tag":{"NAME":v2,"VAL":v4,},},}}catch(e0){try{let v6=i["foo"];let v7=v6["tag"];let v8=v7["NAME"];if(v8!=="Option"){e[1](v8)}}catch(e1){e[2]([e0,e1,])}}}return v5}`,
   )
 })
 
@@ -476,7 +468,7 @@ test("Compiled serialize code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0=i;if(i!==0){if(i!==1){e[0](i)}}return v0}`,
+    `i=>{if(i!==0){if(i!==1){e[0](i)}}return i}`,
   )
 })
 
@@ -536,7 +528,7 @@ module CknittelBugReport = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#ReverseConvert,
-      `i=>{let v0=i;if(!i||i.constructor!==Object||i["TAG"]!=="A"){if(!i||i.constructor!==Object||i["TAG"]!=="B"){e[2](i)}else{let v4=i["TAG"];if(v4!=="B"){e[1](v4)}let v5=i["_0"];let v6=v5["payload"];v0=v5}}else{let v1=i["TAG"];if(v1!=="A"){e[0](v1)}let v2=i["_0"];let v3=v2["payload"];v0=v2}return v0}`,
+      `i=>{let v3=i;if(!i||i.constructor!==Object||i["TAG"]!=="A"){if(!i||i.constructor!==Object||i["TAG"]!=="B"){e[2](i)}else{let v4=i["TAG"],v5=i["_0"];if(v4!=="B"){e[1](v4)}let v6=v5["payload"];v3=v5}}else{let v0=i["TAG"],v1=i["_0"];if(v0!=="A"){e[0](v0)}let v2=v1["payload"];v3=v1}return v3}`,
     )
 
     let x = {
@@ -545,6 +537,72 @@ module CknittelBugReport = {
       },
     }
     t->Assert.deepEqual(B(x)->S.reverseConvertOrThrow(schema), %raw(`{"payload":{"b":42}}`), ())
+  })
+}
+
+module CknittelBugReport2 = {
+  @schema
+  type a = {x: int}
+
+  @schema
+  type b = {y: string}
+
+  type test = A(a) | B(b)
+
+  let testSchema = S.union([
+    S.object(s => {
+      s.tag("type", "a")
+      A(s.flatten(aSchema))
+    }),
+    S.object(s => {
+      s.tag("type", "b")
+      B(s.flatten(bSchema))
+    }),
+  ])
+
+  @schema
+  type t = {test: option<test>}
+
+  test("Successfully parses nested optional union", t => {
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["test"],v4;if(v0!==void 0){let v2=v0;if(!v0||v0.constructor!==Object||v0["type"]!=="a"){if(!v0||v0.constructor!==Object||v0["type"]!=="b"){e[4](v0)}else{let v3=v0["y"];if(typeof v3!=="string"){e[2](v3)}v2={"TAG":e[3],"_0":{"y":v3,},}}}else{let v1=v0["x"];if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[0](v1)}v2={"TAG":e[1],"_0":{"x":v1,},}}v4=v2}return {"test":v4,}}`,
+    )
+
+    t->Assert.deepEqual(S.parseJsonStringOrThrow("{}", schema), {test: None}, ())
+  })
+
+  type responseError = {serviceCode: string, text: string}
+
+  test("Nested literal field with catch", t => {
+    let schema = S.union([
+      S.object(s => {
+        let _ = s.nested("statusCode").field("kind", S.literal("ok"))
+        // FIXME: Handle this correctly
+        // let _ = s.nested("statusCode").field("text", S.literal("")->S.catch(_ => ""))
+        Ok()
+      }),
+      S.object(s => {
+        let _ = s.nested("statusCode").field("kind", S.literal("serviceError"))
+        Error({
+          serviceCode: s.nested("statusCode").field("serviceCode", S.string),
+          text: s.nested("statusCode").field("text", S.string),
+        })
+      }),
+    ])
+
+    t->U.assertCompiledCode(
+      ~schema,
+      ~op=#Parse,
+      `i=>{let v1=i;if(!i||i.constructor!==Object){e[8](i)}else{try{let v0=i["statusCode"];if(!v0||v0.constructor!==Object||v0["kind"]!=="ok"){e[0](v0)}v1={"TAG":e[1],"_0":e[2],}}catch(e0){try{let v2=i["statusCode"];if(!v2||v2.constructor!==Object||v2["kind"]!=="serviceError"){e[3](v2)}let v3=v2["serviceCode"],v4=v2["text"];if(typeof v3!=="string"){e[4](v3)}if(typeof v4!=="string"){e[5](v4)}v1={"TAG":e[6],"_0":{"serviceCode":v3,"text":v4,},}}catch(e1){e[7]([e0,e1,])}}}return v1}`,
+    )
+
+    t->Assert.deepEqual(
+      S.parseJsonStringOrThrow(`{"statusCode": {"kind": "ok"}}`, schema),
+      Ok(),
+      (),
+    )
   })
 }
 
@@ -620,13 +678,13 @@ module CrazyUnion = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{let r0=i=>{let v0=i;if(!i||i.constructor!==Object||i["type"]!=="A"){if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){if(!i||i.constructor!==Object||i["type"]!=="Z"){e[4](i)}else{let v6=i["nested"],v10=[];if(!Array.isArray(v6)){e[2](v6)}for(let v7=0;v7<v6.length;++v7){let v9;try{v9=r0(v6[v7])}catch(v8){if(v8&&v8.s===s){v8.path="[\\"nested\\"]"+\'["\'+v7+\'"]\'+v8.path}throw v8}v10.push(v9)}v0={"TAG":e[3],"_0":v10,}}}}}}}}}}}}}}}}}}}}}}}}}}}else{let v1=i["nested"],v5=[];if(!Array.isArray(v1)){e[0](v1)}for(let v2=0;v2<v1.length;++v2){let v4;try{v4=r0(v1[v2])}catch(v3){if(v3&&v3.s===s){v3.path="[\\"nested\\"]"+\'["\'+v2+\'"]\'+v3.path}throw v3}v5.push(v4)}v0={"TAG":e[1],"_0":v5,}}return v0};return r0(i)}`,
+      `i=>{let r0=i=>{let v5=i;if(!i||i.constructor!==Object||i["type"]!=="A"){if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){if(!i||i.constructor!==Object||i["type"]!=="Z"){e[4](i)}else{let v6=i["nested"],v10=[];if(!Array.isArray(v6)){e[2](v6)}for(let v7=0;v7<v6.length;++v7){let v9;try{v9=r0(v6[v7])}catch(v8){if(v8&&v8.s===s){v8.path="[\\"nested\\"]"+\'["\'+v7+\'"]\'+v8.path}throw v8}v10.push(v9)}v5={"TAG":e[3],"_0":v10,}}}}}}}}}}}}}}}}}}}}}}}}}}}else{let v0=i["nested"],v4=[];if(!Array.isArray(v0)){e[0](v0)}for(let v1=0;v1<v0.length;++v1){let v3;try{v3=r0(v0[v1])}catch(v2){if(v2&&v2.s===s){v2.path="[\\"nested\\"]"+\'["\'+v1+\'"]\'+v2.path}throw v2}v4.push(v3)}v5={"TAG":e[1],"_0":v4,}}return v5};return r0(i)}`,
     )
   })
 
   test("Compiled serialize code snapshot of crazy union", t => {
     S.setGlobalConfig({})
-    let code = `i=>{let r0=i=>{let v0=i;if(!i||i.constructor!==Object||i["TAG"]!=="A"){if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){if(!i||i.constructor!==Object||i["TAG"]!=="Z"){e[4](i)}else{let v7=i["TAG"],v8=i["_0"],v12=[];if(v7!=="Z"){e[2](v7)}for(let v9=0;v9<v8.length;++v9){let v11;try{v11=r0(v8[v9])}catch(v10){if(v10&&v10.s===s){v10.path="[\\"_0\\"]"+\'["\'+v9+\'"]\'+v10.path}throw v10}v12.push(v11)}v0={"type":e[3],"nested":v12,}}}}}}}}}}}}}}}}}}}}}}}}}}}else{let v1=i["TAG"],v2=i["_0"],v6=[];if(v1!=="A"){e[0](v1)}for(let v3=0;v3<v2.length;++v3){let v5;try{v5=r0(v2[v3])}catch(v4){if(v4&&v4.s===s){v4.path="[\\"_0\\"]"+\'["\'+v3+\'"]\'+v4.path}throw v4}v6.push(v5)}v0={"type":e[1],"nested":v6,}}return v0};return r0(i)}`
+    let code = `i=>{let r0=i=>{let v6=i;if(!i||i.constructor!==Object||i["TAG"]!=="A"){if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){if(!i||i.constructor!==Object||i["TAG"]!=="Z"){e[4](i)}else{let v7=i["TAG"],v8=i["_0"],v12=[];if(v7!=="Z"){e[2](v7)}for(let v9=0;v9<v8.length;++v9){let v11;try{v11=r0(v8[v9])}catch(v10){if(v10&&v10.s===s){v10.path="[\\"_0\\"]"+\'["\'+v9+\'"]\'+v10.path}throw v10}v12.push(v11)}v6={"type":e[3],"nested":v12,}}}}}}}}}}}}}}}}}}}}}}}}}}}else{let v0=i["TAG"],v1=i["_0"],v5=[];if(v0!=="A"){e[0](v0)}for(let v2=0;v2<v1.length;++v2){let v4;try{v4=r0(v1[v2])}catch(v3){if(v3&&v3.s===s){v3.path="[\\"_0\\"]"+\'["\'+v2+\'"]\'+v3.path}throw v3}v5.push(v4)}v6={"type":e[1],"nested":v5,}}return v6};return r0(i)}`
     t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
     // There was an issue with reverse when it doesn't return the same code on second run
     t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
@@ -704,10 +762,16 @@ test("Issue https://github.com/DZakh/rescript-schema/issues/101", t => {
   )
   let schema = S.union([syncRequestSchema, syncResponseSchema])
 
+  // FIXME: Don't need to repeat the literal check after it's done in the typeFilter
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v0=i;if(!i||i.constructor!==Object||i["NAME"]!=="request"){if(!i||i.constructor!==Object||i["NAME"]!=="response"){e[3](i)}else{let v3=i["NAME"];if(v3!=="response"){e[1](v3)}let v4=i["VAL"],v5=v4["response"],v6=v5;if(v5!=="accepted"){if(v5!=="rejected"){e[2](v5)}}v0={"NAME":v3,"VAL":{"collectionName":v4["collectionName"],"response":v6,},}}}else{let v1=i["NAME"];if(v1!=="request"){e[0](v1)}let v2=i["VAL"];}return v0}`,
+    `i=>{let v5=i;if(!i||i.constructor!==Object||i["NAME"]!=="request"){if(!i||i.constructor!==Object||i["NAME"]!=="response"){e[3](i)}else{let v2=i["NAME"],v3=i["VAL"];if(v2!=="response"){e[1](v2)}let v4=v3["response"];if(v4!=="accepted"){if(v4!=="rejected"){e[2](v4)}}v5={"NAME":v2,"VAL":{"collectionName":v3["collectionName"],"response":v4,},}}}else{let v0=i["NAME"],v1=i["VAL"];if(v0!=="request"){e[0](v0)}}return v5}`,
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{let v2=i;if(!i||i.constructor!==Object||i["NAME"]!=="request"){if(!i||i.constructor!==Object||i["NAME"]!=="response"){e[5](i)}else{let v3=i["VAL"];if(!v3||v3.constructor!==Object){e[2](v3)}let v4=v3["collectionName"],v5=v3["response"];if(typeof v4!=="string"){e[3](v4)}if(v5!=="accepted"){if(v5!=="rejected"){e[4](v5)}}v2={"NAME":i["NAME"],"VAL":{"collectionName":v4,"response":v5,},}}}else{let v0=i["VAL"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["collectionName"];if(typeof v1!=="string"){e[1](v1)}v2={"NAME":i["NAME"],"VAL":{"collectionName":v1,},}}return v2}`,
   )
 
   t->Assert.deepEqual(

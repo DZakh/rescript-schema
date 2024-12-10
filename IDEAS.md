@@ -20,6 +20,8 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v9
 
+- parseJsonOrThrow
+- convertReverse to serialise?
 - Update documentation:
   - Add Enums section to js docs
 

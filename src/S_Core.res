@@ -18,6 +18,11 @@ module Stdlib = {
     external make: ('a, traps<'a>) => 'a = "Proxy"
   }
 
+  module Fn = {
+    @send
+    external bind: ('a => 'b, ~this: 'c) => 'a => 'b = "bind"
+  }
+
   module Option = {
     external unsafeUnwrap: option<'a> => 'a = "%identity"
 
@@ -288,28 +293,38 @@ and item = {
 }
 and builder = (b, ~input: val, ~selfSchema: schema<unknown>, ~path: Path.t) => val
 and val = {
+  @as("b")
+  b: b,
   @as("v")
-  mutable isVar: bool,
+  mutable var: b => string,
   @as("i")
   mutable inline: string,
   @as("a")
   mutable isAsync: bool,
-}
-and bGlobal = {
-  @as("v")
-  mutable varCounter: int,
-  @as("o")
-  mutable flag: int,
-  @as("e")
-  embeded: array<unknown>,
 }
 and b = {
   @as("c")
   mutable code: string,
   @as("l")
   mutable varsAllocation: string,
+  @as("a")
+  mutable allocate: string => unit,
   @as("g")
   global: bGlobal,
+}
+and bGlobal = {
+  @as("c")
+  mutable code: string,
+  @as("l")
+  mutable varsAllocation: string,
+  @as("a")
+  mutable allocate: string => unit,
+  @as("v")
+  mutable varCounter: int,
+  @as("o")
+  mutable flag: int,
+  @as("e")
+  embeded: array<unknown>,
 }
 and flag = int
 and error = private {flag: flag, code: errorCode, path: Path.t}
@@ -435,6 +450,7 @@ module Flag = {
 
 module Builder = {
   type t = builder
+
   let make = (
     Obj.magic: ((b, ~input: val, ~selfSchema: schema<unknown>, ~path: Path.t) => val) => t
   )
@@ -447,9 +463,39 @@ module Builder = {
       `e[${l->(Obj.magic: int => string)}]`
     }
 
+    let secondAllocate = v => {
+      let b = %raw(`this`)
+      b.varsAllocation = b.varsAllocation ++ "," ++ v
+    }
+
+    let initialAllocate = v => {
+      let b = %raw(`this`)
+      b.varsAllocation = v
+      b.allocate = secondAllocate
+    }
+
+    let rootScope = (~flag) => {
+      let global = {
+        code: "",
+        allocate: initialAllocate,
+        varsAllocation: "",
+        // TODO: Add global varsAllocation here
+        // Set all the vars to the varsAllocation
+        // Measure performance
+        // TODO: Also try setting values to embed without allocation
+        // (Is it memory leak?)
+        varCounter: -1,
+        embeded: [],
+        flag,
+      }
+      (global->Obj.magic)["g"] = global
+      global->(Obj.magic: bGlobal => b)
+    }
+
     @inline
     let scope = (b: b): b => {
       {
+        allocate: initialAllocate,
         global: b.global,
         code: "",
         varsAllocation: "",
@@ -457,34 +503,55 @@ module Builder = {
     }
 
     let allocateScope = (b: b): string => {
+      // Delete allocate,
+      // this is used to handle Val.var
+      // linked to allocated scopes
+      let _ = %raw(`delete b.a`)
       let varsAllocation = b.varsAllocation
       varsAllocation === "" ? b.code : `let ${varsAllocation};${b.code}`
     }
 
-    let varWithoutAllocation = (b: b) => {
-      let newCounter = b.global.varCounter->Stdlib.Int.plus(1)
-      b.global.varCounter = newCounter
+    let varWithoutAllocation = (global: bGlobal) => {
+      let newCounter = global.varCounter->Stdlib.Int.plus(1)
+      global.varCounter = newCounter
       `v${newCounter->Stdlib.Int.unsafeToString}`
     }
 
-    let allocateVal = (b: b): val => {
-      let var = b->varWithoutAllocation
-      let varsAllocation = b.varsAllocation
-      b.varsAllocation = varsAllocation === "" ? var : varsAllocation ++ "," ++ var
-      {isVar: true, isAsync: false, inline: var}
+    let _var = _b => (%raw(`this`)).inline
+    let _notVar = b => {
+      let val = %raw(`this`)
+      let v = b.global->varWithoutAllocation
+      switch val.inline {
+      | "" => val.b.allocate(v)
+      | i if val.b.allocate !== %raw(`void 0`) => val.b.allocate(`${v}=${i}`)
+      | i =>
+        b.code = b.code ++ `${v}=${i};`
+        b.global.allocate(v)
+      }
+      val.var = _var
+      val.inline = v
+      v
     }
 
-    let val = (_b: b, initial: string): val => {
-      {isVar: false, inline: initial, isAsync: false}
+    let allocateVal = (b: b): val => {
+      let v = b.global->varWithoutAllocation
+      b.allocate(v)
+      {b, var: _var, isAsync: false, inline: v}
+    }
+
+    @inline
+    let val = (b: b, initial: string): val => {
+      {b, var: _notVar, inline: initial, isAsync: false}
     }
 
     @inline
     let embedVal = (b: b, value): val => {
-      {isVar: true, inline: b->embed(value), isAsync: false}
+      {b, var: _var, inline: b->embed(value), isAsync: false}
     }
 
-    let asyncVal = (_b: b, initial: string): val => {
-      {isVar: false, inline: initial, isAsync: true}
+    @inline
+    let asyncVal = (b: b, initial: string): val => {
+      {b, var: _notVar, inline: initial, isAsync: true}
     }
 
     module Val = {
@@ -507,9 +574,10 @@ module Builder = {
           value ++ ","
         }
 
-        let make = (_b: b, ~isArray): t => {
+        let make = (b: b, ~isArray): t => {
           {
-            isVar: false,
+            b,
+            var: _notVar,
             inline: "",
             isAsync: false,
             join: isArray ? arrayJoin : objectJoin,
@@ -532,8 +600,8 @@ module Builder = {
 
         let merge = (target, subObjectVal) => {
           let inlinedLocations = subObjectVal->Obj.magic->Js.Dict.keys
-          // Start from 6 to skip all normal fields which are not inlined locations
-          for idx in 6 to inlinedLocations->Js.Array2.length - 1 {
+          // Start from 7 to skip all normal fields which are not inlined locations
+          for idx in 7 to inlinedLocations->Js.Array2.length - 1 {
             let inlinedLocation = inlinedLocations->Js.Array2.unsafe_get(idx)
             target->add(
               inlinedLocation,
@@ -555,24 +623,11 @@ module Builder = {
       }
 
       @inline
-      let isEmbed = (val: val) => val.isVar && val.inline->Js.String2.get(0) === "e"
+      let isEmbed = (val: val) => val.var === _var && val.inline->Js.String2.get(0) === "e"
 
+      @inline
       let var = (b: b, val: val) => {
-        if val.isVar {
-          val.inline
-        } else {
-          let var = b->varWithoutAllocation
-          let allocation = switch val.inline {
-          | "" => var
-          | i => `${var}=${i}`
-          }
-          b.varsAllocation = b.varsAllocation === ""
-            ? allocation
-            : b.varsAllocation ++ "," ++ allocation
-          val.isVar = true
-          val.inline = var
-          var
-        }
+        val.var(b)
       }
 
       let push = (b: b, input: val, val: val) => {
@@ -614,8 +669,8 @@ module Builder = {
         `${b->var(input)}=${inlined}`
       }
 
-      let map = (b: b, inlinedFn, input: val) => {
-        b->val(`${inlinedFn}(${input.inline})`)
+      let map = (inlinedFn, input: val) => {
+        {b: input.b, var: _notVar, inline: `${inlinedFn}(${input.inline})`, isAsync: false}
       }
     }
 
@@ -628,14 +683,15 @@ module Builder = {
       if input.isAsync {
         let bb = b->scope
         let operationInput: val = {
-          isVar: true,
-          inline: bb->varWithoutAllocation,
+          b,
+          var: _var,
+          inline: bb.global->varWithoutAllocation,
           isAsync: false,
         }
         let operationOutputVal = operation(bb, ~input=operationInput)
         let operationCode = bb->allocateScope
 
-        b->asyncVal(
+        input.b->asyncVal(
           `${input.inline}.then(${b->Val.var(
               operationInput,
             )}=>{${operationCode}return ${operationOutputVal.inline}})`,
@@ -651,9 +707,9 @@ module Builder = {
 
     let embedSyncOperation = (b: b, ~input, ~fn: 'input => 'output) => {
       if input.isAsync {
-        b->asyncVal(`${input.inline}.then(${b->embed(fn)})`)
+        input.b->asyncVal(`${input.inline}.then(${b->embed(fn)})`)
       } else {
-        b->Val.map(b->embed(fn), input)
+        Val.map(b->embed(fn), input)
       }
     }
 
@@ -700,7 +756,7 @@ module Builder = {
       let prevCode = b.code
 
       b.code = ""
-      let errorVar = b->varWithoutAllocation
+      let errorVar = b.global->varWithoutAllocation
       let maybeResolveVal = catch(b, ~errorVar)
       let catchCode = `if(${b->isInternalError(errorVar)}){${b.code}`
       b.code = ""
@@ -713,7 +769,7 @@ module Builder = {
         fnOutput
       } else {
         let isAsync = fnOutput.isAsync
-        let output = input === fnOutput ? input : {isVar: false, inline: "", isAsync}
+        let output = input === fnOutput ? input : {b, var: _notVar, inline: "", isAsync}
 
         let catchCode = switch maybeResolveVal {
         | None => _ => `${catchCode}}throw ${errorVar}`
@@ -796,13 +852,8 @@ module Builder = {
           (b.global.flag->Flag.unsafeHas(Flag.typeValidation) || schema->isLiteralSchema)
       ) {
         b.code = b.code ++ b->typeFilterCode(~schema, ~input, ~path)
-        let bb = b->scope
-        let val = bb->parse(~schema, ~input, ~path)
-        b.code = b.code ++ bb->allocateScope
-        val
-      } else {
-        b->parse(~schema, ~input, ~path)
       }
+      b->parse(~schema, ~input, ~path)
     }
   }
 
@@ -828,17 +879,8 @@ module Builder = {
       )
     }
 
-    let embeded = []
-    let b = {
-      code: "",
-      varsAllocation: "",
-      global: {
-        varCounter: -1,
-        embeded,
-        flag,
-      },
-    }
-    let input = {isVar: true, isAsync: false, inline: intitialInputVar}
+    let b = B.rootScope(~flag)
+    let input = {b, var: B._var, isAsync: false, inline: intitialInputVar}
 
     let output = builder(b, ~input, ~selfSchema=schema, ~path=Path.empty)
     schema.isAsyncSchema = Value(output.isAsync)
@@ -887,7 +929,7 @@ module Builder = {
 
       Stdlib.Function.make2(
         ~ctxVarName1="e",
-        ~ctxVarValue1=embeded,
+        ~ctxVarValue1=b.global.embeded,
         ~ctxVarName2="s",
         ~ctxVarValue2=symbol,
         ~inlinedFunction,
@@ -1285,17 +1327,10 @@ let isAsync = schema => {
   switch schema.isAsyncSchema {
   | Unknown =>
     try {
-      let b = {
-        code: "",
-        varsAllocation: "",
-        global: {
-          varCounter: -1,
-          embeded: [],
-          flag: Flag.async,
-        },
-      }
+      let b = B.rootScope(~flag=Flag.async)
       let input = {
-        isVar: true,
+        b,
+        var: B._var,
         isAsync: false,
         inline: Builder.intitialInputVar,
       }
@@ -1532,16 +1567,16 @@ let recursive = fn => {
     "n": () => "<recursive>",
     // builder
     "b": Builder.make((b, ~input, ~selfSchema as _, ~path as _) => {
-      b->B.transform(~input, (b, ~input) => {
-        b->B.Val.map(r, input)
+      b->B.transform(~input, (_b, ~input) => {
+        B.Val.map(r, input)
       })
     }),
     "~r": () => {
       makeReverseSchema(
         ~tagged=Unknown,
         ~name=primitiveName,
-        ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path as _) => {
-          b->B.Val.map(r, input)
+        ~builder=Builder.make((_b, ~input, ~selfSchema as _, ~path as _) => {
+          B.Val.map(r, input)
         }),
         ~maybeTypeFilter=None,
         ~metadataMap=Metadata.Map.empty,
@@ -1564,16 +1599,16 @@ let recursive = fn => {
     b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) => {
       b->B.transform(
         ~input,
-        (b, ~input) => {
-          let output = b->B.Val.map(r, input)
+        (_b, ~input) => {
+          let output = B.Val.map(r, input)
           if opOutput.isAsync {
             output.isAsync = true
             placeholder.builder = Builder.make(
               (b, ~input, ~selfSchema as _, ~path as _) => {
                 b->B.transform(
                   ~input,
-                  (b, ~input) => {
-                    let output = b->B.Val.map(r, input)
+                  (_b, ~input) => {
+                    let output = B.Val.map(r, input)
                     output.isAsync = true
                     output
                   },
@@ -1587,7 +1622,7 @@ let recursive = fn => {
     })
   })
 
-  let initialReverse = (schema.reverse->Obj.magic)["bind"](schema)
+  let initialReverse = schema.reverse->Stdlib.Fn.bind(~this=schema)
   schema.reverse = () => {
     let initialReversed = initialReverse()
     let reversed = makeReverseSchema(
@@ -1597,10 +1632,19 @@ let recursive = fn => {
       ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
         let inputVar = b->B.Val.var(input)
         let bb = b->B.scope
-        let opOutput = initialReversed.builder(bb, ~input, ~selfSchema, ~path=Path.empty)
+        let initialInput = {
+          ...input,
+          b: bb,
+        }
+        let opOutput = initialReversed.builder(
+          bb,
+          ~input=initialInput,
+          ~selfSchema,
+          ~path=Path.empty,
+        )
         let opBodyCode = bb->B.allocateScope ++ `return ${opOutput.inline}`
         b.code = b.code ++ `let ${r}=${inputVar}=>{${opBodyCode}};`
-        b->B.withPathPrepend(~input, ~path, (b, ~input, ~path as _) => b->B.Val.map(r, input))
+        b->B.withPathPrepend(~input, ~path, (_b, ~input, ~path as _) => B.Val.map(r, input))
       }),
       ~maybeTypeFilter=initialReversed.maybeTypeFilter,
     )
@@ -1856,7 +1900,9 @@ module Option = {
 
       let isTransformed = inputLiteral !== ouputLiteral || itemOutput !== input
 
-      let output = isTransformed ? {isVar: false, isAsync: itemOutput.isAsync, inline: ""} : input
+      let output = isTransformed
+        ? {b, var: B._notVar, isAsync: itemOutput.isAsync, inline: ""}
+        : input
 
       if itemCode !== "" || isTransformed {
         b.code =
@@ -2022,7 +2068,7 @@ module Array = {
       ~tagged=Array(schema),
       ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let inputVar = b->B.Val.var(input)
-        let iteratorVar = b->B.varWithoutAllocation
+        let iteratorVar = b.global->B.varWithoutAllocation
 
         let bb = b->B.scope
         let itemInput = bb->B.val(`${inputVar}[${iteratorVar}]`)
@@ -2046,7 +2092,7 @@ module Array = {
         }
 
         if itemOutput.isAsync {
-          b->B.asyncVal(`Promise.all(${output.inline})`)
+          output.b->B.asyncVal(`Promise.all(${output.inline})`)
         } else {
           output
         }
@@ -2201,7 +2247,7 @@ module Dict = {
       ~tagged=Dict(schema),
       ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
         let inputVar = b->B.Val.var(input)
-        let keyVar = b->B.varWithoutAllocation
+        let keyVar = b.global->B.varWithoutAllocation
 
         let bb = b->B.scope
         let itemInput = bb->B.val(`${inputVar}[${keyVar}]`)
@@ -2225,10 +2271,10 @@ module Dict = {
         }
 
         if itemOutput.isAsync {
-          let resolveVar = b->B.varWithoutAllocation
-          let rejectVar = b->B.varWithoutAllocation
-          let asyncParseResultVar = b->B.varWithoutAllocation
-          let counterVar = b->B.varWithoutAllocation
+          let resolveVar = b.global->B.varWithoutAllocation
+          let rejectVar = b.global->B.varWithoutAllocation
+          let asyncParseResultVar = b.global->B.varWithoutAllocation
+          let counterVar = b.global->B.varWithoutAllocation
           let outputVar = b->B.Val.var(output)
           b->B.asyncVal(
             `new Promise((${resolveVar},${rejectVar})=>{let ${counterVar}=Object.keys(${outputVar}).length;for(let ${keyVar} in ${outputVar}){${outputVar}[${keyVar}].then(${asyncParseResultVar}=>{${outputVar}[${keyVar}]=${asyncParseResultVar};if(${counterVar}--===1){${resolveVar}(${outputVar})}},${rejectVar})}})`,
@@ -2492,8 +2538,7 @@ module Union = {
         ~builder=Builder.make((b, ~input, ~selfSchema, ~path) => {
           let schemas = selfSchema->classify->unsafeGetVariantPayload
           let inputVar = b->B.Val.var(input)
-          let output = {isVar: false, inline: inputVar, isAsync: false}
-          let _ = b->B.Val.var(output) // TODO: Improve how the scoping done
+          let output = {b, var: B._notVar, inline: inputVar, isAsync: false}
 
           let byTypeFilter = Js.Dict.empty()
           let typeFilters = []
@@ -2710,7 +2755,7 @@ let rec json = (~validate) =>
             }
           }
 
-          b->B.Val.map(b->B.embed(parse), input)
+          B.Val.map(b->B.embed(parse), input)
         })
       : Builder.noop,
     ~reverse=() => validate ? json(~validate=false)->toUnknown : %raw(`this`),
@@ -3414,6 +3459,7 @@ module Schema = {
         ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
           let itemOutput = b->B.parse(~schema, ~input, ~path)
 
+          Js.log2(b, itemOutput)
           let bb = b->B.scope
           let rec getItemOutput = item => {
             switch item {

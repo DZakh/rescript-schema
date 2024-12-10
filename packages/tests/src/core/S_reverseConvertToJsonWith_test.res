@@ -230,24 +230,20 @@ test("Serializes union even one of the items is an invalid JSON schema", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvertToJson,
-    `i=>{let v0=i;if(typeof i!=="string"){throw e[0]}return v0}`,
+    `i=>{if(typeof i!=="string"){throw e[0]}return i}`,
   )
 
   // Not related to the test, just check that it doesn't crash while we are at it
   t->Assert.deepEqual("foo"->S.reverseConvertOrThrow(schema), %raw(`"foo"`), ())
   // TODO: Can be improved to return null
-  t->U.assertCompiledCode(
-    ~schema,
-    ~op=#ReverseConvert,
-    `i=>{let v0=i;if(typeof i!=="string"){}return v0}`,
-  )
+  t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{if(typeof i!=="string"){}return i}`)
 
   let schema = S.union([S.unknown->(U.magic: S.t<unknown> => S.t<string>), S.string])
   t->Assert.deepEqual("foo"->S.reverseConvertToJsonOrThrow(schema), JSON.Encode.string("foo"), ())
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvertToJson,
-    `i=>{let v0=i;if(typeof i!=="string"){throw e[0]}return v0}`,
+    `i=>{if(typeof i!=="string"){throw e[0]}return i}`,
   )
 })
 
@@ -256,7 +252,7 @@ test("Fails to reverse convert union with invalid json schemas", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvertToJson,
-    `i=>{let v0=i;if(!Number.isNaN(i)){throw e[1]}else{throw e[0]}return v0}`,
+    `i=>{if(!Number.isNaN(i)){throw e[1]}else{throw e[0]}return i}`,
   )
   t->U.assertRaised(
     () => "foo"->S.reverseConvertToJsonOrThrow(schema),

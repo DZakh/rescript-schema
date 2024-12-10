@@ -53,7 +53,7 @@ let makeTestObject = () => {
   })`)
 }
 
-let makeAdvancedObjectSchemaWithSObject = () => {
+let makeAdvancedObjectSchema = () => {
   S.object(s =>
     {
       "number": s.field("number", S.float),
@@ -76,7 +76,7 @@ let makeAdvancedObjectSchemaWithSObject = () => {
   )
 }
 
-let makeAdvancedObjectSchema = () => {
+let makeObjectSchema = () => {
   S.schema(s =>
     {
       "number": s.matches(S.float),
@@ -191,9 +191,9 @@ module CrazyUnion = {
 CrazyUnion.test()
 
 let data = makeTestObject()
-Console.time("makeAdvancedObjectSchema")
-let schema = makeAdvancedObjectSchema()
-Console.timeEnd("makeAdvancedObjectSchema")
+Console.time("makeObjectSchema")
+let schema = makeObjectSchema()
+Console.timeEnd("makeObjectSchema")
 
 Console.time("parseOrThrow: 1")
 data->S.parseOrThrow(schema)->ignore
@@ -224,16 +224,16 @@ let _ = S.Error.make(
 Console.timeEnd("S.Error.make")
 
 Suite.make()
-->Suite.add("S.schema - make", () => makeAdvancedObjectSchema())
+->Suite.add("S.schema - make", () => makeObjectSchema())
 ->Suite.addWithPrepare("S.schema - make + parse", () => {
   let data = makeTestObject()
   () => {
-    let schema = makeAdvancedObjectSchema()
+    let schema = makeObjectSchema()
     data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("S.schema - parse", () => {
-  let schema = makeAdvancedObjectSchema()
+  let schema = makeObjectSchema()
   let data = makeTestObject()
   () => {
     data->S.parseOrThrow(schema)
@@ -244,7 +244,7 @@ Suite.make()
     disableNanNumberValidation: true,
     defaultUnknownKeys: Strict,
   })
-  let schema = makeAdvancedObjectSchema()
+  let schema = makeObjectSchema()
   S.setGlobalConfig({
     disableNanNumberValidation: true,
   })
@@ -253,23 +253,23 @@ Suite.make()
     data->S.parseOrThrow(schema)
   }
 })
-->Suite.add("S.schema - make + reverse", () => makeAdvancedObjectSchema()->S.reverse)
+->Suite.add("S.schema - make + reverse", () => makeObjectSchema()->S.reverse)
 ->Suite.addWithPrepare("S.schema - make + reverse convert", () => {
   let data = makeTestObject()
   () => {
-    let schema = makeAdvancedObjectSchema()
+    let schema = makeObjectSchema()
     data->S.reverseConvertOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("S.schema - reverse convert", () => {
-  let schema = makeAdvancedObjectSchema()
+  let schema = makeObjectSchema()
   let data = makeTestObject()
   () => {
     data->S.reverseConvertOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("S.schema - reverse convert (compiled)", () => {
-  let schema = makeAdvancedObjectSchema()
+  let schema = makeObjectSchema()
   let data = makeTestObject()
   let fn = schema->S.compile(~input=Value, ~output=Unknown, ~mode=Sync, ~typeValidation=false)
   () => {
@@ -277,14 +277,14 @@ Suite.make()
   }
 })
 ->Suite.addWithPrepare("S.schema - assert", () => {
-  let schema = makeAdvancedObjectSchema()
+  let schema = makeObjectSchema()
   let data = makeTestObject()
   () => {
     data->S.assertOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("S.schema - assert (compiled)", () => {
-  let schema = makeAdvancedObjectSchema()
+  let schema = makeObjectSchema()
   let data = makeTestObject()
   let assertFn = schema->S.compile(~input=Any, ~output=Assert, ~mode=Sync, ~typeValidation=true)
   () => {
@@ -296,7 +296,7 @@ Suite.make()
     disableNanNumberValidation: true,
     defaultUnknownKeys: Strict,
   })
-  let schema = makeAdvancedObjectSchema()
+  let schema = makeObjectSchema()
   S.setGlobalConfig({
     disableNanNumberValidation: true,
   })
@@ -305,31 +305,31 @@ Suite.make()
     data->S.assertOrThrow(schema)
   }
 })
-->Suite.add("S.object - make", () => makeAdvancedObjectSchemaWithSObject())
+->Suite.add("S.object - make", () => makeAdvancedObjectSchema())
 ->Suite.addWithPrepare("S.object - make + parse", () => {
   let data = makeTestObject()
   () => {
-    let schema = makeAdvancedObjectSchemaWithSObject()
+    let schema = makeAdvancedObjectSchema()
     data->S.parseOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("S.object - parse", () => {
-  let schema = makeAdvancedObjectSchemaWithSObject()
+  let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
     data->S.parseOrThrow(schema)
   }
 })
-->Suite.add("S.object - make + reverse", () => makeAdvancedObjectSchemaWithSObject()->S.reverse)
+->Suite.add("S.object - make + reverse", () => makeAdvancedObjectSchema()->S.reverse)
 ->Suite.addWithPrepare("S.object - make + reverse convert", () => {
   let data = makeTestObject()
   () => {
-    let schema = makeAdvancedObjectSchemaWithSObject()
+    let schema = makeAdvancedObjectSchema()
     data->S.reverseConvertOrThrow(schema)
   }
 })
 ->Suite.addWithPrepare("S.object - reverse convert", () => {
-  let schema = makeAdvancedObjectSchemaWithSObject()
+  let schema = makeAdvancedObjectSchema()
   let data = makeTestObject()
   () => {
     data->S.reverseConvertOrThrow(schema)
@@ -353,7 +353,7 @@ Suite.make()
 
 /*
 V7.0.1
-makeAdvancedObjectSchema: 0.174ms
+makeObjectSchema: 0.174ms
 parseOrThrow: 1: 0.465ms
 parseOrThrow: 2: 0.006ms
 parseOrThrow: 3: 0.004ms
@@ -377,7 +377,7 @@ testData1 serialize: 4.949ms
 testData1 parse: 3.77ms
 testData2 serialize: 0.514ms
 testData2 parse: 0.646ms
-makeAdvancedObjectSchema: 0.142ms
+makeObjectSchema: 0.142ms
 parseOrThrow: 1: 0.169ms
 parseOrThrow: 2: 0.004ms
 parseOrThrow: 3: 0.004ms
@@ -410,32 +410,35 @@ S.string - reverse convert x 102,776,056 ops/sec ±2.27% (89 runs sampled)
 /*
 V9 final touches
 
-makeAdvancedObjectSchema: 0.159ms
-parseOrThrow: 1: 0.493ms
-parseOrThrow: 2: 0.009ms
+testData1 serialize: 3.269ms
+testData1 parse: 2.357ms
+testData2 serialize: 1.077ms
+testData2 parse: 0.552ms
+makeObjectSchema: 0.156ms
+parseOrThrow: 1: 0.328ms
+parseOrThrow: 2: 0.012ms
 parseOrThrow: 3: 0.005ms
-serializeWith: 1: 0.092ms
-serializeWith: 2: 0.002ms
-serializeWith: 3: 0.001ms
-S.Error.make: 0.035ms
-S.schema - make x 1,765,868 ops/sec ±0.43% (96 runs sampled)
-S.schema - make + parse x 189,104 ops/sec ±0.55% (97 runs sampled)
-S.schema - parse x 94,503,019 ops/sec ±2.62% (89 runs sampled)
-S.schema - parse strict x 28,772,445 ops/sec ±0.79% (96 runs sampled)
-S.schema - make + reverse x 1,294,126 ops/sec ±0.50% (93 runs sampled)
-S.schema - make + reverse convert x 404,795 ops/sec ±0.44% (99 runs sampled)
-S.schema - reverse convert x 95,837,242 ops/sec ±3.03% (89 runs sampled)
-S.schema - reverse convert (compiled) x 183,969,389 ops/sec ±5.07% (78 runs sampled)
-S.schema - assert x 96,372,233 ops/sec ±2.81% (87 runs sampled)
-S.schema - assert (compiled) x 104,754,385 ops/sec ±2.18% (86 runs sampled)
-S.schema - assert strict x 29,321,213 ops/sec ±0.70% (97 runs sampled)
-S.object - make x 1,292,015 ops/sec ±0.32% (98 runs sampled)
-S.object - make + parse x 142,316 ops/sec ±2.63% (95 runs sampled)
-S.object - parse x 56,112,507 ops/sec ±1.49% (94 runs sampled)
-S.object - make + reverse x 260,150 ops/sec ±0.69% (94 runs sampled)
-S.object - make + reverse convert x 159,928 ops/sec ±0.77% (90 runs sampled)
-S.object - reverse convert x 57,971,067 ops/sec ±2.49% (87 runs sampled)
-S.string - parse x 84,808,120 ops/sec ±2.64% (86 runs sampled)
-S.string - reverse convert x 91,056,825 ops/sec ±2.67% (90 runs sampled)
-
+serializeWith: 1: 0.127ms
+serializeWith: 2: 0.003ms
+serializeWith: 3: 0.002ms
+S.Error.make: 0.047ms
+S.schema - make x 1,950,402 ops/sec ±1.29% (98 runs sampled)
+S.schema - make + parse x 191,489 ops/sec ±2.24% (95 runs sampled)
+S.schema - parse x 75,990,331 ops/sec ±2.68% (89 runs sampled)
+S.schema - parse strict x 26,483,566 ops/sec ±1.32% (92 runs sampled)
+S.schema - make + reverse x 1,354,272 ops/sec ±0.48% (98 runs sampled)
+S.schema - make + reverse convert x 404,155 ops/sec ±0.72% (97 runs sampled)
+S.schema - reverse convert x 103,090,924 ops/sec ±1.81% (93 runs sampled)
+S.schema - reverse convert (compiled) x 181,516,443 ops/sec ±5.88% (75 runs sampled)
+S.schema - assert x 97,051,911 ops/sec ±3.07% (87 runs sampled)
+S.schema - assert (compiled) x 106,033,893 ops/sec ±2.03% (94 runs sampled)
+S.schema - assert strict x 28,592,103 ops/sec ±1.53% (94 runs sampled)
+S.object - make x 1,541,313 ops/sec ±2.32% (94 runs sampled)
+S.object - make + parse x 150,339 ops/sec ±1.60% (94 runs sampled)
+S.object - parse x 53,976,976 ops/sec ±1.99% (91 runs sampled)
+S.object - make + reverse x 256,418 ops/sec ±0.81% (93 runs sampled)
+S.object - make + reverse convert x 151,959 ops/sec ±1.52% (91 runs sampled)
+S.object - reverse convert x 57,477,511 ops/sec ±2.25% (87 runs sampled)
+S.string - parse x 87,622,705 ops/sec ±2.25% (91 runs sampled)
+S.string - reverse convert x 95,897,043 ops/sec ±1.64% (92 runs sampled)
  */
