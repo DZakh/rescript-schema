@@ -3466,7 +3466,6 @@ module Schema = {
         ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
           let itemOutput = b->B.parse(~schema, ~input, ~path)
 
-          Js.log2(b, itemOutput)
           let bb = b->B.scope
           let rec getItemOutput = item => {
             switch item {
