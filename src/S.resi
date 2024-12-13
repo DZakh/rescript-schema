@@ -220,6 +220,7 @@ let compile: (
 ) => 'input => 'output
 
 let parseOrThrow: ('any, t<'value>) => 'value
+let parseJsonOrThrow: (Js.Json.t, t<'value>) => 'value
 let parseJsonStringOrThrow: (string, t<'value>) => 'value
 let parseAsyncOrThrow: ('any, t<'value>) => promise<'value>
 

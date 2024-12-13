@@ -1360,6 +1360,8 @@ let parseOrThrow = (any, schema) => {
   (schema->operationFn(Flag.typeValidation))(any)
 }
 
+let parseJsonOrThrow = parseOrThrow->Obj.magic
+
 let parseJsonStringOrThrow = (jsonString: string, schema: t<'value>): 'value => {
   try {
     jsonString->Js.Json.parseExn

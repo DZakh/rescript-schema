@@ -30,6 +30,8 @@ export const reverseConvertToJsonOrThrow = S.reverseConvertToJsonOrThrow;
 export const reverseConvertToJsonStringOrThrow =
   S.reverseConvertToJsonStringOrThrow;
 export const parseOrThrow = S.parseOrThrow;
+export const parseJsonOrThrow = S.parseJsonOrThrow;
+export const parseJsonStringOrThrow = S.parseJsonStringOrThrow;
 export const parseAsyncOrThrow = S.parseAsyncOrThrow;
 export const assertOrThrow = S.assertOrThrow;
 export const recursive = S.recursive;

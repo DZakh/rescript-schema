@@ -1834,6 +1834,20 @@ test("Example", (t) => {
   expectType<TypeEqual<LoginData, { email: string; password: string }>>(true);
 });
 
+test("parseJsonOrThrow", async (t) => {
+  const schema = S.nullable(S.string);
+
+  t.deepEqual(S.parseJsonOrThrow("hello", schema), "hello");
+  t.deepEqual(S.parseJsonOrThrow(null, schema), undefined);
+});
+
+test("parseJsonStringOrThrow", async (t) => {
+  const schema = S.nullable(S.string);
+
+  t.deepEqual(S.parseJsonStringOrThrow(`"hello"`, schema), "hello");
+  t.deepEqual(S.parseJsonStringOrThrow("null", schema), undefined);
+});
+
 test("Compile types", async (t) => {
   const schema = S.nullable(S.string);
 

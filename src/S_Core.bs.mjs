@@ -3581,6 +3581,8 @@ var jsonString = factory$4;
 
 var union = factory$5;
 
+var parseJsonOrThrow = parseOrThrow;
+
 var Schema = {};
 
 var schema$7 = factory$6;
@@ -3669,6 +3671,7 @@ export {
   to ,
   compile$1 as compile,
   parseOrThrow ,
+  parseJsonOrThrow ,
   parseJsonStringOrThrow ,
   parseAsyncOrThrow ,
   convertOrThrow ,
