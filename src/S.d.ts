@@ -126,6 +126,14 @@ export function parseOrThrow<Output, Input>(
   data: unknown,
   schema: Schema<Output, Input>
 ): Output;
+export function parseJsonOrThrow<Output, Input>(
+  json: Json,
+  schema: Schema<Output, Input>
+): Output;
+export function parseJsonStringOrThrow<Output, Input>(
+  jsonString: string,
+  schema: Schema<Output, Input>
+): Output;
 export function parseAsyncOrThrow<Output, Input>(
   data: unknown,
   schema: Schema<Output, Input>

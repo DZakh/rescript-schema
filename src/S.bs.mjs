@@ -76,6 +76,8 @@ var compile = S_Core$RescriptSchema.compile;
 
 var parseOrThrow = S_Core$RescriptSchema.parseOrThrow;
 
+var parseJsonOrThrow = S_Core$RescriptSchema.parseJsonOrThrow;
+
 var parseJsonStringOrThrow = S_Core$RescriptSchema.parseJsonStringOrThrow;
 
 var parseAsyncOrThrow = S_Core$RescriptSchema.parseAsyncOrThrow;
@@ -222,6 +224,7 @@ export {
   to ,
   compile ,
   parseOrThrow ,
+  parseJsonOrThrow ,
   parseJsonStringOrThrow ,
   parseAsyncOrThrow ,
   convertOrThrow ,
