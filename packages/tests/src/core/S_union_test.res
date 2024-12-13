@@ -579,8 +579,7 @@ module CknittelBugReport2 = {
     let schema = S.union([
       S.object(s => {
         let _ = s.nested("statusCode").field("kind", S.literal("ok"))
-        // FIXME: Handle this correctly
-        // let _ = s.nested("statusCode").field("text", S.literal("")->S.catch(_ => ""))
+        let _ = s.nested("statusCode").field("text", S.literal("")->S.catch(_ => ""))
         Ok()
       }),
       S.object(s => {
@@ -595,7 +594,7 @@ module CknittelBugReport2 = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{let v1=i;if(!i||i.constructor!==Object){e[8](i)}else{try{let v0=i["statusCode"];if(!v0||v0.constructor!==Object||v0["kind"]!=="ok"){e[0](v0)}v1={"TAG":e[1],"_0":e[2],}}catch(e0){try{let v2=i["statusCode"];if(!v2||v2.constructor!==Object||v2["kind"]!=="serviceError"){e[3](v2)}let v3=v2["serviceCode"],v4=v2["text"];if(typeof v3!=="string"){e[4](v3)}if(typeof v4!=="string"){e[5](v4)}v1={"TAG":e[6],"_0":{"serviceCode":v3,"text":v4,},}}catch(e1){e[7]([e0,e1,])}}}return v1}`,
+      `i=>{let v3=i;if(!i||i.constructor!==Object){e[10](i)}else{try{let v0=i["statusCode"];if(!v0||v0.constructor!==Object||v0["kind"]!=="ok"||0){e[0](v0)}let v1=v0["text"];try{if(v1!==""){e[2](v1)}}catch(v2){if(v2&&v2.s===s){v1=e[1](v1,v2)}else{throw v2}}v3={"TAG":e[3],"_0":e[4],}}catch(e0){try{let v4=i["statusCode"];if(!v4||v4.constructor!==Object||v4["kind"]!=="serviceError"){e[5](v4)}let v5=v4["serviceCode"],v6=v4["text"];if(typeof v5!=="string"){e[6](v5)}if(typeof v6!=="string"){e[7](v6)}v3={"TAG":e[8],"_0":{"serviceCode":v5,"text":v6,},}}catch(e1){e[9]([e0,e1,])}}}return v3}`,
     )
 
     t->Assert.deepEqual(

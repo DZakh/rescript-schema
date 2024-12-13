@@ -2769,6 +2769,7 @@ module Catch = {
     @as("f") fail: 'a. (string, ~path: Path.t=?) => 'a,
   }
 }
+let passingTypeFilter = (_b, ~inputVar as _) => "false"
 let catch = (schema, getFallbackValue) => {
   let schema = schema->toUnknown
   makeSchema(
@@ -2802,7 +2803,11 @@ let catch = (schema, getFallbackValue) => {
       )
     }),
     ~tagged=schema.tagged,
-    ~maybeTypeFilter=None,
+    ~maybeTypeFilter=switch schema->isLiteralSchema {
+    // Literal schema always expects to have a typeFilter
+    | true => Some(passingTypeFilter)
+    | false => None
+    },
     ~metadataMap=schema.metadataMap,
     ~reverse=() => schema.reverse(),
   )
