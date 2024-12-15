@@ -60,10 +60,10 @@ https://bundlejs.com/
 `rescript-schema`
 
 ```ts
-import * as S from "github:DZakh/rescript-schema/artifacts/packages/artifacts/dist/S.mjs";
+import * as S from "rescript-schema@9.0.0-rc.2";
 
 // Create login schema with email and password
-const loginSchema = S.object({
+const loginSchema = S.schema({
   email: S.email(S.string),
   password: S.stringMinLength(S.string, 8),
 });
@@ -72,19 +72,22 @@ const loginSchema = S.object({
 type LoginData = S.Output<typeof loginSchema>; // { email: string; password: string }
 
 // Throws the S.Error(`Failed parsing at ["email"]. Reason: Invalid email address`)
-loginSchema.parseOrThrow({ email: "", password: "" });
+S.parseOrThrow({ email: "", password: "" }, loginSchema);
 
 // Returns data as { email: string; password: string }
-loginSchema.parseOrThrow({
-  email: "jane@example.com",
-  password: "12345678",
-});
+S.parseOrThrow(
+  {
+    email: "jane@example.com",
+    password: "12345678",
+  },
+  loginSchema
+);
 ```
 
 valibot
 
 ```ts
-import * as v from "valibot"; // 1.21 kB
+import * as v from "valibot@0.42.1"; // 1.21 kB
 
 // Create login schema with email and password
 const LoginSchema = v.object({
@@ -105,7 +108,7 @@ v.parse(LoginSchema, { email: "jane@example.com", password: "12345678" });
 zod
 
 ```ts
-export * as z from "zod"; // 1.21 kB
+import * as z from "zod";
 
 // Create login schema with email and password
 const LoginSchema = z.object({

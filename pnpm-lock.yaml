@@ -45,8 +45,8 @@ importers:
         specifier: 0.42.1
         version: 0.42.1(typescript@4.9.3)
       zod:
-        specifier: 3.23.8
-        version: 3.23.8
+        specifier: 3.24.1
+        version: 3.24.1
 
   packages/artifacts:
     devDependencies:
@@ -1060,6 +1060,9 @@ packages:
   zod@3.23.8:
     resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
 
+  zod@3.24.1:
+    resolution: {integrity: sha512-muH7gBL9sI1nciMZV67X5fTKKBLtwpZ5VBp1vsOQzj1MhrBZ4wlVCm3gedKZWLp0Oyel8sIGfeiz54Su+OVT+A==}
+
 snapshots:
 
   '@bcoe/v8-coverage@0.2.3': {}
@@ -1923,3 +1926,5 @@ snapshots:
   yocto-queue@1.0.0: {}
 
   zod@3.23.8: {}
+
+  zod@3.24.1: {}

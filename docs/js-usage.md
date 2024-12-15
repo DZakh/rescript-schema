@@ -725,7 +725,7 @@ S.schema(false).parseOrThrow(true);
 
 ```rescript
 S.setGlobalConfig({
-  defaultUnknownKeys: Strict,
+  defaultUnknownKeys: "Strict",
 })
 ```
 
