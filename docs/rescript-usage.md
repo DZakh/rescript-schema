@@ -1311,9 +1311,9 @@ This is literally the same as convert operations applied to the reversed schema.
 
 For some cases you might want to simply assert the input value is valid. For this there's `S.assertOrThrow` operation:
 
-| Operation       | Interface                   | Description                           |
-| --------------- | --------------------------- | ------------------------------------- |
-| S.assertOrThrow | `('any, S.t<'value>) => ()` | Asserts that the input value is valid |
+| Operation       | Interface                   | Description                                                                                                                                          |
+| --------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S.assertOrThrow | `('any, S.t<'value>) => ()` | Asserts that the input value is valid. Since the operation doesn't return a value, it's 2-3 times faster than `parseOrThrow` depending on the schema |
 
 All operations either return the output value or raise an exception which you can catch with `try/catch` block:
 
@@ -1330,13 +1330,13 @@ try true->S.parseOrThrow(schema) catch {
 If you want to have the most possible performance, or the built-in operations doesn't cover your specific use case, you can use `compile` to create fine-tuned operation functions.
 
 ```rescript
-let fn = S.compile(
+let operation = S.compile(
   S.string,
   ~input=Any,
   ~output=Assert,
   ~mode=Async,
 )
-await fn("Hello world!")
+await operation("Hello world!")
 // ()
 ```
 
@@ -1356,7 +1356,7 @@ You can configure compiled function `output` with the following options:
 - `Unknown` - returns `unknown`
 - `Assert` - returns `unit`
 - `Json` - validates that the schema is JSON compatible and returns `Js.Json.t`
-- `JsonString` - validates that the schema is JSON compatible and transforms output to JSON string
+- `JsonString` - validates that the schema is JSON compatible and converts output to JSON string
 
 You can configure compiled function `mode` with the following options:
 

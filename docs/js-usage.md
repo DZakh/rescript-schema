@@ -21,6 +21,7 @@
   - [Advanced object schema](#advanced-object-schema)
   - [`strict`](#strict)
   - [`strip`](#strip)
+  - [`deepStrict` & `deepStrip`](#deepstrict--deepstrip)
   - [`merge`](#merge)
 - [Arrays](#arrays)
 - [Tuples](#tuples)
@@ -28,7 +29,6 @@
 - [Unions](#unions)
   - [Discriminated unions](#discriminated-unions)
 - [Records](#records)
-- [`schema`](#schema)
 - [JSON](#json)
 - [JSON string](#json-string)
 - [Describe](#describe)
@@ -37,13 +37,9 @@
 - [Refinements](#refinements)
 - [Transforms](#transforms)
 - [Functions on schema](#functions-on-schema)
-  - [`parse`](#parse)
-  - [`parseOrThrow`](#parseorthrow)
-  - [`parseAsync`](#parseasync)
-  - [`serialize`](#serialize)
-  - [`serializeOrThrow`](#serializeorthrow)
-  - [`serializeToJsonOrThrow`](#serializetojsonorthrow)
-  - [`assert`](#assert)
+  - [Built-in operations](#built-in-operations)
+  - [`compile`](#compile)
+  - [`reverse`](#reverse)
   - [`name`](#name)
   - [`setName`](#setname)
 - [Error handling](#error-handling)
@@ -75,10 +71,10 @@ const loginSchema = S.schema({
 type LoginData = S.Output<typeof loginSchema>; // { email: string; password: string }
 
 // Throws the S.Error(`Failed parsing at ["email"]. Reason: Invalid email address`)
-S.parseWith({ email: "", password: "" }, loginSchema);
+S.parseOrThrow({ email: "", password: "" }, loginSchema);
 
 // Returns data as { email: string; password: string }
-S.parseWith(
+S.parseOrThrow(
   {
     email: "jane@example.com",
     password: "12345678",
@@ -168,10 +164,10 @@ const datetimeSchema = S.datetime(S.string);
 // The datetimeSchema has the type S.Schema<Date, string>
 // String is transformed to the Date instance
 
-S.parseWith("2020-01-01T00:00:00Z", datetimeSchema); // pass
-S.parseWith("2020-01-01T00:00:00.123Z", datetimeSchema); // pass
-S.parseWith("2020-01-01T00:00:00.123456Z", datetimeSchema); // pass (arbitrary precision)
-S.parseWith("2020-01-01T00:00:00+02:00", datetimeSchema); // fail (no offsets allowed)
+S.parseOrThrow("2020-01-01T00:00:00Z", datetimeSchema); // pass
+S.parseOrThrow("2020-01-01T00:00:00.123Z", datetimeSchema); // pass
+S.parseOrThrow("2020-01-01T00:00:00.123456Z", datetimeSchema); // pass (arbitrary precision)
+S.parseOrThrow("2020-01-01T00:00:00+02:00", datetimeSchema); // fail (no offsets allowed)
 ```
 
 ## Numbers
@@ -206,7 +202,7 @@ You can make any schema optional with `S.optional`.
 ```ts
 const schema = S.optional(S.string);
 
-S.parseWith(undefined, schema); // => returns undefined
+S.parseOrThrow(undefined, schema); // => returns undefined
 type A = S.Output<typeof schema>; // string | undefined
 ```
 
@@ -215,7 +211,7 @@ You can pass a default value to the second argument of `S.optional`.
 ```ts
 const stringWithDefaultSchema = S.optional(S.string, "tuna");
 
-S.parseWith(undefined, stringWithDefaultSchema); // => returns "tuna"
+S.parseOrThrow(undefined, stringWithDefaultSchema); // => returns "tuna"
 type A = S.Output<typeof stringWithDefaultSchema>; // string
 ```
 
@@ -224,9 +220,9 @@ Optionally, you can pass a function as a default value that will be re-executed 
 ```ts
 const numberWithRandomDefault = S.optional(S.number, Math.random);
 
-S.parseWith(undefined, numberWithRandomDefault); // => 0.4413456736055323
-S.parseWith(undefined, numberWithRandomDefault); // => 0.1871840107401901
-S.parseWith(undefined, numberWithRandomDefault); // => 0.7223408162401552
+S.parseOrThrow(undefined, numberWithRandomDefault); // => 0.4413456736055323
+S.parseOrThrow(undefined, numberWithRandomDefault); // => 0.1871840107401901
+S.parseOrThrow(undefined, numberWithRandomDefault); // => 0.7223408162401552
 ```
 
 Conceptually, this is how **rescript-schema** processes default values:
@@ -240,8 +236,8 @@ Similarly, you can create nullable types with `S.nullable`.
 
 ```ts
 const nullableStringSchema = S.nullable(S.string);
-S.parseWith("asdf", nullableStringSchema); // => "asdf"
-S.parseWith(null, nullableStringSchema); // => undefined
+S.parseOrThrow("asdf", nullableStringSchema); // => "asdf"
+S.parseOrThrow(null, nullableStringSchema); // => undefined
 ```
 
 Notice how the `null` input transformed to `undefined`.
@@ -252,9 +248,9 @@ A convenience method that returns a "nullish" version of a schema. Nullish schem
 
 ```ts
 const nullishStringSchema = S.nullish(S.string);
-S.parseWith("asdf", nullishStringSchema); // => "asdf"
-S.parseWith(null, nullishStringSchema); // => undefined
-S.parseWith(undefined, nullishStringSchema); // => undefined
+S.parseOrThrow("asdf", nullishStringSchema); // => "asdf"
+S.parseOrThrow(null, nullishStringSchema); // => undefined
+S.parseOrThrow(undefined, nullishStringSchema); // => undefined
 ```
 
 ## Objects
@@ -315,7 +311,7 @@ const userSchema = S.object((s) => ({
   name: s.field("USER_NAME", S.string),
 }));
 
-S.parseWith(
+S.parseOrThrow(
   {
     USER_ID: 1,
     USER_NAME: "John",
@@ -331,12 +327,12 @@ type User = S.Output<typeof userSchema>; // { id: number; name: string }
 Compared to using `S.transform`, the approach has 0 performance overhead. Also, you can use the same schema to convert the parsed data back to the initial format:
 
 ```ts
-S.convertOrThrow(
+S.reverseConvertOrThrow(
   {
     id: 1,
     name: "John",
   },
-  S.reverse(userSchema)
+  userSchema
 );
 // => returns { USER_ID: 1, USER_NAME: "John" }
 ```
@@ -352,7 +348,7 @@ const personSchema = S.strict(
   })
 );
 
-S.parseWith(
+S.parseOrThrow(
   {
     name: "bob dylan",
     extraKey: 61,
@@ -362,9 +358,34 @@ S.parseWith(
 // => throws S.Error
 ```
 
+If you want to change it for all schemas in your app, you can use `S.setGlobalConfig` function:
+
+```ts
+S.setGlobalConfig({
+  defaultUnknownKeys: "Strict",
+});
+```
+
 ### `strip`
 
-You can use the `S.strip` function to reset an object schema to the default behavior (stripping unrecognized keys).
+Use the `S.strip` function to reset an object schema to the default behavior (stripping unrecognized keys).
+
+### `deepStrict` & `deepStrip`
+
+Both `S.strict` and `S.strip` are applied for the first level of the object schema. If you want to apply it for all nested schemas, you can use `S.deepStrict` and `S.deepStrip` functions.
+
+```ts
+let schema = S.schema(s =>
+  {
+    "bar": {
+      "baz": S.string,
+    }
+  }
+)
+
+S.strict(schema) // { "baz": string } will still allow unknown keys
+S.deepStrict(schema) // { "baz": string } will not allow unknown keys
+```
 
 ### `merge`
 
@@ -399,12 +420,12 @@ S.arrayLength(S.array(S.string) 5); // Array must be exactly 5 items long
 Unlike arrays, tuples have a fixed number of elements and each element can have a different type.
 
 ```ts
-const athleteSchema = S.tuple([
+const athleteSchema = S.schema([
   S.string, // name
   S.number, // jersey number
-  S.schema({
+  {
     pointsScored: S.number,
-  }), // statistics
+  }, // statistics
 ]);
 
 type Athlete = S.Output<typeof athleteSchema>;
@@ -453,8 +474,8 @@ The schema function `union` creates an OR relationship between any number of sch
 
 const stringOrNumberSchema = S.union([S.string, S.number]);
 
-S.parseWith("foo", stringOrNumberSchema); // passes
-S.parseWith(14, stringOrNumberSchema); // passes
+S.parseOrThrow("foo", stringOrNumberSchema); // passes
+S.parseOrThrow(14, stringOrNumberSchema); // passes
 ```
 
 ### Discriminated unions
@@ -483,6 +504,16 @@ const shapeSchema = S.union([
 ]);
 ```
 
+#### Enums
+
+Creating a schema for a enum-like union was never so easy:
+
+```ts
+const schema = S.union(["Win", "Draw", "Loss"]);
+
+typeof S.Output<schema>; // Win | Draw | Loss
+```
+
 ## Records
 
 Record schema is used to validate types such as `{ [k: string]: number }`.
@@ -503,7 +534,7 @@ The `S.json` schema makes sure that the value is compatible with JSON.
 It accepts a boolean as an argument. If it's true, then the value will be validated as valid JSON; otherwise, it unsafely casts it to the `S.Json` type.
 
 ```ts
-S.parseWith(`"foo"`, S.json(true)); // passes
+S.parseOrThrow(`"foo"`, S.json(true)); // passes
 ```
 
 ## JSON string
@@ -511,7 +542,7 @@ S.parseWith(`"foo"`, S.json(true)); // passes
 ```ts
 const schema = S.jsonString(S.int);
 
-S.parseWith("123", schema);
+S.parseOrThrow("123", schema);
 // => 123
 ```
 
@@ -597,10 +628,13 @@ const userSchema = S.schema({
 type User = S.Output<typeof userSchema>; // { id: string, name: string }
 
 // Need to use parseAsync which will return a promise with S.Result
-await userSchema.parseAsync({
-  id: "1",
-  name: "John",
-});
+await S.parseAsyncOrThrow(
+  {
+    id: "1",
+    name: "John",
+  },
+  userSchema
+);
 ```
 
 ## Transforms
@@ -624,65 +658,116 @@ const intToString = (schema) =>
 
 ## Functions on schema
 
-### **`parse`**
+### Built-in operations
+
+The library provides a bunch of built-in operations that can be used to parse, convert, and assert values.
+
+Parsing means that the input value is validated against the schema and transformed to the expected output type. You can use the following operations to parse values:
+
+| Operation                | Interface                                             | Description                                                   |
+| ------------------------ | ----------------------------------------------------- | ------------------------------------------------------------- |
+| S.parseOrThrow           | `(unknown, Schema<Output, Input>) => Output`          | Parses any value with the schema                              |
+| S.parseJsonOrThrow       | `(Json, Schema<Output, Input>) => Output`             | Parses JSON value with the schema                             |
+| S.parseJsonStringOrThrow | `(string, Schema<Output, Input>) => Output`           | Parses JSON string with the schema                            |
+| S.parseAsyncOrThrow      | `(unknown, Schema<Output, Input>) => Promise<Output>` | Parses any value with the schema having async transformations |
+
+For advanced users you can only transform to the output type without type validations. But be careful, since the input type is not checked:
+
+| Operation                    | Interface                                  | Description                             |
+| ---------------------------- | ------------------------------------------ | --------------------------------------- |
+| S.convertOrThrow             | `(Input, Schema<Output, Input>) => Output` | Converts input value to the output type |
+| S.convertToJsonOrThrow       | `(Input, Schema<Output, Input>) => Json`   | Converts input value to JSON            |
+| S.convertToJsonStringOrThrow | `(Input, Schema<Output, Input>) => string` | Converts input value to JSON string     |
+
+Note, that in this case only type validations are skipped. If your schema has refinements or transforms, they will be applied.
+
+Also, you can use `S.removeTypeValidation` helper to turn off type validations for the schema even when it's used with a parse operation.
+
+More often than converting input to output, you'll need to perform the reversed operation. It's usually called "serializing" or "decoding". The ReScript Schema has a unique mental model and provides an ability to reverse any schema with `S.reverse` which you can later use with all possible kinds of operations. But for convinence, there's a few helper functions that can be used to convert output values to the initial format:
+
+| Operation                           | Interface                                           | Description                                                           |
+| ----------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------- |
+| S.reverseConvertOrThrow             | `(Output, Schema<Output, Input>) => Input`          | Converts schema value to the output type                              |
+| S.reverseConvertToJsonOrThrow       | `(Output, Schema<Output, Input>) => Json`           | Converts schema value to JSON                                         |
+| S.reverseConvertToJsonStringOrThrow | `(Output, Schema<Output, Input>) => string`         | Converts schema value to JSON string                                  |
+| S.reverseConvertAsyncOrThrow        | `(Output, Schema<Output, Input>) => promise<Input>` | Converts schema value to the output type having async transformations |
+
+This is literally the same as convert operations applied to the reversed schema.
+
+For some cases you might want to simply assert the input value is valid. For this there's `S.assertOrThrow` operation:
+
+| Operation       | Interface                                                      | Description                                                                                                                                          |
+| --------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S.assertOrThrow | `(data: unknown, Schema<Output, Input>) asserts data is Input` | Asserts that the input value is valid. Since the operation doesn't return a value, it's 2-3 times faster than `parseOrThrow` depending on the schema |
+
+All operations either return the output value or throw an error. For convinient error handling you can use the `S.safe` and `S.safeAsync` helpers, which would catch the error an wrap it into a `Result` type:
 
 ```ts
-schema.parse(data); // => S.Result<Output>
+const result = S.safe(() => S.parseOrThrow(123, S.string));
 ```
 
-Given any schema, you can call `parse` to check `data` is valid. It returns `S.Result` with valid data transformed to expected type or a **rescript-schema** error.
+### **`compile`**
 
-### **`parseOrThrow`**
+If you want to have the most possible performance, or the built-in operations doesn't cover your specific use case, you can use `compile` to create fine-tuned operation functions.
 
 ```ts
-schema.parseOrThrow(data); // => Output
-// Or throws S.Error
+const operation = S.compile(S.string, "Any", "Assert", "Async");
+typeof operation; // => (input: unknown) => Promise<void>
+await operation("Hello world!");
+// ()
 ```
 
-The exception-based version of `parse`.
+For example, in the example above we've created an async assert operation, which is not available by default.
 
-### **`parseAsync`**
+You can configure compiled function `input` with the following options:
+
+- `Output` - accepts `Output` of `Schema<Output, Input>` and reverses the operation
+- `Input` - accepts `Input` of `Schema<Output, Input>` which only affects the operation function argument type
+- `Any` - accepts `unknown`
+- `Json` - accepts `Json`
+- `JsonString` - accepts `string` and applies `JSON.parse` before parsing
+
+You can configure compiled function `output` with the following options:
+
+- `Output` - returns `Output` of `Schema<Output, Input>`
+- `Input` - returns `Input` of `Schema<Output, Input>`
+- `Assert` - returns `void` with `asserts data is T` guard
+- `Json` - validates that the schema is JSON compatible and returns `Js.Json.t`
+- `JsonString` - validates that the schema is JSON compatible and converts output to JSON string
+
+You can configure compiled function `mode` with the following options:
+
+- `Sync` - for sync operations
+- `Async` - for async operations - will wrap return value in a promise
+
+And you can configure compiled function `typeValidation` with the following options:
+
+- `true (default)` - performs type validation
+- `false` - doesn't perform type validation and only converts data to the output format. Note that refines are still applied.
+
+### **`reverse`**
 
 ```ts
-await schema.parseAsync(data); // => S.Result<Output>
+S.reverse(S.nullable(S.string));
+// S.optional(S.string)
 ```
-
-If you use asynchronous refinements or transforms, you'll need to use `parseAsync`. It will parse all synchronous branches first and then continue with asynchronous refinements and transforms in parallel.
-
-### **`serialize`**
 
 ```ts
-userSchema.serialize(user); // => S.Result<Input>
+const schema = S.object((s) => s.field("foo", S.string));
+
+S.parseOrThrow({ foo: "bar" }, schema);
+// "bar"
+
+const reversed = S.reverse(schema);
+
+S.parseOrThrow("bar", reversed);
+// {"foo": "bar"}
+
+S.parseOrThrow(123, reversed);
+// throws S.error with the message: `Failed parsing at root. Reason: Expected string, received 123`
 ```
 
-Serializes value using the transformation logic that is built-in to the schema. It returns a result with a transformed data or a **rescript-schema** error.
-
-### **`serializeOrThrow`**
-
-```ts
-userSchema.serializeOrThrow(user); // => Input
-// Or throws S.Error
-```
-
-The exception-based version of `serialize`.
-
-### **`serializeToJsonOrThrow`**
-
-```ts
-userSchema.serializeToJsonOrThrow(user); // => Json
-// Or throws S.Error
-```
-
-The exception-based version of `serialize`, which guarantees to return a valid JSON.
-
-### **`assert`**
-
-```ts
-userSchema.assert(data); // => asserts data is User
-// Or throws S.Error
-```
-
-Given any schema, you can call `assert` to check `data` is valid. It returns `unit` and throws an exception if the data is invalid. Since the operation doesn't return a value, it's 2-3 times faster than `parseOrThrow` depending on the schema.
+Reverses the schema. This gets especially magical for schemas with transformations 🪄
 
 ### **`name`**
 
@@ -708,12 +793,35 @@ You can customise a schema name using `S.setName`.
 
 ## Error handling
 
-**rescript-schema** provides a subclass of Error called `S.Error`. It contains detailed information about the validation problem.
+**rescript-schema** throws `S.Error` which is a subclass of Error class. It contains detailed information about the operation problem.
 
 ```ts
-S.schema(false).parseOrThrow(true);
-// => Throws S.Error with the following message: "Failed parsing at root. Reason: Expected false, received true".
+S.parseOrThrow(true, S.schema(false));
+// => Throws S.Error with the following message: Failed parsing at root. Reason: Expected false, received true".
 ```
+
+You can catch the error using `S.safe` and `S.safeAsync` helpers:
+
+```ts
+const result = S.safe(() => S.parseOrThrow(true, S.schema(false)));
+
+if (result.success) {
+  console.log(result.value);
+} else {
+  console.log(result.error);
+}
+```
+
+Or the async version:
+
+```ts
+const result = await S.safeAsync(async () => {
+  let passed = await S.parseAsyncOrThrow(data, S.schema(S.boolean));
+  return passed ? 1 : 0;
+});
+```
+
+As you can notice, you can have more logic inside of the safe function callback and still be sure that the error will be caught in a functional way.
 
 ## Global config
 

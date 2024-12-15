@@ -18,11 +18,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Use internal transform for trim
 
-## v9
-
-- Update documentation:
-  - Add Enums section to js docs
-
 ### Done
 
 - Removed deprecated APIs, check S.resi diff, S.d.ts and RescriptSchema.gen.ts

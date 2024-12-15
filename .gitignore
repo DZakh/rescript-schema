@@ -6,3 +6,4 @@ lib
 coverage
 dist
 packages/artifacts
+.tsimp
