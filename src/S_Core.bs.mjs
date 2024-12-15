@@ -2558,7 +2558,6 @@ function to(schema, definer) {
   var definition = definer(proxify(item));
   return makeSchema(schema.n, schema.t, schema.m, (function (b, input, param, path) {
                 var itemOutput = schema.b(b, input, schema, path);
-                console.log(b, itemOutput);
                 var bb = {
                   c: "",
                   l: "",
