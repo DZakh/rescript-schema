@@ -28,6 +28,7 @@
   - [Advanced tuple schema](#advanced-tuple-schema)
 - [Unions](#unions)
   - [Discriminated unions](#discriminated-unions)
+  - [Enums](#enums)
 - [Records](#records)
 - [JSON](#json)
 - [JSON string](#json-string)
@@ -504,7 +505,7 @@ const shapeSchema = S.union([
 ]);
 ```
 
-#### Enums
+### Enums
 
 Creating a schema for a enum-like union was never so easy:
 

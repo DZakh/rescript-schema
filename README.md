@@ -31,9 +31,9 @@ Also, it has declarative API allowing you to use **rescript-schema** as a buildi
 
 ## Documentation
 
+- [For JS/TS users](/docs/js-usage.md)
 - [For ReScript users](/docs/rescript-usage.md)
 - [For PPX users](/packages/rescript-schema-ppx/README.md)
-- [For JS/TS users](/docs/js-usage.md)
 - [For library maintainers](/docs/integration-guide.md)
 
 ## Comparison

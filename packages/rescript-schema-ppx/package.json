@@ -1,6 +1,6 @@
 {
   "name": "rescript-schema-ppx",
-  "version": "9.0.1",
+  "version": "9.0.0",
   "description": "ReScript PPX to generate rescript-schema from type",
   "keywords": [
     "ReScript",
