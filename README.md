@@ -14,12 +14,12 @@ Highlights:
 - The **fastest** parsing and validation library in the entire JavaScript ecosystem ([benchmark](https://moltar.github.io/typescript-runtime-type-benchmarks/))
 - Small JS footprint & tree-shakable API ([Comparison with Zod and Valibot](#comparison))
 - Describe transformations in a schema without a performance loss
-- Can reverse transformed values to the initial format (serializing)
-- Error messages are detailed and easy to understand
+- Reverse schema and convert values to the initial format (serializing)
+- Detailed and easy to understand error messages
 - Support for asynchronous transformations
-- Immutable API with both result and exception-based operations
+- Immutable API with 100+ different operation combinations
 - Easy to create _recursive_ schema
-- Opt-in strict mode for object schema to prevent excessive fields. And many more built-in helpers
+- Opt-in strict mode for object schema to prevent unknown fields with ability to change it for the whole project
 - Opt-in ReScript PPX to generate schema from type definition
 
 Also, it has declarative API allowing you to use **rescript-schema** as a building block for other tools, such as:
@@ -46,12 +46,12 @@ Besides the individual bundle size, the overall size of the library is also sign
 
 At the same time **rescript-schema** is the fastest composable validation library in the entire JavaScript ecosystem. This is achieved because of the JIT approach when an ultra optimized validator is created using `eval`.
 
-|                                          | rescript-schema@9.0.0 | Zod@3.23.8      | Valibot@0.42.1 |
+|                                          | rescript-schema@9.0.0 | Zod@3.24.1      | Valibot@0.42.1 |
 | ---------------------------------------- | --------------------- | --------------- | -------------- |
-| **Total size** (minified + gzipped)      | 10.8 kB               | 14.2 kB         | 10.5 kB        |
-| **Example size** (minified + gzipped)    | 4.38 kB               | 12.9 kB         | 1.22 kB        |
-| **Parse with the same schema**           | 100,070 ops/ms        | 1,325 ops/ms    | 3,946 ops/ms   |
-| **Create schema & parse once**           | 195 ops/ms            | 121 ops/ms      | 2,583 ops/ms   |
+| **Total size** (minified + gzipped)      | 11 kB                 | 14.8 kB         | 10.5 kB        |
+| **Example size** (minified + gzipped)    | 4.45 kB               | 13.5 kB         | 1.22 kB        |
+| **Parse with the same schema**           | 100,070 ops/ms        | 1,277 ops/ms    | 3,881 ops/ms   |
+| **Create schema & parse once**           | 179 ops/ms            | 112 ops/ms      | 2,521 ops/ms   |
 | **Eval-free**                            | ❌                    | ✅              | ✅             |
 | **Codegen-free** (Doesn't need compiler) | ✅                    | ✅              | ✅             |
 | **Ecosystem**                            | ⭐️⭐️                | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️⭐️      |

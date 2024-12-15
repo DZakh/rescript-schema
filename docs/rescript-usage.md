@@ -28,13 +28,13 @@
     - [Transform to a tuple](#transform-to-a-tuple)
     - [Transform to a variant](#transform-to-a-variant)
     - [`s.flatten`](#sflatten)
-    - [`s.nestedField`](#snestedfield)
+    - [`s.nested`](#snested)
     - [`Object destructuring`](#object-destructuring)
-    - [`Extend field with another object schema`](#extend-field-with-another-object-schema)
   - [`strict`](#strict)
   - [`strip`](#strip)
+  - [`deepStrict` & `deepStrip`](#deepstrict--deepstrip)
   - [`schema`](#schema)
-  - [`variant`](#variant)
+  - [`to`](#to)
   - [`union`](#union)
     - [Enums](#enums)
   - [`array`](#array)
@@ -55,25 +55,15 @@
 - [Transforms](#transforms)
 - [Preprocess](#preprocess-advanced)
 - [Functions on schema](#functions-on-schema)
-  - [`parseWith`](#parsewith)
-  - [`parseAnyWith`](#parseanywith)
-  - [`parseJsonStringWith`](#parsejsonstringwith)
-  - [`parseAsyncWith`](#parseasyncwith)
-  - [`serializeWith`](#serializewith)
-  - [`serializeToUnknownWith`](#serializetounknownwith)
-  - [`serializeToJsonStringWith`](#serializetojsonstringwith)
-  - [`convertAnyWith`](#convertanywith)
-  - [`convertAnyToJsonWith`](#convertanytojsonwith)
-  - [`convertAnyToJsonStringWith`](#convertanytojsonstringwith)
-  - [`convertAnyAsyncWith`](#convertanyasyncwith)
+  - [`Built-in operations`](#built-in-operations)
   - [`compile`](#compile)
+  - [`reverse`](#reverse)
   - [`classify`](#classify)
   - [`isAsync`](#isasync)
   - [`name`](#name)
   - [`setName`](#setname)
   - [`removeTypeValidation`](#removetypevalidation)
 - [Error handling](#error-handling)
-  - [`unwrap`](#unwrap)
   - [`Error.make`](#errormake)
   - [`Error.raise`](#errorraise)
   - [`Error.message`](#errormessage)
@@ -96,8 +86,6 @@ Then add `rescript-schema` to `bs-dependencies` in your `rescript.json`:
 + "bsc-flags": ["-open RescriptSchema"],
 }
 ```
-
-> 🧠 Starting from V5 **rescript-schema** requires **rescript@11**. At the same time it works in both curried and uncurried mode.
 
 ## Basic usage
 
@@ -135,35 +123,35 @@ let filmSchema = S.object(s => {
 
 // 3. Parse data using the schema
 // The data is validated and transformed to a convenient format
-%raw(`{
+{
   "Id": 1,
   "Title": "My first film",
   "Rating": "R",
   "Age": 17
-}`)->S.parseWith(filmSchema)
-// Ok({
+}->S.parseOrThrow(filmSchema)
+// {
 //   id: 1.,
 //   title: "My first film",
 //   tags: [],
 //   rating: Restricted,
 //   deprecatedAgeRestriction: Some(17),
-// })
+// }
 
-// 4. Transform data back using the same schema
+// 4. Convert data back using the same schema
 {
   id: 2.,
   tags: ["Loved"],
   title: "Sad & sed",
   rating: ParentalStronglyCautioned,
   deprecatedAgeRestriction: None,
-}->S.serializeWith(filmSchema)
-// Ok(%raw(`{
+}->S.reverseConvertOrThrow(filmSchema)
+// {
 //   "Id": 2,
 //   "Title": "Sad & sed",
 //   "Rating": "PG13",
 //   "Tags": ["Loved"],
 //   "Age": undefined,
-// }`))
+// }
 
 // 5. Use schema as a building block for other tools
 // For example, create a JSON-schema with rescript-json-schema and use it for OpenAPI generation
@@ -287,11 +275,11 @@ Compiled serializer code
 ```rescript
 let schema = S.string
 
-%raw(`"Hello World!"`)->S.parseWith(schema)
-// Ok("Hello World!")
+"Hello World!"->S.parseOrThrow(schema)
+// "Hello World!"
 ```
 
-The `string` schema represents a data that is a string. It can be further constrainted with the following utility methods.
+The `S.string` schema represents a data that is a string. It can be further constrainted with the following utility methods.
 
 **rescript-schema** includes a handful of string-specific refinements and transforms:
 
@@ -327,37 +315,23 @@ let datetimeSchema = S.string->S.datetime
 // The datetimeSchema has the type S.t<Date.t>
 // String is transformed to the Date.t instance
 
-%raw(`"2020-01-01T00:00:00Z"`)->S.parseWith(datetimeSchema) // pass
-%raw(`"2020-01-01T00:00:00.123Z"`)->S.parseWith(datetimeSchema) // pass
-%raw(`"2020-01-01T00:00:00.123456Z"`)->S.parseWith(datetimeSchema) // pass (arbitrary precision)
-%raw(`"2020-01-01T00:00:00+02:00"`)->S.parseWith(datetimeSchema) // fail (no offsets allowed)
+"2020-01-01T00:00:00Z"->S.parseOrThrow(datetimeSchema) // pass
+"2020-01-01T00:00:00.123Z"->S.parseOrThrow(datetimeSchema) // pass
+"2020-01-01T00:00:00.123456Z"->S.parseOrThrow(datetimeSchema) // pass (arbitrary precision)
+"2020-01-01T00:00:00+02:00"->S.parseOrThrow(datetimeSchema) // fail (no offsets allowed)
 ```
 
 ### **`bool`**
 
 `S.t<bool>`
 
-```rescript
-let schema = S.bool
-
-%raw(`false`)->S.parseWith(schema)
-// Ok(false)
-```
-
-The `bool` schema represents a data that is a boolean.
+The `S.bool` schema represents a data that is a boolean.
 
 ### **`int`**
 
 `S.t<int>`
 
-```rescript
-let schema = S.int
-
-%raw(`123`)->S.parseWith(schema)
-// Ok(123)
-```
-
-The `int` schema represents a data that is an integer.
+The `S.int` schema represents a data that is an integer.
 
 **rescript-schema** includes some of int-specific refinements:
 
@@ -371,14 +345,7 @@ S.int->S.port // Invalid port
 
 `S.t<float>`
 
-```rescript
-let schema = S.float
-
-%raw(`123`)->S.parseWith(schema)
-// Ok(123.)
-```
-
-The `float` schema represents a data that is a number.
+The `S.float` schema represents a data that is a number.
 
 **rescript-schema** includes some of float-specific refinements:
 
@@ -391,14 +358,7 @@ S.float->S.floatMin(5) // Number must be greater than or equal to 5
 
 `S.t<bigint>`
 
-```rescript
-let schema = S.bigint
-
-%raw(`123n`)->S.parseWith(schema)
-// Ok(123n)
-```
-
-The `bigint` schema represents a data that is a BigInt.
+The `S.bigint` schema represents a data that is a BigInt.
 
 ### **`option`**
 
@@ -407,13 +367,13 @@ The `bigint` schema represents a data that is a BigInt.
 ```rescript
 let schema = S.option(S.string)
 
-%raw(`"Hello World!"`)->S.parseWith(schema)
-// Ok(Some("Hello World!"))
-%raw(`undefined`)->S.parseWith(schema)
-// Ok(None)
+"Hello World!"->S.parseOrThrow(schema)
+// Some("Hello World!")
+%raw(`undefined`)->S.parseOrThrow(schema)
+// None
 ```
 
-The `option` schema represents a data of a specific type that might be undefined.
+The `S.option` schema represents a data of a specific type that might be undefined.
 
 ### **`Option.getOr`**
 
@@ -422,10 +382,10 @@ The `option` schema represents a data of a specific type that might be undefined
 ```rescript
 let schema = S.option(S.string)->S.Option.getOr("Hello World!")
 
-%raw(`undefined`)->S.parseWith(schema)
-// Ok("Hello World!")
-%raw(`"Goodbye World!"`)->S.parseWith(schema)
-// Ok("Goodbye World!")
+%raw(`undefined`)->S.parseOrThrow(schema)
+// "Hello World!"
+"Goodbye World!"->S.parseOrThrow(schema)
+// "Goodbye World!"
 ```
 
 The `Option.getOr` augments a schema to add transformation logic for default values, which are applied when the input is undefined.
@@ -439,10 +399,10 @@ The `Option.getOr` augments a schema to add transformation logic for default val
 ```rescript
 let schema = S.option(S.array(S.string))->S.Option.getOrWith(() => ["Hello World!"])
 
-%raw(`undefined`)->S.parseWith(schema)
-// Ok(["Hello World!"])
-%raw(`["Goodbye World!"]`)->S.parseWith(schema)
-// Ok(["Goodbye World!"])
+%raw(`undefined`)->S.parseOrThrow(schema)
+// ["Hello World!"]
+["Goodbye World!"]->S.parseOrThrow(schema)
+// ["Goodbye World!"]
 ```
 
 Also you can use `Option.getOrWith` for lazy evaluation of the default value.
@@ -454,15 +414,15 @@ Also you can use `Option.getOrWith` for lazy evaluation of the default value.
 ```rescript
 let schema = S.null(S.string)
 
-%raw(`"Hello World!"`)->S.parseWith(schema)
-// Ok(Some("Hello World!"))
-%raw(`null`)->S.parseWith(schema)
-// Ok(None)
+"Hello World!"->S.parseOrThrow(schema)
+// Some("Hello World!")
+%raw(`null`)->S.parseOrThrow(schema)
+// None
 ```
 
-The `null` schema represents a data of a specific type that might be null.
+The `S.null` schema represents a data of a specific type that might be null.
 
-> 🧠 Since `null` transforms value into `option` type, you can use `Option.getOr`/`Option.getOrWith` for it as well.
+> 🧠 Since `S.null` transforms value into `option` type, you can use `Option.getOr`/`Option.getOrWith` for it as well.
 
 ### **`nullable`**
 
@@ -471,30 +431,23 @@ The `null` schema represents a data of a specific type that might be null.
 ```rescript
 let schema = S.nullable(S.string)
 
-%raw(`"Hello World!"`)->S.parseWith(schema)
-// Ok(Some("Hello World!"))
-%raw(`null`)->S.parseWith(schema)
-// Ok(None)
-%raw(`undefined`)->S.parseWith(schema)
-// Ok(None)
+"Hello World!"->S.parseOrThrow(schema)
+// Some("Hello World!")
+%raw(`null`)->S.parseOrThrow(schema)
+// None
+%raw(`undefined`)->S.parseOrThrow(schema)
+// None
 ```
 
-The `nullable` schema represents a data of a specific type that might be null or undefined.
+The `S.nullable` schema represents a data of a specific type that might be null or undefined.
 
-> 🧠 Since `nullable` transforms value into `option` type, you can use `Option.getOr`/`Option.getOrWith` for it as well.
+> 🧠 Since `S.nullable` transforms value into `option` type, you can use `Option.getOr`/`Option.getOrWith` for it as well.
 
 ### **`unit`**
 
 `S.t<unit>`
 
-```rescript
-let schema = S.unit
-
-%raw(`undefined`)->S.parseWith(schema)
-// Ok()
-```
-
-The `unit` schema factory is an alias for `S.literal()`.
+The `S.unit` schema is an alias for `S.literal()`.
 
 ### **`literal`**
 
@@ -529,7 +482,7 @@ let weakMap = WeakMap.make()
 let weakMapSchema = S.literal(weakMap)
 ```
 
-The `literal` schema enforces that a data matches an exact value during parsing and serializing.
+The `S.literal` schema enforces that a data matches an exact value during parsing and serializing.
 
 ### **`object`**
 
@@ -548,8 +501,8 @@ let pointSchema = S.object(s => {
 })
 
 // It can be used both for parsing and serializing
-{"x": 1, "y": -4}->S.parseAnyWith(pointSchema)
-{x: 1, y: -4}->S.serializeWith(pointSchema)
+{"x": 1, "y": -4}->S.parseOrThrow(pointSchema)
+{x: 1, y: -4}->S.reverseConvertOrThrow(pointSchema)
 ```
 
 The `object` schema represents an object value, that can be transformed into any ReScript value. Here are some examples:
@@ -567,8 +520,13 @@ let schema = S.object(s => {
   name: s.field("USER_NAME", S.string),
 })
 
-%raw(`{"USER_ID":1,"USER_NAME":"John"}`)->S.parseWith(schema) // Ok({id: 1, name: "John"})
-{id: 1, name: "John"}->S.serializeWith(schema) // Ok({"USER_ID":1,"USER_NAME":"John"})
+{
+  "USER_ID": 1,
+  "USER_NAME": "John",
+}->S.parseOrThrow(schema)
+// {id: 1, name: "John"}
+{id: 1, name: "John"}->S.reverseConvertOrThrow(schema)
+// {"USER_ID": 1, "USER_NAME": "John"}
 ```
 
 #### Transform to a structurally typed object
@@ -587,15 +545,15 @@ let schema = S.object(s => {
 // It will have the S.t<(int, string)> type
 let schema = S.object(s => (s.field("USER_ID", S.int), s.field("USER_NAME", S.string)))
 
-%raw(`{"USER_ID":1,"USER_NAME":"John"}`)->S.parseWith(schema)
-// Ok((1, "John"))
+{"USER_ID":1,"USER_NAME":"John"}->S.parseOrThrow(schema)
+// (1, "John")
 ```
 
 The same schema also works for serializing:
 
 ```rescript
-(1, "John")->S.serializeWith(schema)
-// Ok(%raw(`{"USER_ID":1,"USER_NAME":"John"}`))
+(1, "John")->S.reverseConvertOrThrow(schema)
+// {"USER_ID":1,"USER_NAME":"John"}
 ```
 
 #### Transform to a variant
@@ -611,11 +569,11 @@ let schema = S.object(s => {
   })
 })
 
-%raw(`{
+{
   "kind": "circle",
   "radius": 1,
-}`)->S.parseWith(schema)
-// Ok(Circle({radius: 1}))
+}->S.parseOrThrow(schema)
+// Circle({radius: 1})
 ```
 
 For values whose runtime representation matches your schema, you can use the less verbose `S.schema`. Under the hood, it'll create the same `S.object` schema from the example above.
@@ -635,11 +593,11 @@ let schema = S.schema(s => Circle({
 You can use the schema for parsing as well as serializing:
 
 ```rescript
-Circle({radius: 1})->S.serializeWith(schema)
-// Ok(%raw(`{
+Circle({radius: 1})->S.reverseConvertOrThrow(schema)
+// {
 //   "kind": "circle",
 //   "radius": 1,
-// }`))
+// }
 ```
 
 #### `s.flatten`
@@ -648,7 +606,7 @@ It's possible to spread/flatten an object schema in another object schema, allow
 
 ```rescript
 type entityData = {
-  name: string,
+  name: option<string>,
   age: int,
 }
 type entity = {
@@ -657,7 +615,7 @@ type entity = {
 }
 
 let entityDataSchema = S.object(s => {
-  name: s.field("name", S.string),
+  name: s.fieldOr("name", S.string, "Unknown"),
   age: s.field("age", S.int),
 })
 let entitySchema = S.object(s => {
@@ -670,7 +628,7 @@ let entitySchema = S.object(s => {
 })
 ```
 
-#### `s.nestedField`
+#### `s.nested`
 
 A nice way to parse nested fields:
 
@@ -678,11 +636,13 @@ A nice way to parse nested fields:
 let schema = S.object(s => {
   {
     id: s.field("id", S.string),
-    name: s.nestedField("data", "name", S.string)
-    age: s.nestedField("data", "name", S.int),
+    name: s.nested("data").fieldOr("name", S.string, "Unknown")
+    age: s.nested("data").field("age", S.int),
   }
 })
 ```
+
+The `s.nested` returns a complete `S.Object.s` context of the nested object, which you can use to define nested schema without any limitations.
 
 #### Object destructuring
 
@@ -699,28 +659,7 @@ let entitySchema = S.object(s => {
 })
 ```
 
-> 🧠 While the example with `s.flatten` expect an object with the type `{id: string, name: string, age: int}`, the example above and with `s.nestedField` will expect an object with the type `{id: string, data: {name: string, age: int}}`.
-
-#### Extend field with another object schema
-
-You can define object field multiple times to extend it with more fields:
-
-```rescript
-let entitySchema = S.object(s => {
-  let {name, age} = s.field("data", entityDataSchema)
-  let additionalData = s.field("data", s => {
-    "friends": s.field("friends", S.array(S.string))
-  })
-  {
-    id: s.field("id", S.string),
-    name,
-    age,
-    friends: additionalData["friends"],
-  }
-})
-```
-
-> 🧠 Destructuring works only with not-transformed object schemas. Be careful, since it's not protected by typesystem.
+> 🧠 While the example with `s.flatten` expect an object with the type `{id: string, name: option<string>, age: int}`, the example above as well as for `s.nested` will expect an object with the type `{id: string, data: {name: option<string>, age: int}}`.
 
 ### **`strict`**
 
@@ -730,17 +669,21 @@ let entitySchema = S.object(s => {
 // Represents an object without fields
 let schema = S.object(_ => ())->S.strict
 
-%raw(`{
+{
   "someField": "value",
-}`)->S.parseWith(schema)
-// Error({
-//   code: ExcessField("someField"),
-//   operation: Parse,
-//   path: S.Path.empty,
-// })
+}->S.parseOrThrow(schema)
+// throws S.error with the message: `Failed parsing at root. Reason: Encountered disallowed excess key "unknownKey" on an object`
 ```
 
 By default **rescript-schema** silently strips unrecognized keys when parsing objects. You can change the behaviour to disallow unrecognized keys with the `S.strict` function.
+
+If you want to change it for all schemas in your app, you can use `S.setGlobalConfig` function:
+
+```rescript
+S.setGlobalConfig({
+  defaultUnknownKeys: Strict,
+})
+```
 
 ### **`strip`**
 
@@ -750,13 +693,30 @@ By default **rescript-schema** silently strips unrecognized keys when parsing ob
 // Represents an object with any fields
 let schema = S.object(_ => ())->S.strip
 
-%raw(`{
+{
   "someField": "value",
-}`)->S.parseWith(schema)
-// Ok()
+}->S.parseOrThrow(schema)
+// ()
 ```
 
 You can use the `S.strip` function to reset a object schema to the default behavior (stripping unrecognized keys).
+
+### **`deepStrict` & `deepStrip`**
+
+Both `S.strict` and `S.strip` are applied for the first level of the object schema. If you want to apply it for all nested schemas, you can use `S.deepStrict` and `S.deepStrip` functions.
+
+```rescript
+let schema = S.schema(s =>
+  {
+    "bar": {
+      "baz": s.matches(S.string),
+    }
+  }
+)
+
+schema->S.strict // {"baz": string} will still allow unknown keys
+schema->S.deepStrict // {"baz": string} will not allow unknown keys
+```
 
 ### **`schema`**
 
@@ -807,15 +767,15 @@ type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, 
 // It will have the S.t<shape> type
 let schema = S.float->S.to(radius => Circle({radius: radius}))
 
-%raw(`1`)->S.parseWith(schema)
-// Ok(Circle({radius: 1.}))
+1->S.parseOrThrow(schema)
+// Circle({radius: 1.})
 ```
 
 The same schema also works for serializing:
 
 ```rescript
-Circle({radius: 1})->S.serializeWith(schema)
-// Ok(%raw(`1`))
+Circle({radius: 1})->S.reverseConvertOrThrow(schema)
+// 1
 ```
 
 ### **`union`**
@@ -860,19 +820,19 @@ let shapeSchema = S.union([
 ```
 
 ```rescript
-%raw(`{
+{
   "kind": "circle",
   "radius": 1,
-}`)->S.parseWith(shapeSchema)
-// Ok(Circle({radius: 1.}))
+}->S.parseOrThrow(shapeSchema)
+// Circle({radius: 1.})
 ```
 
 ```rescript
-Square({x: 2.})->S.serializeWith(shapeSchema)
-// Ok({
+Square({x: 2.})->S.reverseConvertOrThrow(shapeSchema)
+// {
 //   "kind": "square",
 //   "x": 2,
-// })
+// }
 ```
 
 #### Enums
@@ -888,8 +848,8 @@ let schema = S.union([
   S.literal(Loss),
 ])
 
-%raw(`"draw"`)->S.parseWith(schema)
-// Ok(Draw)
+"draw"->S.parseOrThrow(schema)
+// Draw
 ```
 
 Also, you can use `S.enum` as a shorthand for the use case above.
@@ -905,11 +865,11 @@ let schema = S.enum([Win, Draw, Loss])
 ```rescript
 let schema = S.array(S.string)
 
-%raw(`["Hello", "World"]`)->S.parseWith(schema)
-// Ok(["Hello", "World"])
+["Hello", "World"]->S.parseOrThrow(schema)
+// ["Hello", "World"]
 ```
 
-The `array` schema represents an array of data of a specific type.
+The `S.array` schema represents an array of data of a specific type.
 
 **rescript-schema** includes some of array-specific refinements:
 
@@ -926,11 +886,11 @@ S.array(itemSchema)->S.arrayLength(5) // Array must be exactly 5 items long
 ```rescript
 let schema = S.list(S.string)
 
-%raw(`["Hello", "World"]`)->S.parseWith(schema)
-// Ok(list{"Hello", "World"})
+["Hello", "World"]->S.parseOrThrow(schema)
+// list{"Hello", "World"}
 ```
 
-The `list` schema represents an array of data of a specific type which is transformed to ReScript's list data-structure.
+The `S.list` schema represents an array of data of a specific type which is transformed to ReScript's list data-structure.
 
 ### **`tuple`**
 
@@ -952,11 +912,11 @@ let pointSchema = S.tuple(s => {
 })
 
 // It can be used both for parsing and serializing
-%raw(`["point", 1, -4]`)->S.parseWith(pointSchema)
-{ x: 1, y: -4 }->S.serializeWith(pointSchema)
+["point", 1, -4]->S.parseOrThrow(pointSchema)
+{ x: 1, y: -4 }->S.reverseConvertOrThrow(pointSchema)
 ```
 
-The `tuple` schema represents that a data is an array of a specific length with values each of a specific type.
+The `S.tuple` schema represents that a data is an array of a specific length with values each of a specific type.
 
 For short tuples without the need for transformation, there are wrappers over `S.tuple`:
 
@@ -967,8 +927,8 @@ For short tuples without the need for transformation, there are wrappers over `S
 ```rescript
 let schema = S.tuple3(S.string, S.int, S.bool)
 
-%raw(`["a", 1, true]`)->S.parseWith(schema)
-// Ok("a", 1, true)
+%raw(`["a", 1, true]`)->S.parseOrThrow(schema)
+// ("a", 1, true)
 ```
 
 ### **`dict`**
@@ -978,11 +938,11 @@ let schema = S.tuple3(S.string, S.int, S.bool)
 ```rescript
 let schema = S.dict(S.string)
 
-%raw(`{
+{
   "foo": "bar",
   "baz": "qux",
-}`)->S.parseWith(schema)
-// Ok(Dict.fromArray([("foo", "bar"), ("baz", "qux")]))
+}->S.parseOrThrow(schema)
+// dict{foo: "bar", baz: "qux"}
 ```
 
 The `dict` schema represents a dictionary of data of a specific type.
@@ -994,10 +954,11 @@ The `dict` schema represents a dictionary of data of a specific type.
 ```rescript
 let schema = S.unknown
 
-%raw(`"Hello World!"`)->S.parseWith(schema)
+"Hello World!"->S.parseOrThrow(schema)
+// "Hello World!"
 ```
 
-The `unknown` schema represents any data.
+The `S.unknown` schema represents any data.
 
 ### **`never`**
 
@@ -1006,12 +967,8 @@ The `unknown` schema represents any data.
 ```rescript
 let schema = S.never
 
-%raw(`undefined`)->S.parseWith(schema)
-// Error({
-//   code: InvalidType({expected: S.never, received: undefined}),
-//   operation: Parse,
-//   path: S.Path.empty,
-// })
+%raw(`undefined`)->S.parseOrThrow(schema)
+// throws S.error with the message: `Failed parsing at root. Reason: Expected never, received undefined`
 ```
 
 The `never` schema will fail parsing for every value.
@@ -1023,11 +980,11 @@ The `never` schema will fail parsing for every value.
 ```rescript
 let schema = S.json(~validate=true)
 
-`"abc"`->S.parseAnyWith(schema)
-// Ok(String("abc"))
+`"abc"`->S.parseOrThrow(schema)
+// "abc" of type JSON.t
 ```
 
-The `json` schema represents a data that is compatible with JSON.
+The `S.json` schema represents a data that is compatible with JSON.
 
 It accepts a `validate` as an argument. If it's true, then the value will be validated as valid JSON; otherwise, it unsafely casts it to the `JSON.t` type.
 
@@ -1038,11 +995,11 @@ It accepts a `validate` as an argument. If it's true, then the value will be val
 ```rescript
 let schema = S.jsonString(S.int)
 
-%raw(`"123"`)->S.parseWith(schema)
-// Ok(123)
+"123"->S.parseOrThrow(schema)
+// 123
 ```
 
-The `jsonString` schema represents JSON string containing value of a specific type.
+The `S.jsonString` schema represents JSON string containing value of a specific type.
 
 ### **`describe`**
 
@@ -1083,10 +1040,10 @@ Use `S.catch` to provide a "catch value" to be returned instead of a parsing err
 ```rescript
 let schema = S.float->S.catch(_ => 42.)
 
-%raw(`5`)->S.parseWith(schema)
-// Ok(5.)
-%raw(`"tuna"`)->S.parseWith(schema)
-// Ok(42.)
+5->S.parseOrThrow(schema)
+// 5.
+"tuna"->S.parseOrThrow(schema)
+// 42.
 ```
 
 Also, the callback `S.catch` receives a catch context as a first argument. It contains the caught error and the initial data provided to the parse function.
@@ -1117,31 +1074,27 @@ let nullableSchema = innerSchema => {
       if unknown === %raw(`undefined`) || unknown === %raw(`null`) {
         None
       } else {
-        Some(unknown->S.parseAnyWith(innerSchema)->S.unwrap)
+        Some(unknown->S.parseOrThrow(innerSchema))
       }
     },
     serializer: value => {
       switch value {
       | Some(innerValue) =>
-        innerValue->S.serializeToUnknownWith(innerSchema)->S.unwrap
+        innerValue->S.reverseConvertOrThrow(innerSchema)
       | None => %raw(`null`)
       }
     },
   })
 }
 
-%raw(`"Hello world!"`)->S.parseWith(schema)
-// Ok(Some("Hello World!"))
-%raw(`null`)->S.parseWith(schema)
-// Ok(None)
-%raw(`undefined`)->S.parseWith(schema)
-// Ok(None)
-%raw(`123`)->S.parseWith(schema)
-// Error({
-//   code: InvalidType({expected: S.string, received: 123}),
-//   operation: Parse,
-//   path: S.Path.empty,
-// })
+"Hello world!"->S.parseOrThrow(schema)
+// Some("Hello World!")
+%raw(`null`)->S.parseOrThrow(schema)
+// None
+%raw(`undefined`)->S.parseOrThrow(schema)
+// None
+123->S.parseOrThrow(schema)
+// throws S.error with the message: `Failed parsing at root. Reason: Expected string, received 123`
 ```
 
 ### **`recursive`**
@@ -1165,17 +1118,17 @@ let nodeSchema = S.recursive(nodeSchema => {
 ```
 
 ```rescript
-%raw(`{
+{
   "Id": "1",
   "Children": [
     {"Id": "2", "Children": []},
     {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
   ],
-}`)->S.parseWith(nodeSchema)
-// Ok({
+}->S.parseOrThrow(nodeSchema)
+// {
 //   id: "1",
 //   children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-// })
+// }
 ```
 
 The same schema works for serializing:
@@ -1184,14 +1137,14 @@ The same schema works for serializing:
 {
   id: "1",
   children: [{id: "2", children: []}, {id: "3", children: [{id: "4", children: []}]}],
-}->S.serializeWith(nodeSchema)
-// Ok(%raw(`{
+}->S.reverseConvertOrThrow(nodeSchema)
+// {
 //   "Id": "1",
 //   "Children": [
 //     {"Id": "2", "Children": []},
 //     {"Id": "3", "Children": [{"Id": "4", "Children": []}]},
 //   ],
-// }`))
+// }
 ```
 
 You can also use asynchronous parser:
@@ -1199,7 +1152,7 @@ You can also use asynchronous parser:
 ```rescript
 let nodeSchema = S.recursive(nodeSchema => {
   S.object(s => {
-    params: s.field("Id", S.string)->S.transform(_ => {asyncParser: id => () => loadParams(id)}),
+    params: s.field("Id", S.string)->S.transform(_ => {asyncParser: id => loadParams(~id)}),
     children: s.field("Children", S.array(nodeSchema)),
   })
 })
@@ -1259,21 +1212,21 @@ let userSchema =
   S.string
   ->S.uuid
   ->S.transform(s => {
-    asyncParser: userId => () => loadUser(~userId),
+    asyncParser: userId => loadUser(~userId),
     serializer: user => user.id,
   })
 
-await %raw(`"1"`)->S.parseAsyncWith(userSchema)
-// Ok({
+await "1"->S.parseAsyncOrThrow(userSchema)
+// {
 //   id: "1",
 //   name: "John",
-// })
+// }
 
 {
   id: "1",
   name: "John",
-}->S.serializeWith(userSchema)
-// Ok("1")
+}->S.reverseConvertOrThrow(userSchema)
+// "1"
 ```
 
 ## Preprocess _Advanced_
@@ -1319,107 +1272,56 @@ let prepareEnvSchema = S.preprocess(_, s => {
 
 ## Functions on schema
 
-### **`parseWith`**
+### Built-in operations
 
-`(JSON.t, S.t<'value>) => result<'value, S.error>`
+The library provides a bunch of built-in operations that can be used to parse, convert, and assert values.
 
-```rescript
-data->S.parseWith(userSchema)
-```
+Parsing means that the input value is validated against the schema and transformed to the expected output type. You can use the following operations to parse values:
 
-Given any schema, you can call `parseWith` to check `data` is valid. It returns a result with valid data transformed to expected type or a **rescript-schema** error.
+| Operation                | Interface                                | Description                                                   |
+| ------------------------ | ---------------------------------------- | ------------------------------------------------------------- |
+| S.parseOrThrow           | `('any, S.t<'value>) => 'value`          | Parses any value with the schema                              |
+| S.parseJsonOrThrow       | `(Js.Json.t, S.t<'value>) => 'value`     | Parses JSON value with the schema                             |
+| S.parseJsonStringOrThrow | `(string, S.t<'value>) => 'value`        | Parses JSON string with the schema                            |
+| S.parseAsyncOrThrow      | `('any, S.t<'value>) => promise<'value>` | Parses any value with the schema having async transformations |
 
-### **`parseAnyWith`**
+For advanced users you can only transform to the output type without type validations. But be careful, since the input type is not checked:
 
-`('any, S.t<'value>) => result<'value, S.error>`
+| Operation                    | Interface                                | Description                                                        |
+| ---------------------------- | ---------------------------------------- | ------------------------------------------------------------------ |
+| S.convertOrThrow             | `('any, S.t<'value>) => 'value`          | Converts any value to the output type                              |
+| S.convertToJsonOrThrow       | `('any, S.t<'value>) => Js.Json.t`       | Converts any value to JSON                                         |
+| S.convertToJsonStringOrThrow | `('any, S.t<'value>) => string`          | Converts any value to JSON string                                  |
+| S.convertAsyncOrThrow        | `('any, S.t<'value>) => promise<'value>` | Converts any value to the output type having async transformations |
 
-```rescript
-data->S.parseAnyWith(userSchema)
-```
+Note, that in this case only type validations are skipped. If your schema has refinements or transforms, they will be applied.
 
-The same as `parseWith`, but the `data` is loosened to the abstract type.
+Also, you can use `S.removeTypeValidation` helper to turn off type validations for the schema even when it's used with a parse operation.
 
-### **`parseJsonStringWith`**
+More often than converting input to output, you'll need to perform the reversed operation. It's usually called "serializing" or "decoding". The ReScript Schema has a unique mental model and provides an ability to reverse any schema with `S.reverse` which you can later use with all possible kinds of operations. But for convinence, there's a few helper functions that can be used to convert output values to the initial format:
 
-`(string, S.t<'value>) => result<'value, S.error>`
+| Operation                           | Interface                                | Description                                                           |
+| ----------------------------------- | ---------------------------------------- | --------------------------------------------------------------------- |
+| S.reverseConvertOrThrow             | `('value, S.t<'value>) => 'any`          | Converts schema value to the output type                              |
+| S.reverseConvertToJsonOrThrow       | `('value, S.t<'value>) => Js.Json.t`     | Converts schema value to JSON                                         |
+| S.reverseConvertToJsonStringOrThrow | `('value, S.t<'value>) => string`        | Converts schema value to JSON string                                  |
+| S.reverseConvertAsyncOrThrow        | `('value, S.t<'value>) => promise<'any>` | Converts schema value to the output type having async transformations |
 
-```rescript
-json->S.parseJsonStringWith(userSchema)
-```
+This is literally the same as convert operations applied to the reversed schema.
 
-The same as `parseWith`, but applies `JSON.parse` before parsing.
+For some cases you might want to simply assert the input value is valid. For this there's `S.assertOrThrow` operation:
 
-### **`parseAsyncWith`**
+| Operation       | Interface                   | Description                           |
+| --------------- | --------------------------- | ------------------------------------- |
+| S.assertOrThrow | `('any, S.t<'value>) => ()` | Asserts that the input value is valid |
 
-`(JSON.t, S.t<'value>) => promise<result<'value, S.error>>`
-
-```rescript
-data->S.parseAsyncWith(userSchema)
-```
-
-If you use asynchronous refinements or transforms, you'll need to use `parseAsyncWith`. It will parse all synchronous branches first and then continue with asynchronous refinements and transforms in parallel.
-
-### **`serializeWith`**
-
-`('value, S.t<'value>) => result<JSON.t, S.error>`
-
-```rescript
-user->S.serializeWith(userSchema)
-```
-
-Serializes value using the transformation logic that is built-in to the schema. It returns a result with a transformed data or a **rescript-schema** error.
-
-> 🧠 It'll fail with JSON incompatible schema. Use S.serializeToUnknownWith if you have schema which doesn't serialize to JSON.
-
-### **`serializeToJsonStringWith`**
-
-`('value, ~space: int=?, S.t<'value>) => result<string, S.error>`
+All operations either return the output value or raise an exception which you can catch with `try/catch` block:
 
 ```rescript
-user->S.serializeToJsonStringWith(userSchema)
+try true->S.parseOrThrow(schema) catch {
+| S.Error.Raised(error) => Console.log(error->S.Error.message)
+}
 ```
-
-The same as `serializeToUnknownWith`, but applies `JSON.serialize` at the end.
-
-### **`convertAnyWith`**
-
-`('any, S.t<'value>) => result<'value, S.error>`
-
-```rescript
-rawUser->S.convertAnyWith(userSchema)
-```
-
-The same as `parseAnyWith`, but it doesn't contain any type validations. It's useful for transforming valid data to the value format.
-
-### **`convertAnyToJsonWith`**
-
-`('any, S.t<'value>) => result<Js.Json.t, S.error>`
-
-```rescript
-rawUser->S.convertAnyToJsonWith(userSchema)
-```
-
-The same as `convertAnyWith`, but the output type is `Js.Json.t`. Also, it validates that the schema is JSON compatible, otherwise it returns an error.
-
-### **`convertAnyToJsonStringWith`**
-
-`('any, S.t<'value>) => result<string, S.error>`
-
-```rescript
-rawUser->S.convertAnyToJsonStringWith(userSchema)
-```
-
-Validates that the schema is JSON compatible, converts valid data to the value format and serializes it to JSON string.
-
-### **`convertAnyAsyncWith`**
-
-`('any, S.t<'value>) => promise<result<'value, S.error>>`
-
-```rescript
-rawUser->S.convertAnyAsyncWith(userSchema)
-```
-
-Async version for the `convertAnyWith` operation.
 
 ### **`compile`**
 
@@ -1429,13 +1331,13 @@ If you want to have the most possible performance, or the built-in operations do
 
 ```rescript
 let fn = S.compile(
-  S.int,
+  S.string,
   ~input=Any,
   ~output=Assert,
   ~mode=Async,
 )
 await fn("Hello world!")
-// Ok("Hello world!")
+// ()
 ```
 
 For example, in the example above we've created an async assert operation, which is not available by default.
@@ -1443,8 +1345,8 @@ For example, in the example above we've created an async assert operation, which
 You can configure compiled function `input` with the following options:
 
 - `Value` - accepts `'value` of `S.t<'value>` and reverses the operation
-- `Any` - accepts `'any`
 - `Unknown` - accepts `unknown`
+- `Any` - accepts `'any`
 - `Json` - accepts `Js.Json.t`
 - `JsonString` - accepts `string` and applies `JSON.parse` before parsing
 
@@ -1466,6 +1368,32 @@ And you can configure compiled function `typeValidation` with the following opti
 - `true (default)` - performs type validation
 - `false` - doesn't perform type validation and only converts data to the output format. Note that refines are still applied.
 
+### **`reverse`**
+
+`(S.t<'value>) => S.t<'value>`
+
+```rescript
+S.null(S.string)->S.reverse
+// S.option(S.string)
+```
+
+```rescript
+let schema = S.object(s => s.field("foo", S.string))
+
+{"foo": "bar"}->S.parseOrThrow(schema)
+// "bar"
+
+let reversed = schema->S.reverse
+
+"bar"->S.parseOrThrow(reversed)
+// {"foo": "bar"}
+
+123->S.parseOrThrow(reversed)
+// throws S.error with the message: `Failed parsing at root. Reason: Expected string, received 123`
+```
+
+Reverses the schema. This gets especially magical for schemas with transformations 🪄
+
 ### **`classify`**
 
 `(S.t<'value>) => S.tagged`
@@ -1484,7 +1412,7 @@ This can be useful for building other tools like [`rescript-json-schema`](https:
 ```rescript
 S.string->S.isAsync
 // false
-S.string->S.transform(_ => {asyncParser: i => () => Promise.resolve(i)})->S.isAsync
+S.string->S.transform(_ => {asyncParser: i => Promise.resolve(i)})->S.isAsync
 // true
 ```
 
@@ -1525,8 +1453,8 @@ let schema = S.object(s => s.field("abc", S.int))->S.removeTypeValidation
 
 {
   "abc": 123,
-}->S.parseWith(schema) // This doesn't have `if (!i || i.constructor !== Object) {` check. But field types are still validated.
-// Ok(123)
+}->S.parseOrThrow(schema) // This doesn't have `if (!i || i.constructor !== Object) {` check. But field types are still validated.
+// 123
 ```
 
 Removes type validation for provided schema. Nested schemas are not affected.
@@ -1535,41 +1463,26 @@ This can be useful to optimise `S.object` parsing when you construct the input d
 
 ## Error handling
 
-**rescript-schema** returns a result type with error `S.error` containing detailed information about the validation problems.
+**rescript-schema** throws `S.error` error containing detailed information about the validation problems.
 
 ```rescript
 let schema = S.literal(false)
 
-%raw(`true`)->S.parseWith(schema)
-// Error({
-//   code: InvalidType({expected: S.literal(false), received: true}),
-//   operation: Parse,
-//   path: S.Path.empty,
-// })
+true->S.parseOrThrow(schema)
+// throws S.error with the message: `Failed parsing at root. Reason: Expected false, received true`
 ```
 
-<!--
-👇 Also you can use `S.unwrap` to get the value from the result.
-
-### **`unwrap`**
-
-`result<'value, S.error> => 'value`
+If you want to handle the error, the best way to use `try/catch` block:
 
 ```rescript
-123->S.parseWith(S.int)->S.unwrap
-// 123
-
-"foo"->S.parseWith(S.int)->S.unwrap
-// throws S.Error
+try true->S.parseOrThrow(schema) catch {
+| S.Error.Raised(error) => Console.log(error->S.Error.message)
+}
 ```
-
-A helper function to unwrap value from the result.
-
-if the result is an error, the instance of `RescriptSchemaError` will be thrown with a nice error message. Also, you can use the `S.Raised` exception to catch it in ReScript code. -->
 
 ### **`Error.make`**
 
-`(~code: S.errorCode, ~operation: S.operation, ~path: S.Path.t) => S.error`
+`(~code: S.errorCode, ~flag: S.flag, ~path: S.Path.t) => S.error`
 
 Creates an instance of `RescriptSchemaError` error. At the same time it's the `S.Raised` exception.
 
@@ -1586,7 +1499,7 @@ Throws error. Since internally it's both the `S.Raised` exception and instance o
 ```rescript
 {
   code: InvalidType({expected: S.literal(false), received: true}),
-  operation: Parse,
+  flag: S.Flag.typeValidation,
   path: S.Path.empty,
 }->S.Error.message
 ```
@@ -1602,7 +1515,7 @@ Throws error. Since internally it's both the `S.Raised` exception and instance o
 ```rescript
 {
   code: InvalidType({expected: S.literal(false), received: true}),
-  operation: Parse,
+  flag: S.Flag.typeValidation,
   path: S.Path.empty,
 }->S.Error.reason
 ```
