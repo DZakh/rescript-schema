@@ -2065,7 +2065,7 @@ module Array = {
   let rec factory = schema => {
     let schema = schema->toUnknown
     makeSchema(
-      ~name=() => `${schema.name()}[]`,
+      ~name=() => `array<${schema.name()}>`,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Array(schema),
       ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {

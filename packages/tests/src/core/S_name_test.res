@@ -17,7 +17,11 @@ test("Name of Literal array schema", t => {
 })
 
 test("Name of Array schema", t => {
-  t->Assert.deepEqual(S.array(S.string)->S.name, "string[]", ())
+  t->Assert.deepEqual(S.array(S.string)->S.name, "array<string>", ())
+})
+
+test("Name of Array schema with optional items", t => {
+  t->Assert.deepEqual(S.array(S.option(S.string))->S.name, "array<string | undefined>", ())
 })
 
 test("Name of Dict schema", t => {

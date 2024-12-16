@@ -1351,7 +1351,7 @@ function typeFilter(_b, inputVar) {
 
 function factory$2(schema) {
   return makeSchema((function () {
-                return schema.n() + "[]";
+                return "array<" + schema.n() + ">";
               }), {
               TAG: "array",
               _0: schema
