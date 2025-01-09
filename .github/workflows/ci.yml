@@ -24,7 +24,7 @@ jobs:
       image: ocaml/opam:alpine-3.16-ocaml-4.12
       options: --user root
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Opam init
         run: opam init -a --disable-sandboxing --compiler=${{ matrix.ocaml-compiler }}
@@ -36,7 +36,7 @@ jobs:
         run: opam exec -- dune build --profile static
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ppx-build-linux
           path: packages/rescript-schema-ppx/src/_build/default/bin/bin.exe
@@ -53,7 +53,7 @@ jobs:
         ocaml-compiler:
           - 4.12.1
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Use OCaml ${{ matrix.ocaml-compiler}}
         uses: ocaml/setup-ocaml@v2
@@ -84,7 +84,7 @@ jobs:
         ocaml-compiler:
           - 4.12.1
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Use OCaml ${{ matrix.ocaml-compiler}}
         uses: ocaml/setup-ocaml@v2
@@ -115,7 +115,7 @@ jobs:
         ocaml-compiler:
           - 4.12.1
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Use OCaml ${{ matrix.ocaml-compiler}}
         uses: ocaml/setup-ocaml@v2
@@ -140,7 +140,7 @@ jobs:
     needs: [ppx-build-linux]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v2
       - uses: actions/setup-node@v3
         with:
@@ -149,7 +149,7 @@ jobs:
       - run: pnpm install
 
       - name: Download ppx linux artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ppx-build-linux
           path: binaries/linux
@@ -175,7 +175,7 @@ jobs:
     name: Pack rescript-schema
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v2
       - uses: actions/setup-node@v3
         with:
@@ -192,7 +192,7 @@ jobs:
       - run: pnpm build
 
       - name: "Upload artifact: rescript-schema npm package"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: rescript-schema
           path: packages/artifacts
@@ -202,7 +202,7 @@ jobs:
     needs: [ppx-build-linux, ppx-build-macos, ppx-build-macos-x64, ppx-build-windows]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v2
       - uses: actions/setup-node@v3
         with:
@@ -211,7 +211,7 @@ jobs:
       - run: pnpm install
 
       - name: Download ppx linux artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ppx-build-linux
           path: binaries/linux
@@ -246,7 +246,7 @@ jobs:
         working-directory: packages/rescript-schema-ppx
 
       - name: "Upload artifact: rescript-schema-ppx npm package"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: rescript-schema-ppx
           path: packages/rescript-schema-ppx/rescript-schema-ppx-9.0.0.tgz
@@ -256,7 +256,7 @@ jobs:
     needs: [ppx-build-linux]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v2
       - uses: actions/setup-node@v3
         with:
@@ -265,7 +265,7 @@ jobs:
       - run: pnpm install
 
       - name: Download ppx linux artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ppx-build-linux
           path: binaries/linux
