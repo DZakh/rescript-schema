@@ -36,6 +36,11 @@ Also, it has declarative API allowing you to use **rescript-schema** as a buildi
 - [For PPX users](/packages/rescript-schema-ppx/README.md)
 - [For library maintainers](/docs/integration-guide.md)
 
+## Content
+
+- Building and consuming REST API in ReScript with rescript-rest and Fastify ([YouTube](https://youtu.be/37FY6a-zY20?si=72zT8Gecs5vmDPlD))
+- ReScript Schema V9 Changes Overview ([Dev.to](https://dev.to/dzakh/rescript-schema-v9-zod-like-library-to-the-next-level-1dn6))
+
 ## Comparison
 
 Instead of relying on a few large functions with many methods, **rescript-schema** follows [Valibot](https://github.com/fabian-hiller/valibot)'s approach, where API design and source code is based on many small and independent functions, each with just a single task. This modular design has several advantages.

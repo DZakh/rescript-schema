@@ -376,16 +376,14 @@ Use the `S.strip` function to reset an object schema to the default behavior (st
 Both `S.strict` and `S.strip` are applied for the first level of the object schema. If you want to apply it for all nested schemas, you can use `S.deepStrict` and `S.deepStrip` functions.
 
 ```ts
-let schema = S.schema(s =>
-  {
-    "bar": {
-      "baz": S.string,
-    }
-  }
-)
+let schema = S.schema({
+  bar: {
+    baz: S.string,
+  },
+});
 
-S.strict(schema) // { "baz": string } will still allow unknown keys
-S.deepStrict(schema) // { "baz": string } will not allow unknown keys
+S.strict(schema); // { "baz": string } will still allow unknown keys
+S.deepStrict(schema); // { "baz": string } will not allow unknown keys
 ```
 
 ### `merge`
