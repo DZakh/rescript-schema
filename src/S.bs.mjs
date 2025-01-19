@@ -34,6 +34,8 @@ var literal = S_Core$RescriptSchema.literal;
 
 var array = S_Core$RescriptSchema.array;
 
+var unnest = S_Core$RescriptSchema.unnest;
+
 var list = S_Core$RescriptSchema.list;
 
 var dict = S_Core$RescriptSchema.dict;
@@ -203,6 +205,7 @@ export {
   json ,
   literal ,
   array ,
+  unnest ,
   list ,
   dict ,
   option ,

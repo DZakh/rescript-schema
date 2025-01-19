@@ -18,27 +18,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Use internal transform for trim
 
-### Done
-
-- Removed deprecated APIs, check S.resi diff, S.d.ts and RescriptSchema.gen.ts
-- Tuples and Objects created by S.schema don't recreate the input if there are no transformed fields
-- Async for reversed object ???
-- S.compile changed some arg variant names and now supports reverse flag
-- Removed validation for multiple registered fields that they have the same data
-- Ability to spread any schema in S.object
-- Replace s.nestedField with S.nested
-- Rename Js integer to int32. Remove integerMax/integerMin
-- Use Js friendly names for schema names
-- Add tag for bigint schema
-- Get rid of S.literal in Js/ts API and S.tuple shorthand
-- Renamed disableNanNumberCheck to use validation
-- Add flatten to ts api
-- Add S.compile to Js/ts api
-- Changed asyncParser from (i) => () => promise to (i) => promise
-- Look at the discriminant in unions - error message improvements
-- Rename S.strict to S.strict (the same for strip)
-- Added S.deepStrict
-
 ## v9.1
 
 - Add s.strict s.strip to ppx

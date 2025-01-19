@@ -222,10 +222,6 @@ function complete(objectVal, isArray) {
   return objectVal;
 }
 
-function push(b, input, val) {
-  return input.v(b) + ".push(" + val.i + ")";
-}
-
 function addKey(b, input, key, val) {
   return input.v(b) + "[" + key + "]=" + val.i;
 }
@@ -1349,10 +1345,12 @@ function typeFilter(_b, inputVar) {
   return "!Array.isArray(" + inputVar + ")";
 }
 
+function name$1() {
+  return "array<" + this.t._0.n() + ">";
+}
+
 function factory$2(schema) {
-  return makeSchema((function () {
-                return "array<" + schema.n() + ">";
-              }), {
+  return makeSchema(name$1, {
               TAG: "array",
               _0: schema
             }, empty, (function (b, input, param, path) {
@@ -1378,12 +1376,12 @@ function factory$2(schema) {
                 var output = isTransformed ? ({
                       b: b,
                       v: _notVar,
-                      i: "[]",
+                      i: "new Array(" + inputVar + ".length)",
                       a: false
                     }) : input;
                 if (isTransformed || itemCode !== "") {
                   b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + (
-                      isTransformed ? push(b, output, itemOutput) : ""
+                      isTransformed ? addKey(b, output, iteratorVar, itemOutput) : ""
                     ) + "}");
                 }
                 if (itemOutput.a) {
@@ -1414,7 +1412,7 @@ function typeFilter$1(b, inputVar) {
   return code;
 }
 
-function name$1() {
+function name$2() {
   var tagged = this.t;
   if (tagged.items.length === 0) {
     return "{}";
@@ -1496,7 +1494,7 @@ function deepStrict(schema) {
   return setUnknownKeys(schema, "Strict", true);
 }
 
-function name$2() {
+function name$3() {
   return "[" + this.t.items.map(function (item) {
                 return item.schema.n();
               }).join(", ") + "]";
@@ -2132,7 +2130,7 @@ function definitionToRitem(definition, path, ritems, ritemsByItemPath) {
     return {
             k: 2,
             p: path,
-            s: makeReverseSchema(name$2, {
+            s: makeReverseSchema(name$3, {
                   TAG: "tuple",
                   items: items
                 }, empty, builder, typeFilter$2),
@@ -2159,7 +2157,7 @@ function definitionToRitem(definition, path, ritems, ritemsByItemPath) {
   return {
           k: 2,
           p: path,
-          s: makeReverseSchema(name$1, {
+          s: makeReverseSchema(name$2, {
                 TAG: "object",
                 items: items$1,
                 fields: fields,
@@ -2238,7 +2236,7 @@ function reverse$1() {
     
   }
   if (isTransformed) {
-    return makeReverseSchema(name$1, {
+    return makeReverseSchema(name$2, {
                 TAG: "object",
                 items: reversedItems,
                 fields: reversedFields,
@@ -2260,7 +2258,7 @@ function nested(fieldName) {
   var schemas = [];
   var fields = {};
   var items = [];
-  var schema = makeSchema(name$1, {
+  var schema = makeSchema(name$2, {
         TAG: "object",
         items: items,
         fields: fields,
@@ -2662,7 +2660,7 @@ function object(definer) {
             unknownKeys: globalConfig.u,
             advanced: true
           },
-          n: name$1,
+          n: name$2,
           "~r": advancedReverse(definition, undefined, flattened),
           b: advancedBuilder(definition, flattened),
           f: typeFilter$1,
@@ -2709,7 +2707,7 @@ function tuple(definer) {
     }
     
   }
-  return makeSchema(name$2, {
+  return makeSchema(name$3, {
               TAG: "tuple",
               items: items
             }, empty, advancedBuilder(definition, undefined), typeFilter$2, advancedReverse(definition, undefined, undefined));
@@ -2723,8 +2721,7 @@ function definitionToSchema(definition) {
     return definition;
   }
   if (Array.isArray(definition)) {
-    var length = definition.length;
-    var reversedItems = new Array(length);
+    var reversedItems = [];
     var isTransformed = false;
     for(var idx = 0 ,idx_finish = definition.length; idx < idx_finish; ++idx){
       var schema = definitionToSchema(definition[idx]);
@@ -2747,20 +2744,20 @@ function definitionToSchema(definition) {
       
     }
     var maybeTypeFilter = typeFilter$2;
-    return makeSchema(name$2, {
+    return makeSchema(name$3, {
                 TAG: "tuple",
                 items: definition
               }, empty, builder$1, maybeTypeFilter, isTransformed ? (function () {
-                    return makeReverseSchema(name$2, {
+                    return makeReverseSchema(name$3, {
                                 TAG: "tuple",
                                 items: reversedItems
                               }, empty, builder$1, maybeTypeFilter);
                   }) : toSelf);
   }
   var fieldNames = Object.keys(definition);
-  var length$1 = fieldNames.length;
-  var items = new Array(length$1);
-  for(var idx$1 = 0; idx$1 < length$1; ++idx$1){
+  var length = fieldNames.length;
+  var items = [];
+  for(var idx$1 = 0; idx$1 < length; ++idx$1){
     var $$location$1 = fieldNames[idx$1];
     var inlinedLocation$1 = fromString($$location$1);
     var schema$1 = definitionToSchema(definition[$$location$1]);
@@ -2772,7 +2769,7 @@ function definitionToSchema(definition) {
     definition[$$location$1] = item;
     items[idx$1] = item;
   }
-  return makeSchema(name$1, {
+  return makeSchema(name$2, {
               TAG: "object",
               items: items,
               fields: definition,
@@ -2791,6 +2788,135 @@ var ctx = {
 
 function factory$6(definer) {
   return definitionToSchema(definer(ctx));
+}
+
+function typeFilter$9(b, inputVar) {
+  var items = this.t.items;
+  var length = items.length;
+  var code = typeFilter(b, inputVar) + ("||" + inputVar + ".length!==" + length);
+  for(var idx = 0; idx < length; ++idx){
+    var match = items[idx];
+    code = code + "||" + match.schema.f(b, inputVar + ("[" + match.inlinedLocation + "]"));
+  }
+  return code;
+}
+
+function unnest(schema) {
+  var match = schema.t;
+  if (typeof match !== "object") {
+    throw new Error("[rescript-schema] S.unnest supports only object schemas.");
+  }
+  if (match.TAG === "object") {
+    var items = match.items;
+    if (items.length === 0) {
+      throw new Error("[rescript-schema] Invalid empty object for S.unnest schema.");
+    }
+    return makeSchema(name$3, {
+                TAG: "tuple",
+                items: items.map(function (item, idx) {
+                      var $$location = idx.toString();
+                      return {
+                              schema: factory$2(item.schema),
+                              location: $$location,
+                              inlinedLocation: "\"" + $$location + "\""
+                            };
+                    })
+              }, empty, (function (b, input, param, path) {
+                  var inputVar = input.v(b);
+                  var iteratorVar = varWithoutAllocation(b.g);
+                  var bb = {
+                    c: "",
+                    l: "",
+                    a: initialAllocate,
+                    g: b.g
+                  };
+                  var itemInput = make(bb, false);
+                  var lengthCode = "";
+                  for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+                    var item = items[idx];
+                    add(itemInput, item.inlinedLocation, {
+                          b: bb,
+                          v: _notVar,
+                          i: inputVar + "[" + idx + "][" + iteratorVar + "]",
+                          a: false
+                        });
+                    lengthCode = lengthCode + (inputVar + "[" + idx + "].length,");
+                  }
+                  var output = {
+                    b: b,
+                    v: _notVar,
+                    i: "new Array(Math.max(" + lengthCode + "))",
+                    a: false
+                  };
+                  var outputVar = output.v(b);
+                  var itemOutput = withPathPrepend(bb, complete(itemInput, false), path, iteratorVar, (function (b, input, path) {
+                          return schema.b(b, input, schema, path);
+                        }));
+                  var itemCode = allocateScope(bb) + addKey(bb, output, iteratorVar, itemOutput) + ";";
+                  b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + outputVar + ".length;++" + iteratorVar + "){" + itemCode + "}");
+                  if (itemOutput.a) {
+                    return {
+                            b: output.b,
+                            v: _notVar,
+                            i: "Promise.all(" + output.i + ")",
+                            a: true
+                          };
+                  } else {
+                    return output;
+                  }
+                }), typeFilter$9, (function () {
+                  var schema$1 = schema["~r"]();
+                  return makeReverseSchema(name$1, {
+                              TAG: "array",
+                              _0: schema$1
+                            }, empty, (function (b, input, param, path) {
+                                var inputVar = input.v(b);
+                                var iteratorVar = varWithoutAllocation(b.g);
+                                var outputVar = varWithoutAllocation(b.g);
+                                var bb = {
+                                  c: "",
+                                  l: "",
+                                  a: initialAllocate,
+                                  g: b.g
+                                };
+                                var itemInput = {
+                                  b: bb,
+                                  v: _notVar,
+                                  i: inputVar + "[" + iteratorVar + "]",
+                                  a: false
+                                };
+                                var itemOutput = withPathPrepend(bb, itemInput, path, iteratorVar, (function (b, input, path) {
+                                        return parseWithTypeValidation(b, schema$1, input, path);
+                                      }));
+                                var initialArraysCode = "";
+                                var settingCode = "";
+                                for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+                                  var item = items[idx];
+                                  initialArraysCode = initialArraysCode + ("new Array(" + inputVar + ".length),");
+                                  settingCode = settingCode + (outputVar + "[" + idx + "][" + iteratorVar + "]=" + get(b, itemOutput, item.inlinedLocation).i + ";");
+                                }
+                                b.a(outputVar + "=[" + initialArraysCode + "]");
+                                var itemCode = allocateScope(bb) + settingCode;
+                                b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + "}");
+                                if (itemOutput.a) {
+                                  return {
+                                          b: b,
+                                          v: _notVar,
+                                          i: "Promise.all(" + outputVar + ")",
+                                          a: true
+                                        };
+                                } else {
+                                  return {
+                                          b: b,
+                                          v: _var,
+                                          i: outputVar,
+                                          a: false
+                                        };
+                                }
+                              }), typeFilter);
+                }));
+  }
+  throw new Error("[rescript-schema] S.unnest supports only object schemas.");
 }
 
 var $$class = RescriptSchemaError;
@@ -3619,7 +3745,7 @@ var Float = {
 
 var Array_Refinement = {};
 
-var $$Array$1 = {
+var $$Array = {
   Refinement: Array_Refinement,
   refinements: refinements
 };
@@ -3649,6 +3775,7 @@ export {
   json ,
   literal ,
   array ,
+  unnest ,
   list ,
   dict ,
   option ,
@@ -3702,7 +3829,7 @@ export {
   $$String ,
   Int ,
   Float ,
-  $$Array$1 as $$Array,
+  $$Array ,
   Metadata ,
   inline ,
   reverse ,

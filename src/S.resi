@@ -136,6 +136,7 @@ let json: (~validate: bool) => t<Js.Json.t>
 
 let literal: 'value => t<'value>
 let array: t<'value> => t<array<'value>>
+let unnest: t<'value> => t<array<'value>>
 let list: t<'value> => t<list<'value>>
 let dict: t<'value> => t<dict<'value>>
 let option: t<'value> => t<option<'value>>

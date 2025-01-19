@@ -630,10 +630,6 @@ module Builder = {
         val.var(b)
       }
 
-      let push = (b: b, input: val, val: val) => {
-        `${b->var(input)}.push(${val.inline})`
-      }
-
       let addKey = (b: b, input: val, key, val: val) => {
         `${b->var(input)}[${key}]=${val.inline}`
       }
@@ -2062,10 +2058,12 @@ module Array = {
 
   let typeFilter = (_b, ~inputVar) => `!Array.isArray(${inputVar})`
 
+  let name = () => `array<${(%raw(`this`)->classify->unsafeGetVariantPayload).name()}>`
+
   let rec factory = schema => {
     let schema = schema->toUnknown
     makeSchema(
-      ~name=() => `array<${schema.name()}>`,
+      ~name,
       ~metadataMap=Metadata.Map.empty,
       ~tagged=Array(schema),
       ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
@@ -2075,21 +2073,20 @@ module Array = {
         let bb = b->B.scope
         let itemInput = bb->B.val(`${inputVar}[${iteratorVar}]`)
         let itemOutput =
-          bb->B.withPathPrepend(
-            ~input=itemInput,
+          bb->B.withPathPrepend(~input=itemInput, ~path, ~dynamicLocationVar=iteratorVar, (
+            b,
+            ~input,
             ~path,
-            ~dynamicLocationVar=iteratorVar,
-            (b, ~input, ~path) => b->B.parseWithTypeValidation(~schema, ~input, ~path),
-          )
+          ) => b->B.parseWithTypeValidation(~schema, ~input, ~path))
         let itemCode = bb->B.allocateScope
         let isTransformed = itemInput !== itemOutput
-        let output = isTransformed ? b->B.val("[]") : input
+        let output = isTransformed ? b->B.val(`new Array(${inputVar}.length)`) : input
 
         if isTransformed || itemCode !== "" {
           b.code =
             b.code ++
             `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${itemCode}${isTransformed
-                ? b->B.Val.push(output, itemOutput)
+                ? b->B.Val.addKey(output, iteratorVar, itemOutput)
                 : ""}}`
         }
 
@@ -3758,8 +3755,7 @@ module Schema = {
         definition->(Obj.magic: unknown => schema<unknown>)
       } else if definition->Stdlib.Array.isArray {
         let node = definition->(Obj.magic: unknown => array<unknown>)
-        let length = node->Js.Array2.length
-        let reversedItems = Belt.Array.makeUninitializedUnsafe(length)
+        let reversedItems = []
         let isTransformed = ref(false)
         for idx in 0 to node->Js.Array2.length - 1 {
           let schema = node->Js.Array2.unsafe_get(idx)->definitionToSchema
@@ -3814,7 +3810,7 @@ module Schema = {
         let node = definition->(Obj.magic: unknown => dict<unknown>)
         let fieldNames = node->Js.Dict.keys
         let length = fieldNames->Js.Array2.length
-        let items = Belt.Array.makeUninitializedUnsafe(length)
+        let items = []
         for idx in 0 to length - 1 {
           let location = fieldNames->Js.Array2.unsafe_get(idx)
           let inlinedLocation = location->Stdlib.Inlined.Value.fromString
@@ -3863,6 +3859,152 @@ module Schema = {
 let schema = Schema.factory
 
 let js_schema = Schema.definitionToSchema
+
+let unnest = {
+  let typeFilter = (b, ~inputVar) => {
+    let items = (%raw(`this`)->classify->Obj.magic)["items"]
+    let length = items->Js.Array2.length
+    let code = ref(
+      b->Array.typeFilter(~inputVar) ++
+        `||${inputVar}.length!==${length->Stdlib.Int.unsafeToString}`,
+    )
+    for idx in 0 to length - 1 {
+      let {schema, inlinedLocation} = items->Js.Array2.unsafe_get(idx)
+      code :=
+        code.contents ++
+        "||" ++
+        b->(schema.maybeTypeFilter->Stdlib.Option.unsafeUnwrap)(
+          ~inputVar=Path.concat(inputVar, Path.fromInlinedLocation(inlinedLocation)),
+        )
+    }
+    code.contents
+  }
+
+  schema => {
+    let schema = schema->toUnknown
+    switch schema->classify {
+    | Object({items}) =>
+      if items->Js.Array2.length === 0 {
+        InternalError.panic("Invalid empty object for S.unnest schema.")
+      }
+      makeSchema(
+        ~name=Tuple.name,
+        ~metadataMap=Metadata.Map.empty,
+        ~tagged=Tuple({
+          items: items->Js.Array2.mapi((item, idx) => {
+            let location = idx->Js.Int.toString
+            {
+              schema: Array.factory(item.schema),
+              inlinedLocation: `"${location}"`,
+              location,
+            }
+          }),
+        }),
+        ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+          let inputVar = b->B.Val.var(input)
+          let iteratorVar = b.global->B.varWithoutAllocation
+
+          let bb = b->B.scope
+          let itemInput = bb->B.Val.Object.make(~isArray=false)
+          let lengthCode = ref("")
+          for idx in 0 to items->Js.Array2.length - 1 {
+            let item = items->Js.Array2.unsafe_get(idx)
+            itemInput->B.Val.Object.add(
+              item.inlinedLocation,
+              bb->B.val(`${inputVar}[${idx->Stdlib.Int.unsafeToString}][${iteratorVar}]`),
+            )
+            lengthCode :=
+              lengthCode.contents ++ `${inputVar}[${idx->Stdlib.Int.unsafeToString}].length,`
+          }
+
+          let output = b->B.val(`new Array(Math.max(${lengthCode.contents}))`)
+          let outputVar = b->B.Val.var(output)
+
+          let itemOutput = bb->B.withPathPrepend(
+            ~input=itemInput->B.Val.Object.complete(~isArray=false),
+            ~path,
+            ~dynamicLocationVar=iteratorVar,
+            (b, ~input, ~path) => {
+              b->B.parse(~schema, ~input, ~path)
+            },
+          )
+          let itemCode =
+            bb->B.allocateScope ++ bb->B.Val.addKey(output, iteratorVar, itemOutput) ++ ";"
+
+          b.code =
+            b.code ++
+            `for(let ${iteratorVar}=0;${iteratorVar}<${outputVar}.length;++${iteratorVar}){${itemCode}}`
+
+          if itemOutput.isAsync {
+            output.b->B.asyncVal(`Promise.all(${output.inline})`)
+          } else {
+            output
+          }
+        }),
+        ~maybeTypeFilter=Some(typeFilter),
+        ~reverse=() => {
+          let schema = schema.reverse()
+          makeReverseSchema(
+            ~name=Array.name,
+            ~tagged=Array(schema),
+            ~metadataMap=Metadata.Map.empty,
+            ~maybeTypeFilter=Some(Array.typeFilter),
+            ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+              let inputVar = b->B.Val.var(input)
+              let iteratorVar = b.global->B.varWithoutAllocation
+              let outputVar = b.global->B.varWithoutAllocation
+
+              let bb = b->B.scope
+              let itemInput = bb->B.val(`${inputVar}[${iteratorVar}]`)
+              let itemOutput =
+                bb->B.withPathPrepend(
+                  ~input=itemInput,
+                  ~path,
+                  ~dynamicLocationVar=iteratorVar,
+                  (b, ~input, ~path) => b->B.parseWithTypeValidation(~schema, ~input, ~path),
+                )
+
+              let initialArraysCode = ref("")
+              let settingCode = ref("")
+              for idx in 0 to items->Js.Array2.length - 1 {
+                let item = items->Js.Array2.unsafe_get(idx)
+                initialArraysCode := initialArraysCode.contents ++ `new Array(${inputVar}.length),`
+                settingCode :=
+                  settingCode.contents ++
+                  `${outputVar}[${idx->Stdlib.Int.unsafeToString}][${iteratorVar}]=${(
+                      b->B.Val.get(itemOutput, item.inlinedLocation)
+                    ).inline};`
+              }
+              b.allocate(`${outputVar}=[${initialArraysCode.contents}]`)
+              let itemCode = bb->B.allocateScope ++ settingCode.contents
+
+              b.code =
+                b.code ++
+                `for(let ${iteratorVar}=0;${iteratorVar}<${inputVar}.length;++${iteratorVar}){${itemCode}}`
+
+              if itemOutput.isAsync {
+                {
+                  b,
+                  var: B._notVar,
+                  inline: `Promise.all(${outputVar})`,
+                  isAsync: true,
+                }
+              } else {
+                {
+                  b,
+                  var: B._var,
+                  inline: outputVar,
+                  isAsync: false,
+                }
+              }
+            }),
+          )
+        },
+      )
+    | _ => InternalError.panic("S.unnest supports only object schemas.")
+    }
+  }
+}
 
 module Error = {
   type class

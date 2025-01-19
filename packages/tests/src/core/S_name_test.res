@@ -20,6 +20,38 @@ test("Name of Array schema", t => {
   t->Assert.deepEqual(S.array(S.string)->S.name, "array<string>", ())
 })
 
+test("Name of Unnest schema", t => {
+  t->Assert.deepEqual(
+    S.unnest(
+      S.schema(s =>
+        {
+          "foo": s.matches(S.string),
+          "bar": s.matches(S.int),
+        }
+      ),
+    )->S.name,
+    "[array<string>, array<int32>]",
+    (),
+  )
+})
+
+test("Name of reversed Unnest schema", t => {
+  t->Assert.deepEqual(
+    S.unnest(
+      S.schema(s =>
+        {
+          "foo": s.matches(S.string),
+          "bar": s.matches(S.int),
+        }
+      ),
+    )
+    ->S.reverse
+    ->S.name,
+    "array<{ foo: string; bar: int32; }>",
+    (),
+  )
+})
+
 test("Name of Array schema with optional items", t => {
   t->Assert.deepEqual(S.array(S.option(S.string))->S.name, "array<string | undefined>", ())
 })
