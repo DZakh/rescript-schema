@@ -748,7 +748,7 @@ module Builder = {
     }
 
     // TODO: Refactor
-    let withCatch = (b: b, ~input, ~catch, fn) => {
+    let withCatch = (b: b, ~input, ~catch, ~appendSafe=?, fn) => {
       let prevCode = b.code
 
       b.code = ""
@@ -761,11 +761,24 @@ module Builder = {
       let fnOutput = fn(bb)
       b.code = b.code ++ bb->allocateScope
 
-      if fnOutput === input && b.code === "" {
+      let isNoop = fnOutput === input && b.code === ""
+
+      switch appendSafe {
+      | Some(append) => append(b, ~output=fnOutput)
+      | None => ()
+      }
+
+      if isNoop {
         fnOutput
       } else {
         let isAsync = fnOutput.isAsync
-        let output = input === fnOutput ? input : {b, var: _notVar, inline: "", isAsync}
+        let output =
+          input === fnOutput
+            ? input
+            : switch appendSafe {
+              | Some(_) => fnOutput
+              | None => {b, var: _notVar, inline: "", isAsync}
+              }
 
         let catchCode = switch maybeResolveVal {
         | None => _ => `${catchCode}}throw ${errorVar}`
@@ -796,6 +809,7 @@ module Builder = {
       ~input,
       ~path,
       ~dynamicLocationVar as maybeDynamicLocationVar=?,
+      ~appendSafe=?,
       fn,
     ) => {
       if path === Path.empty && maybeDynamicLocationVar === None {
@@ -810,6 +824,7 @@ module Builder = {
               }}${errorVar}.path`
             None
           },
+          ~appendSafe?,
           b => fn(b, ~input, ~path=Path.empty),
         ) catch {
         | _ =>
@@ -3924,12 +3939,14 @@ let unnest = {
             ~input=itemInput->B.Val.Object.complete(~isArray=false),
             ~path,
             ~dynamicLocationVar=iteratorVar,
+            ~appendSafe=(bb, ~output as itemOutput) => {
+              bb.code = bb.code ++ bb->B.Val.addKey(output, iteratorVar, itemOutput) ++ ";"
+            },
             (b, ~input, ~path) => {
               b->B.parse(~schema, ~input, ~path)
             },
           )
-          let itemCode =
-            bb->B.allocateScope ++ bb->B.Val.addKey(output, iteratorVar, itemOutput) ++ ";"
+          let itemCode = bb->B.allocateScope
 
           b.code =
             b.code ++
@@ -3956,27 +3973,29 @@ let unnest = {
 
               let bb = b->B.scope
               let itemInput = bb->B.val(`${inputVar}[${iteratorVar}]`)
-              let itemOutput =
-                bb->B.withPathPrepend(
-                  ~input=itemInput,
-                  ~path,
-                  ~dynamicLocationVar=iteratorVar,
-                  (b, ~input, ~path) => b->B.parseWithTypeValidation(~schema, ~input, ~path),
-                )
-
-              let initialArraysCode = ref("")
-              let settingCode = ref("")
-              for idx in 0 to items->Js.Array2.length - 1 {
-                let item = items->Js.Array2.unsafe_get(idx)
-                initialArraysCode := initialArraysCode.contents ++ `new Array(${inputVar}.length),`
-                settingCode :=
-                  settingCode.contents ++
-                  `${outputVar}[${idx->Stdlib.Int.unsafeToString}][${iteratorVar}]=${(
-                      b->B.Val.get(itemOutput, item.inlinedLocation)
-                    ).inline};`
-              }
-              b.allocate(`${outputVar}=[${initialArraysCode.contents}]`)
-              let itemCode = bb->B.allocateScope ++ settingCode.contents
+              let itemOutput = bb->B.withPathPrepend(
+                ~input=itemInput,
+                ~path,
+                ~dynamicLocationVar=iteratorVar,
+                ~appendSafe=(bb, ~output) => {
+                  let initialArraysCode = ref("")
+                  let settingCode = ref("")
+                  for idx in 0 to items->Js.Array2.length - 1 {
+                    let item = items->Js.Array2.unsafe_get(idx)
+                    initialArraysCode :=
+                      initialArraysCode.contents ++ `new Array(${inputVar}.length),`
+                    settingCode :=
+                      settingCode.contents ++
+                      `${outputVar}[${idx->Stdlib.Int.unsafeToString}][${iteratorVar}]=${(
+                          b->B.Val.get(output, item.inlinedLocation)
+                        ).inline};`
+                  }
+                  b.allocate(`${outputVar}=[${initialArraysCode.contents}]`)
+                  bb.code = bb.code ++ settingCode.contents
+                },
+                (b, ~input, ~path) => b->B.parseWithTypeValidation(~schema, ~input, ~path),
+              )
+              let itemCode = bb->B.allocateScope
 
               b.code =
                 b.code ++

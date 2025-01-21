@@ -373,7 +373,7 @@ function invalidOperation(b, path, description) {
             }, path);
 }
 
-function withCatch(b, input, $$catch, fn) {
+function withCatch(b, input, $$catch, appendSafe, fn) {
   var prevCode = b.c;
   b.c = "";
   var errorVar = varWithoutAllocation(b.g);
@@ -388,16 +388,22 @@ function withCatch(b, input, $$catch, fn) {
   };
   var fnOutput = fn(bb);
   b.c = b.c + allocateScope(bb);
-  if (fnOutput === input && b.c === "") {
+  var isNoop = fnOutput === input && b.c === "";
+  if (appendSafe !== undefined) {
+    appendSafe(b, fnOutput);
+  }
+  if (isNoop) {
     return fnOutput;
   }
   var isAsync = fnOutput.a;
-  var output = input === fnOutput ? input : ({
-        b: b,
-        v: _notVar,
-        i: "",
-        a: isAsync
-      });
+  var output = input === fnOutput ? input : (
+      appendSafe !== undefined ? fnOutput : ({
+            b: b,
+            v: _notVar,
+            i: "",
+            a: isAsync
+          })
+    );
   var catchCode$1 = maybeResolveVal !== undefined ? (function (catchLocation) {
         return catchCode + (
                 catchLocation === 1 ? "return " + maybeResolveVal.i : set(b, output, maybeResolveVal)
@@ -411,7 +417,7 @@ function withCatch(b, input, $$catch, fn) {
   return output;
 }
 
-function withPathPrepend(b, input, path, maybeDynamicLocationVar, fn) {
+function withPathPrepend(b, input, path, maybeDynamicLocationVar, appendSafe, fn) {
   if (path === "" && maybeDynamicLocationVar === undefined) {
     return fn(b, input, path);
   }
@@ -420,7 +426,7 @@ function withPathPrepend(b, input, path, maybeDynamicLocationVar, fn) {
                   b.c = errorVar + ".path=" + fromString(path) + "+" + (
                     maybeDynamicLocationVar !== undefined ? "'[\"'+" + maybeDynamicLocationVar + "+'\"]'+" : ""
                   ) + errorVar + ".path";
-                }), (function (b) {
+                }), appendSafe, (function (b) {
                   return fn(b, input, "");
                 }));
   }
@@ -1000,7 +1006,7 @@ function recursive(fn) {
       var opOutput = initialParseOperationBuilder(bb, input, selfSchema, "");
       var opBodyCode = allocateScope(bb) + ("return " + opOutput.i);
       b.c = b.c + ("let " + r + "=" + inputVar + "=>{" + opBodyCode + "};");
-      return withPathPrepend(b, input, path, undefined, (function (b, input, param) {
+      return withPathPrepend(b, input, path, undefined, undefined, (function (b, input, param) {
                     return transform(b, input, (function (_b, input) {
                                   var output = map(r, input);
                                   if (opOutput.a) {
@@ -1037,7 +1043,7 @@ function recursive(fn) {
               var opOutput = initialReversed.b(bb, initialInput, selfSchema, "");
               var opBodyCode = allocateScope(bb) + ("return " + opOutput.i);
               b.c = b.c + ("let " + r + "=" + inputVar + "=>{" + opBodyCode + "};");
-              return withPathPrepend(b, input, path, undefined, (function (_b, input, param) {
+              return withPathPrepend(b, input, path, undefined, undefined, (function (_b, input, param) {
                             return map(r, input);
                           }));
             }), initialReversed.f);
@@ -1368,7 +1374,7 @@ function factory$2(schema) {
                   i: inputVar + "[" + iteratorVar + "]",
                   a: false
                 };
-                var itemOutput = withPathPrepend(bb, itemInput, path, iteratorVar, (function (b, input, path) {
+                var itemOutput = withPathPrepend(bb, itemInput, path, iteratorVar, undefined, (function (b, input, path) {
                         return parseWithTypeValidation(b, schema, input, path);
                       }));
                 var itemCode = allocateScope(bb);
@@ -1540,7 +1546,7 @@ function factory$3(schema) {
                   i: inputVar + "[" + keyVar + "]",
                   a: false
                 };
-                var itemOutput = withPathPrepend(bb, itemInput, path, keyVar, (function (b, input, path) {
+                var itemOutput = withPathPrepend(bb, itemInput, path, keyVar, undefined, (function (b, input, path) {
                         return parseWithTypeValidation(b, schema, input, path);
                       }));
                 var itemCode = allocateScope(bb);
@@ -1947,7 +1953,7 @@ function $$catch(schema, getFallbackValue) {
                                             })) + "(" + inputVar + "," + errorVar + ")",
                                       a: false
                                     };
-                            }), (function (b) {
+                            }), undefined, (function (b) {
                               return parseWithTypeValidation(b, schema, input, path);
                             }));
               }), schema.t.TAG === "literal" ? passingTypeFilter : undefined, (function () {
@@ -2212,42 +2218,6 @@ function builder$1(parentB, input, selfSchema, path) {
   }
 }
 
-function reverse$1() {
-  var items = this.t.items;
-  var reversedFields = {};
-  var reversedItems = [];
-  var isTransformed = false;
-  for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-    var match = items[idx];
-    var $$location = match.location;
-    var schema = match.schema;
-    var reversed = schema["~r"]();
-    var item_inlinedLocation = match.inlinedLocation;
-    var item = {
-      schema: reversed,
-      location: $$location,
-      inlinedLocation: item_inlinedLocation
-    };
-    reversedFields[$$location] = item;
-    reversedItems.push(item);
-    if (schema !== reversed) {
-      isTransformed = true;
-    }
-    
-  }
-  if (isTransformed) {
-    return makeReverseSchema(name$2, {
-                TAG: "object",
-                items: reversedItems,
-                fields: reversedFields,
-                unknownKeys: globalConfig.u,
-                advanced: false
-              }, empty, builder$1, typeFilter$1);
-  } else {
-    return this;
-  }
-}
-
 function nested(fieldName) {
   var parentCtx = this;
   var cacheId = "~" + fieldName;
@@ -2334,6 +2304,42 @@ function nested(fieldName) {
   };
   parentCtx[cacheId] = ctx$1;
   return ctx$1;
+}
+
+function reverse$1() {
+  var items = this.t.items;
+  var reversedFields = {};
+  var reversedItems = [];
+  var isTransformed = false;
+  for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+    var match = items[idx];
+    var $$location = match.location;
+    var schema = match.schema;
+    var reversed = schema["~r"]();
+    var item_inlinedLocation = match.inlinedLocation;
+    var item = {
+      schema: reversed,
+      location: $$location,
+      inlinedLocation: item_inlinedLocation
+    };
+    reversedFields[$$location] = item;
+    reversedItems.push(item);
+    if (schema !== reversed) {
+      isTransformed = true;
+    }
+    
+  }
+  if (isTransformed) {
+    return makeReverseSchema(name$2, {
+                TAG: "object",
+                items: reversedItems,
+                fields: reversedFields,
+                unknownKeys: globalConfig.u,
+                advanced: false
+              }, empty, builder$1, typeFilter$1);
+  } else {
+    return this;
+  }
 }
 
 function advancedReverse(definition, to, flattened) {
@@ -2849,10 +2855,12 @@ function unnest(schema) {
                     a: false
                   };
                   var outputVar = output.v(b);
-                  var itemOutput = withPathPrepend(bb, complete(itemInput, false), path, iteratorVar, (function (b, input, path) {
+                  var itemOutput = withPathPrepend(bb, complete(itemInput, false), path, iteratorVar, (function (bb, itemOutput) {
+                          bb.c = bb.c + addKey(bb, output, iteratorVar, itemOutput) + ";";
+                        }), (function (b, input, path) {
                           return schema.b(b, input, schema, path);
                         }));
-                  var itemCode = allocateScope(bb) + addKey(bb, output, iteratorVar, itemOutput) + ";";
+                  var itemCode = allocateScope(bb);
                   b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + outputVar + ".length;++" + iteratorVar + "){" + itemCode + "}");
                   if (itemOutput.a) {
                     return {
@@ -2885,18 +2893,20 @@ function unnest(schema) {
                                   i: inputVar + "[" + iteratorVar + "]",
                                   a: false
                                 };
-                                var itemOutput = withPathPrepend(bb, itemInput, path, iteratorVar, (function (b, input, path) {
+                                var itemOutput = withPathPrepend(bb, itemInput, path, iteratorVar, (function (bb, output) {
+                                        var initialArraysCode = "";
+                                        var settingCode = "";
+                                        for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
+                                          var item = items[idx];
+                                          initialArraysCode = initialArraysCode + ("new Array(" + inputVar + ".length),");
+                                          settingCode = settingCode + (outputVar + "[" + idx + "][" + iteratorVar + "]=" + get(b, output, item.inlinedLocation).i + ";");
+                                        }
+                                        b.a(outputVar + "=[" + initialArraysCode + "]");
+                                        bb.c = bb.c + settingCode;
+                                      }), (function (b, input, path) {
                                         return parseWithTypeValidation(b, schema$1, input, path);
                                       }));
-                                var initialArraysCode = "";
-                                var settingCode = "";
-                                for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
-                                  var item = items[idx];
-                                  initialArraysCode = initialArraysCode + ("new Array(" + inputVar + ".length),");
-                                  settingCode = settingCode + (outputVar + "[" + idx + "][" + iteratorVar + "]=" + get(b, itemOutput, item.inlinedLocation).i + ";");
-                                }
-                                b.a(outputVar + "=[" + initialArraysCode + "]");
-                                var itemCode = allocateScope(bb) + settingCode;
+                                var itemCode = allocateScope(bb);
                                 b.c = b.c + ("for(let " + iteratorVar + "=0;" + iteratorVar + "<" + inputVar + ".length;++" + iteratorVar + "){" + itemCode + "}");
                                 if (itemOutput.a) {
                                   return {
