@@ -414,6 +414,66 @@ S.arrayMinLength(S.array(S.string) 5); // Array must be 5 or more items long
 S.arrayLength(S.array(S.string) 5); // Array must be exactly 5 items long
 ```
 
+### Unnest
+
+```ts
+const schema = S.unnest(
+  S.schema({
+    id: S.string,
+    name: S.nullable(S.string),
+    deleted: S.boolean,
+  })
+);
+
+const value = S.reverseConvertOrThrow(
+  [
+    { id: "0", name: "Hello", deleted: false },
+    { id: "1", name: undefined, deleted: true },
+  ],
+  schema
+);
+// [["0", "1"], ["Hello", null], [false, true]]
+```
+
+The helper function is inspired by the article [Boosting Postgres INSERT Performance by 2x With UNNEST](https://www.timescale.com/blog/boosting-postgres-insert-performance). It allows you to flatten a nested array of objects into arrays of values by field.
+
+The main concern of the approach described in the article is usability. And ReScript Schema completely solves the problem, providing a simple and intuitive API that is even more performant than `S.array`.
+
+<details>
+
+<summary>
+Checkout the compiled code yourself:
+</summary>
+
+```javascript
+(i) => {
+  let v1 = [new Array(i.length), new Array(i.length), new Array(i.length)];
+  for (let v0 = 0; v0 < i.length; ++v0) {
+    let v3 = i[v0];
+    try {
+      let v4 = v3["name"],
+        v5;
+      if (v4 !== void 0) {
+        v5 = v4;
+      } else {
+        v5 = null;
+      }
+      v1[0][v0] = v3["id"];
+      v1[1][v0] = v5;
+      v1[2][v0] = v3["deleted"];
+    } catch (v2) {
+      if (v2 && v2.s === s) {
+        v2.path = "" + "[\"'+v0+'\"]" + v2.path;
+      }
+      throw v2;
+    }
+  }
+  return v1;
+};
+```
+
+</details>
+
 ## Tuples
 
 Unlike arrays, tuples have a fixed number of elements and each element can have a different type.

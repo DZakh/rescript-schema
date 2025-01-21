@@ -39,6 +39,7 @@
     - [Enums](#enums)
   - [`array`](#array)
   - [`list`](#list)
+  - [`unnest`](#unnest)
   - [`tuple`](#tuple)
   - [`tuple1` - `tuple3`](#tuple1---tuple3)
   - [`dict`](#dict)
@@ -891,6 +892,60 @@ let schema = S.list(S.string)
 ```
 
 The `S.list` schema represents an array of data of a specific type which is transformed to ReScript's list data-structure.
+
+### **`unnest`**
+
+`S.t<'value> => S.t<array<'value>>`
+
+```rescript
+let schema = S.unnest(S.schema(s => {
+  id: s.matches(S.string),
+  name: s.matches(S.null(S.string)),
+  deleted: s.matches(S.bool),
+}))
+
+[{id: "0", name: Some("Hello"), deleted: false}, {id: "1", name: None, deleted: true}]->S.reverseConvertOrThrow(schema)
+// [["0", "1"], ["Hello", null], [false, true]]
+```
+
+The helper function is inspired by the article [Boosting Postgres INSERT Performance by 2x With UNNEST](https://www.timescale.com/blog/boosting-postgres-insert-performance). It allows you to flatten a nested array of objects into arrays of values by field.
+
+The main concern of the approach described in the article is usability. And ReScript Schema completely solves the problem, providing a simple and intuitive API that is even more performant than `S.array`.
+
+<details>
+
+<summary>
+Checkout the compiled code yourself:
+</summary>
+
+```javascript
+(i) => {
+  let v1 = [new Array(i.length), new Array(i.length), new Array(i.length)];
+  for (let v0 = 0; v0 < i.length; ++v0) {
+    let v3 = i[v0];
+    try {
+      let v4 = v3["name"],
+        v5;
+      if (v4 !== void 0) {
+        v5 = v4;
+      } else {
+        v5 = null;
+      }
+      v1[0][v0] = v3["id"];
+      v1[1][v0] = v5;
+      v1[2][v0] = v3["deleted"];
+    } catch (v2) {
+      if (v2 && v2.s === s) {
+        v2.path = "" + "[\"'+v0+'\"]" + v2.path;
+      }
+      throw v2;
+    }
+  }
+  return v1;
+};
+```
+
+</details>
 
 ### **`tuple`**
 

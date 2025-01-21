@@ -42,6 +42,21 @@ test("Successfully parses and reverse converts a simple object with unnest", t =
     %raw(`[["a", "b"], [0, 1]]`),
     (),
   )
+
+  let example = S.unnest(
+    S.schema(s =>
+      {
+        "id": s.matches(S.string),
+        "name": s.matches(S.null(S.string)),
+        "deleted": s.matches(S.bool),
+      }
+    ),
+  )
+  t->U.assertCompiledCode(
+    ~schema=example,
+    ~op=#ReverseConvert,
+    `i=>{let v1=[new Array(i.length),new Array(i.length),new Array(i.length),];for(let v0=0;v0<i.length;++v0){let v3=i[v0];try{let v4=v3["name"],v5;if(v4!==void 0){v5=v4}else{v5=null}v1[0][v0]=v3["id"];v1[1][v0]=v5;v1[2][v0]=v3["deleted"];}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}}return v1}`,
+  )
 })
 
 test("Transforms nullable fields", t => {

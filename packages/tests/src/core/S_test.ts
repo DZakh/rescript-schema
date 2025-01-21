@@ -1708,6 +1708,44 @@ test("Tuple types", (t) => {
   t.pass();
 });
 
+test("Unnest schema", (t) => {
+  const schema = S.unnest(
+    S.schema({
+      id: S.string,
+      name: S.nullable(S.string),
+      deleted: S.boolean,
+    })
+  );
+
+  const value = S.reverseConvertOrThrow(
+    [
+      { id: "0", name: "Hello", deleted: false },
+      { id: "1", name: undefined, deleted: true },
+    ],
+    schema
+  );
+
+  let expected: typeof value = [
+    ["0", "1"],
+    ["Hello", null],
+    [false, true],
+  ];
+
+  t.deepEqual(value, expected);
+
+  expectType<
+    SchemaEqual<
+      typeof schema,
+      {
+        id: string;
+        name: string | undefined;
+        deleted: boolean;
+      }[],
+      (string[] | boolean[] | (string | null)[])[]
+    >
+  >(true);
+});
+
 test("Tuple with transform to object", (t) => {
   let pointSchema = S.tuple((s) => {
     s.tag(0, "point");

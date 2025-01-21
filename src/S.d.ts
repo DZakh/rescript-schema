@@ -204,6 +204,15 @@ export const array: <Output, Input>(
   schema: Schema<Output, Input>
 ) => Schema<Output[], Input[]>;
 
+export const unnest: <Output, Input extends Record<string, unknown>>(
+  schema: Schema<Output, Input>
+) => Schema<
+  Output[],
+  {
+    [K in keyof Input]: Input[K][];
+  }[keyof Input][]
+>;
+
 export const record: <Output, Input>(
   schema: Schema<Output, Input>
 ) => Schema<Record<string, Output>, Record<string, Input>>;

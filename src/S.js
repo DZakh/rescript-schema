@@ -14,6 +14,7 @@ export const optional = S.js_optional;
 export const nullable = S.$$null;
 export const nullish = S.nullable;
 export const array = S.array;
+export const unnest = S.unnest;
 export const record = S.dict;
 export const jsonString = S.jsonString;
 export const union = S.js_union;
