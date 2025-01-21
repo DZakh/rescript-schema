@@ -458,7 +458,7 @@ test("Union with nested variant", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v5=i;if(!i||i.constructor!==Object){e[3](i)}else{try{let v0=i["foo"];let v1=v0["tag"];let v2=v1["NAME"],v3=v1["VAL"],v4;if(v2!=="Null"){e[0](v2)}if(v3!==void 0){v4=v3}else{v4=null}v5={"foo":{"tag":{"NAME":v2,"VAL":v4,},},}}catch(e0){try{let v6=i["foo"];let v7=v6["tag"];let v8=v7["NAME"];if(v8!=="Option"){e[1](v8)}}catch(e1){e[2]([e0,e1,])}}}return v5}`,
+    `i=>{let v5=i;if(!i||i.constructor!==Object){e[3](i)}else{try{let v0=i["foo"];let v1=v0["tag"];let v2=v1["NAME"],v3=v1["VAL"],v4;if(v2!=="Null"){e[0](v2)}if(v3!==void 0){v4=v3}else{v4=null}v5={"foo":{"tag":{"NAME":v2,"VAL":v4,},},}}catch(e0){try{let v6=i["foo"];let v7=v6["tag"];let v8=v7["NAME"];if(v8!=="Option"){e[1](v8)}v5=i}catch(e1){e[2]([e0,e1,])}}}return v5}`,
   )
 })
 
@@ -765,7 +765,7 @@ test("Issue https://github.com/DZakh/rescript-schema/issues/101", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v5=i;if(!i||i.constructor!==Object||i["NAME"]!=="request"){if(!i||i.constructor!==Object||i["NAME"]!=="response"){e[3](i)}else{let v2=i["NAME"],v3=i["VAL"];if(v2!=="response"){e[1](v2)}let v4=v3["response"];if(v4!=="accepted"){if(v4!=="rejected"){e[2](v4)}}v5={"NAME":v2,"VAL":{"collectionName":v3["collectionName"],"response":v4,},}}}else{let v0=i["NAME"],v1=i["VAL"];if(v0!=="request"){e[0](v0)}}return v5}`,
+    `i=>{let v2=i;if(!i||i.constructor!==Object||i["NAME"]!=="request"){if(!i||i.constructor!==Object||i["NAME"]!=="response"){e[3](i)}else{let v3=i["NAME"],v4=i["VAL"];if(v3!=="response"){e[1](v3)}let v5=v4["response"];if(v5!=="accepted"){if(v5!=="rejected"){e[2](v5)}}v2={"NAME":v3,"VAL":{"collectionName":v4["collectionName"],"response":v5,},}}}else{let v0=i["NAME"],v1=i["VAL"];if(v0!=="request"){e[0](v0)}v2=i}return v2}`,
   )
   t->U.assertCompiledCode(
     ~schema,

@@ -26,6 +26,42 @@ test("Has correct tagged type", t => {
 
 test("Can flatten S.schema", t => {
   let schema = S.object(s => {
+    {
+      "baz": s.flatten(
+        S.schema(
+          s =>
+            {
+              "bar": s.matches(S.string),
+            },
+        ),
+      ),
+      "foo": s.field("foo", S.string),
+    }
+  })
+
+  t->U.unsafeAssertEqualSchemas(
+    schema,
+    S.object(s =>
+      {
+        "bar": s.field("bar", S.string),
+        "foo": s.field("foo", S.string),
+      }
+    ),
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#Parse,
+    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["bar"],v1=i["foo"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"baz":{"bar":v0,},"foo":v1,}}`,
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    `i=>{let v0=i["baz"];return {"bar":v0["bar"],"foo":i["foo"],}}`,
+  )
+})
+
+test("Can flatten & destructure S.schema", t => {
+  let schema = S.object(s => {
     let flattened = s.flatten(S.schema(s => {"bar": s.matches(S.string)}))
     {
       "bar": flattened["bar"],
@@ -46,6 +82,11 @@ test("Can flatten S.schema", t => {
     ~schema,
     ~op=#Parse,
     `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["bar"],v1=i["foo"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"bar":v0,"foo":v1,}}`,
+  )
+  t->U.assertCompiledCode(
+    ~schema,
+    ~op=#ReverseConvert,
+    `i=>{return {"bar":i["bar"],"foo":i["foo"],}}`,
   )
 })
 

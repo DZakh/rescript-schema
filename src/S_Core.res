@@ -761,7 +761,7 @@ module Builder = {
       let fnOutput = fn(bb)
       b.code = b.code ++ bb->allocateScope
 
-      let isNoop = fnOutput === input && b.code === ""
+      let isNoop = fnOutput.inline === input.inline && b.code === ""
 
       switch appendSafe {
       | Some(append) => append(b, ~output=fnOutput)
@@ -3175,7 +3175,10 @@ module Schema = {
         (unknownKeys !== Strip || b.global.flag->Flag.unsafeHas(Flag.reverse)) &&
           selfSchema === selfSchema.reverse()
       ) {
-        input
+        objectVal.var = input.var
+        objectVal.inline = input.inline
+        objectVal.isAsync = input.isAsync
+        (objectVal :> val)
       } else {
         objectVal->B.Val.Object.complete(~isArray)
       }
@@ -3440,6 +3443,7 @@ module Schema = {
               )
             }
           }
+
           for idx in 0 to items->Js.Array2.length - 1 {
             let item: item = items->Js.Array2.unsafe_get(idx)
 

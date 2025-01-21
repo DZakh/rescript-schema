@@ -388,7 +388,7 @@ function withCatch(b, input, $$catch, appendSafe, fn) {
   };
   var fnOutput = fn(bb);
   b.c = b.c + allocateScope(bb);
-  var isNoop = fnOutput === input && b.c === "";
+  var isNoop = fnOutput.i === input.i && b.c === "";
   if (appendSafe !== undefined) {
     appendSafe(b, fnOutput);
   }
@@ -2212,7 +2212,10 @@ function builder$1(parentB, input, selfSchema, path) {
   objectStrictModeCheck(b, input, items, unknownKeys, path);
   parentB.c = parentB.c + allocateScope(b);
   if ((unknownKeys !== "Strip" || b.g.o & 32) && selfSchema === selfSchema["~r"]()) {
-    return input;
+    objectVal$1.v = input.v;
+    objectVal$1.i = input.i;
+    objectVal$1.a = input.a;
+    return objectVal$1;
   } else {
     return complete(objectVal$1, isArray);
   }

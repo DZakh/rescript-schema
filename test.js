@@ -1,20 +1,29 @@
 (i) => {
-  let v0 = i["tags"],
-    v3 = i["rating"];
-  if (v3 !== "G") {
-    if (v3 !== "PG") {
-      if (v3 !== "PG13") {
-        if (v3 !== "R") {
-          e[0](v3);
+  let v3 = i;
+  if (!i || i.constructor !== Object || i["NAME"] !== "request") {
+    if (!i || i.constructor !== Object || i["NAME"] !== "response") {
+      e[3](i);
+    } else {
+      if (v0 !== "response") {
+        e[1](v0);
+      }
+      let v2 = v1["response"];
+      if (v2 !== "accepted") {
+        if (v2 !== "rejected") {
+          e[2](v2);
         }
       }
+      v3 = {
+        NAME: v0,
+        VAL: { collectionName: v1["collectionName"], response: v2 },
+      };
+    }
+  } else {
+    let v0 = i["NAME"],
+      v1 = i["VAL"];
+    if (v0 !== "request") {
+      e[0](v0);
     }
   }
-  return {
-    Id: i["id"],
-    Title: i["title"],
-    Tags: v0,
-    Rating: v3,
-    Age: i["deprecatedAgeRestriction"],
-  };
+  return v3;
 };
