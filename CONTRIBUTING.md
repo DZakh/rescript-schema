@@ -123,6 +123,23 @@ LoginSchema.parse({ email: "", password: "" });
 LoginSchema.parse({ email: "jane@example.com", password: "12345678" });
 ```
 
+ArkType
+
+```ts
+import { type } from "arktype@2.0.4";
+
+const loginSchema = type({
+  email: "string.email",
+  password: "string > 7",
+});
+
+loginSchema({ email: "", password: "" });
+
+loginSchema({ email: "jane@example.com", password: "12345678" });
+```
+
+https://bundlejs.com/?q=arktype%402.0.4&treeshake=%5B*%5D&text=%22const+loginSchema+%3D+type%28%7B%5Cn++email%3A+%5C%22string.email%5C%22%2C%5Cn++password%3A+%5C%22string+%3E+7%5C%22%2C%5Cn%7D%29%3B%5Cn%5CnloginSchema%28%7B+email%3A+%5C%22%5C%22%2C+password%3A+%5C%22%5C%22+%7D%29%3B%5Cn%5CnloginSchema%28%7B+email%3A+%5C%22jane%40example.com%5C%22%2C+password%3A+%5C%2212345678%5C%22+%7D%29%3B%22
+
 ## License
 
 By contributing your code to the rescript-schema GitHub repository, you agree to license your contribution under the MIT license.
