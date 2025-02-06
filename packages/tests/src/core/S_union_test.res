@@ -372,7 +372,7 @@ module Advanced = {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
       ~op=#Parse,
-      `i=>{let v1=i;if(!i||i.constructor!==Object||i["kind"]!=="circle"){if(!i||i.constructor!==Object||i["kind"]!=="square"){if(!i||i.constructor!==Object||i["kind"]!=="triangle"){e[7](i)}else{let v3=i["x"],v4=i["y"];if(typeof v3!=="number"||Number.isNaN(v3)){e[4](v3)}if(typeof v4!=="number"||Number.isNaN(v4)){e[5](v4)}v1={"TAG":e[6],"x":v3,"y":v4,}}}else{let v2=i["x"];if(typeof v2!=="number"||Number.isNaN(v2)){e[2](v2)}v1={"TAG":e[3],"x":v2,}}}else{let v0=i["radius"];if(typeof v0!=="number"||Number.isNaN(v0)){e[0](v0)}v1={"TAG":e[1],"radius":v0,}}return v1}`,
+      `i=>{let v1=i;if(typeof i!=="object"||!i||i["kind"]!=="circle"){if(typeof i!=="object"||!i||i["kind"]!=="square"){if(typeof i!=="object"||!i||i["kind"]!=="triangle"){e[7](i)}else{let v3=i["x"],v4=i["y"];if(typeof v3!=="number"||Number.isNaN(v3)){e[4](v3)}if(typeof v4!=="number"||Number.isNaN(v4)){e[5](v4)}v1={"TAG":e[6],"x":v3,"y":v4,}}}else{let v2=i["x"];if(typeof v2!=="number"||Number.isNaN(v2)){e[2](v2)}v1={"TAG":e[3],"x":v2,}}}else{let v0=i["radius"];if(typeof v0!=="number"||Number.isNaN(v0)){e[0](v0)}v1={"TAG":e[1],"radius":v0,}}return v1}`,
     )
   })
 
@@ -380,7 +380,7 @@ module Advanced = {
     t->U.assertCompiledCode(
       ~schema=shapeSchema,
       ~op=#ReverseConvert,
-      `i=>{let v1=i;if(!i||i.constructor!==Object||i["TAG"]!=="Circle"){if(!i||i.constructor!==Object||i["TAG"]!=="Square"){if(!i||i.constructor!==Object||i["TAG"]!=="Triangle"){e[6](i)}else{let v3=i["TAG"];if(v3!=="Triangle"){e[4](v3)}v1={"kind":e[5],"x":i["x"],"y":i["y"],}}}else{let v2=i["TAG"];if(v2!=="Square"){e[2](v2)}v1={"kind":e[3],"x":i["x"],}}}else{let v0=i["TAG"];if(v0!=="Circle"){e[0](v0)}v1={"kind":e[1],"radius":i["radius"],}}return v1}`,
+      `i=>{let v1=i;if(typeof i!=="object"||!i||i["TAG"]!=="Circle"){if(typeof i!=="object"||!i||i["TAG"]!=="Square"){if(typeof i!=="object"||!i||i["TAG"]!=="Triangle"){e[6](i)}else{let v3=i["TAG"];if(v3!=="Triangle"){e[4](v3)}v1={"kind":e[5],"x":i["x"],"y":i["y"],}}}else{let v2=i["TAG"];if(v2!=="Square"){e[2](v2)}v1={"kind":e[3],"x":i["x"],}}}else{let v0=i["TAG"];if(v0!=="Circle"){e[0](v0)}v1={"kind":e[1],"radius":i["radius"],}}return v1}`,
     )
   })
 }
@@ -458,7 +458,7 @@ test("Union with nested variant", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v5=i;if(!i||i.constructor!==Object){e[3](i)}else{try{let v0=i["foo"];let v1=v0["tag"];let v2=v1["NAME"],v3=v1["VAL"],v4;if(v2!=="Null"){e[0](v2)}if(v3!==void 0){v4=v3}else{v4=null}v5={"foo":{"tag":{"NAME":v2,"VAL":v4,},},}}catch(e0){try{let v6=i["foo"];let v7=v6["tag"];let v8=v7["NAME"];if(v8!=="Option"){e[1](v8)}v5=i}catch(e1){e[2]([e0,e1,])}}}return v5}`,
+    `i=>{let v5=i;if(typeof i!=="object"||!i){e[3](i)}else{try{let v0=i["foo"];let v1=v0["tag"];let v2=v1["NAME"],v3=v1["VAL"],v4;if(v2!=="Null"){e[0](v2)}if(v3!==void 0){v4=v3}else{v4=null}v5={"foo":{"tag":{"NAME":v2,"VAL":v4,},},}}catch(e0){try{let v6=i["foo"];let v7=v6["tag"];let v8=v7["NAME"];if(v8!=="Option"){e[1](v8)}v5=i}catch(e1){e[2]([e0,e1,])}}}return v5}`,
   )
 })
 
@@ -528,7 +528,7 @@ module CknittelBugReport = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#ReverseConvert,
-      `i=>{let v3=i;if(!i||i.constructor!==Object||i["TAG"]!=="A"){if(!i||i.constructor!==Object||i["TAG"]!=="B"){e[2](i)}else{let v4=i["TAG"],v5=i["_0"];if(v4!=="B"){e[1](v4)}let v6=v5["payload"];v3=v5}}else{let v0=i["TAG"],v1=i["_0"];if(v0!=="A"){e[0](v0)}let v2=v1["payload"];v3=v1}return v3}`,
+      `i=>{let v3=i;if(typeof i!=="object"||!i||i["TAG"]!=="A"){if(typeof i!=="object"||!i||i["TAG"]!=="B"){e[2](i)}else{let v4=i["TAG"],v5=i["_0"];if(v4!=="B"){e[1](v4)}let v6=v5["payload"];v3=v5}}else{let v0=i["TAG"],v1=i["_0"];if(v0!=="A"){e[0](v0)}let v2=v1["payload"];v3=v1}return v3}`,
     )
 
     let x = {
@@ -567,7 +567,7 @@ module CknittelBugReport2 = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[5](i)}let v0=i["test"],v4;if(v0!==void 0){let v2=v0;if(!v0||v0.constructor!==Object||v0["type"]!=="a"){if(!v0||v0.constructor!==Object||v0["type"]!=="b"){e[4](v0)}else{let v3=v0["y"];if(typeof v3!=="string"){e[2](v3)}v2={"TAG":e[3],"_0":{"y":v3,},}}}else{let v1=v0["x"];if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[0](v1)}v2={"TAG":e[1],"_0":{"x":v1,},}}v4=v2}return {"test":v4,}}`,
+      `i=>{if(typeof i!=="object"||!i){e[5](i)}let v0=i["test"],v4;if(v0!==void 0){let v2=v0;if(typeof v0!=="object"||!v0||v0["type"]!=="a"){if(typeof v0!=="object"||!v0||v0["type"]!=="b"){e[4](v0)}else{let v3=v0["y"];if(typeof v3!=="string"){e[2](v3)}v2={"TAG":e[3],"_0":{"y":v3,},}}}else{let v1=v0["x"];if(typeof v1!=="number"||v1>2147483647||v1<-2147483648||v1%1!==0){e[0](v1)}v2={"TAG":e[1],"_0":{"x":v1,},}}v4=v2}return {"test":v4,}}`,
     )
 
     t->Assert.deepEqual(S.parseJsonStringOrThrow("{}", schema), {test: None}, ())
@@ -594,7 +594,7 @@ module CknittelBugReport2 = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{let v3=i;if(!i||i.constructor!==Object){e[10](i)}else{try{let v0=i["statusCode"];if(!v0||v0.constructor!==Object||v0["kind"]!=="ok"||false){e[0](v0)}let v1=v0["text"];try{if(v1!==""){e[2](v1)}}catch(v2){if(v2&&v2.s===s){v1=e[1](v1,v2)}else{throw v2}}v3={"TAG":e[3],"_0":e[4],}}catch(e0){try{let v4=i["statusCode"];if(!v4||v4.constructor!==Object||v4["kind"]!=="serviceError"){e[5](v4)}let v5=v4["serviceCode"],v6=v4["text"];if(typeof v5!=="string"){e[6](v5)}if(typeof v6!=="string"){e[7](v6)}v3={"TAG":e[8],"_0":{"serviceCode":v5,"text":v6,},}}catch(e1){e[9]([e0,e1,])}}}return v3}`,
+      `i=>{let v3=i;if(typeof i!=="object"||!i){e[10](i)}else{try{let v0=i["statusCode"];if(typeof v0!=="object"||!v0||v0["kind"]!=="ok"||false){e[0](v0)}let v1=v0["text"];try{if(v1!==""){e[2](v1)}}catch(v2){if(v2&&v2.s===s){v1=e[1](v1,v2)}else{throw v2}}v3={"TAG":e[3],"_0":e[4],}}catch(e0){try{let v4=i["statusCode"];if(typeof v4!=="object"||!v4||v4["kind"]!=="serviceError"){e[5](v4)}let v5=v4["serviceCode"],v6=v4["text"];if(typeof v5!=="string"){e[6](v5)}if(typeof v6!=="string"){e[7](v6)}v3={"TAG":e[8],"_0":{"serviceCode":v5,"text":v6,},}}catch(e1){e[9]([e0,e1,])}}}return v3}`,
     )
 
     t->Assert.deepEqual(
@@ -677,13 +677,13 @@ module CrazyUnion = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{let r0=i=>{let v5=i;if(!i||i.constructor!==Object||i["type"]!=="A"){if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){if(!i||i.constructor!==Object||i["type"]!=="Z"){e[4](i)}else{let v6=i["nested"],v10=new Array(v6.length);if(!Array.isArray(v6)){e[2](v6)}for(let v7=0;v7<v6.length;++v7){let v9;try{v9=r0(v6[v7])}catch(v8){if(v8&&v8.s===s){v8.path="[\\"nested\\"]"+\'["\'+v7+\'"]\'+v8.path}throw v8}v10[v7]=v9}v5={"TAG":e[3],"_0":v10,}}}}}}}}}}}}}}}}}}}}}}}}}}}else{let v0=i["nested"],v4=new Array(v0.length);if(!Array.isArray(v0)){e[0](v0)}for(let v1=0;v1<v0.length;++v1){let v3;try{v3=r0(v0[v1])}catch(v2){if(v2&&v2.s===s){v2.path="[\\"nested\\"]"+\'["\'+v1+\'"]\'+v2.path}throw v2}v4[v1]=v3}v5={"TAG":e[1],"_0":v4,}}return v5};return r0(i)}`,
+      `i=>{let r0=i=>{let v5=i;if(typeof i!=="object"||!i||i["type"]!=="A"){if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){if(typeof i!=="object"||!i||i["type"]!=="Z"){e[4](i)}else{let v6=i["nested"],v10=new Array(v6.length);if(!Array.isArray(v6)){e[2](v6)}for(let v7=0;v7<v6.length;++v7){let v9;try{v9=r0(v6[v7])}catch(v8){if(v8&&v8.s===s){v8.path="[\\"nested\\"]"+\'["\'+v7+\'"]\'+v8.path}throw v8}v10[v7]=v9}v5={"TAG":e[3],"_0":v10,}}}}}}}}}}}}}}}}}}}}}}}}}}}else{let v0=i["nested"],v4=new Array(v0.length);if(!Array.isArray(v0)){e[0](v0)}for(let v1=0;v1<v0.length;++v1){let v3;try{v3=r0(v0[v1])}catch(v2){if(v2&&v2.s===s){v2.path="[\\"nested\\"]"+\'["\'+v1+\'"]\'+v2.path}throw v2}v4[v1]=v3}v5={"TAG":e[1],"_0":v4,}}return v5};return r0(i)}`,
     )
   })
 
   test("Compiled serialize code snapshot of crazy union", t => {
     S.setGlobalConfig({})
-    let code = `i=>{let r0=i=>{let v6=i;if(!i||i.constructor!==Object||i["TAG"]!=="A"){if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){if(!i||i.constructor!==Object||i["TAG"]!=="Z"){e[4](i)}else{let v7=i["TAG"],v8=i["_0"],v12=new Array(v8.length);if(v7!=="Z"){e[2](v7)}for(let v9=0;v9<v8.length;++v9){let v11;try{v11=r0(v8[v9])}catch(v10){if(v10&&v10.s===s){v10.path="[\\"_0\\"]"+\'["\'+v9+\'"]\'+v10.path}throw v10}v12[v9]=v11}v6={"type":e[3],"nested":v12,}}}}}}}}}}}}}}}}}}}}}}}}}}}else{let v0=i["TAG"],v1=i["_0"],v5=new Array(v1.length);if(v0!=="A"){e[0](v0)}for(let v2=0;v2<v1.length;++v2){let v4;try{v4=r0(v1[v2])}catch(v3){if(v3&&v3.s===s){v3.path="[\\"_0\\"]"+\'["\'+v2+\'"]\'+v3.path}throw v3}v5[v2]=v4}v6={"type":e[1],"nested":v5,}}return v6};return r0(i)}`
+    let code = `i=>{let r0=i=>{let v6=i;if(typeof i!=="object"||!i||i["TAG"]!=="A"){if(i!=="B"){if(i!=="C"){if(i!=="D"){if(i!=="E"){if(i!=="F"){if(i!=="G"){if(i!=="H"){if(i!=="I"){if(i!=="J"){if(i!=="K"){if(i!=="L"){if(i!=="M"){if(i!=="N"){if(i!=="O"){if(i!=="P"){if(i!=="Q"){if(i!=="R"){if(i!=="S"){if(i!=="T"){if(i!=="U"){if(i!=="V"){if(i!=="W"){if(i!=="X"){if(i!=="Y"){if(typeof i!=="object"||!i||i["TAG"]!=="Z"){e[4](i)}else{let v7=i["TAG"],v8=i["_0"],v12=new Array(v8.length);if(v7!=="Z"){e[2](v7)}for(let v9=0;v9<v8.length;++v9){let v11;try{v11=r0(v8[v9])}catch(v10){if(v10&&v10.s===s){v10.path="[\\"_0\\"]"+\'["\'+v9+\'"]\'+v10.path}throw v10}v12[v9]=v11}v6={"type":e[3],"nested":v12,}}}}}}}}}}}}}}}}}}}}}}}}}}}else{let v0=i["TAG"],v1=i["_0"],v5=new Array(v1.length);if(v0!=="A"){e[0](v0)}for(let v2=0;v2<v1.length;++v2){let v4;try{v4=r0(v1[v2])}catch(v3){if(v3&&v3.s===s){v3.path="[\\"_0\\"]"+\'["\'+v2+\'"]\'+v3.path}throw v3}v5[v2]=v4}v6={"type":e[1],"nested":v5,}}return v6};return r0(i)}`
     t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
     // There was an issue with reverse when it doesn't return the same code on second run
     t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, code)
@@ -765,12 +765,12 @@ test("Issue https://github.com/DZakh/rescript-schema/issues/101", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseConvert,
-    `i=>{let v2=i;if(!i||i.constructor!==Object||i["NAME"]!=="request"){if(!i||i.constructor!==Object||i["NAME"]!=="response"){e[3](i)}else{let v3=i["NAME"],v4=i["VAL"];if(v3!=="response"){e[1](v3)}let v5=v4["response"];if(v5!=="accepted"){if(v5!=="rejected"){e[2](v5)}}v2={"NAME":v3,"VAL":{"collectionName":v4["collectionName"],"response":v5,},}}}else{let v0=i["NAME"],v1=i["VAL"];if(v0!=="request"){e[0](v0)}v2=i}return v2}`,
+    `i=>{let v2=i;if(typeof i!=="object"||!i||i["NAME"]!=="request"){if(typeof i!=="object"||!i||i["NAME"]!=="response"){e[3](i)}else{let v3=i["NAME"],v4=i["VAL"];if(v3!=="response"){e[1](v3)}let v5=v4["response"];if(v5!=="accepted"){if(v5!=="rejected"){e[2](v5)}}v2={"NAME":v3,"VAL":{"collectionName":v4["collectionName"],"response":v5,},}}}else{let v0=i["NAME"],v1=i["VAL"];if(v0!=="request"){e[0](v0)}v2=i}return v2}`,
   )
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{let v2=i;if(!i||i.constructor!==Object||i["NAME"]!=="request"){if(!i||i.constructor!==Object||i["NAME"]!=="response"){e[5](i)}else{let v3=i["VAL"];if(!v3||v3.constructor!==Object){e[2](v3)}let v4=v3["collectionName"],v5=v3["response"];if(typeof v4!=="string"){e[3](v4)}if(v5!=="accepted"){if(v5!=="rejected"){e[4](v5)}}v2={"NAME":i["NAME"],"VAL":{"collectionName":v4,"response":v5,},}}}else{let v0=i["VAL"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["collectionName"];if(typeof v1!=="string"){e[1](v1)}v2={"NAME":i["NAME"],"VAL":{"collectionName":v1,},}}return v2}`,
+    `i=>{let v2=i;if(typeof i!=="object"||!i||i["NAME"]!=="request"){if(typeof i!=="object"||!i||i["NAME"]!=="response"){e[5](i)}else{let v3=i["VAL"];if(typeof v3!=="object"||!v3){e[2](v3)}let v4=v3["collectionName"],v5=v3["response"];if(typeof v4!=="string"){e[3](v4)}if(v5!=="accepted"){if(v5!=="rejected"){e[4](v5)}}v2={"NAME":i["NAME"],"VAL":{"collectionName":v4,"response":v5,},}}}else{let v0=i["VAL"];if(typeof v0!=="object"||!v0){e[0](v0)}let v1=v0["collectionName"];if(typeof v1!=="string"){e[1](v1)}v2={"NAME":i["NAME"],"VAL":{"collectionName":v1,},}}return v2}`,
   )
 
   t->Assert.deepEqual(

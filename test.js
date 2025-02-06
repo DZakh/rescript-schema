@@ -1,7 +1,7 @@
 (i) => {
   let v3 = i;
-  if (!i || i.constructor !== Object || i["NAME"] !== "request") {
-    if (!i || i.constructor !== Object || i["NAME"] !== "response") {
+  if (typeof i !== "object" || !i || i["NAME"] !== "request") {
+    if (typeof i !== "object" || !i || i["NAME"] !== "response") {
       e[3](i);
     } else {
       if (v0 !== "response") {

@@ -28,7 +28,7 @@ test("Successfully parses and reverse converts a simple object with unnest", t =
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ReverseParse,
-    `i=>{if(!Array.isArray(i)){e[3](i)}let v1=[new Array(i.length),new Array(i.length),];for(let v0=0;v0<i.length;++v0){let v3=i[v0];try{if(!v3||v3.constructor!==Object){e[0](v3)}let v4=v3["foo"],v5=v3["bar"];if(typeof v4!=="string"){e[1](v4)}if(typeof v5!=="number"||v5>2147483647||v5<-2147483648||v5%1!==0){e[2](v5)}v1[0][v0]=v4;v1[1][v0]=v5;}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}}return v1}`,
+    `i=>{if(!Array.isArray(i)){e[3](i)}let v1=[new Array(i.length),new Array(i.length),];for(let v0=0;v0<i.length;++v0){let v3=i[v0];try{if(typeof v3!=="object"||!v3){e[0](v3)}let v4=v3["foo"],v5=v3["bar"];if(typeof v4!=="string"){e[1](v4)}if(typeof v5!=="number"||v5>2147483647||v5<-2147483648||v5%1!==0){e[2](v5)}v1[0][v0]=v4;v1[1][v0]=v5;}catch(v2){if(v2&&v2.s===s){v2.path=""+\'["\'+v0+\'"]\'+v2.path}throw v2}}return v1}`,
   )
 
   t->Assert.deepEqual(

@@ -113,7 +113,7 @@ test(
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[1](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return v0}`,
+      `i=>{if(typeof i!=="object"||!i){e[1](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return v0}`,
     )
   },
 )
@@ -139,7 +139,7 @@ test(
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(!v0||v0.constructor!==Object){e[0](v0)}let v1=v0["bar"];if(typeof v1!=="string"){e[1](v1)}return v1}`,
+      `i=>{if(typeof i!=="object"||!i){e[2](i)}let v0=i["foo"];if(typeof v0!=="object"||!v0){e[0](v0)}let v1=v0["bar"];if(typeof v1!=="string"){e[1](v1)}return v1}`,
     )
   },
 )
@@ -164,7 +164,7 @@ test(
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v1;let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}v1=e[1]({"foo":v0,});return v1["faz"]}`,
+      `i=>{if(typeof i!=="object"||!i){e[2](i)}let v1;let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}v1=e[1]({"foo":v0,});return v1["faz"]}`,
     )
     t->Assert.deepEqual(
       {
@@ -255,7 +255,7 @@ test("Can destructure object value passed to S.to", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
+    `i=>{if(typeof i!=="object"||!i){e[2](i)}let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="string"){e[1](v1)}return {"foo":v0,"bar":v1,}}`,
   )
   // FIXME: Can be improved
   t->U.assertCompiledCode(
@@ -271,7 +271,7 @@ test("Compiled code snapshot of variant applied to object", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"TAG":e[1],"_0":v0,}}`,
+    `i=>{if(typeof i!=="object"||!i){e[2](i)}let v0=i["foo"];if(typeof v0!=="string"){e[0](v0)}return {"TAG":e[1],"_0":v0,}}`,
   )
   t->U.assertCompiledCode(
     ~schema,

@@ -106,7 +106,7 @@ test("Strict object with embeded returns input without object recreation", t => 
 
   t->Assert.is(
     schema->U.getCompiledCodeString(~op=#Parse),
-    `i=>{if(!i||i.constructor!==Object||i["foo"]!=="bar"){e[2](i)}let v0=i["zoo"],v1;if(typeof v0!=="number"||v0>2147483647||v0<-2147483648||v0%1!==0){e[0](v0)}for(v1 in i){if(v1!=="foo"&&v1!=="zoo"){e[1](v1)}}return i}`,
+    `i=>{if(typeof i!=="object"||!i||Array.isArray(i)||i["foo"]!=="bar"){e[2](i)}let v0=i["zoo"],v1;if(typeof v0!=="number"||v0>2147483647||v0<-2147483648||v0%1!==0){e[0](v0)}for(v1 in i){if(v1!=="foo"&&v1!=="zoo"){e[1](v1)}}return i}`,
     (),
   )
   t->Assert.is(
@@ -246,3 +246,29 @@ test("Example", t => {
     S.tuple(s => (s.item(0, S.literal(#id)), s.item(1, S.string))),
   )
 })
+
+test(
+  "Strict schema should also check that object is not Array. Otherwise it will incorrectly return array input",
+  t => {
+    let schema = S.schema(s =>
+      {
+        "0": s.matches(S.string),
+        "1": s.matches(S.bool),
+      }
+    )
+
+    t->Assert.deepEqual(%raw(`["foo", true]`)->S.parseOrThrow(schema), {"0": "foo", "1": true}, ())
+
+    t->U.assertRaised(
+      () => %raw(`["foo", true]`)->S.parseOrThrow(schema->S.strict),
+      {
+        code: InvalidType({
+          expected: schema->S.strict->S.toUnknown,
+          received: %raw(`["foo", true]`),
+        }),
+        operation: Parse,
+        path: S.Path.empty,
+      },
+    )
+  },
+)

@@ -20,11 +20,17 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v9.1
 
-- Add s.strict s.strip to ppx
-- Add S.test
+- [x] Update object type validation
+- [ ] Support standard schema
+- [ ] Make rescript an optional peer dependency
 
 ## v10
 
+- Rename S.to to S.reshape
+- Change S.classify to something like S.input/S.output
+- Add refinement info to the tagged type
+- Add S.string->S.coerce(S.int) to coerce string to int and other types
+- Add S.codegen
 - Add schema input to the error ??? What about build errors?
 - Remove Literal.parse in favor of S.literal and make it create Object/Tuple schema instead of Literal(Object)
 - S.transform(s => {
@@ -39,7 +45,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 ## v???
 
-- Add S.string->S.coerce(S.int) to coerce string to int and other types
 - Rename S.inline to S.toRescriptCode + Codegen type + Codegen schema using type
 - Make `error.reason` tree-shakeable
 - S.toJSON/S.castToJson ???
