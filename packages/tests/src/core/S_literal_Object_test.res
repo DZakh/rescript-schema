@@ -94,20 +94,10 @@ module Common = {
     )
   })
 
-  test("Fails to parse non plain objects", t => {
+  test("Can parse non plain objects", t => {
     let schema = factory()
 
-    t->U.assertRaised(
-      () => makeNotPlainValue()->S.parseOrThrow(schema),
-      {
-        code: InvalidType({
-          expected: S.literal(Dict.fromArray([("foo", "bar")]))->S.toUnknown,
-          received: makeNotPlainValue()->U.castAnyToUnknown,
-        }),
-        operation: Parse,
-        path: S.Path.empty,
-      },
-    )
+    t->Assert.deepEqual(makeNotPlainValue()->S.parseOrThrow(schema), makeNotPlainValue(), ())
   })
 
   test("Compiled parse code snapshot", t => {
@@ -116,7 +106,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==1||i["foo"]!=="bar")){e[1](i)}return i}`,
+      `i=>{if(i!==e[0]&&(typeof i!=="object"||!i||Object.keys(i).length!==1||i["foo"]!=="bar")){e[1](i)}return i}`,
     )
   })
 
@@ -126,7 +116,7 @@ module Common = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#ReverseConvert,
-      `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==1||i["foo"]!=="bar")){e[1](i)}return i}`,
+      `i=>{if(i!==e[0]&&(typeof i!=="object"||!i||Object.keys(i).length!==1||i["foo"]!=="bar")){e[1](i)}return i}`,
     )
   })
 
@@ -196,7 +186,7 @@ module EmptyDict = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==0)){e[1](i)}return i}`,
+      `i=>{if(i!==e[0]&&(typeof i!=="object"||!i||Object.keys(i).length!==0)){e[1](i)}return i}`,
     )
   })
 
@@ -206,7 +196,7 @@ module EmptyDict = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#ReverseConvert,
-      `i=>{if(i!==e[0]&&(!i||i.constructor!==Object||Object.keys(i).length!==0)){e[1](i)}return i}`,
+      `i=>{if(i!==e[0]&&(typeof i!=="object"||!i||Object.keys(i).length!==0)){e[1](i)}return i}`,
     )
   })
 

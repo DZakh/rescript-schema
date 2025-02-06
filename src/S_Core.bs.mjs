@@ -603,7 +603,7 @@ function dictFilterBuilder(b, inputVar, literal) {
   var items = literal.i;
   var fields = Object.keys(items);
   var numberOfFields = fields.length;
-  return inputVar + "!==" + embed(b, value) + "&&(!" + inputVar + "||" + inputVar + ".constructor!==Object||Object.keys(" + inputVar + ").length!==" + numberOfFields + (
+  return inputVar + "!==" + embed(b, value) + "&&(typeof " + inputVar + "!==\"object\"||!" + inputVar + "||Object.keys(" + inputVar + ").length!==" + numberOfFields + (
           numberOfFields > 0 ? "||" + fields.map(function (field) {
                     var literal = items[field];
                     return literal.f(b, inputVar + "[" + fromString(field) + "]", literal);
@@ -1404,8 +1404,10 @@ function factory$2(schema) {
 }
 
 function typeFilter$1(b, inputVar) {
-  var code = "!" + inputVar + "||" + inputVar + ".constructor!==Object";
   var tagged = this.t;
+  var code = "typeof " + inputVar + "!==\"object\"||!" + inputVar + (
+    tagged.unknownKeys === "Strict" ? "||Array.isArray(" + inputVar + ")" : ""
+  );
   var items = tagged.items;
   for(var idx = 0 ,idx_finish = items.length; idx < idx_finish; ++idx){
     var match = items[idx];
@@ -1522,7 +1524,7 @@ function typeFilter$2(b, inputVar) {
 }
 
 function typeFilter$3(_b, inputVar) {
-  return "!" + inputVar + "||" + inputVar + ".constructor!==Object";
+  return "typeof " + inputVar + "!==\"object\"||!" + inputVar;
 }
 
 function factory$3(schema) {

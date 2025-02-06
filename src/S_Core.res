@@ -1137,7 +1137,7 @@ module Literal = {
 
     `${inputVar}!==${b->B.embed(
         value,
-      )}&&(!${inputVar}||${inputVar}.constructor!==Object||Object.keys(${inputVar}).length!==${numberOfFields->Stdlib.Int.unsafeToString}` ++
+      )}&&(typeof ${inputVar}!=="object"||!${inputVar}||Object.keys(${inputVar}).length!==${numberOfFields->Stdlib.Int.unsafeToString}` ++
     (numberOfFields > 0
       ? "||" ++
         fields
@@ -2127,8 +2127,12 @@ module Object = {
   }
 
   let typeFilter = (b, ~inputVar) => {
-    let code = ref(`!${inputVar}||${inputVar}.constructor!==Object`)
     let tagged = %raw(`this`)->classify->Obj.magic
+    let code = ref(
+      `typeof ${inputVar}!=="object"||!${inputVar}` ++ (
+        tagged["unknownKeys"] === Strict ? `||Array.isArray(${inputVar})` : ""
+      ),
+    )
     let items = tagged["items"]
     for idx in 0 to items->Js.Array2.length - 1 {
       let {schema, inlinedLocation} = items->Js.Array2.unsafe_get(idx)
@@ -2251,7 +2255,7 @@ module Tuple = {
 }
 
 module Dict = {
-  let typeFilter = (_b, ~inputVar) => `!${inputVar}||${inputVar}.constructor!==Object`
+  let typeFilter = (_b, ~inputVar) => `typeof ${inputVar}!=="object"||!${inputVar}`
 
   let rec factory = schema => {
     let schema = schema->toUnknown

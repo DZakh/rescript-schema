@@ -169,7 +169,7 @@ Compiled parser code
 
 ```javascript
 (i) => {
-  if (!i || i.constructor !== Object) {
+  if (typeof i !== "object" || !i) {
     e[7](i);
   }
   let v0 = i["Id"],
@@ -1508,7 +1508,7 @@ let schema = S.object(s => s.field("abc", S.int))->S.removeTypeValidation
 
 {
   "abc": 123,
-}->S.parseOrThrow(schema) // This doesn't have `if (!i || i.constructor !== Object) {` check. But field types are still validated.
+}->S.parseOrThrow(schema) // This doesn't have `if (typeof i !== "object" || !i) {` check. But field types are still validated.
 // 123
 ```
 

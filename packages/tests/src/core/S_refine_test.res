@@ -82,7 +82,7 @@ test("Compiled parse code snapshot for simple object with refine", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{if(!i||i.constructor!==Object){e[3](i)}let v2;let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}v2={"foo":v0,"bar":v1,};e[2](v2);return v2}`,
+    `i=>{if(typeof i!=="object"||!i){e[3](i)}let v2;let v0=i["foo"],v1=i["bar"];if(typeof v0!=="string"){e[0](v0)}if(typeof v1!=="boolean"){e[1](v1)}v2={"foo":v0,"bar":v1,};e[2](v2);return v2}`,
   )
 })
 
@@ -112,7 +112,7 @@ module Issue79 = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Parse,
-      `i=>{if(!i||i.constructor!==Object){e[2](i)}let v0=i["myField"],v2;if(v0!==void 0&&(v0!==null&&(typeof v0!=="string"))){e[0](v0)}if(v0!==void 0){let v1;if(v0!==null){v1=v0}else{v1=void 0}v2=v1}e[1](v2);return v2}`,
+      `i=>{if(typeof i!=="object"||!i){e[2](i)}let v0=i["myField"],v2;if(v0!==void 0&&(v0!==null&&(typeof v0!=="string"))){e[0](v0)}if(v0!==void 0){let v1;if(v0!==null){v1=v0}else{v1=void 0}v2=v1}e[1](v2);return v2}`,
     )
 
     t->Assert.deepEqual(jsonString->S.parseJsonStringOrThrow(schema), Some("test"), ())
