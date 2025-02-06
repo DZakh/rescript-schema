@@ -51,12 +51,12 @@ Besides the individual bundle size, the overall size of the library is also sign
 
 At the same time **rescript-schema** is the fastest composable validation library in the entire JavaScript ecosystem. This is achieved because of the JIT approach when an ultra optimized validator is created using `eval`.
 
-|                                          | rescript-schema@9.0.0 | Zod@3.24.1      | Valibot@0.42.1 |
-| ---------------------------------------- | --------------------- | --------------- | -------------- |
-| **Total size** (minified + gzipped)      | 11 kB                 | 14.8 kB         | 10.5 kB        |
-| **Example size** (minified + gzipped)    | 4.45 kB               | 13.5 kB         | 1.22 kB        |
-| **Parse with the same schema**           | 100,070 ops/ms        | 1,277 ops/ms    | 3,881 ops/ms   |
-| **Create schema & parse once**           | 179 ops/ms            | 112 ops/ms      | 2,521 ops/ms   |
-| **Eval-free**                            | ❌                    | ✅              | ✅             |
-| **Codegen-free** (Doesn't need compiler) | ✅                    | ✅              | ✅             |
-| **Ecosystem**                            | ⭐️⭐️                | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️⭐️      |
+|                                          | rescript-schema@9.1.0 | Zod@3.24.1      | Valibot@0.42.1 | ArkType@2.0.4 |
+| ---------------------------------------- | --------------------- | --------------- | -------------- | ------------- |
+| **Total size** (minified + gzipped)      | 11 kB                 | 14.8 kB         | 10.5 kB        | 40.8 kB       |
+| **Example size** (minified + gzipped)    | 4.45 kB               | 13.5 kB         | 1.22 kB        | 40.7 kB       |
+| **Parse with the same schema**           | 93,491 ops/ms         | 1,191 ops/ms    | 3,540 ops/ms   | 84,772 ops/ms |
+| **Create schema & parse once**           | 166 ops/ms            | 93 ops/ms       | 2,302 ops/ms   | 13 ops/ms     |
+| **Eval-free**                            | ❌                    | ✅              | ✅             | ❓            |
+| **Codegen-free** (Doesn't need compiler) | ✅                    | ✅              | ✅             | ✅            |
+| **Ecosystem**                            | ⭐️⭐️                | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️⭐️      | ⭐️⭐️        |

@@ -2,6 +2,7 @@ import B from "benchmark";
 import { z } from "zod";
 import * as V from "valibot";
 import * as S from "rescript-schema/src/S.js";
+import { type } from "arktype";
 
 const data = Object.freeze({
   number: 1,
@@ -15,6 +16,20 @@ const data = Object.freeze({
     foo: "bar",
     num: 1,
     bool: false,
+  },
+});
+
+const arkType = type({
+  number: "number",
+  negNumber: "number",
+  maxNumber: "number",
+  string: "string",
+  longString: "string",
+  boolean: "boolean",
+  deeplyNested: {
+    foo: "string",
+    num: "number",
+    bool: "boolean",
   },
 });
 
@@ -136,7 +151,6 @@ new B.Suite()
     });
     return zodSchema.parse(data);
   })
-
   .add("Valibot (create)", () => {
     return V.object({
       number: V.number(),
@@ -171,7 +185,40 @@ new B.Suite()
     });
     return V.parse(valibotSchema, data);
   })
-
+  .add("ArkType (create)", () => {
+    return type({
+      number: "number",
+      negNumber: "number",
+      maxNumber: "number",
+      string: "string",
+      longString: "string",
+      boolean: "boolean",
+      deeplyNested: {
+        foo: "string",
+        num: "number",
+        bool: "boolean",
+      },
+    });
+  })
+  .add("ArkType (parse)", () => {
+    return arkType(data);
+  })
+  .add("ArkType (create + parse)", () => {
+    const arkType = type({
+      number: "number",
+      negNumber: "number",
+      maxNumber: "number",
+      string: "string",
+      longString: "string",
+      boolean: "boolean",
+      deeplyNested: {
+        foo: "string",
+        num: "number",
+        bool: "boolean",
+      },
+    });
+    return arkType(data);
+  })
   .on("cycle", (event) => {
     console.log(String(event.target));
   })
