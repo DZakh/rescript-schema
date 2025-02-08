@@ -42,6 +42,7 @@ export const deepStrict = S.deepStrict;
 export const strip = S.strip;
 export const deepStrip = S.deepStrip;
 export const custom = S.js_custom;
+export const standard = S.standard;
 export const tuple = S.tuple;
 export const asyncParserRefine = S.js_asyncParserRefine;
 export const refine = S.js_refine;

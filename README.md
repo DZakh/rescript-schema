@@ -13,21 +13,24 @@ Highlights:
 - Works with plain JavaScript, TypeScript, and ReScript. You don't need to use any compiler.
 - The **fastest** parsing and validation library in the entire JavaScript ecosystem ([benchmark](https://moltar.github.io/typescript-runtime-type-benchmarks/))
 - Small JS footprint & tree-shakable API ([Comparison with Zod and Valibot](#comparison))
-- Describe transformations in a schema without a performance loss
+- Implements the [Standard Schema](https://standardschema.dev/) spec
+- Declarative transformations in a schema without a performance loss
 - Reverse schema and convert values to the initial format (serializing)
 - Detailed and easy to understand error messages
 - Support for asynchronous transformations
 - Immutable API with 100+ different operation combinations
 - Easy to create _recursive_ schema
 - Opt-in strict mode for object schema to prevent unknown fields with ability to change it for the whole project
-- Opt-in ReScript PPX to generate schema from type definition
+- Opt-in ReScript Schema codegen from type definition (ppx)
 
-Also, it has declarative API allowing you to use **rescript-schema** as a building block for other tools, such as:
+Also, you can use **rescript-schema** as a building block for your tools. And there are many existing ones:
 
 - [rescript-rest](https://github.com/DZakh/rescript-rest) - RPC-like client, contract, and server implementation for a pure REST API
 - [rescript-envsafe](https://github.com/DZakh/rescript-envsafe) - Makes sure you don't accidentally deploy apps with missing or invalid environment variables
 - [rescript-json-schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
+- [rescript-stripe](https://github.com/enviodev/rescript-stripe) - Describe and manage Stripe billing in a declarative way with code
 - Internal form library at [Carla](https://www.carla.se/)
+- [tRPC](https://trpc.io/), [TanStack Form](https://tanstack.com/form), [TanStack Router](https://tanstack.com/router), [Hono](https://hono.dev/) and 15+ more using [Standard Schema](https://standardschema.dev/) spec
 
 ## Documentation
 
@@ -36,7 +39,7 @@ Also, it has declarative API allowing you to use **rescript-schema** as a buildi
 - [For PPX users](/packages/rescript-schema-ppx/README.md)
 - [For library maintainers](/docs/integration-guide.md)
 
-## Content
+## Resources
 
 - Building and consuming REST API in ReScript with rescript-rest and Fastify ([YouTube](https://youtu.be/37FY6a-zY20?si=72zT8Gecs5vmDPlD))
 - ReScript Schema V9 Changes Overview ([Dev.to](https://dev.to/dzakh/rescript-schema-v9-zod-like-library-to-the-next-level-1dn6))

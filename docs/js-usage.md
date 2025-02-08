@@ -41,6 +41,7 @@
   - [Built-in operations](#built-in-operations)
   - [`compile`](#compile)
   - [`reverse`](#reverse)
+  - [`standard`](#standard)
   - [`name`](#name)
   - [`setName`](#setname)
 - [Error handling](#error-handling)
@@ -827,6 +828,15 @@ S.parseOrThrow(123, reversed);
 ```
 
 Reverses the schema. This gets especially magical for schemas with transformations 🪄
+
+### **`standard`**
+
+```ts
+S.standard(S.string);
+// Returns StandardSchemaV1<string>
+```
+
+Converts ReScript Schema into [Standard Schema](https://standardschema.dev/). You can use it to integrate with 20+ other libraries. Checkout the [Standard Schema](https://standardschema.dev/) to learn more. 👀
 
 ### **`name`**
 
