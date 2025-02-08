@@ -53,10 +53,10 @@
 ## Install
 
 ```sh
-npm install rescript-schema rescript@11
+npm install rescript-schema
 ```
 
-> 🧠 Even though `rescript` is a peer dependency, you don't need to use the compiler. It's only needed for a few lightweight runtime helpers.
+> 🧠 You don't need to install [ReScript](https://rescript-lang.org/) compiler for the library to work.
 
 ## Basic usage
 
