@@ -1,4 +1,4 @@
-import * as S from "./S_Core.bs.mjs";
+import * as S from "./S_Core.res.mjs";
 
 export const Error = S.$$Error.$$class;
 export const string = S.string;

@@ -2,7 +2,7 @@
 
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as Caml_exceptions from "rescript/lib/es6/caml_exceptions.js";
-import * as S$RescriptSchema from "rescript-schema/src/S.bs.mjs";
+import * as S$RescriptSchema from "rescript-schema/src/S.res.mjs";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
 function unsafeGetVariantPayload(variant) {

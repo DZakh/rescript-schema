@@ -11,7 +11,7 @@
     "module": "esmodule",
     "in-source": true
   },
-  "suffix": ".bs.mjs",
+  "suffix": ".res.mjs",
   "bs-dependencies": ["rescript-schema"],
   "bs-dev-dependencies": ["@rescript/core", "@dzakh/rescript-ava"],
   "ppx-flags": ["../rescript-schema-ppx/bin"],

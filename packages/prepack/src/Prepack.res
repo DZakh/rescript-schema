@@ -153,7 +153,7 @@ let output: array<Rollup.OutputOptions.t> = [
     plugins: [
       Rollup.ReplacePlugin.make({
         values: Dict.fromArray([
-          (`S_Core.bs.mjs`, `../src/S_Core.bs.js`),
+          (`S_Core.res.mjs`, `../src/S_Core.res.js`),
           (`rescript/lib/es6`, `rescript/lib/js`),
         ]),
       }),
@@ -165,7 +165,7 @@ let output: array<Rollup.OutputOptions.t> = [
     exports: #named,
     plugins: [
       Rollup.ReplacePlugin.make({
-        values: Dict.fromArray([(`S_Core.bs.mjs`, `../src/S_Core.bs.mjs`)]),
+        values: Dict.fromArray([(`S_Core.res.mjs`, `../src/S_Core.res.mjs`)]),
       }),
     ],
   },
@@ -176,7 +176,7 @@ for idx in 0 to output->Array.length - 1 {
 }
 await bundle->Rollup.Bundle.close
 
-// Clean up rescript artifacts so the compiled .bs.js files aren't removed on the .bs.mjs build
+// Clean up rescript artifacts so the compiled .res.js files aren't removed on the .res.mjs build
 FsX.rmSync(NodeJs.Path.join2(artifactsPath, "lib"), {force: true, recursive: true})
 updateJsonFile(
   ~src=NodeJs.Path.join2(artifactsPath, "rescript.json"),
@@ -186,7 +186,7 @@ updateJsonFile(
 updateJsonFile(
   ~src=NodeJs.Path.join2(artifactsPath, "rescript.json"),
   ~path=["suffix"],
-  ~value=JSON.Encode.string(".bs.js"),
+  ~value=JSON.Encode.string(".res.js"),
 )
 let _ = Execa.sync("npm", ["run", "res:build"], ~options={cwd: artifactsPath}, ())
 

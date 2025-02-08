@@ -3,7 +3,7 @@
 /* eslint-disable */
 /* tslint:disable */
 
-import * as GenTypeJS from './GenType.bs.mjs';
+import * as GenTypeJS from './GenType.res.mjs';
 
 import type {S_error as RescriptSchema_S_error} from 'rescript-schema/RescriptSchema.gen';
 

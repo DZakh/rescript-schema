@@ -1,6 +1,6 @@
 {
   "name": "prepack",
-  "suffix": ".bs.mjs",
+  "suffix": ".res.mjs",
   "package-specs": {
     "module": "esmodule",
     "in-source": true
