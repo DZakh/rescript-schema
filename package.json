@@ -35,21 +35,21 @@
   "files": [
     "dist",
     "src/S_Core.res",
-    "src/S_Core.bs.js",
-    "src/S_Core.bs.mjs",
+    "src/S_Core.res.js",
+    "src/S_Core.res.mjs",
     "src/S.res",
     "src/S.resi",
-    "src/S.bs.js",
-    "src/S.bs.mjs",
+    "src/S.res.js",
+    "src/S.res.mjs",
     "src/S.d.ts",
     "RescriptSchema.gen.d.ts",
     "rescript.json"
   ],
   "scripts": {
-    "benchmark": "node ./packages/tests/src/benchmark/Benchmark.bs.mjs",
+    "benchmark": "node ./packages/tests/src/benchmark/Benchmark.res.mjs",
     "benchmark:comparison": "node ./packages/tests/src/benchmark/comparison.js",
     "coverage": "c8 --reporter=lcov npm test",
-    "build": "node ./packages/prepack/src/Prepack.bs.mjs",
+    "build": "node ./packages/prepack/src/Prepack.res.mjs",
     "ppx:install": "node ./packages/rescript-schema-ppx/install.cjs",
     "res": "rescript -w",
     "res:build": "rescript build",
@@ -63,7 +63,7 @@
       "mjs": true
     },
     "files": [
-      "packages/tests/src/**/*_test.bs.mjs",
+      "packages/tests/src/**/*_test.res.mjs",
       "packages/tests/src/**/*_test.ts"
     ],
     "nodeArguments": [
