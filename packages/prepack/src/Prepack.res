@@ -189,10 +189,8 @@ let filesMapping = [
 NodeJs.Fs.writeFileSyncWith(
   "./src/S.mjs",
   ["import * as S from \"./S_Core.res.mjs\";"]
-  ->Js.Array2.concat(
-    filesMapping->Js.Array2.map(((name, value)) => `export const ${name} = ${value}`),
-  )
-  ->Js.Array2.joinWith("\n")
+  ->Array.concat(filesMapping->Array.map(((name, value)) => `export const ${name} = ${value}`))
+  ->Array.join("\n")
   ->NodeJs.Buffer.fromString,
   {
     encoding: "utf8",
@@ -202,8 +200,8 @@ NodeJs.Fs.writeFileSyncWith(
 NodeJs.Fs.writeFileSyncWith(
   "./src/S.js",
   ["var S = require(\"./S_Core.res.mjs\");"]
-  ->Js.Array2.concat(filesMapping->Js.Array2.map(((name, value)) => `exports.${name} = ${value}`))
-  ->Js.Array2.joinWith("\n")
+  ->Array.concat(filesMapping->Array.map(((name, value)) => `exports.${name} = ${value}`))
+  ->Array.join("\n")
   ->NodeJs.Buffer.fromString,
   {
     encoding: "utf8",
