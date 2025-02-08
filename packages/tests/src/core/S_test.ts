@@ -1,3 +1,4 @@
+import { StandardSchemaV1 } from "./../../../../src/S.d";
 import test, { ExecutionContext } from "ava";
 import { expectType, TypeEqual } from "ts-expect";
 
@@ -1706,6 +1707,35 @@ test("Tuple types", (t) => {
   >(true);
 
   t.pass();
+});
+
+test("Standard schema", (t) => {
+  const schema = S.standard(S.nullable(S.string));
+
+  t.deepEqual(schema["~standard"]["vendor"], "rescript-schema");
+  t.deepEqual(schema["~standard"]["version"], 1);
+  t.deepEqual(schema["~standard"]["validate"](undefined), {
+    issues: [
+      {
+        message:
+          "Failed parsing at root. Reason: Expected string | null, received undefined",
+        path: undefined,
+      },
+    ],
+  });
+  t.deepEqual(schema["~standard"]["validate"]("foo"), {
+    value: "foo",
+  });
+  t.deepEqual(schema["~standard"]["validate"](null), {
+    value: undefined,
+  });
+
+  expectType<
+    TypeEqual<StandardSchemaV1.InferInput<typeof schema>, string | null>
+  >(true);
+  expectType<
+    TypeEqual<StandardSchemaV1.InferOutput<typeof schema>, string | undefined>
+  >(true);
 });
 
 test("Unnest schema", (t) => {
