@@ -199,7 +199,7 @@ NodeJs.Fs.writeFileSyncWith(
 
 NodeJs.Fs.writeFileSyncWith(
   "./src/S.js",
-  ["var S = require(\"./S_Core.res.mjs\");"]
+  ["var S = require(\"./S_Core.res.js\");"]
   ->Array.concat(filesMapping->Array.map(((name, value)) => `exports.${name} = ${value}`))
   ->Array.join("\n")
   ->NodeJs.Buffer.fromString,

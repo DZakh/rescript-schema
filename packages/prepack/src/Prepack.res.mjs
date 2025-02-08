@@ -334,7 +334,7 @@ Nodefs.writeFileSync("./src/S.mjs", Buffer.from(["import * as S from \"./S_Core.
       encoding: "utf8"
     });
 
-Nodefs.writeFileSync("./src/S.js", Buffer.from(["var S = require(\"./S_Core.res.mjs\");"].concat(filesMapping.map(function (param) {
+Nodefs.writeFileSync("./src/S.js", Buffer.from(["var S = require(\"./S_Core.res.js\");"].concat(filesMapping.map(function (param) {
                     return "exports." + param[0] + " = " + param[1];
                   })).join("\n")), {
       encoding: "utf8"
