@@ -437,6 +437,10 @@ let js_merge: (t<unknown>, t<unknown>) => t<unknown>
 
 let js_name: t<'value> => string
 
+let standard: t<'value> => {
+  "~standard": {"validate": 'any => {"value": 'value}, "vendor": string, "version": int},
+}
+
 type globalConfigOverride = {
   defaultUnknownKeys?: unknownKeys,
   disableNanNumberValidation?: bool,

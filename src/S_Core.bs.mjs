@@ -3639,6 +3639,32 @@ function js_name(prim) {
   return prim.n();
 }
 
+function standard(schema) {
+  var parseOrThrow = compile$1(schema, "Any", "Output", "Sync", true);
+  return {
+          "~standard": {
+            version: 1,
+            vendor: "rescript-schema",
+            validate: (function (input) {
+                try {
+                  return {
+                          value: parseOrThrow(input)
+                        };
+                }
+                catch (exn){
+                  var error = getOrRethrow(exn);
+                  return {
+                          issues: [{
+                              message: message(error),
+                              path: error.path === "" ? undefined : toArray(error.path)
+                            }]
+                        };
+                }
+              })
+          }
+        };
+}
+
 var resetOperationsCache = ((schema) => {
   for (let key in schema) {
     if (+key) {
@@ -3877,6 +3903,7 @@ export {
   js_schema ,
   js_merge ,
   js_name ,
+  standard ,
   setGlobalConfig ,
 }
 /* symbol Not a pure module */
