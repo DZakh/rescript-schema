@@ -4756,6 +4756,33 @@ let js_merge = (s1, s2) => {
 
 let js_name = name
 
+let standard = schema => {
+  let parseOrThrow = compile(schema, ~input=Any, ~output=Value, ~mode=Sync, ~typeValidation=true)
+  {
+    "~standard": {
+      "version": 1,
+      "vendor": "rescript-schema",
+      "validate": input => {
+        try {
+          {"value": parseOrThrow(input)}
+        } catch {
+        | _ => {
+            let error = %raw(`exn`)->InternalError.getOrRethrow
+            {
+              "issues": [
+                {
+                  "message": error->Error.message,
+                  "path": error.path === Path.empty ? None : Some(error.path->Path.toArray),
+                },
+              ],
+            }->Obj.magic
+          }
+        }
+      },
+    },
+  }
+}
+
 let resetOperationsCache: schema<'value> => unit = %raw(`(schema) => {
   for (let key in schema) {
     if (+key) {
