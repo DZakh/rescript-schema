@@ -1,6 +1,6 @@
 {
   "name": "rescript-schema",
-  "version": "9.2.0",
+  "version": "9.2.1",
   "private": true,
   "description": "🧬 The fastest parser in the entire JavaScript ecosystem with a focus on small bundle size and top-notch DX",
   "keywords": [
@@ -30,11 +30,10 @@
   "license": "MIT",
   "author": "Dmitry Zakharov <dzakh.dev@gmail.com>",
   "type": "module",
-  "main": "./dist/S.js",
-  "module": "./dist/S.mjs",
+  "main": "./src/S.js",
+  "module": "./src/S.mjs",
   "types": "./src/S.d.ts",
   "files": [
-    "dist",
     "src/S_Core.res",
     "src/S_Core.res.js",
     "src/S_Core.res.mjs",
@@ -42,6 +41,8 @@
     "src/S.resi",
     "src/S.res.js",
     "src/S.res.mjs",
+    "src/S.js",
+    "src/S.mjs",
     "src/S.d.ts",
     "RescriptSchema.gen.d.ts",
     "rescript.json"

@@ -9,7 +9,7 @@ export default () => ({
     "package.json",
     "src/S.res.mjs",
     "src/S_Core.res.mjs",
-    "src/S.js",
+    "src/S.mjs",
     "packages/tests/src/utils/U.res.mjs",
   ],
   tests,

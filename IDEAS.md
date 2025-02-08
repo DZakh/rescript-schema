@@ -18,12 +18,6 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Use internal transform for trim
 
-## v9.1
-
-- [x] Update object type validation
-- [ ] Support standard schema
-- [ ] Make rescript an optional peer dependency
-
 ## v10
 
 - Rename S.to to S.reshape

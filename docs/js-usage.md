@@ -832,8 +832,14 @@ Reverses the schema. This gets especially magical for schemas with transformatio
 ### **`standard`**
 
 ```ts
-S.standard(S.string);
-// Returns StandardSchemaV1<string>
+const docsSchema = S.schema({
+  id: S.number,
+  content: S.string,
+});
+
+//     ┌─── StandardSchemaV1<{ id: number; content: string; }>
+//     ▼
+const standardSchema = S.standard(docsSchema);
 ```
 
 Converts ReScript Schema into [Standard Schema](https://standardschema.dev/). You can use it to integrate with 20+ other libraries. Checkout the [Standard Schema](https://standardschema.dev/) to learn more. 👀

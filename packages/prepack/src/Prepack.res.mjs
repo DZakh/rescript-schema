@@ -8,8 +8,6 @@ import * as Nodepath from "node:path";
 import * as Core__JSON from "@rescript/core/src/Core__JSON.res.mjs";
 import * as Core__List from "@rescript/core/src/Core__List.res.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
-import PluginReplace from "@rollup/plugin-replace";
-import PluginCommonjs from "@rollup/plugin-commonjs";
 import * as PluginNodeResolve from "@rollup/plugin-node-resolve";
 
 var projectPath = ".";
@@ -24,8 +22,6 @@ var sourePaths = [
   "README.md",
   "RescriptSchema.gen.d.ts"
 ];
-
-var jsInputPath = Nodepath.join(artifactsPath, "src/S.js");
 
 function update(json, path, value) {
   var dict = Core__JSON.Decode.object(json);
@@ -53,6 +49,297 @@ if (Nodefs.existsSync(artifactsPath)) {
 
 Nodefs.mkdirSync(artifactsPath);
 
+var filesMapping = [
+  [
+    "Error",
+    "S.$$Error.$$class"
+  ],
+  [
+    "string",
+    "S.string"
+  ],
+  [
+    "boolean",
+    "S.bool"
+  ],
+  [
+    "int32",
+    "S.$$int"
+  ],
+  [
+    "number",
+    "S.$$float"
+  ],
+  [
+    "bigint",
+    "S.bigint"
+  ],
+  [
+    "json",
+    "S.json"
+  ],
+  [
+    "never",
+    "S.never"
+  ],
+  [
+    "unknown",
+    "S.unknown"
+  ],
+  [
+    "undefined",
+    "S.unit"
+  ],
+  [
+    "optional",
+    "S.js_optional"
+  ],
+  [
+    "nullable",
+    "S.$$null"
+  ],
+  [
+    "nullish",
+    "S.nullable"
+  ],
+  [
+    "array",
+    "S.array"
+  ],
+  [
+    "unnest",
+    "S.unnest"
+  ],
+  [
+    "record",
+    "S.dict"
+  ],
+  [
+    "jsonString",
+    "S.jsonString"
+  ],
+  [
+    "union",
+    "S.js_union"
+  ],
+  [
+    "object",
+    "S.object"
+  ],
+  [
+    "schema",
+    "S.js_schema"
+  ],
+  [
+    "safe",
+    "S.js_safe"
+  ],
+  [
+    "safeAsync",
+    "S.js_safeAsync"
+  ],
+  [
+    "reverse",
+    "S.reverse"
+  ],
+  [
+    "convertOrThrow",
+    "S.convertOrThrow"
+  ],
+  [
+    "convertToJsonOrThrow",
+    "S.convertToJsonOrThrow"
+  ],
+  [
+    "convertToJsonStringOrThrow",
+    "S.convertToJsonStringOrThrow"
+  ],
+  [
+    "reverseConvertOrThrow",
+    "S.reverseConvertOrThrow"
+  ],
+  [
+    "reverseConvertToJsonOrThrow",
+    "S.reverseConvertToJsonOrThrow"
+  ],
+  [
+    "reverseConvertToJsonStringOrThrow",
+    "  S.reverseConvertToJsonStringOrThrow"
+  ],
+  [
+    "parseOrThrow",
+    "S.parseOrThrow"
+  ],
+  [
+    "parseJsonOrThrow",
+    "S.parseJsonOrThrow"
+  ],
+  [
+    "parseJsonStringOrThrow",
+    "S.parseJsonStringOrThrow"
+  ],
+  [
+    "parseAsyncOrThrow",
+    "S.parseAsyncOrThrow"
+  ],
+  [
+    "assertOrThrow",
+    "S.assertOrThrow"
+  ],
+  [
+    "recursive",
+    "S.recursive"
+  ],
+  [
+    "merge",
+    "S.js_merge"
+  ],
+  [
+    "strict",
+    "S.strict"
+  ],
+  [
+    "deepStrict",
+    "S.deepStrict"
+  ],
+  [
+    "strip",
+    "S.strip"
+  ],
+  [
+    "deepStrip",
+    "S.deepStrip"
+  ],
+  [
+    "custom",
+    "S.js_custom"
+  ],
+  [
+    "standard",
+    "S.standard"
+  ],
+  [
+    "tuple",
+    "S.tuple"
+  ],
+  [
+    "asyncParserRefine",
+    "S.js_asyncParserRefine"
+  ],
+  [
+    "refine",
+    "S.js_refine"
+  ],
+  [
+    "transform",
+    "S.js_transform"
+  ],
+  [
+    "description",
+    "S.description"
+  ],
+  [
+    "describe",
+    "S.describe"
+  ],
+  [
+    "name",
+    "S.js_name"
+  ],
+  [
+    "setName",
+    "S.setName"
+  ],
+  [
+    "removeTypeValidation",
+    "S.removeTypeValidation"
+  ],
+  [
+    "compile",
+    "S.compile"
+  ],
+  [
+    "port",
+    "S.port"
+  ],
+  [
+    "numberMin",
+    "S.floatMin"
+  ],
+  [
+    "numberMax",
+    "S.floatMax"
+  ],
+  [
+    "arrayMinLength",
+    "S.arrayMinLength"
+  ],
+  [
+    "arrayMaxLength",
+    "S.arrayMaxLength"
+  ],
+  [
+    "arrayLength",
+    "S.arrayLength"
+  ],
+  [
+    "stringMinLength",
+    "S.stringMinLength"
+  ],
+  [
+    "stringMaxLength",
+    "S.stringMaxLength"
+  ],
+  [
+    "stringLength",
+    "S.stringLength"
+  ],
+  [
+    "email",
+    "S.email"
+  ],
+  [
+    "uuid",
+    "S.uuid"
+  ],
+  [
+    "cuid",
+    "S.cuid"
+  ],
+  [
+    "url",
+    "S.url"
+  ],
+  [
+    "pattern",
+    "S.pattern"
+  ],
+  [
+    "datetime",
+    "S.datetime"
+  ],
+  [
+    "trim",
+    "S.trim"
+  ],
+  [
+    "setGlobalConfig",
+    "S.setGlobalConfig"
+  ]
+];
+
+Nodefs.writeFileSync("./src/S.mjs", Buffer.from(["import * as S from \"./S_Core.res.mjs\";"].concat(filesMapping.map(function (param) {
+                    return "export const " + param[0] + " = " + param[1];
+                  })).join("\n")), {
+      encoding: "utf8"
+    });
+
+Nodefs.writeFileSync("./src/S.js", Buffer.from(["var S = require(\"./S_Core.res.mjs\");"].concat(filesMapping.map(function (param) {
+                    return "exports." + param[0] + " = " + param[1];
+                  })).join("\n")), {
+      encoding: "utf8"
+    });
+
 sourePaths.forEach(function (path) {
       Fs.cpSync(Nodepath.join(projectPath, path), Nodepath.join(artifactsPath, path), {
             recursive: true
@@ -77,86 +364,28 @@ Execa.execaSync("npm", [
       cwd: artifactsPath
     });
 
-var bundle = await Rollup.rollup({
-      input: jsInputPath,
-      plugins: [],
-      external: [/S_Core\.res\.mjs/]
-    });
-
-var output = [
-  {
-    file: Nodepath.join(artifactsPath, "dist/S.js"),
-    format: "cjs",
-    exports: "named",
-    plugins: [PluginReplace({
-            values: Object.fromEntries([
-                  [
-                    "S_Core.res.mjs",
-                    "../src/S_Core.res.js"
-                  ],
-                  [
-                    "rescript/lib/es6",
-                    "rescript/lib/js"
-                  ]
-                ])
-          })]
-  },
-  {
-    file: Nodepath.join(artifactsPath, "dist/S.mjs"),
-    format: "es",
-    exports: "named",
-    plugins: [PluginReplace({
-            values: Object.fromEntries([[
-                    "S_Core.res.mjs",
-                    "../src/S_Core.res.mjs"
-                  ]])
-          })]
-  }
-];
-
-for(var idx = 0 ,idx_finish = output.length; idx < idx_finish; ++idx){
-  var outpuOptions = output[idx];
-  await bundle.write(outpuOptions);
-}
-
-await bundle.close();
-
-async function resolveRescriptRuntime(format, path) {
+async function resolveRescriptRuntime(format, input, output) {
   var bundle = await Rollup.rollup({
-        input: Nodepath.join(artifactsPath, path),
-        plugins: [
-          PluginNodeResolve.nodeResolve(),
-          PluginCommonjs()
-        ]
+        input: Nodepath.join(artifactsPath, input),
+        plugins: [PluginNodeResolve.nodeResolve()]
       });
   await bundle.write({
-        file: Nodepath.join(artifactsPath, path),
+        file: Nodepath.join(artifactsPath, output),
         format: format,
         exports: "named"
       });
   return await bundle.close();
 }
 
-Fs.rmSync(Nodepath.join(artifactsPath, "lib"), {
-      recursive: true,
-      force: true
-    });
+await resolveRescriptRuntime("es", "src/S_Core.res.mjs", "src/S_Core.res.mjs");
 
-updateJsonFile(Nodepath.join(artifactsPath, "rescript.json"), [
-      "package-specs",
-      "module"
-    ], "commonjs");
+await resolveRescriptRuntime("cjs", "src/S_Core.res.mjs", "src/S_Core.res.js");
 
-updateJsonFile(Nodepath.join(artifactsPath, "rescript.json"), ["suffix"], ".res.js");
-
-Execa.execaSync("npm", [
-      "run",
-      "res:build"
-    ], {
-      cwd: artifactsPath
-    });
+await resolveRescriptRuntime("cjs", "src/S.res.mjs", "src/S.res.js");
 
 updateJsonFile(Nodepath.join(artifactsPath, "package.json"), ["type"], "commonjs");
+
+updateJsonFile(Nodepath.join(artifactsPath, "package.json"), ["private"], false);
 
 Fs.rmSync(Nodepath.join(artifactsPath, "lib"), {
       recursive: true,
@@ -167,10 +396,6 @@ Fs.rmSync(Nodepath.join(artifactsPath, "node_modules"), {
       recursive: true,
       force: true
     });
-
-await resolveRescriptRuntime("es", "src/S_Core.res.mjs");
-
-await resolveRescriptRuntime("cjs", "src/S_Core.res.js");
 
 export {
   

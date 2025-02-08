@@ -4,6 +4,5 @@ node_modules
 packages/tests/src/core/**/*_test.res.mjs
 lib
 coverage
-dist
 packages/artifacts
 .tsimp

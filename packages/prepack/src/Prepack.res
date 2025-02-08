@@ -8,7 +8,6 @@ let sourePaths = [
   "README.md",
   "RescriptSchema.gen.d.ts",
 ]
-let jsInputPath = NodeJs.Path.join2(artifactsPath, "src/S.js")
 
 module Stdlib = {
   module Dict = {
@@ -67,17 +66,8 @@ module Rollup = {
     type t
   }
 
-  module ReplacePlugin = {
-    type options = {values: dict<string>}
-    @module("@rollup/plugin-replace") external make: options => Plugin.t = "default"
-  }
-
   module NodeResolvePlugin = {
     @module("@rollup/plugin-node-resolve") external make: unit => Plugin.t = "nodeResolve"
-  }
-
-  module CommonjsPluggin = {
-    @module("@rollup/plugin-commonjs") external make: unit => Plugin.t = "default"
   }
 
   module InputOptions = {
@@ -124,6 +114,102 @@ if NodeJs.Fs.existsSync(artifactsPath) {
 }
 NodeJs.Fs.mkdirSync(artifactsPath)
 
+let filesMapping = [
+  ("Error", "S.$$Error.$$class"),
+  ("string", "S.string"),
+  ("boolean", "S.bool"),
+  ("int32", "S.$$int"),
+  ("number", "S.$$float"),
+  ("bigint", "S.bigint"),
+  ("json", "S.json"),
+  ("never", "S.never"),
+  ("unknown", "S.unknown"),
+  ("undefined", "S.unit"),
+  ("optional", "S.js_optional"),
+  ("nullable", "S.$$null"),
+  ("nullish", "S.nullable"),
+  ("array", "S.array"),
+  ("unnest", "S.unnest"),
+  ("record", "S.dict"),
+  ("jsonString", "S.jsonString"),
+  ("union", "S.js_union"),
+  ("object", "S.object"),
+  ("schema", "S.js_schema"),
+  ("safe", "S.js_safe"),
+  ("safeAsync", "S.js_safeAsync"),
+  ("reverse", "S.reverse"),
+  ("convertOrThrow", "S.convertOrThrow"),
+  ("convertToJsonOrThrow", "S.convertToJsonOrThrow"),
+  ("convertToJsonStringOrThrow", "S.convertToJsonStringOrThrow"),
+  ("reverseConvertOrThrow", "S.reverseConvertOrThrow"),
+  ("reverseConvertToJsonOrThrow", "S.reverseConvertToJsonOrThrow"),
+  ("reverseConvertToJsonStringOrThrow", "  S.reverseConvertToJsonStringOrThrow"),
+  ("parseOrThrow", "S.parseOrThrow"),
+  ("parseJsonOrThrow", "S.parseJsonOrThrow"),
+  ("parseJsonStringOrThrow", "S.parseJsonStringOrThrow"),
+  ("parseAsyncOrThrow", "S.parseAsyncOrThrow"),
+  ("assertOrThrow", "S.assertOrThrow"),
+  ("recursive", "S.recursive"),
+  ("merge", "S.js_merge"),
+  ("strict", "S.strict"),
+  ("deepStrict", "S.deepStrict"),
+  ("strip", "S.strip"),
+  ("deepStrip", "S.deepStrip"),
+  ("custom", "S.js_custom"),
+  ("standard", "S.standard"),
+  ("tuple", "S.tuple"),
+  ("asyncParserRefine", "S.js_asyncParserRefine"),
+  ("refine", "S.js_refine"),
+  ("transform", "S.js_transform"),
+  ("description", "S.description"),
+  ("describe", "S.describe"),
+  ("name", "S.js_name"),
+  ("setName", "S.setName"),
+  ("removeTypeValidation", "S.removeTypeValidation"),
+  ("compile", "S.compile"),
+  ("port", "S.port"),
+  ("numberMin", "S.floatMin"),
+  ("numberMax", "S.floatMax"),
+  ("arrayMinLength", "S.arrayMinLength"),
+  ("arrayMaxLength", "S.arrayMaxLength"),
+  ("arrayLength", "S.arrayLength"),
+  ("stringMinLength", "S.stringMinLength"),
+  ("stringMaxLength", "S.stringMaxLength"),
+  ("stringLength", "S.stringLength"),
+  ("email", "S.email"),
+  ("uuid", "S.uuid"),
+  ("cuid", "S.cuid"),
+  ("url", "S.url"),
+  ("pattern", "S.pattern"),
+  ("datetime", "S.datetime"),
+  ("trim", "S.trim"),
+  ("setGlobalConfig", "S.setGlobalConfig"),
+]
+
+NodeJs.Fs.writeFileSyncWith(
+  "./src/S.mjs",
+  ["import * as S from \"./S_Core.res.mjs\";"]
+  ->Js.Array2.concat(
+    filesMapping->Js.Array2.map(((name, value)) => `export const ${name} = ${value}`),
+  )
+  ->Js.Array2.joinWith("\n")
+  ->NodeJs.Buffer.fromString,
+  {
+    encoding: "utf8",
+  },
+)
+
+NodeJs.Fs.writeFileSyncWith(
+  "./src/S.js",
+  ["var S = require(\"./S_Core.res.mjs\");"]
+  ->Js.Array2.concat(filesMapping->Js.Array2.map(((name, value)) => `exports.${name} = ${value}`))
+  ->Js.Array2.joinWith("\n")
+  ->NodeJs.Buffer.fromString,
+  {
+    encoding: "utf8",
+  },
+)
+
 sourePaths->Array.forEach(path => {
   FsX.cpSync(
     ~src=NodeJs.Path.join2(projectPath, path),
@@ -153,85 +239,41 @@ let updateJsonFile = (~src, ~path, ~value) => {
 
 let _ = Execa.sync("npm", ["run", "res:build"], ~options={cwd: artifactsPath}, ())
 
-let bundle = await Rollup.Bundle.make({
-  input: jsInputPath,
-  // Mark S_Core.res.mjs as external so it's not inlined
-  // and JS/TS can reuse the same code as ReScript version in mixed codebases
-  external_: [%re("/S_Core\.res\.mjs/")],
-  plugins: [],
-})
-let output: array<Rollup.OutputOptions.t> = [
-  {
-    file: NodeJs.Path.join2(artifactsPath, "dist/S.js"),
-    format: #cjs,
-    exports: #named,
-    plugins: [
-      Rollup.ReplacePlugin.make({
-        values: Dict.fromArray([
-          (`S_Core.res.mjs`, `../src/S_Core.res.js`),
-          (`rescript/lib/es6`, `rescript/lib/js`),
-        ]),
-      }),
-    ],
-  },
-  {
-    file: NodeJs.Path.join2(artifactsPath, "dist/S.mjs"),
-    format: #es,
-    exports: #named,
-    plugins: [
-      Rollup.ReplacePlugin.make({
-        values: Dict.fromArray([(`S_Core.res.mjs`, `../src/S_Core.res.mjs`)]),
-      }),
-    ],
-  },
-]
-for idx in 0 to output->Array.length - 1 {
-  let outpuOptions = output->Array.getUnsafe(idx)
-  let _ = await bundle->Rollup.Bundle.write(outpuOptions)
-}
-await bundle->Rollup.Bundle.close
-
-let resolveRescriptRuntime = async (~format, ~path) => {
+let resolveRescriptRuntime = async (~format, ~input, ~output) => {
   let bundle = await Rollup.Bundle.make({
-    input: NodeJs.Path.join2(artifactsPath, path),
-    plugins: [Rollup.NodeResolvePlugin.make(), Rollup.CommonjsPluggin.make()],
+    input: NodeJs.Path.join2(artifactsPath, input),
+    plugins: [Rollup.NodeResolvePlugin.make()],
   })
   let _ = await bundle->Rollup.Bundle.write({
-    file: NodeJs.Path.join2(artifactsPath, path),
+    file: NodeJs.Path.join2(artifactsPath, output),
     format,
     exports: #named,
   })
   await bundle->Rollup.Bundle.close
 }
 
-// Clean up rescript artifacts so the compiled .res.js files aren't removed on the .res.mjs build
-FsX.rmSync(NodeJs.Path.join2(artifactsPath, "lib"), {force: true, recursive: true})
-updateJsonFile(
-  ~src=NodeJs.Path.join2(artifactsPath, "rescript.json"),
-  ~path=["package-specs", "module"],
-  ~value=JSON.Encode.string("commonjs"),
-)
-updateJsonFile(
-  ~src=NodeJs.Path.join2(artifactsPath, "rescript.json"),
-  ~path=["suffix"],
-  ~value=JSON.Encode.string(".res.js"),
-)
-let _ = Execa.sync("npm", ["run", "res:build"], ~options={cwd: artifactsPath}, ())
+// Inline "rescript" runtime dependencies,
+// so it's not required for JS/TS to install ReScript compiler
+// And if the package is used together by TS and ReScript,
+// the file will be overwritten by compiler and share the same code
+await resolveRescriptRuntime(~format=#es, ~input="src/S_Core.res.mjs", ~output="src/S_Core.res.mjs")
+// Event though the generated code is shitty, let's still have it for the sake of some users
+await resolveRescriptRuntime(~format=#cjs, ~input="src/S_Core.res.mjs", ~output="src/S_Core.res.js")
+// Also build cjs version, in case some ReScript libraries will use rescript-schema without running a compiler (rescript-stdlib-vendorer)
+await resolveRescriptRuntime(~format=#cjs, ~input="src/S.res.mjs", ~output="src/S.res.js")
 
+// ReScript applications don't work with type: module set on packages
 updateJsonFile(
   ~src=NodeJs.Path.join2(artifactsPath, "package.json"),
   ~path=["type"],
   ~value=JSON.Encode.string("commonjs"),
 )
+updateJsonFile(
+  ~src=NodeJs.Path.join2(artifactsPath, "package.json"),
+  ~path=["private"],
+  ~value=JSON.Encode.bool(false),
+)
 
 // Clean up before uploading artifacts
 FsX.rmSync(NodeJs.Path.join2(artifactsPath, "lib"), {force: true, recursive: true})
 FsX.rmSync(NodeJs.Path.join2(artifactsPath, "node_modules"), {force: true, recursive: true})
-
-// Inline "rescript" runtime dependencies,
-// so it's not required for JS/TS to install ReScript compiler
-// And if the package is used together by TS and ReScript,
-// the file will be overwritten by compiler and share the same code
-await resolveRescriptRuntime(~format=#es, ~path="src/S_Core.res.mjs")
-// Event though the generated code is shitty, let's still have it for the sake of some users
-await resolveRescriptRuntime(~format=#cjs, ~path="src/S_Core.res.js")

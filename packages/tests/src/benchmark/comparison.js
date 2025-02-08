@@ -1,7 +1,7 @@
 import B from "benchmark";
 import { z } from "zod";
 import * as V from "valibot";
-import * as S from "rescript-schema/src/S.js";
+import * as S from "rescript-schema/src/S.mjs";
 import { type } from "arktype";
 
 const data = Object.freeze({

@@ -2,7 +2,7 @@ import { StandardSchemaV1 } from "./../../../../src/S.d";
 import test, { ExecutionContext } from "ava";
 import { expectType, TypeEqual } from "ts-expect";
 
-import * as S from "../../../../src/S.js";
+import * as S from "../../../../src/S.mjs";
 import { stringSchema } from "../genType/GenType.gen.js";
 
 type SchemaEqual<
