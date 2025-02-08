@@ -72,9 +72,18 @@ module Rollup = {
     @module("@rollup/plugin-replace") external make: options => Plugin.t = "default"
   }
 
+  module NodeResolvePlugin = {
+    @module("@rollup/plugin-node-resolve") external make: unit => Plugin.t = "nodeResolve"
+  }
+
+  module CommonjsPluggin = {
+    @module("@rollup/plugin-commonjs") external make: unit => Plugin.t = "default"
+  }
+
   module InputOptions = {
     type t = {
       input?: string,
+      plugins?: array<Plugin.t>,
       @as("external")
       external_?: array<Re.t>,
     }
@@ -144,7 +153,13 @@ let updateJsonFile = (~src, ~path, ~value) => {
 
 let _ = Execa.sync("npm", ["run", "res:build"], ~options={cwd: artifactsPath}, ())
 
-let bundle = await Rollup.Bundle.make({input: jsInputPath, external_: [%re("/S_Core\.bs\.mjs/")]})
+let bundle = await Rollup.Bundle.make({
+  input: jsInputPath,
+  // Mark S_Core.res.mjs as external so it's not inlined
+  // and JS/TS can reuse the same code as ReScript version in mixed codebases
+  external_: [%re("/S_Core\.res\.mjs/")],
+  plugins: [],
+})
 let output: array<Rollup.OutputOptions.t> = [
   {
     file: NodeJs.Path.join2(artifactsPath, "dist/S.js"),
@@ -176,6 +191,19 @@ for idx in 0 to output->Array.length - 1 {
 }
 await bundle->Rollup.Bundle.close
 
+let resolveRescriptRuntime = async (~format, ~path) => {
+  let bundle = await Rollup.Bundle.make({
+    input: NodeJs.Path.join2(artifactsPath, path),
+    plugins: [Rollup.NodeResolvePlugin.make(), Rollup.CommonjsPluggin.make()],
+  })
+  let _ = await bundle->Rollup.Bundle.write({
+    file: NodeJs.Path.join2(artifactsPath, path),
+    format,
+    exports: #named,
+  })
+  await bundle->Rollup.Bundle.close
+}
+
 // Clean up rescript artifacts so the compiled .res.js files aren't removed on the .res.mjs build
 FsX.rmSync(NodeJs.Path.join2(artifactsPath, "lib"), {force: true, recursive: true})
 updateJsonFile(
@@ -199,3 +227,11 @@ updateJsonFile(
 // Clean up before uploading artifacts
 FsX.rmSync(NodeJs.Path.join2(artifactsPath, "lib"), {force: true, recursive: true})
 FsX.rmSync(NodeJs.Path.join2(artifactsPath, "node_modules"), {force: true, recursive: true})
+
+// Inline "rescript" runtime dependencies,
+// so it's not required for JS/TS to install ReScript compiler
+// And if the package is used together by TS and ReScript,
+// the file will be overwritten by compiler and share the same code
+await resolveRescriptRuntime(~format=#es, ~path="src/S_Core.res.mjs")
+// Event though the generated code is shitty, let's still have it for the sake of some users
+await resolveRescriptRuntime(~format=#cjs, ~path="src/S_Core.res.js")

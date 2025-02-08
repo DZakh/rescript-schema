@@ -9,6 +9,8 @@ import * as Core__JSON from "@rescript/core/src/Core__JSON.res.mjs";
 import * as Core__List from "@rescript/core/src/Core__List.res.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 import PluginReplace from "@rollup/plugin-replace";
+import PluginCommonjs from "@rollup/plugin-commonjs";
+import * as PluginNodeResolve from "@rollup/plugin-node-resolve";
 
 var projectPath = ".";
 
@@ -77,7 +79,8 @@ Execa.execaSync("npm", [
 
 var bundle = await Rollup.rollup({
       input: jsInputPath,
-      external: [/S_Core\.bs\.mjs/]
+      plugins: [],
+      external: [/S_Core\.res\.mjs/]
     });
 
 var output = [
@@ -118,6 +121,22 @@ for(var idx = 0 ,idx_finish = output.length; idx < idx_finish; ++idx){
 
 await bundle.close();
 
+async function resolveRescriptRuntime(format, path) {
+  var bundle = await Rollup.rollup({
+        input: Nodepath.join(artifactsPath, path),
+        plugins: [
+          PluginNodeResolve.nodeResolve(),
+          PluginCommonjs()
+        ]
+      });
+  await bundle.write({
+        file: Nodepath.join(artifactsPath, path),
+        format: format,
+        exports: "named"
+      });
+  return await bundle.close();
+}
+
 Fs.rmSync(Nodepath.join(artifactsPath, "lib"), {
       recursive: true,
       force: true
@@ -148,6 +167,10 @@ Fs.rmSync(Nodepath.join(artifactsPath, "node_modules"), {
       recursive: true,
       force: true
     });
+
+await resolveRescriptRuntime("es", "src/S_Core.res.mjs");
+
+await resolveRescriptRuntime("cjs", "src/S_Core.res.js");
 
 export {
   
