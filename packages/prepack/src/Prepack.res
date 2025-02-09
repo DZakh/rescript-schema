@@ -186,19 +186,35 @@ let filesMapping = [
   ("setGlobalConfig", "S.setGlobalConfig"),
 ]
 
-NodeJs.Fs.writeFileSyncWith(
-  "./src/S.mjs",
-  ["import * as S from \"./S_Core.res.mjs\";"]
-  ->Array.concat(filesMapping->Array.map(((name, value)) => `export const ${name} = ${value}`))
-  ->Array.join("\n")
-  ->NodeJs.Buffer.fromString,
-  {
-    encoding: "utf8",
-  },
-)
+sourePaths->Array.forEach(path => {
+  FsX.cpSync(
+    ~src=NodeJs.Path.join2(projectPath, path),
+    ~dest=NodeJs.Path.join2(artifactsPath, path),
+    {recursive: true},
+  )
+})
 
+let writeSjsEsm = path => {
+  NodeJs.Fs.writeFileSyncWith(
+    path,
+    ["import * as S from \"./S_Core.res.mjs\";"]
+    ->Array.concat(filesMapping->Array.map(((name, value)) => `export const ${name} = ${value}`))
+    ->Array.join("\n")
+    ->NodeJs.Buffer.fromString,
+    {
+      encoding: "utf8",
+    },
+  )
+}
+
+// Sync the original source as well. Call it S.js to make .d.ts resolve correctly
+writeSjsEsm("./src/S.js")
+
+writeSjsEsm(NodeJs.Path.join2(artifactsPath, "./src/S.mjs"))
+
+// This should overwrite S.js with the commonjs version
 NodeJs.Fs.writeFileSyncWith(
-  "./src/S.js",
+  NodeJs.Path.join2(artifactsPath, "./src/S.js"),
   ["var S = require(\"./S_Core.res.js\");"]
   ->Array.concat(filesMapping->Array.map(((name, value)) => `exports.${name} = ${value}`))
   ->Array.join("\n")
@@ -207,14 +223,6 @@ NodeJs.Fs.writeFileSyncWith(
     encoding: "utf8",
   },
 )
-
-sourePaths->Array.forEach(path => {
-  FsX.cpSync(
-    ~src=NodeJs.Path.join2(projectPath, path),
-    ~dest=NodeJs.Path.join2(artifactsPath, path),
-    {recursive: true},
-  )
-})
 
 let updateJsonFile = (~src, ~path, ~value) => {
   let packageJsonData = NodeJs.Fs.readFileSyncWith(

@@ -328,22 +328,28 @@ var filesMapping = [
   ]
 ];
 
-Nodefs.writeFileSync("./src/S.mjs", Buffer.from(["import * as S from \"./S_Core.res.mjs\";"].concat(filesMapping.map(function (param) {
-                    return "export const " + param[0] + " = " + param[1];
-                  })).join("\n")), {
-      encoding: "utf8"
-    });
-
-Nodefs.writeFileSync("./src/S.js", Buffer.from(["var S = require(\"./S_Core.res.js\");"].concat(filesMapping.map(function (param) {
-                    return "exports." + param[0] + " = " + param[1];
-                  })).join("\n")), {
-      encoding: "utf8"
-    });
-
 sourePaths.forEach(function (path) {
       Fs.cpSync(Nodepath.join(projectPath, path), Nodepath.join(artifactsPath, path), {
             recursive: true
           });
+    });
+
+function writeSjsEsm(path) {
+  Nodefs.writeFileSync(path, Buffer.from(["import * as S from \"./S_Core.res.mjs\";"].concat(filesMapping.map(function (param) {
+                      return "export const " + param[0] + " = " + param[1];
+                    })).join("\n")), {
+        encoding: "utf8"
+      });
+}
+
+writeSjsEsm("./src/S.js");
+
+writeSjsEsm(Nodepath.join(artifactsPath, "./src/S.mjs"));
+
+Nodefs.writeFileSync(Nodepath.join(artifactsPath, "./src/S.js"), Buffer.from(["var S = require(\"./S_Core.res.js\");"].concat(filesMapping.map(function (param) {
+                    return "exports." + param[0] + " = " + param[1];
+                  })).join("\n")), {
+      encoding: "utf8"
     });
 
 function updateJsonFile(src, path, value) {

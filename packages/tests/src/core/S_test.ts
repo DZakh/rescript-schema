@@ -1,8 +1,8 @@
 import { StandardSchemaV1 } from "./../../../../src/S.d";
-import test, { ExecutionContext } from "ava";
+import test from "ava";
 import { expectType, TypeEqual } from "ts-expect";
 
-import * as S from "../../../../src/S.mjs";
+import * as S from "../../../../src/S.js";
 import { stringSchema } from "../genType/GenType.gen.js";
 
 type SchemaEqual<
