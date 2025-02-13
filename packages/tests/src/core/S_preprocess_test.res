@@ -283,7 +283,20 @@ test("Reverse schema to the original schema", t => {
     parser: _ => 1->Int.toFloat,
     serializer: _ => 1.->Int.fromFloat,
   })
-  t->U.assertEqualSchemas(schema->S.reverse, S.unknown->S.toUnknown)
+  t->Assert.truthy(
+    switch schema->S.classify {
+    | Int => true
+    | _ => false
+    },
+    (),
+  )
+  t->Assert.truthy(
+    switch schema->S.reverse->S.classify {
+    | Int => true
+    | _ => false
+    },
+    (),
+  )
 })
 
 test("Succesfully uses reversed schema for parsing back to initial value", t => {

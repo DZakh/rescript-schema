@@ -312,6 +312,33 @@ test("S.schema object with a deep strict applied to the nested field parent", t 
   t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{let v0=i["nested"];return i}`)
 })
 
+test("Nested tags on reverse convert", t => {
+  let schema = S.object(s => {
+    s.nested("nested").tag("tag", "value")
+  })
+
+  t->Assert.deepEqual(()->S.reverseConvertOrThrow(schema), %raw(`{"nested":{"tag":"value"}}`), ())
+})
+
+test("Nested preprocessed tags on reverse convert", t => {
+  let schema = S.object(s => {
+    let _ = s.nested("nested").field(
+      "tag",
+      S.literal("value")->S.preprocess(_ => {serializer: v => "_" ++ v->Obj.magic}),
+    )
+    let _ = s.nested("nested").field(
+      "intTag",
+      S.literal(1)->S.preprocess(_ => {serializer: v => "_" ++ v->Obj.magic}),
+    )
+  })
+
+  t->Assert.deepEqual(
+    ()->S.reverseConvertOrThrow(schema),
+    %raw(`{"nested":{"tag":"_value", "intTag":"_1"}}`),
+    (),
+  )
+})
+
 test("S.schema object with a deep strict applied to the nested field parent + reverse", t => {
   let schema =
     S.schema(s =>

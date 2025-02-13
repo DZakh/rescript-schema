@@ -2688,7 +2688,7 @@ let rec preprocess = (schema, transformer) => {
         let reversed = schema.reverse()
         makeReverseSchema(
           ~name=primitiveName,
-          ~tagged=Unknown,
+          ~tagged=reversed.tagged,
           ~builder=(b, ~input, ~selfSchema as _, ~path) => {
             let input = b->B.parse(~schema=reversed, ~input, ~path)
             switch transformer(b->B.effectCtx(~selfSchema=schema, ~path)) {

@@ -1850,7 +1850,7 @@ function preprocess(schema, transformer) {
                 }
               }), undefined, (function () {
                 var reversed = schema["~r"]();
-                return makeReverseSchema(primitiveName, "unknown", empty, (function (b, input, param, path) {
+                return makeReverseSchema(primitiveName, reversed.t, empty, (function (b, input, param, path) {
                               var input$1 = reversed.b(b, input, reversed, path);
                               var match = transformer(effectCtx(b, schema, path));
                               var serializer = match.s;
