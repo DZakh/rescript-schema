@@ -225,11 +225,11 @@ type answer =
 test("Example", t => {
   t->U.assertEqualSchemas(
     S.schema(s => Text(s.matches(S.string))),
-    S.string->S.to(string => Text(string)),
+    S.string->S.shape(string => Text(string)),
   )
   t->U.assertEqualSchemas(
     S.schema(s => MultiSelect(s.matches(S.array(S.string)))),
-    S.array(S.string)->S.to(array => MultiSelect(array)),
+    S.array(S.string)->S.shape(array => MultiSelect(array)),
   )
   t->U.assertEqualSchemas(
     S.schema(s => Other({

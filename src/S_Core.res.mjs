@@ -2557,7 +2557,7 @@ function advancedBuilder(definition, flattened) {
   };
 }
 
-function to(schema, definer) {
+function shape(schema, definer) {
   var item = {
     k: 2,
     schema: schema,
@@ -3259,7 +3259,7 @@ function internalInline(schema, maybeVariant, param) {
   }
   var inlinedSchema$6 = Object.keys(metadataMap).length !== 0 ? "{\n  let s = " + inlinedSchema$5 + "\n  let _ = %raw(\`s.m = " + JSON.stringify(metadataMap) + "\`)\n  s\n}" : inlinedSchema$5;
   if (maybeVariant !== undefined) {
-    return inlinedSchema$6 + ("->S.to(v => " + maybeVariant + "(v))");
+    return inlinedSchema$6 + ("->S.shape(v => " + maybeVariant + "(v))");
   } else {
     return inlinedSchema$6;
   }
@@ -3747,6 +3747,8 @@ var jsonString = factory$4;
 
 var union = factory$5;
 
+var to = shape;
+
 var parseJsonOrThrow = parseOrThrow;
 
 var Schema = {};
@@ -3836,6 +3838,7 @@ export {
   custom ,
   refine ,
   to ,
+  shape ,
   compile$1 as compile,
   parseOrThrow ,
   parseJsonOrThrow ,

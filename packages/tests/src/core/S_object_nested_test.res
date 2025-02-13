@@ -425,7 +425,7 @@ test("Object with a deep strict applied to the nested field parent + reverse", t
     // FIXME: Missing type validation for nested field
     // FIXME: Test for deepStrict applying to flattened nested fields
     // Test deepStrict for reversed schema
-    // Test strict & deepStrict for S.to
+    // Test strict & deepStrict for S.shape
     `i=>{if(typeof i!=="object"||!i||Array.isArray(i)){e[1](i)}let v0;for(v0 in i){if(v0!=="foo"){e[0](v0)}}return {"nested":{"foo":i["foo"],},}}`,
   )
   t->U.assertCompiledCode(~schema, ~op=#ReverseConvert, `i=>{return {"nested":{"foo":i["foo"],},}}`)
@@ -530,7 +530,7 @@ test("s.nested.flattened doesn't work with transformed S.schema", t => {
   )
 })
 
-test("s.nested.flattened doesn't work with S.schema->S.to", t => {
+test("s.nested.flattened doesn't work with S.schema->S.shape", t => {
   t->Assert.throws(
     () => {
       S.object(
@@ -541,7 +541,7 @@ test("s.nested.flattened doesn't work with S.schema->S.to", t => {
                 {
                   "foo": s.matches(S.string),
                 },
-            )->S.to(v => {"foo": v["foo"]}),
+            )->S.shape(v => {"foo": v["foo"]}),
           )
         },
       )
@@ -569,7 +569,7 @@ test("s.nested.flattened doesn't work with S.string", t => {
   )
 })
 
-test("s.nested.flattened works with S.schema->S.to to self", t => {
+test("s.nested.flattened works with S.schema->S.shape to self", t => {
   let schema = S.object(s => {
     s.nested("nested").flatten(
       S.schema(
@@ -577,7 +577,7 @@ test("s.nested.flattened works with S.schema->S.to to self", t => {
           {
             "foo": s.matches(S.string),
           },
-      )->S.to(v => v),
+      )->S.shape(v => v),
     )
   })
 

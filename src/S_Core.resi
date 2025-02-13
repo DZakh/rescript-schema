@@ -195,6 +195,7 @@ let custom: (string, s<'output> => customDefinition<'input, 'output>) => t<'outp
 let refine: (t<'value>, s<'value> => 'value => unit) => t<'value>
 
 let to: (t<'value>, 'value => 'to) => t<'to>
+let shape: (t<'value>, 'value => 'shape) => t<'shape>
 
 type rec input<'value, 'computed> =
   | @as("Output") Value: input<'value, 'value>

@@ -22,12 +22,12 @@ Ava("Polymorphic variant with single item becomes a literal schema of the item",
         U.assertEqualSchemas(t, polyWithSingleItemSchema, S$RescriptSchema.literal("single"), undefined);
       }));
 
-var polyEmbededSchema = S$RescriptSchema.to(S$RescriptSchema.string, (function (param) {
+var polyEmbededSchema = S$RescriptSchema.shape(S$RescriptSchema.string, (function (param) {
         return "one";
       }));
 
 Ava("Embed custom schema for polymorphic variants", (function (t) {
-        U.assertEqualSchemas(t, polyEmbededSchema, S$RescriptSchema.to(S$RescriptSchema.string, (function (param) {
+        U.assertEqualSchemas(t, polyEmbededSchema, S$RescriptSchema.shape(S$RescriptSchema.string, (function (param) {
                     return "one";
                   })), undefined);
       }));

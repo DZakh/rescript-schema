@@ -3469,7 +3469,7 @@ module Schema = {
 
     reversed
   }
-  and to = {
+  and shape = {
     (schema: t<'value>, definer: 'value => 'variant): t<'variant> => {
       let schema = schema->toUnknown
 
@@ -4317,7 +4317,7 @@ let inline = {
     }
 
     let inlinedSchema = switch maybeVariant {
-    | Some(variant) => inlinedSchema ++ `->S.to(v => ${variant}(v))`
+    | Some(variant) => inlinedSchema ++ `->S.shape(v => ${variant}(v))`
     | None => inlinedSchema
     }
 
@@ -4341,7 +4341,8 @@ let null = Null.factory
 let option = Option.factory
 let array = Array.factory
 let dict = Dict.factory
-let to = Schema.to
+let to = Schema.shape
+let shape = Schema.shape
 let tuple = Schema.tuple
 let tuple1 = v0 => tuple(s => s.item(0, v0))
 let tuple2 = (v0, v1) =>

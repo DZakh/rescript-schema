@@ -172,7 +172,10 @@ test("Applies preproces parser for union schemas separately", t => {
   })
 
   let schema =
-    S.union([S.bool->S.to(bool => #Bool(bool)), S.int->S.to(int => #Int(int))])->prepareEnvSchema
+    S.union([
+      S.bool->S.shape(bool => #Bool(bool)),
+      S.int->S.shape(int => #Int(int)),
+    ])->prepareEnvSchema
 
   t->Assert.deepEqual("f"->S.parseOrThrow(schema), #Bool(false), ())
   t->Assert.deepEqual("1"->S.parseOrThrow(schema), #Bool(true), ())
@@ -181,8 +184,8 @@ test("Applies preproces parser for union schemas separately", t => {
 
 test("Applies preproces serializer for union schemas separately", t => {
   let schema = S.union([
-    S.bool->S.to(bool => #Bool(bool)),
-    S.int->S.to(int => #Int(int)),
+    S.bool->S.shape(bool => #Bool(bool)),
+    S.int->S.shape(int => #Int(int)),
   ])->S.preprocess(s => {
     switch s.schema->S.classify {
     | Bool => {
