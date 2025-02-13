@@ -4078,9 +4078,6 @@ module Error = {
     let op = error.flag
 
     let text = ref("Failed ")
-    if op->Flag.unsafeHas(Flag.reverse) {
-      text := text.contents ++ "reverse "
-    }
     if op->Flag.unsafeHas(Flag.async) {
       text := text.contents ++ "async "
     }

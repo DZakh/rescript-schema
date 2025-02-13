@@ -19,7 +19,7 @@ test("Error with Serializing operation", t => {
       operation: ReverseConvert,
       path: S.Path.empty,
     })->S.Error.message,
-    "Failed reverse converting at root. Reason: Should be positive",
+    "Failed converting at root. Reason: Should be positive",
     (),
   )
 })
@@ -223,7 +223,7 @@ test("InvalidJsonSchema error", t => {
       operation: ReverseConvert,
       path: S.Path.empty,
     })->S.Error.message,
-    `Failed reverse converting at root. Reason: The 'true | undefined' schema cannot be converted to JSON`,
+    `Failed converting at root. Reason: The 'true | undefined' schema cannot be converted to JSON`,
     (),
   )
 })

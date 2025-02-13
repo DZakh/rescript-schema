@@ -18,10 +18,16 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Use internal transform for trim
 
+## v9.3
+
+- Added S.shape and deprecated S.to
+- Removed "reverse" from error message
+
 ## v10
 
-- Rename S.to to S.reshape
-- Change S.classify to something like S.input/S.output
+- Delete S.to
+- Stop exposing schema type
+- Change S.classify to something like S.input/S.output (or expose schema as variant)
 - Add refinement info to the tagged type
 - Add S.string->S.coerce(S.int) to coerce string to int and other types
 - Add S.codegen

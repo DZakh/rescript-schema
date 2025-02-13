@@ -2983,9 +2983,6 @@ function reason$1(error) {
 function message(error) {
   var op = error.flag;
   var text = "Failed ";
-  if (op & 32) {
-    text = text + "reverse ";
-  }
   if (op & 2) {
     text = text + "async ";
   }
