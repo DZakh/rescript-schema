@@ -1776,6 +1776,21 @@ test("Unnest schema", (t) => {
   >(true);
 });
 
+test("Coerce string to number", (t) => {
+  const schema = S.coerce(S.string, S.number);
+
+  t.deepEqual(S.parseOrThrow("123", schema), 123);
+  t.deepEqual(S.parseOrThrow("123.4", schema), 123.4);
+  t.deepEqual(S.reverseConvertOrThrow(123, schema), "123");
+});
+
+test("Shape string to object", (t) => {
+  const schema = S.shape(S.string, (string) => ({ foo: string }));
+
+  t.deepEqual(S.parseOrThrow("bar", schema), { foo: "bar" });
+  t.deepEqual(S.reverseConvertOrThrow({ foo: "bar" }, schema), "bar");
+});
+
 test("Tuple with transform to object", (t) => {
   let pointSchema = S.tuple((s) => {
     s.tag(0, "point");
@@ -1982,3 +1997,40 @@ test("Compile types", async (t) => {
 
   t.pass();
 });
+
+// const filmSchema = S.transform(
+//   S.schema({
+//     Id: S.number,
+//     Meta: {
+//       Title: S.string,
+//     },
+//     Tags_v2: S.array(S.string),
+//     Rating: S.schema([S.union(["G", "PG", "PG13", "R"])]),
+//   }),
+//   (input) => ({
+//     id: input.Id,
+//     title: input.Meta.Title,
+//     tags: input.Tags_v2,
+//     rating: input.Rating[0],
+//   })
+// );
+
+// // const filmSchema = S.object((s) => ({
+// //   id: s.field("Id", S.number),
+// //   title: s.nested("Meta").field("Title", S.string),
+// //   tags: s.field("Tags_v2", S.array(S.string)),
+// //   rating: s.field("Rating", S.schema([S.union(["G", "PG", "PG13", "R"])]))[0],
+// // }));
+
+// S.parseOrThrow(
+//   {
+//     Id: 1,
+//     Meta: {
+//       Title: "My first film",
+//     },
+//     Tags_v2: ["Loved"],
+//     Rating: ["G"],
+//   },
+//   filmSchema
+// );
+// // => { id: 1, title: "My first film", tags: ["Loved"], rating: "G" }

@@ -2447,8 +2447,10 @@ module Int = {
     }
   }
 
-  let typeFilter = (_b, ~inputVar) =>
-    `typeof ${inputVar}!=="number"||${inputVar}>2147483647||${inputVar}<-2147483648||${inputVar}%1!==0`
+  let refinement = (~inputVar) =>
+    `${inputVar}>2147483647||${inputVar}<-2147483648||${inputVar}%1!==0`
+
+  let typeFilter = (_b, ~inputVar) => `typeof ${inputVar}!=="number"||${refinement(~inputVar)}`
 
   let schema = makePrimitiveSchema(
     ~tagged=Int,
@@ -4639,6 +4641,119 @@ let datetime = (schema, ~message=`Invalid datetime string! Must be UTC`) => {
 let trim = schema => {
   let transformer = string => string->Js.String2.trim
   schema->transform(_ => {parser: transformer, serializer: transformer})
+}
+
+let rec coerce = (from, to) => {
+  let from = from->toUnknown
+  let to = to->toUnknown
+
+  // It makes sense, since S.coerce quite often will be used
+  // inside of a framework where we don't control what's the to argument
+  if from === to {
+    from->castUnknownSchemaToAnySchema
+  } else {
+    let extendCoercion = %raw(`0`)
+    let literalCoercion = %raw(`1`)
+
+    let coercion = switch (from.reverse()->classify, to->classify) {
+    | (String, String)
+    | (Int, Float) => extendCoercion
+    | (String, Literal(String(_)))
+    | (Literal(String(_)), String) => literalCoercion
+    | (Bool, String)
+    | (Int, String)
+    | (Float, String)
+    | (BigInt, String) =>
+      (b, ~inputVar, ~failCoercion as _) => b->B.val(`""+${inputVar}`) // TODO: This looks like the fastest option. Benchmark vs `${inputVar}?"true":"false"` vs `"{value}"` vs .toString and store the results somewhere
+    | (String, Bool) =>
+      (b, ~inputVar, ~failCoercion) => {
+        let output = b->B.allocateVal
+        b.code =
+          b.code ++
+          `(${output.inline}=${inputVar}==="true")||${inputVar}==="false"||${failCoercion};`
+        output
+      }
+    | (String, Literal(Boolean(_) as literal))
+    | (String, Literal(Number(_) as literal))
+    | (String, Literal(BigInt(_) as literal))
+    | (String, Literal(Undefined(_) as literal))
+    | (String, Literal(Null(_) as literal))
+    | (String, Literal(NaN(_) as literal)) =>
+      (b, ~inputVar, ~failCoercion) => {
+        b.code = b.code ++ `${inputVar}==="${literal->Literal.value->Obj.magic}"||${failCoercion};`
+        b->B.val((literal->Literal.toInternal).string)
+      }
+    | (Literal(Boolean(_) as literal), String)
+    | (Literal(Number(_) as literal), String)
+    | (Literal(BigInt(_) as literal), String)
+    | (Literal(Undefined(_) as literal), String)
+    | (Literal(Null(_) as literal), String)
+    | (Literal(NaN(_) as literal), String) =>
+      (b, ~inputVar as _, ~failCoercion as _) => b->B.val(`"${literal->Literal.value->Obj.magic}"`)
+    | (String, Float as toTag)
+    | (String, Int as toTag) =>
+      (b, ~inputVar, ~failCoercion) => {
+        let output = b->B.val(`+${inputVar}`)
+        b.code =
+          b.code ++
+          `Number.isNaN(${output.var(b)})${toTag === Int
+              ? `||${Int.refinement(~inputVar)}`
+              : ``}&&${failCoercion};`
+        output
+      }
+    | (String, BigInt) =>
+      (b, ~inputVar, ~failCoercion) => {
+        let output = b->B.allocateVal
+        b.code = b.code ++ `try{${output.inline}=BigInt(${inputVar})}catch(_){${failCoercion}}`
+        output
+      }
+
+    | _ =>
+      InternalError.panic(`S.coerce from ${from.reverse().name()} to ${to.name()} is not supported`)
+    }
+
+    makeSchema(
+      ~name=from.name,
+      ~tagged=from.tagged,
+      ~builder=Builder.make((b, ~input, ~selfSchema as _, ~path) => {
+        let input = b->B.parse(~schema=from, ~input, ~path)
+
+        if coercion === extendCoercion {
+          b->B.parse(~schema=to, ~input, ~path)
+        } else if coercion === literalCoercion {
+          b->B.parseWithTypeValidation(~schema=to, ~input, ~path)
+        } else {
+          let bb = b->B.scope
+          let inputVar = input.var(bb)
+          let output = bb->B.parse(
+            ~schema=to,
+            ~input=bb->coercion(
+              ~inputVar,
+              ~failCoercion=bb->B.failWithArg(
+                ~path,
+                input => InvalidType({
+                  expected: to,
+                  received: input,
+                }),
+                inputVar,
+              ),
+            ),
+            ~path,
+          )
+          b.code = b.code ++ bb->B.allocateScope
+          output
+        }
+      }),
+      ~maybeTypeFilter=from.maybeTypeFilter,
+      ~metadataMap=to.metadataMap,
+      ~reverse=() => {
+        coerce(
+          to.reverse()->castUnknownSchemaToAnySchema,
+          from.reverse()->castUnknownSchemaToAnySchema,
+        )->toUnknown
+      },
+    )
+  }
 }
 
 // =============

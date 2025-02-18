@@ -1661,8 +1661,12 @@ function refinements$2(schema) {
   }
 }
 
+function refinement(inputVar) {
+  return inputVar + ">2147483647||" + inputVar + "<-2147483648||" + inputVar + "%1!==0";
+}
+
 function typeFilter$6(_b, inputVar) {
-  return "typeof " + inputVar + "!==\"number\"||" + inputVar + ">2147483647||" + inputVar + "<-2147483648||" + inputVar + "%1!==0";
+  return "typeof " + inputVar + "!==\"number\"||" + refinement(inputVar);
 }
 
 var schema$4 = makePrimitiveSchema("int32", noop, typeFilter$6);
@@ -3520,6 +3524,237 @@ function trim(schema) {
               }));
 }
 
+function coerce(from, to) {
+  if (from === to) {
+    return from;
+  }
+  var extendCoercion = 0;
+  var literalCoercion = 1;
+  var match = from["~r"]().t;
+  var match$1 = to.t;
+  var coercion;
+  var exit = 0;
+  var literal;
+  if (typeof match !== "object") {
+    switch (match) {
+      case "string" :
+          var exit$1 = 0;
+          if (typeof match$1 !== "object") {
+            switch (match$1) {
+              case "string" :
+                  coercion = extendCoercion;
+                  break;
+              case "int32" :
+              case "number" :
+                  exit$1 = 4;
+                  break;
+              case "bigint" :
+                  coercion = (function (b, inputVar, failCoercion) {
+                      var output = allocateVal(b);
+                      b.c = b.c + ("try{" + output.i + "=BigInt(" + inputVar + ")}catch(_){" + failCoercion + "}");
+                      return output;
+                    });
+                  break;
+              case "boolean" :
+                  coercion = (function (b, inputVar, failCoercion) {
+                      var output = allocateVal(b);
+                      b.c = b.c + ("(" + output.i + "=" + inputVar + "===\"true\")||" + inputVar + "===\"false\"||" + failCoercion + ";");
+                      return output;
+                    });
+                  break;
+              default:
+                exit = 1;
+            }
+          } else if (match$1.TAG === "literal") {
+            var literal$1 = match$1._0;
+            switch (literal$1.kind) {
+              case "String" :
+                  coercion = literalCoercion;
+                  break;
+              case "Symbol" :
+              case "Array" :
+              case "Dict" :
+              case "Function" :
+              case "Object" :
+                  exit = 1;
+                  break;
+              default:
+                coercion = (function (b, inputVar, failCoercion) {
+                    b.c = b.c + (inputVar + "===\"" + literal$1.value + "\"||" + failCoercion + ";");
+                    return {
+                            b: b,
+                            v: _notVar,
+                            i: literal$1.s,
+                            a: false
+                          };
+                  });
+            }
+          } else {
+            exit = 1;
+          }
+          if (exit$1 === 4) {
+            coercion = (function (b, inputVar, failCoercion) {
+                var output = {
+                  b: b,
+                  v: _notVar,
+                  i: "+" + inputVar,
+                  a: false
+                };
+                b.c = b.c + ("Number.isNaN(" + output.v(b) + ")" + (
+                    match$1 === "int32" ? "||" + refinement(inputVar) : ""
+                  ) + "&&" + failCoercion + ";");
+                return output;
+              });
+          }
+          break;
+      case "int32" :
+          if (typeof match$1 !== "object") {
+            switch (match$1) {
+              case "string" :
+                  exit = 2;
+                  break;
+              case "number" :
+                  coercion = extendCoercion;
+                  break;
+              default:
+                exit = 1;
+            }
+          } else {
+            exit = 1;
+          }
+          break;
+      case "number" :
+          exit = typeof match$1 !== "object" && match$1 === "string" ? 2 : 1;
+          break;
+      case "bigint" :
+          exit = typeof match$1 !== "object" && match$1 === "string" ? 2 : 1;
+          break;
+      case "boolean" :
+          exit = typeof match$1 !== "object" && match$1 === "string" ? 2 : 1;
+          break;
+      default:
+        exit = 1;
+    }
+  } else if (match.TAG === "literal") {
+    var literal$2 = match._0;
+    switch (literal$2.kind) {
+      case "String" :
+          if (typeof match$1 !== "object" && match$1 === "string") {
+            coercion = literalCoercion;
+          } else {
+            exit = 1;
+          }
+          break;
+      case "Number" :
+          if (typeof match$1 !== "object" && match$1 === "string") {
+            literal = literal$2;
+            exit = 3;
+          } else {
+            exit = 1;
+          }
+          break;
+      case "Boolean" :
+          if (typeof match$1 !== "object" && match$1 === "string") {
+            literal = literal$2;
+            exit = 3;
+          } else {
+            exit = 1;
+          }
+          break;
+      case "BigInt" :
+          if (typeof match$1 !== "object" && match$1 === "string") {
+            literal = literal$2;
+            exit = 3;
+          } else {
+            exit = 1;
+          }
+          break;
+      case "Null" :
+          if (typeof match$1 !== "object" && match$1 === "string") {
+            literal = literal$2;
+            exit = 3;
+          } else {
+            exit = 1;
+          }
+          break;
+      case "Undefined" :
+          if (typeof match$1 !== "object" && match$1 === "string") {
+            literal = literal$2;
+            exit = 3;
+          } else {
+            exit = 1;
+          }
+          break;
+      case "NaN" :
+          if (typeof match$1 !== "object" && match$1 === "string") {
+            literal = literal$2;
+            exit = 3;
+          } else {
+            exit = 1;
+          }
+          break;
+      default:
+        exit = 1;
+    }
+  } else {
+    exit = 1;
+  }
+  switch (exit) {
+    case 1 :
+        var message = "S.coerce from " + from["~r"]().n() + " to " + to.n() + " is not supported";
+        throw new Error("[rescript-schema] " + message);
+    case 2 :
+        coercion = (function (b, inputVar, param) {
+            return {
+                    b: b,
+                    v: _notVar,
+                    i: "\"\"+" + inputVar,
+                    a: false
+                  };
+          });
+        break;
+    case 3 :
+        coercion = (function (b, param, param$1) {
+            return {
+                    b: b,
+                    v: _notVar,
+                    i: "\"" + literal.value + "\"",
+                    a: false
+                  };
+          });
+        break;
+    
+  }
+  return makeSchema(from.n, from.t, to.m, (function (b, input, param, path) {
+                var input$1 = from.b(b, input, from, path);
+                if (coercion === extendCoercion) {
+                  return to.b(b, input$1, to, path);
+                }
+                if (coercion === literalCoercion) {
+                  return parseWithTypeValidation(b, to, input$1, path);
+                }
+                var bb = {
+                  c: "",
+                  l: "",
+                  a: initialAllocate,
+                  g: b.g
+                };
+                var inputVar = input$1.v(bb);
+                var input$2 = coercion(bb, inputVar, failWithArg(bb, path, (function (input) {
+                            return {
+                                    TAG: "InvalidType",
+                                    expected: to,
+                                    received: input
+                                  };
+                          }), inputVar));
+                var output = to.b(bb, input$2, to, path);
+                b.c = b.c + allocateScope(bb);
+                return output;
+              }), from.f, (function () {
+                return coerce(to["~r"](), from["~r"]());
+              }));
+}
+
 function js_union(values) {
   return factory$5(values.map(definitionToSchema));
 }
@@ -3836,6 +4071,7 @@ export {
   refine ,
   to ,
   shape ,
+  coerce ,
   compile$1 as compile,
   parseOrThrow ,
   parseJsonOrThrow ,

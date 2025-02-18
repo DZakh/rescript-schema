@@ -59,6 +59,7 @@
   - [`Built-in operations`](#built-in-operations)
   - [`compile`](#compile)
   - [`reverse`](#reverse)
+  - [`coerce`](#coerce)
   - [`classify`](#classify)
   - [`isAsync`](#isasync)
   - [`name`](#name)
@@ -1286,6 +1287,8 @@ await "1"->S.parseAsyncOrThrow(userSchema)
 
 ## Preprocess _Advanced_
 
+> ☢️ This API is soon to be deprecated. Whenever it's possible, use [S.coerce](#coerce) instead.
+
 Typically **rescript-schema** operates under a "parse then transform" paradigm. **rescript-schema** validates the input first, then passes it through a chain of transformation functions.
 
 But sometimes you want to apply some transform to the input before parsing happens. Mostly needed when you build sometimes on top of **rescript-schema**. A simplified example from [rescript-envsafe](https://github.com/DZakh/rescript-envsafe):
@@ -1448,6 +1451,34 @@ let reversed = schema->S.reverse
 ```
 
 Reverses the schema. This gets especially magical for schemas with transformations 🪄
+
+### **`coerce`**
+
+`(S.t<'from>, S.t<'to>) => S.t<'to>`
+
+This very powerful API allows you to coerce another data type in a declarative way. Let's say you receive a number that is passed to your system as a string. For this `S.coerce` is the best fit:
+
+```rescript
+let schema = S.string->S.coerce(S.float)
+
+"123"->S.parseOrThrow(schema) //? 123.
+"abc"->S.parseOrThrow(schema) //? throws: Failed parsing at root. Reason: Expected number, received "abc"
+
+// Reverse works correctly as well 🔥
+123.->S.reverseConvertOrThrow(schema) //? "123"
+```
+
+Currently, ReScript Schema supports the following coercions (🔄 means reverse support):
+
+- from `string` to `string` 🔄
+- from `string` to literal `string`, `boolean`, `number`, `bigint` `null`, `undefined`, `NaN` 🔄
+- from `string` to `boolean` 🔄
+- from `string` to `int32` 🔄
+- from `string` to `number` 🔄
+- from `string` to `bigint` 🔄
+- from `int32` to `number`
+
+There are plans to add more support in future versions and make it extensible.
 
 ### **`classify`**
 

@@ -76,6 +76,8 @@ var to = S_Core$RescriptSchema.to;
 
 var shape = S_Core$RescriptSchema.shape;
 
+var coerce = S_Core$RescriptSchema.coerce;
+
 var compile = S_Core$RescriptSchema.compile;
 
 var parseOrThrow = S_Core$RescriptSchema.parseOrThrow;
@@ -228,6 +230,7 @@ export {
   refine ,
   to ,
   shape ,
+  coerce ,
   compile ,
   parseOrThrow ,
   parseJsonOrThrow ,

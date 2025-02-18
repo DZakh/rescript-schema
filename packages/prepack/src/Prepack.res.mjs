@@ -219,6 +219,14 @@ var filesMapping = [
     "S.standard"
   ],
   [
+    "coerce",
+    "S.coerce"
+  ],
+  [
+    "shape",
+    "S.shape"
+  ],
+  [
     "tuple",
     "S.tuple"
   ],

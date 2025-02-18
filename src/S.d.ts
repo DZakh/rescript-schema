@@ -518,3 +518,13 @@ export function standard<Output, Input>(
 ): {
   ["~standard"]: StandardSchemaV1.Props<Input, Output>;
 };
+
+export function shape<Output, Input, Shape>(
+  schema: Schema<Output, Input>,
+  shaper: (value: Output) => Shape
+): Schema<Shape, Input>;
+
+export function coerce<Output, Coerce, Input>(
+  from: Schema<Coerce, Input>,
+  to: Schema<Output, Coerce>
+): Schema<Output, Input>;

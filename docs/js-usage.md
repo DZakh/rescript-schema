@@ -41,6 +41,7 @@
   - [Built-in operations](#built-in-operations)
   - [`compile`](#compile)
   - [`reverse`](#reverse)
+  - [`coerce`](#coerce)
   - [`standard`](#standard)
   - [`name`](#name)
   - [`setName`](#setname)
@@ -828,6 +829,32 @@ S.parseOrThrow(123, reversed);
 ```
 
 Reverses the schema. This gets especially magical for schemas with transformations 🪄
+
+### **`coerce`**
+
+This very powerful API allows you to coerce another data type in a declarative way. Let's say you receive a number that is passed to your system as a string. For this `S.coerce` is the best fit:
+
+```ts
+const schema = S.coerce(S.string, S.float);
+
+S.parseOrThrow("123", schema); //? 123.
+S.parseOrThrow("abc", schema); //? throws: Failed parsing at root. Reason: Expected number, received "abc"
+
+// Reverse works correctly as well 🔥
+S.reverseConvertOrThrow(123, schema); //? "123"
+```
+
+Currently, ReScript Schema supports the following coercions (🔄 means reverse support):
+
+- from `string` to `string` 🔄
+- from `string` to literal `string`, `boolean`, `number`, `bigint` `null`, `undefined`, `NaN` 🔄
+- from `string` to `boolean` 🔄
+- from `string` to `int32` 🔄
+- from `string` to `number` 🔄
+- from `string` to `bigint` 🔄
+- from `int32` to `number`
+
+There are plans to add more support in future versions and make it extensible.
 
 ### **`standard`**
 

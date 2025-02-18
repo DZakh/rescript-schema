@@ -197,6 +197,8 @@ let refine: (t<'value>, s<'value> => 'value => unit) => t<'value>
 let to: (t<'value>, 'value => 'to) => t<'to>
 let shape: (t<'value>, 'value => 'shape) => t<'shape>
 
+let coerce: (t<'from>, t<'to>) => t<'to>
+
 type rec input<'value, 'computed> =
   | @as("Output") Value: input<'value, 'value>
   | @as("Input") Unknown: input<'value, unknown>

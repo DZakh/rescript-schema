@@ -22,14 +22,20 @@ let trimContract: S.contract<string => string> = S.contract(s => {
 
 - Added S.shape and deprecated S.to
 - Removed "reverse" from error message
+- Added S.coerce
 
 ## v10
 
+- Support unions and complex types for S.coerce
+- Make S.coerce extencible
+- Move description and deprecated to schema fields
+- Move example to rescript-schema
+- Add S.date (S.instanceof) and remove S.datetime
 - Delete S.to
-- Stop exposing schema type
+- Add S.shape to ts api
+- Stop exposing "schema" type
 - Change S.classify to something like S.input/S.output (or expose schema as variant)
 - Add refinement info to the tagged type
-- Add S.string->S.coerce(S.int) to coerce string to int and other types
 - Add S.codegen
 - Add schema input to the error ??? What about build errors?
 - Remove Literal.parse in favor of S.literal and make it create Object/Tuple schema instead of Literal(Object)
