@@ -37,6 +37,8 @@
 - [Recursive schemas](#recursive-schemas)
 - [Refinements](#refinements)
 - [Transforms](#transforms)
+  - [`transform`](#transforms)
+  - [`shape`](#shape)
 - [Functions on schema](#functions-on-schema)
   - [Built-in operations](#built-in-operations)
   - [`compile`](#compile)
