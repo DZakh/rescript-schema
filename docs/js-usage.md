@@ -378,7 +378,7 @@ Use the `S.strip` function to reset an object schema to the default behavior (st
 Both `S.strict` and `S.strip` are applied for the first level of the object schema. If you want to apply it for all nested schemas, you can use `S.deepStrict` and `S.deepStrip` functions.
 
 ```ts
-let schema = S.schema({
+const schema = S.schema({
   bar: {
     baz: S.string,
   },
@@ -649,7 +649,7 @@ type Node = {
   children: Node[];
 };
 
-let nodeSchema = S.recursive<Node>((nodeSchema) =>
+const nodeSchema = S.recursive<Node>((nodeSchema) =>
   S.schema({
     id: S.string,
     children: S.array(nodeSchema),
@@ -700,7 +700,7 @@ await S.parseAsyncOrThrow(
 
 ## Transforms
 
-**rescript-schema** allows to augment schema with transformation logic, letting you transform value during parsing and serializing. This is most commonly used for mapping value to more convenient data-structures.
+**rescript-schema** allows to augment schema with transformation logic, letting you transform value during parsing and serializing. This is most commonly used when you need to access the value in runtime and perform some transformation logic. For cases when you only want to change the shape of the data, it's better to use `S.shape` instead.
 
 ```ts
 const intToString = (schema) =>
@@ -715,6 +715,26 @@ const intToString = (schema) =>
       return int;
     }
   );
+```
+
+> 🧠 You can use `S.coerce(S.int, S.string)` which is a better version of the above example.
+
+### **`shape`**
+
+The `S.shape` schema is a helper function that allows you to transform the value to a desired shape. It'll statically derive required data transformations to perform the change in the most optimal way.
+
+> ⚠️ Even though it looks like you operate with a real value, it's actually a dummy proxy object. So conditions or any other runtime logic won't work. Please use `S.transform` for such cases.
+
+```typescript
+const circleSchema = S.shape(S.number, (radius) => ({
+  kind: "circle",
+  radius: radius,
+}));
+
+S.parseOrThrow(1, circleSchema); //? { kind: "circle", radius: 1 }
+
+// Also works in reverse 🔄
+S.reverseConvertOrThrow({ kind: "circle", radius: 1 }, circleSchema); //? 1
 ```
 
 ## Functions on schema
@@ -918,7 +938,7 @@ Or the async version:
 
 ```ts
 const result = await S.safeAsync(async () => {
-  let passed = await S.parseAsyncOrThrow(data, S.schema(S.boolean));
+  const passed = await S.parseAsyncOrThrow(data, S.schema(S.boolean));
   return passed ? 1 : 0;
 });
 ```

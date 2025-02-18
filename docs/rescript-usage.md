@@ -763,6 +763,10 @@ let tupleExampleSchema = S.schema(s => (#id, s.matches(S.string)))
 
 `(S.t<'value>, 'value => 'shape) => S.t<'shape>`
 
+The `S.shape` schema is a helper function that allows you to transform the value to a desired shape. It'll statically derive required data transformations to perform the change in the most optimal way.
+
+> ⚠️ Even though it looks like you operate with a real value, it's actually a dummy proxy object. So conditions or any other runtime logic won't work. Please use `S.transform` for such cases.
+
 ```rescript
 type shape = Circle({radius: float}) | Square({x: float}) | Triangle({x: float, y: float})
 
