@@ -194,8 +194,6 @@ let custom: (string, s<'output> => customDefinition<'input, 'output>) => t<'outp
 
 let refine: (t<'value>, s<'value> => 'value => unit) => t<'value>
 
-@deprecated("S.to was renamed in favor of S.shape. It'll be removed in ReScript Schema v10")
-let to: (t<'value>, 'value => 'variant) => t<'variant>
 let shape: (t<'value>, 'value => 'shape) => t<'shape>
 
 let coerce: (t<'from>, t<'to>) => t<'to>

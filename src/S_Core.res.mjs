@@ -3979,8 +3979,6 @@ var jsonString = factory$4;
 
 var union = factory$5;
 
-var to = shape;
-
 var parseJsonOrThrow = parseOrThrow;
 
 var Schema = {};
@@ -4069,7 +4067,6 @@ export {
   preprocess ,
   custom ,
   refine ,
-  to ,
   shape ,
   coerce ,
   compile$1 as compile,

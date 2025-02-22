@@ -72,8 +72,6 @@ var custom = S_Core$RescriptSchema.custom;
 
 var refine = S_Core$RescriptSchema.refine;
 
-var to = S_Core$RescriptSchema.to;
-
 var shape = S_Core$RescriptSchema.shape;
 
 var coerce = S_Core$RescriptSchema.coerce;
@@ -228,7 +226,6 @@ export {
   preprocess ,
   custom ,
   refine ,
-  to ,
   shape ,
   coerce ,
   compile ,

@@ -2,13 +2,18 @@
 
 ## v10
 
+### Done
+
+- Removed `S.to` in favor of `S.shape`
+
+### Scope
+
 - Support unions and complex types for S.coerce
 - Make S.coerce extencible
 - Move description and deprecated to schema fields
 - Move example to rescript-schema
 - Add S.toJsonSchema and S.fromJsonSchema
 - Add S.date (S.instanceof) and remove S.datetime
-- Delete S.to
 - Stop exposing "schema" type ?
 - Change S.classify to something like S.input/S.output (or expose schema as variant)
 - Add refinement info to the tagged type
