@@ -30,7 +30,7 @@ Also, you can use **rescript-schema** as a building block for your tools. And th
 - [rescript-json-schema](https://github.com/DZakh/rescript-json-schema) - Typesafe JSON schema for ReScript
 - [rescript-stripe](https://github.com/enviodev/rescript-stripe) - Describe and manage Stripe billing in a declarative way with code
 - Internal form library at [Carla](https://www.carla.se/)
-- [tRPC](https://trpc.io/), [TanStack Form](https://tanstack.com/form), [TanStack Router](https://tanstack.com/router), [Hono](https://hono.dev/) and 15+ more using [Standard Schema](https://standardschema.dev/) spec
+- [tRPC](https://trpc.io/), [TanStack Form](https://tanstack.com/form), [TanStack Router](https://tanstack.com/router), [Hono](https://hono.dev/) and 19+ more using [Standard Schema](https://standardschema.dev/) spec
 
 ## Documentation
 
@@ -41,6 +41,7 @@ Also, you can use **rescript-schema** as a building block for your tools. And th
 
 ## Resources
 
+- Introduction to ReScript Schema ([Dev.to](https://dev.to/dzakh/javascript-schema-library-from-the-future-5420))
 - Building and consuming REST API in ReScript with rescript-rest and Fastify ([YouTube](https://youtu.be/37FY6a-zY20?si=72zT8Gecs5vmDPlD))
 - ReScript Schema V9 Changes Overview ([Dev.to](https://dev.to/dzakh/rescript-schema-v9-zod-like-library-to-the-next-level-1dn6))
 
@@ -60,6 +61,6 @@ At the same time **rescript-schema** is the fastest composable validation librar
 | **Example size** (minified + gzipped)    | 4.45 kB               | 13.5 kB         | 1.22 kB        | 40.7 kB       |
 | **Parse with the same schema**           | 93,491 ops/ms         | 1,191 ops/ms    | 3,540 ops/ms   | 84,772 ops/ms |
 | **Create schema & parse once**           | 166 ops/ms            | 93 ops/ms       | 2,302 ops/ms   | 13 ops/ms     |
-| **Eval-free**                            | ❌                    | ✅              | ✅             | ❓            |
+| **Eval-free**                            | ❌                    | ✅              | ✅             | ❌            |
 | **Codegen-free** (Doesn't need compiler) | ✅                    | ✅              | ✅             | ✅            |
 | **Ecosystem**                            | ⭐️⭐️                | ⭐️⭐️⭐️⭐️⭐️ | ⭐️⭐️⭐️      | ⭐️⭐️        |

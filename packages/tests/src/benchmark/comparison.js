@@ -1,7 +1,7 @@
 import B from "benchmark";
 import { z } from "zod";
-import * as V from "valibot";
-import * as S from "rescript-schema/src/S.mjs";
+import * as v from "valibot";
+import * as S from "rescript-schema/src/S.js";
 import { type } from "arktype";
 
 const data = Object.freeze({
@@ -33,6 +33,33 @@ const arkType = type({
   },
 });
 
+const RescriptSchemaUnion = S.union([
+  { box: S.string },
+  S.coerce(S.string, S.number),
+]);
+// S.parseOrThrow("123", RescriptSchemaUnion)
+// rescript-schema@9.3.0 x 82,715,204 ops/sec ±2.11% (86 runs sampled)
+
+const ValibotUnion = v.union([
+  v.object({
+    box: v.string(),
+  }),
+  v.pipe(v.string(), v.decimal(), v.transform(Number)),
+]);
+// v.parse(ValibotUnion, "123")
+// Valibot@1.0.0-rc.1 x 5,507,472 ops/sec ±0.38% (98 runs sampled)
+
+const ArkTypeUnion = type({ box: "string" }).or("string.numeric.parse");
+// ArkTypeUnion("123")
+// ArkType@2.0.4 x 4,300,118 ops/sec ±0.33% (97 runs sampled)
+
+const ZodUnion = z.union([
+  z.object({ box: z.string() }),
+  z.string().pipe(z.coerce.number()),
+]);
+// ZodUnion.parse("123")
+// Zod@3.24.2 x 3,278,494 ops/sec ±0.55% (94 runs sampled)
+
 const zodSchema = z.object({
   number: z.number(),
   negNumber: z.number(),
@@ -47,17 +74,17 @@ const zodSchema = z.object({
   }),
 });
 
-const valibotSchema = V.object({
-  number: V.number(),
-  negNumber: V.number(),
-  maxNumber: V.number(),
-  string: V.string(),
-  longString: V.string(),
-  boolean: V.boolean(),
-  deeplyNested: V.object({
-    foo: V.string(),
-    num: V.number(),
-    bool: V.boolean(),
+const valibotSchema = v.object({
+  number: v.number(),
+  negNumber: v.number(),
+  maxNumber: v.number(),
+  string: v.string(),
+  longString: v.string(),
+  boolean: v.boolean(),
+  deeplyNested: v.object({
+    foo: v.string(),
+    num: v.number(),
+    bool: v.boolean(),
   }),
 });
 
@@ -77,7 +104,7 @@ const schema = S.schema({
     bool: S.boolean,
   },
 });
-let parseOrThrow = S.compile(schema, "Input", "Output", "Sync", true);
+const parseOrThrow = S.compile(schema, "Input", "Output", "Sync", true);
 
 new B.Suite()
   .add("rescript-schema (create)", () => {
@@ -117,6 +144,9 @@ new B.Suite()
     });
     return S.parseOrThrow(data, schema);
   })
+  .add("rescript-schema (union)", () => {
+    return S.parseOrThrow("123", RescriptSchemaUnion);
+  })
   .add("Zod (create)", () => {
     return z.object({
       number: z.number(),
@@ -151,39 +181,45 @@ new B.Suite()
     });
     return zodSchema.parse(data);
   })
+  .add("Zod (union)", () => {
+    return ZodUnion.parse("123");
+  })
   .add("Valibot (create)", () => {
-    return V.object({
-      number: V.number(),
-      negNumber: V.number(),
-      maxNumber: V.number(),
-      string: V.string(),
-      longString: V.string(),
-      boolean: V.boolean(),
-      deeplyNested: V.object({
-        foo: V.string(),
-        num: V.number(),
-        bool: V.boolean(),
+    return v.object({
+      number: v.number(),
+      negNumber: v.number(),
+      maxNumber: v.number(),
+      string: v.string(),
+      longString: v.string(),
+      boolean: v.boolean(),
+      deeplyNested: v.object({
+        foo: v.string(),
+        num: v.number(),
+        bool: v.boolean(),
       }),
     });
   })
   .add("Valibot (parse)", () => {
-    return V.parse(valibotSchema, data);
+    return v.parse(valibotSchema, data);
   })
   .add("Valibot (create + parse)", () => {
-    const valibotSchema = V.object({
-      number: V.number(),
-      negNumber: V.number(),
-      maxNumber: V.number(),
-      string: V.string(),
-      longString: V.string(),
-      boolean: V.boolean(),
-      deeplyNested: V.object({
-        foo: V.string(),
-        num: V.number(),
-        bool: V.boolean(),
+    const valibotSchema = v.object({
+      number: v.number(),
+      negNumber: v.number(),
+      maxNumber: v.number(),
+      string: v.string(),
+      longString: v.string(),
+      boolean: v.boolean(),
+      deeplyNested: v.object({
+        foo: v.string(),
+        num: v.number(),
+        bool: v.boolean(),
       }),
     });
-    return V.parse(valibotSchema, data);
+    return v.parse(valibotSchema, data);
+  })
+  .add("Valibot (union)", () => {
+    return v.parse(ValibotUnion, "123");
   })
   .add("ArkType (create)", () => {
     return type({
@@ -218,6 +254,9 @@ new B.Suite()
       },
     });
     return arkType(data);
+  })
+  .add("ArkType (union)", () => {
+    return ArkTypeUnion("123");
   })
   .on("cycle", (event) => {
     console.log(String(event.target));
