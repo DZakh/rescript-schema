@@ -349,7 +349,7 @@ const assertNotStrict = (input: Val, schema: Internal): void => {
   if (schema.additionalItems === "strict" && schema.seq !== U) {
     B_invalidOperation(
       input,
-      `S.strict is not supported by S.formData — a browser adds entries of its own (_charset_, dirname, an image button's name.x/name.y). Use S.strip`,
+      `S.strict is not supported by S.formData. Use S.strip`,
     );
   }
 };
@@ -449,6 +449,9 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       o: U,
     };
 
+    // A blank text input submits `""`, so a required string field that says
+    // nothing about it has two equally good readings and the codec picks
+    // neither.
     if (
       !field.optional &&
       !field.nullable &&
@@ -457,7 +460,8 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     ) {
       B_invalidOperation(
         item,
-        `A form submits "" for a blank field. Use S.nonEmpty to reject, S.minLength(0) to keep, S.optional or S.nullable for absent`,
+        `A blank entry. Use S.nonEmpty, S.minLength(0), S.optional or S.nullable`,
+        "Ambiguous",
       );
     }
 

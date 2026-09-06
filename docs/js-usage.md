@@ -1226,9 +1226,8 @@ creation:
 
 ```ts
 S.formData.with(S.to, S.schema({ name: S.string }));
-// throws at S.decoder: Failed at name: A form submits "" for a blank field.
-// Use S.nonEmpty to reject, S.minLength(0) to keep, S.optional or S.nullable
-// for absent
+// throws at S.decoder: Ambiguous at name: A blank entry.
+// Use S.nonEmpty, S.minLength(0), S.optional or S.nullable
 ```
 
 ```ts

@@ -230,6 +230,10 @@ export type InvalidOperationDetails = {
   code: "invalid_operation";
   path: Path;
   reason: string;
+  // Leads the message in place of "Failed", for an operation that is rejected
+  // rather than failed. Read by formatErrorMessage, so a custom
+  // messageFormatter is free to ignore it.
+  verb?: string;
 }
 export type UnsupportedDecodeDetails = {
   code: "unsupported_decode";
@@ -800,7 +804,7 @@ export const panic = (message: string): never => {
 }
 
 const formatErrorMessage = (error: SuryErrorRecord): string =>
-  `${error.path.length ? `Failed at ${pathToText(error.path)}: ` : ""}${error.reason}`;
+  `${error.path.length ? `${(error as { verb?: string }).verb || "Failed"} at ${pathToText(error.path)}: ` : ""}${error.reason}`;
 
 export const errorClass: unknown = SuryError;
 

@@ -839,8 +839,8 @@ export const B_contentDiffers = (from?: Internal, to?: Internal): boolean =>
 export const B_readsPayload = (target: Internal): boolean =>
   target.opens ?? target.to !== U;
 
-export const B_invalidOperation = (val: Val, description: string): never =>
-  B_throw({ code: "invalid_operation", reason: description, path: val.path });
+export const B_invalidOperation = (val: Val, description: string, verb?: string): never =>
+  B_throw({ code: "invalid_operation", reason: description, path: val.path, verb });
 
 const B_mergeWithCatch = (
   val: Val,

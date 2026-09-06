@@ -12,6 +12,6 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: S.strict is not supported by S.formData — a browser adds entries of its own (_charset_, dirname, an image button's name.x/name.y). Use S.strip"
+    creationError: "SuryError: S.strict is not supported by S.formData. Use S.strip"
   decode: eq-to-parse
   encode: eq-to-parse
