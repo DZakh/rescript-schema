@@ -1196,7 +1196,19 @@ S.encoder(signup)(user);
 A field reads its entry as text through the same coercions
 [`S.record(S.string)`](#records) gets; `S.file` and `S.blob` take the entry as
 it is, and `S.array` reads every entry of the key — `S.array(S.file)` included,
-for a multi-file input.
+for a multi-file input. A `S.tuple` is the fixed-length version of the same
+read, so `S.tuple([S.string, S.number])` takes two entries of that key and
+reports a form that sent a different number of them.
+
+A key the schema declares once but the form sent twice is reported rather than
+resolved — `get` would answer the first and say nothing, and which one that is
+depends on submission order:
+
+```ts
+S.schema({ name: S.string.with(S.nonEmpty) });
+// name=first&name=second
+// => Failed at name: Expected string.length >= 1, received ["first", "second"]
+```
 
 ### Checkboxes
 
@@ -1219,8 +1231,8 @@ written out to keep the third state apart, and `S.optional(S.boolean, true)`
 therefore cannot round-trip.
 
 Any other `value` is a string the schema should name (`S.union(["yes", "no"])`),
-and `S.array(S.boolean)` is a positional list, not a checkbox group — a group
-submits the value of each checked box, which is `S.array(S.string)`.
+and a list of booleans is rejected: a checkbox group submits the value of each
+checked box, so `S.array(S.string)` is what one decodes to.
 
 A boolean arm of a union reads the same way, because the rule belongs to the
 entry rather than to the field:

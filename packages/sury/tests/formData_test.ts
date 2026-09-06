@@ -283,18 +283,35 @@ test("a union arm reads by its own rule, not the field's", () => {
   expect(() => d(form(["a", "x"]))).toThrow("Expected boolean | number");
 });
 
-test("a repeated key is a list, so a boolean list is positional", () => {
-  // Not a checkbox group: dropping the false entries the way a browser does
-  // would lose the indices the decoder reads back. A checkbox *group* submits
-  // the values of the checked boxes, which is S.array(S.string).
-  const schema = S.formData.with(S.to, S.schema({ flags: S.array(S.boolean) }));
-  const encoded = S.encoder(schema)({ flags: [true, false, true] });
-  expect(entries(encoded)).toEqual([
-    ["flags", "true"],
-    ["flags", "false"],
-    ["flags", "true"],
+test("a list of booleans is not something a form can send", () => {
+  // A checkbox is a whole field, and a group of them submits the *value* of
+  // each checked box — never `"on"` per position. Nothing a browser produces
+  // reads as a boolean list, so it is refused rather than given a reading of
+  // its own.
+  for (const schema of [S.array(S.boolean), S.tuple([S.string, S.boolean])]) {
+    expect(() => S.decoder(S.formData.with(S.to, S.schema({ flags: schema })))).toThrow(
+      "Failed at flags: A list of booleans is not supported by S.formData",
+    );
+  }
+  // The group a browser does send is a list of the checked values.
+  const group = S.formData.with(S.to, S.schema({ tags: S.array(S.string) }));
+  expect(S.decoder(group)(form(["tags", "ts"], ["tags", "go"]))).toEqual({
+    tags: ["ts", "go"],
+  });
+});
+
+test("a repeated key fills a tuple, one entry per slot", () => {
+  // A tuple is the fixed-length case of the same positional read, and its own
+  // length check reports a form that sent the wrong number of them.
+  const schema = S.formData.with(S.to, S.schema({ at: S.tuple([S.string.with(S.nonEmpty), S.number]) }));
+  expect(entries(S.encoder(schema)({ at: ["x", 42] }))).toEqual([
+    ["at", "x"],
+    ["at", "42"],
   ]);
-  expect(S.decoder(schema)(encoded)).toEqual({ flags: [true, false, true] });
+  expect(S.decoder(schema)(form(["at", "x"], ["at", "42"]))).toEqual({ at: ["x", 42] });
+  expect(() => S.decoder(schema)(form(["at", "x"]))).toThrow(
+    'Failed at at: Expected [string.length >= 1, number], received ["x"]',
+  );
 });
 
 test("a repeated key of a union item encodes once per item", () => {
@@ -347,14 +364,17 @@ test("FIXME: a refinement inside S.optional is not checked on encode", () => {
     .not.toThrow();
 });
 
-test("a scalar field takes the first entry of a repeated key", () => {
+test("a repeated key reaching a field declared once is reported, not resolved", () => {
   // Parameter pollution: a client can send a key twice for a field the schema
-  // declared once. `get` is what the platform answers with, and it is the
-  // first entry — not the last, and not a silent array.
+  // says holds one value. `get` would answer the first and say nothing, and
+  // which one that is depends on submission order — so the pair is handed over
+  // and the field's own check reports it.
   const schema = S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty) }));
-  expect(S.decoder(schema)(form(["name", "first"], ["name", "second"]))).toEqual({
-    name: "first",
-  });
+  expect(() => S.decoder(schema)(form(["name", "first"], ["name", "second"]))).toThrow(
+    'Failed at name: Expected string.length >= 1, received ["first", "second"]',
+  );
+  // One entry is still one value, and a list takes it as a one-item list.
+  expect(S.decoder(schema)(form(["name", "only"]))).toEqual({ name: "only" });
 });
 
 test("a file entry in a text field is reported as the file it is", () => {
