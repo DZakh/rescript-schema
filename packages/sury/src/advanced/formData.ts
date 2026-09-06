@@ -186,6 +186,12 @@ formDataField.encoder = (input: Val, target: Internal): Val => {
       ? asText(input, target)
       : input;
   }
+  if (flag & (64 | 128)) {
+    // An entry is one value, so no structure fits in it. Reported from here,
+    // where the pair still names the form field — the text stage below would
+    // otherwise report a `string` the schema never mentioned.
+    return B_unsupportedDecode(input, formDataField, target);
+  }
   // A blob takes the entry as it is, and `undefined`/`null` are the sentinels a
   // union carries for an absent one. A string-tagged target checks the entry
   // itself, and reads it as its own document where it is a format — a `string`
