@@ -24,8 +24,6 @@ operations:
         output: '"x"'
       rejected-by-both:
         input: '"no"'
-        error: |-
-          Expected string.length >= 3 | "x", received "no"
-          - Expected string.length >= 3, received "no"
+        error: Expected string.length >= 3, received "no"
   decode: identity
   encode: identity

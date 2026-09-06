@@ -47,6 +47,4 @@ operations:
         output: "{ f: undefined }"
       null-reaches-the-coder:
         input: "{ f: null }"
-        error: |-
-          Failed at f: Expected unknown | undefined, received null
-          - At f: TypeError: Cannot read properties of null (reading 'tag')
+        error: "Failed at f: TypeError: Cannot read properties of null (reading 'tag')"

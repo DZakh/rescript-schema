@@ -835,15 +835,19 @@ const datePattern =
 // accepts, so widening one can emit broken JSON rather than merely admit more
 // strings. Run `pnpm --filter=sury fuzz:escfree` after touching either.
 // @__NO_SIDE_EFFECTS__
+// `expression` names the format in messages when the format name alone would
+// misread: it goes through the same `Expected X, received Y` as every other
+// failure rather than replacing the whole reason.
 const stringFormat = (
   format: StringFormat,
   test: RegExp | string | ((value: string) => boolean),
   escFree?: boolean,
-  message?: string,
+  expression?: string,
 ): Internal =>
   initSchema(stringTag, stringDecoderFn, (s) => {
     const re = typeof test === "string" ? new RegExp(test, "i") : test;
     s.format = format;
+    if (expression) s.expression = () => expression;
     // Conditional so an unflagged format carries no key at all: schemas are
     // printed by consumers, and `escapeFree: undefined` is noise on every one.
     if (escFree) {
@@ -854,7 +858,7 @@ const stringFormat = (
         {
           c: (inputVar) =>
             `${B_embed(input, re)}${re instanceof RegExp ? ".test" : ""}(${inputVar})`,
-          f: B_failWithErrorMessage("format", message),
+          f: B_failWithErrorMessage("format"),
         },
       ];
     };
@@ -898,11 +902,9 @@ export const isoDateTime: Internal = /* @__PURE__ */ stringFormat(
     "[Tt](?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d|23:59:60)(?:\\.\\d+)?[Zz]",
   ),
   true,
-  // The lone built-in default: `Expected date-time` would read as a bug, since
-  // a rejected `+02:00` timestamp IS a date-time. Phrased like the generic
-  // failure it replaces, minus the `received` half a message can't carry —
-  // see IDEAS.md.
-  "Expected UTC date-time",
+  // `Expected date-time` would read as a bug, since a rejected `+02:00`
+  // timestamp IS a date-time.
+  "UTC date-time",
 );
 
 // The range as real bound fields, for the reason int32 carries its own. The

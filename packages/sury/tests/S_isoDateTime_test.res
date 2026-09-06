@@ -28,7 +28,7 @@ test("Fails to parse non UTC date string", t => {
 
   t->U.assertThrowsMessage(
     () => "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseOrThrow(~to=schema),
-    `Expected UTC date-time`,
+    `Expected UTC date-time, received "Thu Apr 20 2023 10:45:48 GMT+0400"`,
   )
 })
 
@@ -37,7 +37,7 @@ test("Fails to parse UTC date with timezone offset", t => {
 
   t->U.assertThrowsMessage(
     () => "2020-01-01T00:00:00+02:00"->S.parseOrThrow(~to=schema),
-    `Expected UTC date-time`,
+    `Expected UTC date-time, received "2020-01-01T00:00:00+02:00"`,
   )
 })
 
@@ -59,6 +59,6 @@ test("Can be combined with S.to(S.date) for string-to-Date decoding", t => {
   )
   t->U.assertThrowsMessage(
     () => "not-a-date"->S.parseOrThrow(~to=schema),
-    `Expected UTC date-time`,
+    `Expected UTC date-time, received "not-a-date"`,
   )
 })

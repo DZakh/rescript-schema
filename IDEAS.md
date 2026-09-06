@@ -43,29 +43,6 @@
   case never uses the child — `{let v0=i["VAL"];break}` in
   `S_union_test.res`'s issue-101 golden. Eliminating it means making
   field-val inline strings lazy, a cross-cutting builder change.
-- **`S.isoDateTime` deserves a real error, and probably a different name.** It
-  is UTC-only, so it rejects `2026-01-15T10:30:00+02:00` — a string that plainly
-  IS an RFC 3339 date-time. `Expected date-time, received "...+02:00"` therefore
-  reads as a bug in Sury rather than a constraint, which is why this schema
-  carries the codebase's only built-in `stringFormat` message. That message is a
-  poor patch: a custom message replaces the whole reason, so it drops the
-  `received` half every other failure prints, and the two halves can't be
-  composed today.
-  - The fix is to let a check contribute the *expected* half and keep the
-    generic `received` — `B_failWithErrorMessage` currently chooses one or the
-    other (`B_invalidInputBuilder(U, U, m)` vs `failInvalidType`). Then this
-    renders `Expected UTC date-time, received "2026-01-15T10:30:00+02:00"` with
-    no special case. Setting `name` on the schema also produces that string and
-    is NOT the answer: `name` is public meta that also drives `$defs` naming,
-    and a multi-word name renders as `UTC date-time[]` inside a composite
-    expression.
-  - Consider renaming the export while at it. `isoDateTime` says nothing about
-    the UTC restriction, and the JSON Schema `date-time` format it emits is
-    genuinely wider than what it accepts — so a document round-tripped through
-    `toJSONSchema`/`fromJSONSchema` widens silently. `S.utcDateTime` (keeping
-    `isoDateTime` as a deprecated alias) would put the constraint in the name,
-    where the error message is trying to compensate for its absence. Breaking,
-    so it wants a CHANGELOG line.
 - Add `promise` type and `S.promise` (instead of async flag internally)
 - Async output refiner runs on the Promise wrapper, not the resolved value.
   When a decoder result is async (e.g. a union with an async member) and the

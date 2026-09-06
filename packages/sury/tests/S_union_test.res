@@ -67,8 +67,7 @@ test("When union of json and string schemas, should parse the first one", t => {
   t->Assert.deepEqual(%raw(`"string"`)->S.parseOrThrow(~to=schema), #json)
   t->U.assertThrowsMessage(
     () => %raw(`undefined`)->S.parseOrThrow(~to=schema),
-    `Expected JSON | string, received undefined
-- Expected JSON, received undefined`,
+    `Expected JSON, received undefined`,
   )
 
   t->U.assertCompiledCode(

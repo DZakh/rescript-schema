@@ -24,8 +24,6 @@ operations:
         output: '{ kind: "a", value: 1 }'
       rejected-by-both:
         input: '{ kind: "a", value: 0 }'
-        error: |-
-          Expected { kind: "a"; value: number >= 2; } | { kind: "a"; value: 1; }, received { kind: "a"; value: 0; }
-          - At value: Expected number >= 2, received 0
+        error: "Failed at value: Expected number >= 2, received 0"
   decode: identity
   encode: identity

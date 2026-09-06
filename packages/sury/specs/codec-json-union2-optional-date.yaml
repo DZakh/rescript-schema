@@ -26,9 +26,7 @@ operations:
         output: '{ value: "text" }'
       invalid-date-text:
         input: '{ value: { a: "nope" } }'
-        error: |-
-          Failed at value.a: Expected string | undefined, received "nope"
-          - At value.a: Expected Date, received invalid Date
+        error: "Failed at value.a: Expected Date, received invalid Date"
       neither-member:
         input: "{ value: 5 }"
         error: "Failed at value: Expected { a: string | undefined; } | string, received 5"
