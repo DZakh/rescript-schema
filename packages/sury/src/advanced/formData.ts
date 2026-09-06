@@ -41,6 +41,7 @@ import {
   B_hoistDecl,
   B_invalidInputBuilder,
   B_markOutput,
+  B_refine,
   B_merge,
   B_mergeWithPathPrepend,
   B_invalidOperation,
@@ -70,6 +71,7 @@ const isBlobClass = (class_: unknown): boolean => {
     | undefined;
   return (
     blobClass !== U &&
+    class_ !== U &&
     (class_ === blobClass || (class_ as { prototype?: unknown }).prototype instanceof blobClass)
   );
 };
@@ -157,6 +159,48 @@ const beforeTo = (schema: Internal): Internal => {
   delete mut.to;
   return mut;
 };
+
+// One entry of the list — a string or a `File` — as a schema, so the rules for
+// reading one live on it rather than in a per-field inspection. `parse`
+// consults a source's encoder hook once per arm of a union target, so a
+// `S.union([S.boolean, S.number])` field gets the checkbox reading on its
+// boolean arm and the text coercion on its number arm, which a rule applied at
+// field level could never reach.
+//
+// Named, and instance-tagged so no text target shares its type: a same-typed
+// arm would be taken as a pass-through and the hook never consulted.
+const formDataField: Internal = /* @__PURE__ */ initSchema(instanceTag, instanceDecoder, (s) => {
+  s.name = "form field";
+});
+formDataField.encoder = (input: Val, target: Internal): Val => {
+  const flag = tagFlags[target.type]!;
+  if (flag & 8) {
+    return readCheckbox(input, target);
+  }
+  if (flag & 256) {
+    // A union of text arms checks the entry once and dispatches on the value,
+    // which is what a bare enum wants and what a per-arm check would repeat.
+    // Anything else declines, so the compiler dispatches and calls this hook
+    // once per arm.
+    return target.anyOf!.every((variant) => tagFlags[variant.type]! & 2)
+      ? asText(input, target)
+      : input;
+  }
+  // A blob takes the entry as it is, and `undefined`/`null` are the sentinels a
+  // union carries for an absent one. A string-tagged target checks the entry
+  // itself, and reads it as its own document where it is a format — a `string`
+  // stage in front would escape it into a JSON string value instead. In all
+  // three `unknown` is the source that leaves the target's own check the one
+  // that runs.
+  return takesEntry(target) || (flag & (2 | 16 | 32))
+    ? B_refine(input, unknown, U, target)
+    : asText(input, target);
+};
+
+// The entry checked to be a string, with the target's own decoder reading it
+// from there.
+const asText = (input: Val, target: Internal): Val =>
+  B_refine(parse(B_refine(input, unknown, U, string)), string, U, target);
 
 // A repeated key is how a form carries an array, and `getAll` is its read.
 const listItem = (schema: Internal): Internal | undefined => {
@@ -251,7 +295,21 @@ const readOptional = (
     item.i,
   );
 
-const readCheckbox = (item: Val, field: Field, schema: Internal): Val => {
+// One entry read as a checkbox: `"on"` is what a checked box with no `value`
+// attribute submits, the rest are the hidden-input spellings, and anything
+// falsy (absent, `null`, the `""` of a box carrying an empty value) is an
+// unchecked box.
+const readCheckbox = (input: Val, target: Internal): Val => {
+  const v = input.i;
+  const outputVar = B_varWithoutAllocation(input.g);
+  const output = B_next(input, outputVar, target, target);
+  output.v = _var;
+  output.io = true;
+  output.cp = `let ${outputVar};(${outputVar}=${v}==="on"||${v}==="true"||${v}==="1")||${v}==="false"||${v}==="0"||!${v}||${B_embedInvalidInput(input, target)};`;
+  return B_markOutput(output, input);
+};
+
+const readCheckboxField = (item: Val, field: Field, schema: Internal): Val => {
   const v = item.i;
   const outputVar = B_varWithoutAllocation(item.g);
   // `"on"` is the entry a checked box with no `value` attribute submits; the
@@ -373,24 +431,6 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
 // `_charset_` for a hidden input of that name, one per `dirname` attribute,
 // and an image button's `name.x`/`name.y`. Rejected where the pair is written
 // rather than silently read as `S.strip`.
-// A boolean field is a checkbox, and only a field is: an arm beside a
-// non-boolean reads through the plain `string -> boolean` coercion, which takes
-// `"true"`/`"false"` and not the `"on"` a box submits. Rejected in both
-// directions rather than left to differ silently — encoding it would build a
-// FormData its own decoder refuses.
-const assertNoBooleanArm = (input: Val, schema: Internal, checkbox: boolean): void => {
-  if (
-    !checkbox &&
-    schema.type === anyOfTag &&
-    schema.anyOf!.some((variant) => tagFlags[variant.type]! & 8)
-  ) {
-    B_invalidOperation(
-      input,
-      `A boolean in a union is not supported by S.formData: only a whole field can be a checkbox. Use S.to with {decode, encode}`,
-    );
-  }
-};
-
 const assertNotStrict = (input: Val, schema: Internal): void => {
   // `seq` is what separates a schema someone declared from the object shape a
   // val builds as it assembles fields (`makeObjectVal`), which is always
@@ -411,7 +451,6 @@ const objectToFormData = (input: Val): Val => {
   let code = `let ${fdVar}=new ${B_embed(input, input.e.class)}();`;
   for (const key in properties) {
     const field = valGet(input, key);
-    assertNoBooleanArm(field, presentArm(field.s), isCheckbox(field.s));
     code += appendValue(field, fdVar, inlinedValueFromString(key));
   }
   const output = B_next(input, fdVar, input.e);
@@ -494,7 +533,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       p: input,
       v: _var,
       i: readVar,
-      s: list && !field.optional ? arrayFactory(unknown) : unknown,
+      s: list && !field.optional ? arrayFactory(unknown) : formDataField,
       io: U,
       e: schema,
       prev: U,
@@ -512,7 +551,6 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       o: U,
     };
 
-    assertNoBooleanArm(item, field.present, field.checkbox);
 
     // A blank text input submits `""`, so a required string field that says
     // nothing about it has two equally good readings and the codec picks
@@ -527,7 +565,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
 
     let output: Val;
     if (field.checkbox) {
-      output = readCheckbox(item, field, schema);
+      output = readCheckboxField(item, field, schema);
     } else if (list) {
       // The item decides for itself whether it takes the entry — a
       // `S.array(S.file)` is a list of entries, not of text.
@@ -539,13 +577,14 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       output = absent
         ? readOptional(item, field, schema, arrayFactory(unknown), listTarget)
         : ((item.e = listTarget), parse(item));
-    } else if (entry) {
+    } else if (entry || !absent) {
+      // The field schema's hook takes it from here: it is consulted once per
+      // union arm, so each arm reads by its own rule.
       output = parse(item);
-    } else if (absent) {
-      output = readOptional(item, field, schema, unknown, fromText(field.present));
     } else {
-      item.e = fromText(schema);
-      output = parse(item);
+      // What "no entry" means is the reader's to say — the union rules have no
+      // conversion into `undefined` or `null` to dispatch on.
+      output = readOptional(item, field, schema, unknown, fromText(field.present));
     }
     B_addObjectField(objectVal, key, output);
   }

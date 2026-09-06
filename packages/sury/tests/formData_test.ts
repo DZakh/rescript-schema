@@ -271,6 +271,18 @@ test("a boolean literal is the must-be-checked box", () => {
   );
 });
 
+test("a union arm reads by its own rule, not the field's", () => {
+  // The reading belongs to the entry, so a boolean beside a number still gets
+  // the checkbox spellings — the hook is consulted once per arm.
+  const schema = S.formData.with(S.to, S.schema({ a: S.union([S.boolean, S.number]) }));
+  const d = S.decoder(schema);
+  expect(d(form(["a", "on"]))).toEqual({ a: true });
+  expect(d(form(["a", "1"]))).toEqual({ a: true });
+  expect(d(form(["a", "false"]))).toEqual({ a: false });
+  expect(d(form(["a", "42"]))).toEqual({ a: 42 });
+  expect(() => d(form(["a", "x"]))).toThrow("Expected boolean | number");
+});
+
 test("a repeated key is a list, so a boolean list is positional", () => {
   // Not a checkbox group: dropping the false entries the way a browser does
   // would lose the indices the decoder reads back. A checkbox *group* submits

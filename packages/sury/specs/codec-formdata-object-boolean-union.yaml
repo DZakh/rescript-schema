@@ -1,17 +1,43 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: "S.formData.with(S.to, S.schema({ a: S.union([S.boolean, S.number]), n: S.number }))"
+  schema: "S.formData.with(S.to, S.schema({ a: S.union([S.boolean, S.number]) }))"
   input: FormData
-  output: "{ a: number | boolean; n: number; }"
-  instantiations: 6222
+  output: "{ a: number | boolean; }"
+  instantiations: 6208
 jsonSchema:
   input: Expected JSON, received FormData
-  output: '{ type: "object", properties: { a: { anyOf: [{ type: "boolean" }, { type: "number" }] }, n: { type: "number" } }, required: ["a", "n"] }'
+  output: '{ type: "object", properties: { a: { anyOf: [{ type: "boolean" }, { type: "number" }] } }, required: ["a"] }'
 vs:
   zod:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Failed at a: A boolean in a union is not supported by S.formData: only a whole field can be a checkbox. Use S.to with {decode, encode}"
-  decode: eq-to-parse
-  encode: eq-to-parse
+    expression: i=>{i instanceof e[4]||e[5](i);let v0=i.get("a")??void 0;for(;;){let r;try{let v1;(v1=v0==="on"||v0==="true"||v0==="1")||v0==="false"||v0==="0"||!v0||e[0](v0);v0=v1;break}catch(x){(r||(r=[])).push(e[2](x))}if(typeof v0==="string"){try{let v2=+v0;v2===v2&&(v2||v0.trim())||e[1](v0);v0=v2;break}catch(x){(r||(r=[])).push(e[2](x))}}e[3](v0,...(r||[]))}return {a:v0}}
+    examples:
+      checked:
+        input: ((f) => (f.append("a", "on"), f))(new FormData())
+        output: "{ a: true }"
+      the-number:
+        input: ((f) => (f.append("a", "42"), f))(new FormData())
+        output: "{ a: 42 }"
+      unchecked:
+        input: ((f) => (f.append("a", "false"), f))(new FormData())
+        output: "{ a: false }"
+      neither:
+        input: ((f) => (f.append("a", "x"), f))(new FormData())
+        error: |-
+          Failed at a: Expected boolean | number, received "x"
+          - At a: Expected boolean, received "x"
+          - At a: Expected number, received "x"
+  decode:
+    expression: i=>{let v0=i.get("a")??void 0;for(;;){let r;try{let v1;(v1=v0==="on"||v0==="true"||v0==="1")||v0==="false"||v0==="0"||!v0||e[0](v0);v0=v1;break}catch(x){(r||(r=[])).push(e[2](x))}if(typeof v0==="string"){try{let v2=+v0;v2===v2&&(v2||v0.trim())||e[1](v0);v0=v2;break}catch(x){(r||(r=[])).push(e[2](x))}}e[3](v0,...(r||[]))}return {a:v0}}
+    examples:
+      checked:
+        input: ((f) => (f.append("a", "on"), f))(new FormData())
+        output: "{ a: true }"
+  encode:
+    expression: i=>{let v1=i["a"];let v0=new e[0]();for(;;){if(typeof v1==="boolean"){v1=""+i["a"];break}if(typeof v1==="number"&&v1===v1){v1=""+v1;break}e[1](v1)}v0.append("a",v1);return v0}
+    examples:
+      built:
+        input: "{ a: true }"
+        output: ((f) => (f.append("a", "true"), f))(new FormData())
