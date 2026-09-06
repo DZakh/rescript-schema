@@ -7,7 +7,6 @@ import {
   type Flag,
   getOrRethrow,
   globalConfig,
-  immutableEmptyArray,
   initSchema,
   inputExpression,
   instanceTag,
@@ -170,7 +169,7 @@ export type Tail = (
 // getter needs here costs a branch; the JS and ReScript Result shapes stay
 // behind the hook (operations.ts).
 export const throwTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
-  if (flag & 128) {
+  if (flag & 1024) {
     const e = B_varWithoutAllocation(input.g);
     // `path` is omitted at the root, which is what Standard Schema consumers
     // expect; `s` is the Sury marker symbol, the generated function's second
@@ -330,7 +329,7 @@ export const outputExpression = (schema: Internal): string =>
 // is why `v` admits 0: a def mid-compilation holds the sentinel so inner
 // circular references embed the NODE and call `.v` at runtime — the node
 // exists before the function it will hold, and a recompile under corrected
-// assumptions overwrites `v` in place. getDecoder never observes the sentinel:
+// assumptions overwrites `v` in place. getOp never observes the sentinel:
 // a def is only mid-compilation inside a synchronous recursiveDecoder pass,
 // and a pass that throws unlinks its node (removeOpNode) on the way out.
 export type OpNode = {
@@ -375,9 +374,8 @@ export const removeOpNode = (schema: Internal, node: OpNode): void => {
   }
 };
 
-// recursiveDecoder's lookup — always exactly two schemas. getDecoder keeps
-// its own inline walk: passing its `arguments` alias out would force the
-// allocation this cache exists to avoid.
+// recursiveDecoder's lookup — always exactly two schemas, and a plain read
+// rather than `getOp`: a hit must not compile a missing node into existence.
 export const findOpNode = (
   schema: Internal,
   s0: Internal,
@@ -424,12 +422,11 @@ const compileChain = (
   return f;
 };
 
-// THE operation lookup, arity-specialised: `n` (1 to 5) says how many schema
-// slots are filled, so the memo walk is straight-line and nothing is allocated
-// on a hit. The variadic `getDecoder` below reads its `arguments`, which V8
-// must materialize the moment the object is aliased to a variable — measurably
-// the bulk of an operation lookup, and the reason every operation comes
-// through here instead.
+// THE operation lookup: `n` (1 to 5) says how many schema slots are filled, so
+// the memo walk is straight-line and nothing is allocated on a hit. Arity-
+// specialised on purpose — the variadic form this replaced read its
+// `arguments`, which V8 must materialize the moment the object is aliased to a
+// variable, and that was measurably the bulk of an operation lookup.
 // @__NO_SIDE_EFFECTS__
 export const getOp = (
   opFlag: Flag,
@@ -463,77 +460,20 @@ export const getOp = (
       node.f === flag &&
       a.length === n &&
       a[0] === a0 &&
-      (n < 2 ||
-        (a[1] === a1 &&
-          (n < 3 || (a[2] === a2 && (n < 4 || (a[3] === a3 && (n < 5 || a[4] === a4)))))))
+      (n < 2 || a[1] === a1) &&
+      (n < 3 || a[2] === a2) &&
+      (n < 4 || a[3] === a3) &&
+      (n < 5 || a[4] === a4)
     ) {
       return node.v as (from: unknown) => unknown;
     }
     node = node.n;
   }
 
-  return compileChain(
-    cacheTarget,
-    n > 4
-      ? [a0, a1!, a2!, a3!, a4!]
-      : n > 3
-        ? [a0, a1!, a2!, a3!]
-        : n > 2
-          ? [a0, a1!, a2!]
-          : n > 1
-            ? [a0, a1!]
-            : [a0],
-    flag,
-  );
+  // The one allocation, on the miss path only: a compile dwarfs the spare
+  // array a `slice` copies out of.
+  return compileChain(cacheTarget, [a0, a1!, a2!, a3!, a4!].slice(0, n), flag);
 };
-
-// A plain (non-arrow, to keep `arguments`) function so call sites can pass
-// getDecoder(s1, s2[, s3][, flag]) with any number of schemas plus an
-// optional trailing flag — the body reads `arguments` directly; the declared
-// rest param (unused, hence `_`) exists only to make that call shape typecheck.
-// @__NO_SIDE_EFFECTS__
-export function getDecoder(..._args: unknown[]): (from: unknown) => unknown {
-  const args = arguments as unknown as unknown[];
-  let idx = 0;
-  let flag: Flag | undefined = U;
-  let maxSeq = 0;
-  let cacheTarget: Internal | undefined = U;
-
-  while (flag === U) {
-    const arg = args[idx];
-    if (!arg) {
-      flag = globalConfig.f;
-    } else if (typeof arg === numberTag) {
-      flag = (arg as Flag) | globalConfig.f;
-    } else {
-      const schema: Internal = arg as Internal;
-      const seq = schema.seq!;
-      if (seq > maxSeq) {
-        maxSeq = seq;
-        cacheTarget = schema;
-      }
-      idx++;
-    }
-  }
-
-  if (cacheTarget === U) return panic("No schema provided for decoder.");
-  let node = (cacheTarget as unknown as Record<string, OpNode | undefined>)[memoKey];
-  while (node) {
-    const a = node.a;
-    if (node.f === flag && a.length === idx) {
-      let i = idx;
-      while (i-- !== 0 && a[i] === args[i]) {}
-      if (i < 0) return node.v as (from: unknown) => unknown;
-    }
-    node = node.n;
-  }
-
-  return compileChain(
-    cacheTarget,
-    immutableEmptyArray.slice.call(args, 0, idx) as Internal[],
-    flag!,
-  );
-}
 
 export const nestedLoc = "BS_PRIVATE_NESTED_SOME_NONE";
 

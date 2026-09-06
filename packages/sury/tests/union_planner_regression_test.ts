@@ -20,7 +20,7 @@ test("union semantic discriminators use identity and SameValueZero", (t) => {
       value: S.string,
     }),
   ]);
-  const parseSymbol = S.parser(symbolSchema);
+  const parseSymbol = S.parseOrThrow(symbolSchema);
 
   const firstValue = { kind: firstSymbol, value: "first" };
   const secondValue = { kind: secondSymbol, value: "second" };
@@ -30,7 +30,7 @@ test("union semantic discriminators use identity and SameValueZero", (t) => {
     parseSymbol({ kind: Symbol("same-description"), value: "other" }),
   ).toThrow(S.Error);
 
-  const parseNaN = S.parser(
+  const parseNaN = S.parseOrThrow(
     S.union([
       S.schema(NaN).with(S.refine, () => false, {
         error: "first NaN member rejected",
@@ -40,7 +40,7 @@ test("union semantic discriminators use identity and SameValueZero", (t) => {
   );
   t.expect(parseNaN(NaN)).toBeNaN();
 
-  const parseZero = S.parser(
+  const parseZero = S.parseOrThrow(
     S.union([
       S.schema(-0).with(S.to, S.string, () => "first-zero-member"),
       S.schema(0).with(S.to, S.string, () => "second-zero-member"),
@@ -49,7 +49,7 @@ test("union semantic discriminators use identity and SameValueZero", (t) => {
   t.expect(parseZero(-0)).toBe("first-zero-member");
   t.expect(parseZero(0)).toBe("first-zero-member");
 
-  const parseNullish = S.parser(
+  const parseNullish = S.parseOrThrow(
     S.union([
       S.schema(null).with(S.refine, () => false, {
         error: "first null member rejected",
@@ -63,7 +63,7 @@ test("union semantic discriminators use identity and SameValueZero", (t) => {
 
   for (const discriminator of [NaN, -0, 0, null, undefined]) {
     const value = { kind: discriminator, value: "same-value-zero" };
-    const parseField = S.parser(
+    const parseField = S.parseOrThrow(
       S.union([
         S.schema({
           kind: S.schema(discriminator),
@@ -89,13 +89,13 @@ test("NaN-to-number reachability follows the global validation mode", (t) => {
     S.number,
   ]);
 
-  const strict = S.decoder(S.schema(NaN), schema);
+  const strict = S.decodeOrThrow(S.schema(NaN), schema);
   t.expect(() => strict(NaN)).toThrow(/NaN member rejected/);
 
   S.global({ disableNanNumberValidation: true });
   try {
-    t.expect(S.parser(schema)(NaN)).toBeNaN();
-    t.expect(S.decoder(S.schema(NaN), schema)(NaN)).toBeNaN();
+    t.expect(S.parseOrThrow(schema)(NaN)).toBeNaN();
+    t.expect(S.decodeOrThrow(S.schema(NaN), schema)(NaN)).toBeNaN();
   } finally {
     S.global({});
   }
@@ -107,7 +107,7 @@ test("factory normalization preserves duplicate effects and nested metadata", (t
     value: S.string.with(S.refine, () => ++calls > 1),
   });
   t.expect(
-    S.parser(S.union([repeated, repeated]))({ value: "fallback" }),
+    S.parseOrThrow(S.union([repeated, repeated]))({ value: "fallback" }),
   ).toEqual({ value: "fallback" });
   t.expect(calls).toBe(2);
 
@@ -143,7 +143,7 @@ test("custom decoder errors, foreign or Sury, fall through to the next case", (t
       return true;
     }),
   ]);
-  t.expect(S.parser(foreignSchema)("value")).toBe("value");
+  t.expect(S.parseOrThrow(foreignSchema)("value")).toBe("value");
   t.expect(foreignFallbackCalls).toBe(1);
 
   let nestedFallbackCalls = 0;
@@ -158,12 +158,12 @@ test("custom decoder errors, foreign or Sury, fall through to the next case", (t
       return true;
     }),
   ]);
-  t.expect(S.parser(nestedForeignSchema)({ value: "nested" })).toEqual({});
+  t.expect(S.parseOrThrow(nestedForeignSchema)({ value: "nested" })).toEqual({});
   t.expect(nestedFallbackCalls).toBe(1);
 
   // With no case left to take the value, the union's error names the cause.
   try {
-    S.parser(S.union([throwing, S.number]))("value");
+    S.parseOrThrow(S.union([throwing, S.number]))("value");
     t.expect.fail("the union should fail");
   } catch (error) {
     t.expect(error).toBeInstanceOf(S.Error);
@@ -174,7 +174,7 @@ test("custom decoder errors, foreign or Sury, fall through to the next case", (t
   const surySchema = S.union([
     S.to(S.string, S.string, {
       decode: () => {
-        S.parser(S.number)("not a number");
+        S.parseOrThrow(S.number)("not a number");
         return "";
       },
       encode: (value) => value,
@@ -184,13 +184,13 @@ test("custom decoder errors, foreign or Sury, fall through to the next case", (t
       return true;
     }),
   ]);
-  t.expect(S.parser(surySchema)("value")).toBe("value");
+  t.expect(S.parseOrThrow(surySchema)("value")).toBe("value");
   t.expect(suryFallbackCalls).toBe(1);
 });
 
 test("built-in JSON validation failures remain eligible for fallback", (t) => {
   let fallbackCalls = 0;
-  const parse = S.parser(
+  const parse = S.parseOrThrow(
     S.union([
       S.schema({ value: S.jsonString }),
       S.schema({}).with(S.refine, () => {
@@ -222,7 +222,7 @@ test("foreign exceptions escape a union without trying a fallback", (t) => {
   ]);
 
   try {
-    S.parser(schema)("value");
+    S.parseOrThrow(schema)("value");
     t.expect.fail("the foreign exception should escape");
   } catch (error) {
     t.expect(error).toBe(foreignError);
@@ -235,7 +235,7 @@ test("foreign exceptions escape a union without trying a fallback", (t) => {
       throw getterError;
     },
   });
-  const objectFallback = S.parser(
+  const objectFallback = S.parseOrThrow(
     S.union([S.schema({ value: S.string }), S.schema({})]),
   );
   try {
@@ -259,20 +259,20 @@ test("a matched Sury failure runs before a later literal fallback", (t) => {
     ),
     S.schema("fallback"),
   ]);
-  const parse = S.parser(schema);
+  const parse = S.parseOrThrow(schema);
 
   t.expect(parse("fallback")).toBe("fallback");
   t.expect(firstCalls).toBe(1);
 
   firstCalls = 0;
-  const decodeExact = S.decoder(S.schema("fallback"), schema);
+  const decodeExact = S.decodeOrThrow(S.schema("fallback"), schema);
   t.expect(decodeExact("fallback")).toBe("fallback");
   t.expect(firstCalls).toBe(1);
 });
 
 test("an accepted first match does not evaluate a same-tier fallback", (t) => {
   const calls: string[] = [];
-  const parse = S.parser(
+  const parse = S.parseOrThrow(
     S.union([
       S.string.with(S.refine, () => {
         calls.push("first");
@@ -290,7 +290,7 @@ test("an accepted first match does not evaluate a same-tier fallback", (t) => {
 });
 
 test("reachable rejection and unreachable conversion stay distinct", (t) => {
-  const reachableRejection = S.parser(
+  const reachableRejection = S.parseOrThrow(
     S.union([S.string.with(S.to, S.never), S.schema("fallback")]),
   );
   t.expect(reachableRejection("fallback")).toBe("fallback");
@@ -299,13 +299,13 @@ test("reachable rejection and unreachable conversion stay distinct", (t) => {
   const chainedTerminalRejection = S.string
     .with(S.to, S.never)
     .with(S.to, S.string);
-  const chainedReachableRejection = S.parser(
+  const chainedReachableRejection = S.parseOrThrow(
     S.union([chainedTerminalRejection, S.schema("fallback")]),
   );
   t.expect(chainedReachableRejection("fallback")).toBe("fallback");
   t.expect(() => chainedReachableRejection("other")).toThrow(S.Error);
 
-  const unreachableConversion = S.parser(
+  const unreachableConversion = S.parseOrThrow(
     S.union([S.never.with(S.to, S.string), S.number]),
   );
   t.expect(unreachableConversion(42)).toBe(42);
@@ -315,7 +315,7 @@ test("reachable rejection and unreachable conversion stay distinct", (t) => {
     S.never.with(S.to, S.string),
     S.number,
   ]).with(S.to, S.union([S.string, S.number]));
-  t.expect(() => S.parser(uncoveredTarget)).toThrow(
+  t.expect(() => S.parseOrThrow(uncoveredTarget)).toThrow(
     /string has no same-type variant on the other side/,
   );
 
@@ -323,7 +323,7 @@ test("reachable rejection and unreachable conversion stay distinct", (t) => {
     chainedTerminalRejection,
     S.number,
   ]).with(S.to, S.union([S.string, S.number]));
-  t.expect(() => S.parser(chainedUncoveredTarget)).toThrow(
+  t.expect(() => S.parseOrThrow(chainedUncoveredTarget)).toThrow(
     /string has no same-type variant on the other side/,
   );
 });
@@ -331,7 +331,7 @@ test("reachable rejection and unreachable conversion stay distinct", (t) => {
 test("instance specificity stays ahead of an earlier generic object transform", (t) => {
   class SpecificInstance {}
 
-  const parse = S.parser(
+  const parse = S.parseOrThrow(
     S.union([
       S.schema({}).with(S.to, S.string, () => "generic-object"),
       S.instance(SpecificInstance).with(
@@ -358,7 +358,7 @@ test("nested and recursive union deoptimization terminates and falls through", (
     (value) => value !== "fallback",
     { error: "guarded recursive member rejected" },
   );
-  const parse = S.parser(
+  const parse = S.parseOrThrow(
     S.union([guardedRecursive, S.union([S.string, S.number])]),
   );
 
@@ -392,9 +392,9 @@ test("recursive transform exceptions fall through across compile order", (t) => 
         return true;
       }),
     ]);
-    const parseUnion = unionFirst ? S.parser(outer) : undefined;
-    const parseStandalone = S.parser(recursive);
-    const parse = parseUnion || S.parser(outer);
+    const parseUnion = unionFirst ? S.parseOrThrow(outer) : undefined;
+    const parseStandalone = S.parseOrThrow(recursive);
+    const parse = parseUnion || S.parseOrThrow(outer);
 
     t.expect(parseStandalone("safe")).toBe("safe");
     t.expect(parse("explode")).toBe("explode");
@@ -422,7 +422,7 @@ test("a non-transparent nested union falls through but foreign errors escape", (
     },
     { error: "nested union rejected" },
   );
-  const parse = S.parser(S.union([rejectingInner, S.string]));
+  const parse = S.parseOrThrow(S.union([rejectingInner, S.string]));
 
   t.expect(parse("fallback")).toBe("fallback");
   t.expect(rejectionCalls).toBe(1);
@@ -432,7 +432,7 @@ test("a non-transparent nested union falls through but foreign errors escape", (
   const throwingInner = S.union([S.string, S.number]).with(S.refine, () => {
     throw foreign;
   });
-  const parseForeign = S.parser(
+  const parseForeign = S.parseOrThrow(
     S.union([
       throwingInner,
       S.string.with(S.refine, () => {
@@ -454,7 +454,7 @@ test("a non-transparent nested union falls through but foreign errors escape", (
 test("function schemas remain explicit deoptimization boundaries", (t) => {
   const fn = () => 1;
   let calls = 0;
-  const parse = S.parser(
+  const parse = S.parseOrThrow(
     S.union([
       S.schema(fn).with(S.refine, () => {
         calls++;
@@ -499,7 +499,7 @@ test("large heterogeneous unions preserve each dispatch path", (t) => {
     S.bigint,
     S.symbol,
   ]);
-  const parse = S.parser(schema);
+  const parse = S.parseOrThrow(schema);
 
   t.expect(parse("literal-6")).toBe("literal-6");
   t.expect(parse({ kind: "number", value: 6 })).toEqual({

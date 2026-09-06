@@ -506,7 +506,7 @@ test("an async operation left unmarked", async () => {
   await expect(runCheck("async-assert", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ async-assert
-        operations.parse: is async (the schema has an async transform or refine) — add \`isAsync: true\`, which builds it with S.asyncParser/asyncDecoder/asyncEncoder and awaits every example",
+        operations.parse: is async (the schema has an async transform or refine) — add \`isAsync: true\`, which builds it with the AsPromiseOrReject operations and awaits every example",
       "stdout": "",
     }
   `);

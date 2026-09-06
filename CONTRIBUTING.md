@@ -216,7 +216,7 @@ const schema = S.schema({
     bool: S.boolean,
   },
 });
-S.parser(schema)(data);
+S.parseOrThrow(schema)(data);
 ```
 
 valibot
@@ -366,15 +366,15 @@ instead of silently working around it.
   `creationError` for the ones that survive construction and fail at the
   operation. `tests/content_test.ts` holds those. A `ts.constructionError`
   beside `creationError` would keep them with the schema they reject.
-- `operations` names `parse`, `decode` and `encode` only, so `S.assertInput` and
-  `S.inputValidator` have no golden anywhere. Both compile through the same builder chain
+- `operations` names `parse`, `decode` and `encode` only, so `S.assertInputOrThrow` and
+  `S.isInput` have no golden anywhere. Both compile through the same builder chain
   under a different result target, and a change to that target's handling broke
-  every `S.assertInput(..., S.json)` and `S.inputValidator(S.jsonString)(...)` call with the whole
+  every `S.assertInputOrThrow(..., S.json)` and `S.isInput(S.jsonString)(...)` call with the whole
   suite green. An `assert` op block, even one holding just an expression and a
   pass/throw example, would have caught it; `tests/content_test.ts` holds it
   instead.
 - A spec for a *new* export is timed against a baseline that doesn't have it.
-  The expression evaluates to `undefined` there, `S.parser(undefined)` compiles
+  The expression evaluates to `undefined` there, `S.parseOrThrow(undefined)` compiles
   to `noopOperation`, and the real validator is then reported as thousands of
   percent slower than a function that returns its input — PR #420 added 14
   formats and got 17 such rows, every one of them bogus. The harness already

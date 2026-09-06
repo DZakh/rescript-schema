@@ -68,8 +68,6 @@ import {
  assertResult
 } from "./operations";
 import {
- getDecoder,
- getOp,
  getOutputSchema,
  reverse
 } from "./parse";
@@ -153,7 +151,7 @@ export {
 
 // ── Public JS/TS API (names match index.d.ts) ────────────────────────────────
 
-export { getDecoder as decoder, reverse, instance } from "./parse";
+export { reverse, instance } from "./parse";
 export { schemaFactory as schema, schemaFactory as literal, enum } from "./factory";
 export {
   recursive,
@@ -165,10 +163,6 @@ export {
   deepStrip,
   noValidation,
 } from "./modifiers";
-export {
-  safe,
-  safeAsync,
-} from "./standard";
 export {
   parseOrThrow,
   parseAsResult,
@@ -241,104 +235,6 @@ export { inputExpression, pathToText } from "./base";
 export { outputExpression } from "./parse";
 
 // ── Public JS/TS API implemented here (argument-shape adapters) ──────────────
-
-// Spreading the own rest param straight through (`getDecoder(unknown,
-// ...args)`) is a shape engines already optimize — an arity fast path here
-// measured nothing, so these stay generic.
-// @__NO_SIDE_EFFECTS__
-export const parser = (...args: unknown[]) => getDecoder(unknown, ...args);
-
-// @__NO_SIDE_EFFECTS__
-export const asyncParser = (...args: unknown[]) => getDecoder(unknown, ...args, 1);
-
-// @__NO_SIDE_EFFECTS__
-export const asyncDecoder = (...args: unknown[]) => getDecoder(...args, 1);
-
-// Only the first schema is reversed: `S.encoder(a, ...rest)` starts from a's
-// Output and then runs the rest of the chain forward, so a pipeline after the
-// reversed schema is written the same way as in `S.decoder`. Compare
-// `S.decoder(S.reverse(a), ...rest)`, which is its exact spelling.
-// @__NO_SIDE_EFFECTS__
-export const encoder = (a: unknown, ...rest: unknown[]) =>
-  getDecoder(reverse(a as Internal), ...rest);
-
-// @__NO_SIDE_EFFECTS__
-export const asyncEncoder = (a: unknown, ...rest: unknown[]) =>
-  getDecoder(reverse(a as Internal), ...rest, 1);
-
-// The asserts accept both `(schema, data)` and `(data, schema)`, told apart by
-// `isOwnSchema` — prototype identity, not the Standard Schema marker: data
-// being validated is untrusted, and a payload carrying a `~standard` key would
-// otherwise be read as the schema while the real schema became the data.
-const assertWith = (a: unknown, b: unknown, isOutput: boolean, flag: number): unknown => {
-  const aIsSchema = isOwnSchema(a);
-  if (!aIsSchema && !isOwnSchema(b)) return panicNotSchema();
-  const schema = (aIsSchema ? a : b) as Internal;
-  return getOp(flag, 3, unknown, isOutput ? reverse(schema) : schema, assertResult)(
-    aIsSchema ? b : a,
-  );
-};
-
-export const assertInput = (a: unknown, b: unknown): unknown => assertWith(a, b, false, 0);
-
-export const assertOutput = (a: unknown, b: unknown): unknown => assertWith(a, b, true, 0);
-
-export const asyncAssertInput = (a: unknown, b: unknown): unknown => assertWith(a, b, false, 1);
-
-export const asyncAssertOutput = (a: unknown, b: unknown): unknown => assertWith(a, b, true, 1);
-
-const validatorRun = (operation: (data: unknown) => unknown, data: unknown): boolean => {
-  try {
-    operation(data);
-    return true;
-  } catch (exn) {
-    // Rethrow anything that isn't a Sury validation failure.
-    getOrRethrow(exn);
-    return false;
-  }
-};
-
-const validator = (schema: Internal): ((data: unknown) => boolean) => {
-  // Compiled outside the returned closure: a conversion rejected at operation
-  // creation means the schema can't check any value, so creating the validator
-  // throws rather than every answer reading as `false` — the same split
-  // `~standard.validate` makes.
-  const operation = getOp(0, 3, unknown, schema, assertResult) as (data: unknown) => unknown;
-  return (data) => validatorRun(operation, data);
-};
-
-// @__NO_SIDE_EFFECTS__
-export const inputValidator = (schema: Internal) => validator(schema);
-
-// @__NO_SIDE_EFFECTS__
-export const outputValidator = (schema: Internal) => validator(reverse(schema));
-
-// The compiled operation is `assert`'s: the value runs the whole pipeline —
-// type checks, conversion, refinements — and the result is dropped, so what
-// comes back is the value handed in rather than a decoded clone of it.
-const construct = (schema: Internal): ((data: unknown) => unknown) => {
-  const operation = getOp(0, 3, unknown, schema, assertResult) as (data: unknown) => unknown;
-  return (data) => (operation(data), data);
-};
-
-const constructAsync = (schema: Internal): ((data: unknown) => Promise<unknown>) => {
-  const operation = getOp(1, 3, unknown, schema, assertResult) as (
-    data: unknown
-  ) => Promise<unknown>;
-  return (data) => operation(data).then(() => data);
-};
-
-// @__NO_SIDE_EFFECTS__
-export const inputConstructor = (schema: Internal) => construct(schema);
-
-// @__NO_SIDE_EFFECTS__
-export const outputConstructor = (schema: Internal) => construct(reverse(schema));
-
-// @__NO_SIDE_EFFECTS__
-export const asyncInputConstructor = (schema: Internal) => constructAsync(schema);
-
-// @__NO_SIDE_EFFECTS__
-export const asyncOutputConstructor = (schema: Internal) => constructAsync(reverse(schema));
 
 // @__NO_SIDE_EFFECTS__
 export const union = (values: unknown[]) => unionFactory(values.map(definitionToSchema));

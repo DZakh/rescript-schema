@@ -135,7 +135,7 @@ Object.defineProperty(schemaPrototype, "~standard", {
         // every call, since `decoderFlag` commits only once there is an
         // operation.
         if (decoderFlag !== globalConfig.f) {
-          validateOp = getOp(1 | 32 | 128, 2, unknown, schema) as typeof validateOp;
+          validateOp = getOp(1 | 512 | 1024, 2, unknown, schema) as typeof validateOp;
           decoderFlag = globalConfig.f;
         }
         return validateOp(input);
@@ -159,25 +159,6 @@ Object.defineProperty(schemaPrototype, "~standard", {
 export type JsResult<TValue> =
   | { success: true; value: TValue }
   | { success: false; error: SuryErrorRecord };
-
-export const wrapExnToFailure = (exn: unknown): JsResult<never> => {
-  if (exn && (exn as { s?: symbol }).s === s) {
-    return { success: false, error: exn as unknown as SuryErrorRecord };
-  } else {
-    throw exn;
-  }
-}
-
-export const safe = <TValue>(fn: () => TValue): JsResult<TValue> => {
-  try {
-    return {
-      success: true,
-      value: fn(),
-    };
-  } catch (exn) {
-    return wrapExnToFailure(exn);
-  }
-}
 
 // ReScript's `result<'value, S.error>` runtime shape. The Sury marker check
 // replaces the `catch { | S.Exn(e) => }` the binding would otherwise compile
@@ -209,14 +190,3 @@ export const safeAsyncResult = <TValue>(
     return Promise.resolve(wrapExnToResError(exn));
   }
 };
-
-export const safeAsync = <TValue>(fn: () => Promise<TValue>): Promise<JsResult<TValue>> => {
-  try {
-    return fn().then(
-      (value): JsResult<TValue> => ({ success: true, value }),
-      wrapExnToFailure
-    );
-  } catch (exn) {
-    return Promise.resolve(wrapExnToFailure(exn));
-  }
-}

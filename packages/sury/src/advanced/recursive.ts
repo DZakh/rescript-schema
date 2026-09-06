@@ -34,7 +34,12 @@ export const recursiveDecoder: Builder = (input) => {
   // Ignore #/$defs/
   const identifier = schemaRef.slice(8);
   const def = defs[identifier]!;
-  const flag = input.g.o;
+  // Masked to the compile-semantics bits (127 and below). A def compiles a
+  // nested operation whose result generated code consumes, so it must throw:
+  // inheriting the outer operation's return mode would have the inner one
+  // answering `false` or a `{success}` object into the middle of a value.
+  // Masking also lets the modes share one node per def.
+  const flag = input.g.o & 127;
 
   const inputSchema = input.s.seq === expectedSchema.seq ? def : input.s;
 

@@ -58,9 +58,9 @@ in definition order:
 ```ts
 const schema = S.json.with(S.to, S.union([S.bigint, S.string]));
 
-S.parser(schema)("123"); // 123n — the bigint variant comes first
-S.parser(schema)("abc"); // "abc" — bigint decoding fails, string accepts
-S.parser(schema)(true); // throws — no implicit double decoding (true -> "true" -> ...)
+S.parseOrThrow(schema)("123"); // 123n — the bigint variant comes first
+S.parseOrThrow(schema)("abc"); // "abc" — bigint decoding fails, string accepts
+S.parseOrThrow(schema)(true); // throws — no implicit double decoding (true -> "true" -> ...)
 ```
 
 `S.json` is not the exact `string` type, so string inputs still go through
@@ -72,9 +72,9 @@ a differently-tagged variant sitting between two same-tag ones keeps its turn.
 ```ts
 const schema = S.json.with(S.to, S.union(["123", S.bigint, S.string]));
 
-S.parser(schema)("123"); // "123" — the literal matches first and stays a string
-S.parser(schema)("124"); // 124n — the literal fails, the bigint variant decodes
-S.parser(schema)("abc"); // "abc" — bigint decoding fails, the catch-all string accepts
+S.parseOrThrow(schema)("123"); // "123" — the literal matches first and stays a string
+S.parseOrThrow(schema)("124"); // 124n — the literal fails, the bigint variant decodes
+S.parseOrThrow(schema)("abc"); // "abc" — bigint decoding fails, the catch-all string accepts
 ```
 
 **Built-in decoding fills gaps, it doesn't re-type what the source already
@@ -87,9 +87,9 @@ no way to produce. `bigint` is not a JSON tag, so a JSON string is offered to
 ```ts
 const schema = S.json.with(S.to, S.union([S.literal("a"), S.number, S.literal("b")]));
 
-S.parser(schema)("b"); // "b" — "a" fails, "b" matches
-S.parser(schema)("5"); // throws — S.number takes JSON numbers as they are, it doesn't decode "5"
-S.parser(schema)("c"); // throws — no variant accepts
+S.parseOrThrow(schema)("b"); // "b" — "a" fails, "b" matches
+S.parseOrThrow(schema)("5"); // throws — S.number takes JSON numbers as they are, it doesn't decode "5"
+S.parseOrThrow(schema)("c"); // throws — no variant accepts
 ```
 
 **Grouping is codegen, not semantics.** Emitting same-tag variants under one
@@ -165,9 +165,9 @@ target, dispatched in definition order:
 ```ts
 const schema = S.union([S.bigint, S.string]).with(S.to, S.json);
 
-S.parser(schema)(123n); // "123"
-S.parser(schema)("123"); // "123"
-S.parser(schema)("abc"); // "abc"
+S.parseOrThrow(schema)(123n); // "123"
+S.parseOrThrow(schema)("123"); // "123"
+S.parseOrThrow(schema)("abc"); // "abc"
 ```
 
 **Exception — partial type match.** If the target has the same type as some but
@@ -234,7 +234,7 @@ Forward:
 - `123.12` → `123.12` (number passes through)
 - `null` → `undefined` (nullish bridge)
 
-Reverse (via `S.encoder`):
+Reverse (via `S.encodeOrThrow`):
 
 - `undefined` → `null` (nullish bridge)
 - `123n` → `123n`, `123.12` → `123.12` (pass through)

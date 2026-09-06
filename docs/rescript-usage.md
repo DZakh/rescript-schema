@@ -1781,7 +1781,7 @@ S.validate: ('any, ~to: S.t<'value>) => bool
 S.compileValidate: (~to: S.t<'value>) => 'any => bool
 ```
 
-**Making** checks a value you built in code rather than received from the wire. Every check the schema carries runs — types, the conversion, refinements — and the value itself comes back, not a decoded copy, so an entity the schema has no way to encode fails at construction rather than at the point it's sent. `S.t<'value>` names the output type, so this is the JS `outputConstructor`:
+**Making** checks a value you built in code rather than received from the wire. Every check the schema carries runs — types, the conversion, refinements — and the value itself comes back, not a decoded copy, so an entity the schema has no way to encode fails at construction rather than at the point it's sent. `S.t<'value>` names the output type, so this is the JS `makeOutputOrThrow`:
 
 ```
 S.makeOrThrow: ('value, ~schema: S.t<'value>) => 'value

@@ -118,7 +118,7 @@ const validators = new Map<StringSchema, (value: string) => boolean>();
 const accepts = (schema: StringSchema, value: string): boolean => {
   let validate = validators.get(schema);
   if (!validate) {
-    validate = S.inputValidator(schema);
+    validate = S.isInput(schema);
     validators.set(schema, validate);
   }
   return validate(value);
@@ -139,8 +139,8 @@ for (const [name, schema] of stringFormatSchemas) {
   // value spliced into a document.
   const emitted = String(
     contentOf(schema)
-      ? S.decoder(S.to(schema, S.jsonString, { decode: "pack", encode: "unpack" }))
-      : S.encoder(schema, S.jsonString),
+      ? S.decodeOrThrow(S.to(schema, S.jsonString, { decode: "pack", encode: "unpack" }))
+      : S.encodeOrThrow(schema, S.jsonString),
   );
   if (!emitted.includes(`"\\""+`)) {
     rows.push([name, format, "escape helper", "—"]);

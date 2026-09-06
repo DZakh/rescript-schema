@@ -1,6 +1,6 @@
 // Competitor benchmark behind the README's "JSON serialization" table:
 // JSON.stringify vs fast-json-stringify vs a prepared
-// `S.encoder(schema, S.jsonString)`. Where the competitors can't represent a
+// `S.encodeOrThrow(schema, S.jsonString)`. Where the competitors can't represent a
 // type (bigint, Uint8Array, Date), their timed loop includes the hand-written
 // mapping pass a real consumer would need — Sury compiles that mapping into
 // the encoder, so charging it to the competitors is the honest comparison.
@@ -81,8 +81,8 @@ const cases: Case[] = [];
     score: S.number,
     role: S.string,
   });
-  const sury = S.encoder(schema, S.jsonString);
-  const suryBytes = S.encoder(schema, jsonBytes);
+  const sury = S.encodeOrThrow(schema, S.jsonString);
+  const suryBytes = S.encodeOrThrow(schema, jsonBytes);
   cases.push({
     name: "API response (user profile, 7 fields)",
     stringify: () => JSON.stringify(data),
@@ -112,8 +112,8 @@ const cases: Case[] = [];
     },
   });
   const schema = S.array(S.schema({ id: S.number, name: S.string, active: S.boolean }));
-  const sury = S.encoder(schema, S.jsonString);
-  const suryBytes = S.encoder(schema, jsonBytes);
+  const sury = S.encodeOrThrow(schema, S.jsonString);
+  const suryBytes = S.encodeOrThrow(schema, jsonBytes);
   cases.push({
     name: "List endpoint (100 rows)",
     stringify: () => JSON.stringify(data),
@@ -181,8 +181,8 @@ const cases: Case[] = [];
       ]),
     ),
   });
-  const sury = S.encoder(schema, S.jsonString);
-  const suryBytes = S.encoder(schema, jsonBytes);
+  const sury = S.encodeOrThrow(schema, S.jsonString);
+  const suryBytes = S.encodeOrThrow(schema, jsonBytes);
   cases.push({
     name: "Event feed (50 tagged-union events)",
     stringify: () => JSON.stringify(data),
@@ -201,8 +201,8 @@ const cases: Case[] = [];
     additionalProperties: { type: "number" },
   });
   const schema = S.record(S.number);
-  const sury = S.encoder(schema, S.jsonString);
-  const suryBytes = S.encoder(schema, jsonBytes);
+  const sury = S.encodeOrThrow(schema, S.jsonString);
+  const suryBytes = S.encodeOrThrow(schema, jsonBytes);
   cases.push({
     name: "Metrics dict (50 number values)",
     stringify: () => JSON.stringify(data),
@@ -221,8 +221,8 @@ const cases: Case[] = [];
     additionalProperties: { type: "string" },
   });
   const schema = S.record(S.string);
-  const sury = S.encoder(schema, S.jsonString);
-  const suryBytes = S.encoder(schema, jsonBytes);
+  const sury = S.encodeOrThrow(schema, S.jsonString);
+  const suryBytes = S.encodeOrThrow(schema, jsonBytes);
   cases.push({
     name: "Labels dict (50 string values)",
     stringify: () => JSON.stringify(data),
@@ -265,8 +265,8 @@ const cases: Case[] = [];
     createdAt: S.to(S.string, S.date),
     label: S.string,
   });
-  const sury = S.encoder(schema, S.jsonString);
-  const suryBytes = S.encoder(schema, jsonBytes);
+  const sury = S.encodeOrThrow(schema, S.jsonString);
+  const suryBytes = S.encodeOrThrow(schema, jsonBytes);
   cases.push({
     name: "Event: bigint id + binary payload + Date",
     stringify: () => JSON.stringify(map(data)),
@@ -303,8 +303,8 @@ const cases: Case[] = [];
     who: S.email,
     note: S.string,
   });
-  const sury = S.encoder(schema, S.jsonString);
-  const suryBytes = S.encoder(schema, jsonBytes);
+  const sury = S.encodeOrThrow(schema, S.jsonString);
+  const suryBytes = S.encodeOrThrow(schema, jsonBytes);
   cases.push({
     name: "Audit row (uuid + timestamp + ip + email)",
     stringify: () => JSON.stringify(data),

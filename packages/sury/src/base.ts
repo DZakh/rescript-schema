@@ -14,22 +14,30 @@ export type Encoder = (input: Val, target: Internal) => Val;
 
 export type Flag = number;
 
-// Bit-flag literals (esbuild does not inline named consts). Compile (`g.o` /
-// op flag): 0 none, 1 async, 2 disableNaN, 4 union-transform-context (custom
-// transform inside a union case preserves the original exception so dispatch
-// can distinguish Sury failures from foreign ones), 8 JS Result tail
-// (`{success, value, error}`), 16 ReScript Result tail (`{TAG, _0}`), 32
-// promisable (1 without lifting a synchronous result into a promise), 64
-// flatten, 128 Standard Schema tail (`{value}` / `{issues}`), 256 yield the
-// operation's input rather than its output (`makeInput`/`makeOutput`), 512
-// answer a boolean (`isInput`/`isOutput`), 1024 a synchronous failure rejects
-// rather than throws (`*AsPromiseOrReject`).
+// Bit-flag literals (esbuild does not inline named consts).
 //
-// Everything above 4 that names a return mode is read only by the operation
-// tail, but they still ride the op flag
-// the operation memo keys on: that is what makes each return mode compile and
-// cache as its own operation, leaving the throw path's generated code
-// untouched.
+// Compile semantics (`g.o` / op flag), 127 and below — what the generated code
+// itself does: 0 none, 1 async, 2 disableNaN, 4 union-transform-context (custom
+// transform inside a union case preserves the original exception so dispatch
+// can distinguish Sury failures from foreign ones), 64 flatten.
+//
+// Return modes, 128 and above — what the operation hands back, read only by the
+// operation tail (parse.ts, operations.ts): 128 JS Result
+// (`{success, value, error}`), 256 ReScript Result (`{TAG, _0}`), 512
+// promisable (1 without lifting a synchronous result into a promise), 1024
+// Standard Schema (`{value}` / `{issues}`), 2048 yield the operation's input
+// rather than its output (`makeInput`/`makeOutput`), 4096 answer a boolean
+// (`isInput`/`isOutput`), 8192 a synchronous failure rejects rather than throws
+// (`*AsPromiseOrReject`).
+//
+// The split at 128 is load-bearing: a nested operation compiled inside another
+// (recursive.ts) masks with `& 127`, because generated code consumes its result
+// and a return mode inherited from the outer operation would have the inner one
+// answering `false` — or a Result object — into the middle of a value.
+//
+// The modes ride the op flag the operation memo keys on, which is what makes
+// each of them compile and cache as its own operation and leaves the throw
+// path's generated code untouched.
 // Val (`Val.f`): 0 none, 1 async.
 
 // ── path ──────────────────────────────────────────────────────────────────────
@@ -894,7 +902,7 @@ export const noopDecoder: Builder = (input: Val) => input;
 // Every built-in singleton schema must be a module-level const initialized by
 // a single `/* @__PURE__ */ initSchema(...)` expression: the module system is
 // what guarantees one instance per schema (the compiled-decoder cache in
-// getDecoder is keyed by `seq` and stored on the instance, so a fresh copy
+// getOp is keyed by `seq` and stored on the instance, so a fresh copy
 // per use would recompile every time), and the single pure expression is what
 // lets a consumer's bundler drop the unused ones.
 // @__NO_SIDE_EFFECTS__

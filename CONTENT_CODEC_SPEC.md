@@ -78,13 +78,13 @@ A field or array item is a value in the document — nothing asks it to be a
 document of its own:
 
 ```ts
-S.encoder(S.schema({ payload: S.uint8Array }), S.jsonString)({ payload: bytes });
+S.encodeOrThrow(S.schema({ payload: S.uint8Array }), S.jsonString)({ payload: bytes });
 // {"payload":"ZGF0YQ=="}                      base64, not mangled UTF-8
 ```
 
 A `Blob`/`File` field packs the same way, which makes that **encode async** (a
-Blob's bytes are only readable asynchronously) — `S.asyncEncoder`, and the sync
-`S.encoder` fails at creation like any other async operation.
+Blob's bytes are only readable asynchronously) — `S.encodeAsPromiseOrReject`, and the sync
+`S.encodeOrThrow` fails at creation like any other async operation.
 
 A field that should hold a *nested* document says so, and rule 3 takes over:
 
@@ -306,7 +306,7 @@ refine and `bc` only, so a File bundle does not ship recode or TextEncoder.
 | --- | --- |
 | `S.uint8Array.with(S.to, S.jsonString)` — UTF-8 escape (corrupts non-ASCII) | rule 4 error |
 | `{payload: S.uint8Array}` in a JSON document — corrupts | base64 |
-| `S.encoder(S.uint8Array.with(S.to, S.number))(42)` — returns `42` typed as `Uint8Array` | error (the decoder's missing fall-through, a standalone soundness fix) |
+| `S.encodeOrThrow(S.uint8Array.with(S.to, S.number))(42)` — returns `42` typed as `Uint8Array` | error (the decoder's missing fall-through, a standalone soundness fix) |
 | `S.optional(S.string).with(S.to, S.uint8Array)` — the `undefined` arm passed through as bytes | error, which `CODEC_SPEC.md`'s rule 3 already said: a variant with no decoder rejects the operation |
 | `S.base64.with(S.trim).with(S.to, S.uint8Array)` — packed the base64 *text* as bytes | the payload, same as untrimmed: a refinement that only reshapes the text carries the marker |
 | a `S.jsonString.with(S.to, X)` field of a decoded document — re-escaped its own text, then failed against X | parsed (rule 3) |

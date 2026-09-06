@@ -84,9 +84,9 @@ const NON_SPEC_FILES = new Set([
 const HEADER = "# yaml-language-server: $schema=./spec.schema.json";
 
 const OP_BUILDER: Record<OpName, (schema: any) => (input: any) => any> = {
-  parse: S.parser,
-  decode: S.decoder,
-  encode: S.encoder,
+  parse: S.parseOrThrow,
+  decode: S.decodeOrThrow,
+  encode: S.encodeOrThrow,
 };
 
 // A schema carrying an async transform or refine compiles only through these:
@@ -95,9 +95,9 @@ const OP_BUILDER: Record<OpName, (schema: any) => (input: any) => any> = {
 // `Promise.resolve(...)`, so which builder an op uses is part of its codegen —
 // hence a declared `isAsync`, checked against the schema, rather than a guess.
 const ASYNC_OP_BUILDER: Record<OpName, (schema: any) => (input: any) => Promise<any>> = {
-  parse: S.asyncParser,
-  decode: S.asyncDecoder,
-  encode: S.asyncEncoder,
+  parse: S.parseAsPromiseOrReject,
+  decode: S.decodeAsPromiseOrReject,
+  encode: S.encodeAsPromiseOrReject,
 };
 
 const SKIP_REASON_SET = new Set<string>(SKIP_REASONS);
@@ -292,7 +292,7 @@ export const asyncViolations = (schema: any, spec: Spec): string[] => {
     if (isAsync && op.isAsync !== true)
       out.push(
         `operations.${opName}: is async (the schema has an async transform or refine) — add \`isAsync: true\`, ` +
-          "which builds it with S.asyncParser/asyncDecoder/asyncEncoder and awaits every example",
+          "which builds it with the AsPromiseOrReject operations and awaits every example",
       );
     else if (!isAsync && op.isAsync === true)
       out.push(
