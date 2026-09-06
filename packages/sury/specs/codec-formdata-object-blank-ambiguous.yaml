@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: 'SuryError: Failed at a: A form submits "" for a blank field. Use S.nonEmpty to reject it, or S.minLength(0) to allow it'
+    creationError: 'SuryError: Failed at a: A form submits "" for a blank field. Use S.nonEmpty to reject, S.minLength(0) to keep, S.optional or S.nullable for absent'
   decode: eq-to-parse
   encode:
     expression: i=>{let v0=i["n"];v0>=18||e[0](v0);let v1=new e[1]();v1.append("a",i["a"]);v1.append("n",""+v0);return v1}

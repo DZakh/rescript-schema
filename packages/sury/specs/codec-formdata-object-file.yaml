@@ -33,7 +33,7 @@ operations:
         input: ((f) => (f.append("avatar", "x"), f.append("raw", new File(["r"], "r.bin")), f))(new FormData())
         error: 'Failed at avatar: Expected File.size <= 4, received "x"'
   encode:
-    expression: i=>{let v0=i["avatar"],v2=i["cover"];v0.size<5||e[0](v0);let v1=new e[1]();v1.append("avatar",v0);if(v2!==void 0){v1.append("cover",v2);}v1.append("raw",i["raw"]);return v1}
+    expression: i=>{let v0=i["avatar"],v2=i["cover"];v0.size<5||e[0](v0);let v1=new e[1]();v1.append("avatar",v0);if(v2!=null){v1.append("cover",v2);}v1.append("raw",i["raw"]);return v1}
     examples:
       too-large:
         input: '{ avatar: new File(["12345"], "a.png"), raw: new Blob(["r"]) }'

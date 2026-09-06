@@ -1271,7 +1271,7 @@ round. It takes the same size bounds.
 ```rescript
 let schema = S.formData->S.to(
   S.schema(s => {
-    name: s.field("name", S.string),
+    name: s.field("name", S.string->S.nonEmpty), // a blank entry is rejected
     age: s.field("age", S.int), // "42" -> 42
     tags: s.field("tags", S.array(S.string)), // every "tags" entry
     avatar: s.field("avatar", S.file),
@@ -1286,12 +1286,10 @@ A field reads its entry as text through the same coercions `S.dict(S.string)`
 gets; `S.file` and `S.blob` take the entry as it is, and a `S.bool` is a
 checkbox: absent is `false`, `"on"`/`"true"`/`"1"` is `true`, `"false"`/`"0"`
 is `false`, and an encode omits an unchecked box the way a browser does. A
-required string field must say what a blank entry means — `S.string->S.nonEmpty`
-to reject it, `S.string->S.minLength(0)` to admit it — or the operation fails
-to build. An empty text input reads as
-absent for an optional field, and is handed to the target as `""` for a
-required one — so `S.string` takes it and `S.string->S.nonEmpty` rejects it in
-its own words. The type is
+required, non-nullable string field must say what a blank entry means —
+`S.string->S.nonEmpty` to reject it, `S.string->S.minLength(0)` to admit it,
+`S.option` or `S.null` to read it as absent — or the operation fails to build.
+Every other target is handed the `""` and answers for itself. The type is
 abstract, since the stdlib has no `FormData` module; a value from a fetch
 binding is cast to it.
 

@@ -497,11 +497,12 @@ export type FormData = typeof globalThis extends {
  * field reads through the string coercions (`"42"` -> `S.number`), a `S.file`
  * field takes the entry as it is, and `S.array` reads every entry of the key.
  * A required `S.boolean` is a checkbox: absent is `false`, `"on"` is `true`.
- * An empty text input reads as absent for an optional field. A required string
- * field must say what it means — `S.nonEmpty` to reject a blank one,
- * `S.minLength(0)` to admit it — or the operation fails to build. Encoding
- * builds a `FormData` with one `append` per field.
- * @example S.formData.with(S.to, S.schema({ name: S.string, age: S.number, avatar: S.file }))
+ * A blank text input reads as absent for an optional field and as `null` for a
+ * nullable one. A required, non-nullable string field must say what it means —
+ * `S.nonEmpty` to reject a blank one, `S.minLength(0)` to admit it — or the
+ * operation fails to build. Encoding builds a `FormData` with one `append` per
+ * field.
+ * @example S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty), age: S.number, avatar: S.file }))
  */
 export const formData: Schema<FormData, FormData>;
 

@@ -20,6 +20,7 @@ import {
   initSchema,
   type Internal,
   isOptional,
+  nullTag,
   pathConcat,
   setHas,
   tagFlags,
@@ -71,14 +72,17 @@ const isBlobClass = (class_: unknown): boolean => {
   );
 };
 
-// The optional's other arms, as one schema. Rebuilt from the union's own
-// pieces rather than through unionFactory, so `S.formData` doesn't carry the
-// union compiler for a form that never has an optional field.
+// What a supplied entry converts to: the union's arms minus the two a blank
+// field produces. Rebuilt from the union's own pieces rather than through
+// unionFactory, so `S.formData` doesn't carry the union compiler for a form
+// that never has an optional field.
 const presentArm = (schema: Internal): Internal => {
   if (schema.type !== anyOfTag) {
     return schema;
   }
-  const present = schema.anyOf!.filter((variant) => variant.type !== undefinedTag);
+  const present = schema.anyOf!.filter(
+    (variant) => variant.type !== undefinedTag && variant.type !== nullTag,
+  );
   if (present.length === 1) {
     return present[0]!;
   }
@@ -161,6 +165,10 @@ const listItem = (schema: Internal): Internal | undefined => {
 // takes the entry, which is not the same question as the field taking one.
 type Field = {
   optional: boolean;
+  // A `null` arm makes a blank entry `null`, the way an `undefined` one makes
+  // it absent — both are a schema saying what an empty input means, so both
+  // answer the blank question and neither is ambiguous.
+  nullable: boolean;
   present: Internal;
   item: Internal | undefined;
   checkbox: boolean;
@@ -170,6 +178,7 @@ const classify = (schema: Internal): Field => {
   const present = presentArm(schema);
   return {
     optional: isOptional(schema),
+    nullable: schema.type === anyOfTag && !!schema.has![nullTag],
     present,
     item: listItem(present),
     checkbox: isCheckbox(present),
@@ -199,11 +208,13 @@ const armCode = (item: Val, source: Internal, target: Internal, into: string): s
   return B_merge(armOut) + (armOut.i === into ? "" : `${into}=${armOut.i};`);
 };
 
-// The absent arm's own chain, which is where `S.optional(x, default)` keeps its
-// default. Empty when there is nothing to run.
+// What a blank entry becomes. A `null` arm makes it `null`; an `undefined` one
+// leaves the var alone, which is already absent, and runs that arm's own chain
+// — where `S.optional(x, default)` keeps its default. A field with both takes
+// the optional reading, since absence is the weaker claim.
 const absentCode = (item: Val, field: Field, schema: Internal, into: string): string => {
   if (!field.optional) {
-    return "";
+    return field.nullable ? `else{${into}=null}` : "";
   }
   const absent = schema.anyOf!.find((variant) => variant.type === undefinedTag)!;
   return absent.to === U ? "" : `else{${armCode(item, absent, absent, into)}}`;
@@ -300,8 +311,10 @@ const appendValue = (val: Val, fdVar: string, keyText: string): string => {
     );
     return `for(let ${iterVar}=0;${iterVar}<${arrayVar}.length;++${iterVar}){${itemCode}}`;
   }
-  if ((tagFlag & 256) && schema.has![undefinedTag]) {
-    // Absent is not an entry, so the whole append sits behind the guard.
+  if ((tagFlag & 256) && (schema.has![undefinedTag] || schema.has![nullTag])) {
+    // Neither absent nor null is an entry, so the whole append sits behind one
+    // loose guard — `!= null` is both sentinels and shorter than testing them
+    // apart.
     // Compiled on a chain detached from the field val, the way json.ts's
     // guardedJsonPiece does, so the conversion's own code lands inside it.
     const inputVar = val.v();
@@ -309,7 +322,7 @@ const appendValue = (val: Val, fdVar: string, keyText: string): string => {
     const detached = B_next(val, inputVar, presentSchema, presentSchema);
     detached.v = _var;
     detached.prev = U;
-    return `if(${inputVar}!==void 0){${appendValue(detached, fdVar, keyText)}}`;
+    return `if(${inputVar}!=null){${appendValue(detached, fdVar, keyText)}}`;
   }
   if ((tagFlag & 2) || ((tagFlag & 8192) && isBlobClass(schema.class))) {
     return `${fdVar}.append(${keyText},${val.i});`;
@@ -378,7 +391,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     // optional one folds that empty read into absent, since a form has no other
     // way to submit an empty list.
     const readVar = B_varWithoutAllocation(input.g);
-    if (list && field.optional) {
+    if (list && (field.optional || field.nullable)) {
       // Two declarations rather than one self-referencing initializer, which
       // would read `readVar` inside its own `let` and hit the temporal dead
       // zone. Both land in the same `let`, in order.
@@ -403,7 +416,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       B_hoistDecl(
         input,
         `${readVar}=${inputVar}.get(${keyText})${
-          field.optional || field.checkbox ? "||" : "??"
+          field.optional || field.nullable || field.checkbox ? "||" : "??"
         }void 0`,
       );
     }
@@ -436,10 +449,15 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       o: U,
     };
 
-    if (!field.optional && (tagFlags[field.present.type]! & 2) && !decidesBlank(field.present)) {
+    if (
+      !field.optional &&
+      !field.nullable &&
+      (tagFlags[field.present.type]! & 2) &&
+      !decidesBlank(field.present)
+    ) {
       B_invalidOperation(
         item,
-        `A form submits "" for a blank field. Use S.nonEmpty to reject it, or S.minLength(0) to allow it`,
+        `A form submits "" for a blank field. Use S.nonEmpty to reject, S.minLength(0) to keep, S.optional or S.nullable for absent`,
       );
     }
 
@@ -454,12 +472,13 @@ const formDataToObject = (input: Val, target: Internal): Val => {
         listTarget = copySchema(listTarget);
         listTarget.additionalItems = fromText(field.item!);
       }
-      output = field.optional
-        ? readOptional(item, field, schema, arrayFactory(unknown), listTarget)
-        : ((item.e = listTarget), parse(item));
+      output =
+        field.optional || field.nullable
+          ? readOptional(item, field, schema, arrayFactory(unknown), listTarget)
+          : ((item.e = listTarget), parse(item));
     } else if (takesEntry(field.present)) {
       output = parse(item);
-    } else if (field.optional) {
+    } else if (field.optional || field.nullable) {
       output = readOptional(item, field, schema, unknown, fromText(field.present));
     } else {
       item.e = fromText(schema);

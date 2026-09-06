@@ -1,39 +1,42 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: "S.formData.with(S.to, S.schema({ n: S.nullable(S.number) }))"
+  schema: 'S.formData.with(S.to, S.schema({ s: S.nullable(S.string), n: S.nullable(S.number), tag: S.nullable(S.union(["yes", "no"])) }))'
   input: FormData
-  output: "{ n: number | null; }"
-  instantiations: 5623
+  output: '{ s: string | null; n: number | null; tag: "yes" | "no" | null; }'
+  instantiations: 6876
 jsonSchema:
   input: Expected JSON, received FormData
-  output: '{ type: "object", properties: { n: { anyOf: [{ type: "number" }, { type: "null" }] } }, required: ["n"] }'
+  output: '{ type: "object", properties: { s: { anyOf: [{ type: "string" }, { type: "null" }] }, n: { anyOf: [{ type: "number" }, { type: "null" }] }, tag: { enum: ["yes", "no", null] } }, required: ["s", "n", "tag"] }'
   openapi-3.0:
-    output: '{ type: "object", properties: { n: { type: "number", nullable: true } }, required: ["n"] }'
+    output: '{ type: "object", properties: { s: { type: "string", nullable: true }, n: { type: "number", nullable: true }, tag: { enum: ["yes", "no", null] } }, required: ["s", "n", "tag"] }'
 vs:
   zod:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{i instanceof e[4]||e[5](i);let v0=i.get("n")??void 0;typeof v0==="string"||e[3](v0);for(;;){let r;try{let v1=+v0;v1===v1&&(v1||v0.trim())||e[0](v0);v0=v1;break}catch(x){(r||(r=[])).push(e[1](x))}if(v0==="null"){v0=null;break}e[2](v0,...(r||[]))}return {n:v0}}
+    expression: i=>{i instanceof e[5]||e[6](i);let v0=i.get("s")||void 0,v1=i.get("n")||void 0,v3=i.get("tag")||void 0;if(v0!==void 0){typeof v0==="string"||e[0](v0);}else{v0=null}if(v1!==void 0){typeof v1==="string"||e[2](v1);let v2=+v1;v2===v2&&(v2||v1.trim())||e[1](v1);v1=v2;}else{v1=null}if(v3!==void 0){typeof v3==="string"||e[4](v3);(v3==="yes"||v3==="no")||e[3](v3);}else{v3=null}return {s:v0,n:v1,tag:v3}}
     examples:
       number:
-        input: ((f) => (f.append("n", "1"), f))(new FormData())
-        output: "{ n: 1 }"
+        input: ((f) => (f.append("s", "x"), f.append("n", "1"), f.append("tag", "yes"), f))(new FormData())
+        output: '{ s: "x", n: 1, tag: "yes" }'
+      blank-is-null:
+        input: ((f) => (f.append("s", ""), f.append("n", ""), f.append("tag", ""), f))(new FormData())
+        output: "{ s: null, n: null, tag: null }"
+      absent-is-null:
+        input: new FormData()
+        output: "{ s: null, n: null, tag: null }"
       the-text-null:
         input: ((f) => (f.append("n", "null"), f))(new FormData())
-        output: "{ n: null }"
-      absent:
-        input: new FormData()
-        error: "Failed at n: Expected string, received undefined"
+        error: 'Failed at n: Expected number, received "null"'
   decode:
-    expression: i=>{let v0=i.get("n")??void 0;typeof v0==="string"||e[3](v0);for(;;){let r;try{let v1=+v0;v1===v1&&(v1||v0.trim())||e[0](v0);v0=v1;break}catch(x){(r||(r=[])).push(e[1](x))}if(v0==="null"){v0=null;break}e[2](v0,...(r||[]))}return {n:v0}}
+    expression: i=>{let v0=i.get("s")||void 0,v1=i.get("n")||void 0,v3=i.get("tag")||void 0;if(v0!==void 0){typeof v0==="string"||e[0](v0);}else{v0=null}if(v1!==void 0){typeof v1==="string"||e[2](v1);let v2=+v1;v2===v2&&(v2||v1.trim())||e[1](v1);v1=v2;}else{v1=null}if(v3!==void 0){typeof v3==="string"||e[4](v3);(v3==="yes"||v3==="no")||e[3](v3);}else{v3=null}return {s:v0,n:v1,tag:v3}}
     examples:
-      number:
-        input: ((f) => (f.append("n", "1"), f))(new FormData())
-        output: "{ n: 1 }"
+      blank-is-null:
+        input: ((f) => (f.append("s", ""), f.append("n", ""), f.append("tag", ""), f))(new FormData())
+        output: "{ s: null, n: null, tag: null }"
   encode:
-    expression: i=>{let v1=i["n"];let v0=new e[0]();for(;;){if(typeof v1==="number"&&v1===v1){v1=""+i["n"];break}if(v1===null){v1="null";break}e[1](v1)}v0.append("n",v1);return v0}
+    expression: i=>{let v1=i["s"],v2=i["n"],v3=i["tag"];let v0=new e[0]();if(v1!=null){v0.append("s",v1);}if(v2!=null){v0.append("n",""+v2);}if(v3!=null){typeof v3==="string"&&(v3==="yes"||v3==="no")||e[1](v3);v0.append("tag",v3);}return v0}
     examples:
       not-a-member:
-        input: '{ n: "x" }'
-        error: 'Failed at n: Expected number | null, received "x"'
+        input: '{ s: null, n: null, tag: "maybe" }'
+        error: 'Failed at tag: Expected "yes" | "no", received "maybe"'

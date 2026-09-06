@@ -119,6 +119,56 @@ test("a checkbox reads the entries a form can carry, and only those", () => {
   );
 });
 
+test("a nullable field reads a blank entry as null, and omits null on the way out", () => {
+  const schema = S.formData.with(
+    S.to,
+    S.schema({ nick: S.nullable(S.string), age: S.nullable(S.number) }),
+  );
+  expect(S.decoder(schema)(form(["nick", ""], ["age", ""]))).toEqual({ nick: null, age: null });
+  expect(S.decoder(schema)(new FormData())).toEqual({ nick: null, age: null });
+  expect(S.decoder(schema)(form(["nick", "nn"], ["age", "42"]))).toEqual({ nick: "nn", age: 42 });
+  // `null` is not an entry, so it is omitted — and reads back as null.
+  expect(entries(S.encoder(schema)({ nick: null, age: null }))).toEqual([]);
+  expect(entries(S.encoder(schema)({ nick: "nn", age: 42 }))).toEqual([
+    ["nick", "nn"],
+    ["age", "42"],
+  ]);
+  expect(S.decoder(schema)(S.encoder(schema)({ nick: null, age: 7 }))).toEqual({
+    nick: null,
+    age: 7,
+  });
+  // The literal text "null" is a string, not the null a blank field means.
+  expect(S.decoder(schema)(form(["nick", "null"]))).toEqual({ nick: "null", age: null });
+});
+
+test("a blank required string must say what it means", () => {
+  const ambiguous = ["A form submits", "S.nonEmpty", "S.minLength(0)", "S.optional", "S.nullable"];
+  for (const schema of [S.string, S.string.with(S.maxLength, 100)]) {
+    for (const fragment of ambiguous) {
+      expect(() => S.decoder(S.formData.with(S.to, S.schema({ f: schema })))).toThrow(fragment);
+    }
+  }
+  // Every spelling the message names, plus the ones that answer on their own.
+  for (const [name, schema] of [
+    ["nonEmpty", S.string.with(S.nonEmpty)],
+    ["minLength(0)", S.string.with(S.minLength, 0)],
+    ["optional", S.optional(S.string)],
+    ["nullable", S.nullable(S.string)],
+    ["a format", S.email],
+    ["a literal", S.schema("x")],
+    ["a pattern rejecting blank", S.string.with(S.pattern, /^\d+$/)],
+    ["a conversion", S.string.with(S.to, S.date)],
+  ] as const) {
+    expect(() => S.decoder(S.formData.with(S.to, S.schema({ f: schema }))), name).not.toThrow();
+  }
+  // A pattern that matches "" says nothing about it, so it stays ambiguous.
+  expect(() =>
+    S.decoder(S.formData.with(S.to, S.schema({ f: S.string.with(S.pattern, /^\d*$/) }))),
+  ).toThrow("A form submits");
+  // Encoding never reads a blank entry, so it has nothing to be ambiguous about.
+  expect(() => S.encoder(S.formData.with(S.to, S.schema({ f: S.string })))).not.toThrow();
+});
+
 test("an array is a repeated key, and an empty array is no entry", () => {
   const schema = S.formData.with(S.to, S.schema({ tags: S.array(S.string), ids: S.array(S.number) }));
   expect(entries(S.encoder(schema)({ tags: ["a", "b"], ids: [1, 2] }))).toEqual([

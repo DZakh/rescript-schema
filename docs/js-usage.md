@@ -1171,7 +1171,7 @@ and one schema serves both the request handler and the `fetch` body:
 const signup = S.formData.with(
   S.to,
   S.schema({
-    name: S.string,
+    name: S.string.with(S.nonEmpty), // a blank entry is rejected
     age: S.number, // "42" -> 42
     agree: S.boolean, // a checkbox: "on" -> true, absent -> false
     newsletter: S.optional(S.boolean), // tri-state: "true" -> true, absent -> undefined
@@ -1227,7 +1227,8 @@ creation:
 ```ts
 S.formData.with(S.to, S.schema({ name: S.string }));
 // throws at S.decoder: Failed at name: A form submits "" for a blank field.
-// Use S.nonEmpty to reject it, or S.minLength(0) to allow it
+// Use S.nonEmpty to reject, S.minLength(0) to keep, S.optional or S.nullable
+// for absent
 ```
 
 ```ts
@@ -1237,14 +1238,17 @@ S.formData.with(
     name: S.string.with(S.nonEmpty), // "" -> Expected string.length >= 1
     bio: S.string.with(S.minLength, 0), // "" -> "", a value
     nick: S.optional(S.string), // "" -> undefined
+    note: S.nullable(S.string), // "" -> null
     tier: S.optional(S.number, 1), // "" -> 1, the default
     age: S.number, // "" -> Expected number
   }),
 );
 ```
 
-Only a *required string* has to choose. An optional field already reads `""` as
-absent, and every other target answers for itself — `S.number` rejects it,
+Only a *required, non-nullable string* has to choose. An optional or nullable
+field already says what a blank entry is — absent, its default, or `null`, and
+encoding leaves it out either way — and every other target answers for itself:
+`S.number` rejects `""`,
 `S.email` and the other formats reject it by their own syntax, `S.jsonPointer`
 accepts it because an empty pointer is a real one, a literal matches or
 doesn't, and a `S.pattern` decides by whether it matches `""`.

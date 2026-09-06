@@ -45,7 +45,7 @@ operations:
         input: ((f) => (f.append("tags", "a"), f.append("tags", "b"), f.append("ids", "1"), f.append("ids", "2"), f.append("extra", "x"), f))(new FormData())
         output: '{ tags: ["a", "b"], ids: [1, 2], extra: ["x"], sizes: ["m"] }'
   encode:
-    expression: i=>{let v0=i["tags"],v4=i["ids"],v6=i["sizes"],v13=i["extra"];for(let v1=0;v1<v0.length;++v1){try{let v2=v0[v1];v2.length>0||e[0](v2);}catch(v3){v3.path=["tags",v1,...v3.path];throw v3}}if(Array.isArray(v6)){for(let v7=0;v7<v6.length;++v7){try{let v8=v6[v7];typeof v8==="string"||e[1](v8);}catch(v9){v9.path=["sizes",v7,...v9.path];throw v9}}}else{e[2](v6)}let v10=new e[3]();for(let v11=0;v11<v0.length;++v11){v10.append("tags",v0[v11]);}for(let v12=0;v12<v4.length;++v12){v10.append("ids",""+v4[v12]);}if(v13!==void 0){for(let v14=0;v14<v13.length;++v14){v10.append("extra",v13[v14]);}}for(let v15=0;v15<v6.length;++v15){v10.append("sizes",v6[v15]);}return v10}
+    expression: i=>{let v0=i["tags"],v4=i["ids"],v6=i["sizes"],v13=i["extra"];for(let v1=0;v1<v0.length;++v1){try{let v2=v0[v1];v2.length>0||e[0](v2);}catch(v3){v3.path=["tags",v1,...v3.path];throw v3}}if(Array.isArray(v6)){for(let v7=0;v7<v6.length;++v7){try{let v8=v6[v7];typeof v8==="string"||e[1](v8);}catch(v9){v9.path=["sizes",v7,...v9.path];throw v9}}}else{e[2](v6)}let v10=new e[3]();for(let v11=0;v11<v0.length;++v11){v10.append("tags",v0[v11]);}for(let v12=0;v12<v4.length;++v12){v10.append("ids",""+v4[v12]);}if(v13!=null){for(let v14=0;v14<v13.length;++v14){v10.append("extra",v13[v14]);}}for(let v15=0;v15<v6.length;++v15){v10.append("sizes",v6[v15]);}return v10}
     examples:
       empty-item-refined:
         input: '{ tags: [""], ids: [] }'

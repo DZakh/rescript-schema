@@ -42,7 +42,7 @@ operations:
         input: ((f) => (f.append("nick", ""), f.append("age", ""), f.append("bio", ""), f.append("note", ""), f))(new FormData())
         output: '{ nick: undefined, age: 18, bio: "", note: undefined }'
   encode:
-    expression: i=>{let v0=i["age"],v2=i["nick"],v3=i["note"];typeof v0==="number"&&v0===v0||e[0](v0);let v1=new e[1]();if(v2!==void 0){v1.append("nick",v2);}v1.append("age",""+v0);v1.append("bio",i["bio"]);if(v3!==void 0){v1.append("note",v3);}return v1}
+    expression: i=>{let v0=i["age"],v2=i["nick"],v3=i["note"];typeof v0==="number"&&v0===v0||e[0](v0);let v1=new e[1]();if(v2!=null){v1.append("nick",v2);}v1.append("age",""+v0);v1.append("bio",i["bio"]);if(v3!=null){v1.append("note",v3);}return v1}
     examples:
       missing-defaulted:
         input: '{ nick: "n", bio: "hi" }'
