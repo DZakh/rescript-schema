@@ -549,7 +549,9 @@ export const B_markOutput = (val: Val, valInput: Val): Val => {
   // is: inside a `.then`, the way the parse loop continues an async val.
   if (outC && (val.f & 1)) {
     const v = val.v();
-    val.i = `${v}.then(${v}=>{${B_merge(B_refine(B_scope(val), U, outC))}return ${v}})`;
+    val.i = `${v}.then(${v}=>{${B_merge(
+      B_refine(B_scope(val), U, inC ? inC.concat(outC) : outC),
+    )}return ${v}})`;
     val.v = _notVar;
   } else val = inC ? B_refine(val, U, outC ? inC.concat(outC) : inC) : outC ? B_refine(val, U, outC) : val;
   val.io = true;

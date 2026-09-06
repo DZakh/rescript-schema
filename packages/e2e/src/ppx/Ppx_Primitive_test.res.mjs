@@ -55,7 +55,7 @@ Vitest.test("Dict of string schema", t => U.assertEqualSchemas(t, myDictOfString
 
 let myDictOfStringFromJsSchema = Sury.record(Sury.string);
 
-Vitest.test("Dict of string schema from Js", t => U.assertEqualSchemas(t, myDictOfStringSchema, Sury.record(Sury.string), undefined));
+Vitest.test("Dict of string schema from Js", t => U.assertEqualSchemas(t, myDictOfStringFromJsSchema, Sury.record(Sury.string), undefined));
 
 let myDictOfStringFromCoreSchema = Sury.record(Sury.string);
 

@@ -156,11 +156,12 @@ export const recursive = (name: string, fn: (schema: Internal) => Internal): Int
   let def: Internal;
   // A definer that throws must not leave the accumulator behind: every later
   // top-level `recursive` would then see itself as nested and return a ref
-  // with no `$defs`.
+  // with no `$defs`. A nested one leaves it to the outer call, whose definer
+  // may catch and carry on.
   try {
     def = fn(refSchema);
   } catch (e) {
-    globalConfig.d = U;
+    if (!isNestedRec) globalConfig.d = U;
     throw e;
   }
   if (def.name) {
