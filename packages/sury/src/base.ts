@@ -327,6 +327,11 @@ export type Internal = {
   // disagree have two readings of it (store the value, or open it) and the
   // conversion asks instead of guessing. Absent means the value carries no
   // payload of its own.
+  // On a string source it is a claim, and `format` is its verification: a
+  // carrier's opened text (`openedText`) and a union's per-member narrow both
+  // carry the marker without the format, and a decoder handed that pair must
+  // check the text, never escape it as a value — `S.jsonString` inside
+  // `S.optional` used to serialize `"a"` to `"\"a\""` for exactly that reason.
   // Written only through `setContent` (below), which keeps it non-enumerable.
   content?: Internal;
   // Bytes-as-text codec on a format singleton (`S.base64`, `S.base64url`).
@@ -393,13 +398,20 @@ export type Internal = {
   pattern?: RegExp;
   errorMessage?: SchemaErrorMessage;
   space?: number;
-  // Compile-time only, set on a per-operation schema copy by the container
-  // decoders' jsonString fusion (B_fuseIntoJsonString in composites.ts): the
-  // container's dynamic items are typed but UNVALIDATED — the validation loop
-  // was skipped because jsonStringAggregate re-parses each item from unknown
-  // inside its own serialize loop. Carried on the schema (not the val) so it
-  // survives the parse loop's per-segment B_refine.
+  // Compile-time only, set on a per-operation schema copy by `fz` below: the
+  // container's dynamic items, or a fixed container's non-literal fields, are
+  // typed but UNVALIDATED — the decoder skipped them because
+  // jsonStringAggregate parses each from unknown inside its own serialize
+  // pass. Carried on the schema (not the val) so it survives the parse loop's
+  // per-segment B_refine.
   uv?: boolean;
+  // On a target that builds its document piecewise (`S.jsonString`): asked by
+  // a container decoder (`B_fused` in composites.ts) whose `.to` it is, with
+  // the dynamic item for an array or dict, and answers the container's schema
+  // marked `uv` when the aggregate may validate it, or undefined to validate
+  // here as usual. Lives on the target so a bundle without it ships nothing
+  // of the decision.
+  fz?: (input: Val, container: Internal, item?: Internal) => Internal | undefined;
   // Compile-time only, and `unionRewrite` (union.ts) is the ONLY producer: this
   // union's variants were rewritten from the variants of the union the value
   // was already typed as, so a dispatched case may convert from its own variant
