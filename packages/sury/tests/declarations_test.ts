@@ -11,6 +11,7 @@
 // `export * from "./other.js"` re-exports names to consumers without binding
 // them locally — the file still needs its own `import type`.
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { test, expect } from "vitest";
@@ -46,4 +47,32 @@ test("the public declarations typecheck without skipLibCheck", { timeout: 120_00
     output = (error as { stdout?: string }).stdout ?? String(error);
   }
   expect(output).toBe("");
+});
+
+// The declarations are hand-written and the runtime entry is generated, so
+// nothing but this keeps the two surfaces the same set of names. A declaration
+// with no export behind it typechecks and then throws "is not a function" at
+// the call; an export with no declaration is invisible to every TS consumer.
+test("every declared value has a runtime export, and vice versa", async () => {
+  const runtime = new Set(Object.keys(await import("../index.mjs")));
+  const source = readFileSync(entry, "utf8");
+  const declared = new Set<string>();
+  for (const [, name] of source.matchAll(/^export (?:declare )?(?:function|const|class) (\w+)/gm)) {
+    declared.add(name!);
+  }
+  // A reserved word (`void`, `enum`) can't be a declaration name, so those are
+  // declared under an alias and renamed in an export list.
+  for (const [, list] of source.matchAll(/^export \{([^}]*)\};/gm)) {
+    for (const entry of list!.split(",")) {
+      const parts = entry.trim().split(/\s+as\s+/);
+      if (parts[0]) declared.add(parts[1] ?? parts[0]!);
+    }
+  }
+  // `$`-prefixed exports are the ReScript binding surface (entry.ts), which
+  // index.d.ts deliberately doesn't describe. `list` builds a ReScript linked
+  // list, which has no JS type worth writing down — arguably it should carry
+  // the prefix too.
+  const rescriptOnly = (name: string) => name.startsWith("$") || name === "list";
+  expect([...runtime].filter((n) => !rescriptOnly(n) && !declared.has(n)).sort()).toEqual([]);
+  expect([...declared].filter((n) => !runtime.has(n)).sort()).toEqual([]);
 });

@@ -345,25 +345,6 @@ export type Input<T> = T extends {
   ? TInput
   : never;
 
-// Utility types for decoder function with multiple schemas
-type ExtractFirstInput<TSchemas extends readonly SchemaLike<any, any>[]> =
-  TSchemas extends readonly [SchemaLike<infer TFirstInput, any>, ...any[]]
-    ? TFirstInput
-    : never;
-
-// Utility types for encoder function with multiple schemas
-type ExtractFirstOutput<TSchemas extends readonly SchemaLike<any, any>[]> =
-  TSchemas extends readonly [SchemaLike<any, infer TFirstOutput>, ...any[]]
-    ? TFirstOutput
-    : never;
-
-type ExtractLastOutput<TSchemas extends readonly SchemaLike<any, any>[]> =
-  TSchemas extends readonly [...any[], SchemaLike<any, infer TLastOutput>]
-    ? TLastOutput
-    : TSchemas extends readonly [SchemaLike<any, infer TSingleOutput>]
-    ? TSingleOutput
-    : never;
-
 // Match the `~standard` marker instead of the full `Schema<…>` shape for the
 // same instantiation-cost reason as `Output<T>` above.
 // `-readonly` undoes the `readonly` that a `const T` call site (schema/union)
@@ -468,6 +449,23 @@ export function union<const T>(
 
 export { union as anyOf };
 
+// `enum` is a reserved word, so it is declared under an alias and renamed on
+// the way out — same as `void` below.
+declare function enum_<const TFirst, const TRest extends unknown[]>(
+  values: [TFirst, ...TRest]
+): Schema<
+  UnknownToInput<TFirst> | UnknownArrayToInput<TRest>[number],
+  UnknownToOutput<TFirst> | UnknownArrayToOutput<TRest>[number]
+>;
+declare function enum_<const T>(
+  values: readonly T[]
+): Schema<UnknownToInput<T>, UnknownToOutput<T>>;
+/**
+ * A union written as a list of values, the way JSON Schema spells `enum`. Each
+ * value becomes a literal schema, so this is `S.union` over the same list.
+ */
+export { enum_ as enum };
+
 export const string: Schema<string, string>;
 export const boolean: Schema<boolean, boolean>;
 export const int32: Schema<number, number>;
@@ -475,6 +473,8 @@ export const integer: Schema<number, number>;
 export const number: Schema<number, number>;
 export const bigint: Schema<bigint, bigint>;
 export const symbol: Schema<symbol, symbol>;
+/** `NaN`, the one number `S.number` rejects. */
+export const nan: Schema<number, number>;
 export const never: Schema<never, never>;
 export const unknown: Schema<unknown, unknown>;
 export const any: Schema<any, any>;
@@ -834,11 +834,6 @@ export const jsonPointer: Schema<string, string>;
 export const relativeJsonPointer: Schema<string, string>;
 
 export const date: Schema<Date, Date>;
-
-export function safe<TValue>(scope: () => TValue): Result<TValue>;
-export function safeAsync<TValue>(
-  scope: () => Promise<TValue>
-): Promise<Result<TValue>>;
 
 export function reverse<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>
@@ -2297,152 +2292,13 @@ export function assertOutputAsPromiseOrReject<TOutput>(
   s3: SchemaLike<unknown, unknown>
 ): Promise<void>;
 
-export function parser<TOutput>(
-  schema: SchemaLike<unknown, TOutput>
-): (data: unknown) => TOutput;
-export function parser<TOutput>(
-  from: SchemaLike<unknown, unknown>,
-  target: SchemaLike<unknown, TOutput>
-): (data: unknown) => TOutput;
-export function parser<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(...schemas: TSchemas): (data: unknown) => ExtractLastOutput<TSchemas>;
-
-export function asyncParser<TOutput>(
-  schema: SchemaLike<unknown, TOutput>
-): (data: unknown) => Promise<TOutput>;
-export function asyncParser<TOutput>(
-  from: SchemaLike<unknown, unknown>,
-  target: SchemaLike<unknown, TOutput>
-): (data: unknown) => Promise<TOutput>;
-export function asyncParser<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(...schemas: TSchemas): (data: unknown) => Promise<ExtractLastOutput<TSchemas>>;
-
-export function decoder<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TInput) => TOutput;
-export function decoder<TInput, TOutput>(
-  from: SchemaLike<TInput, unknown>,
-  target: SchemaLike<unknown, TOutput>
-): (data: TInput) => TOutput;
-export function decoder<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(
-  ...schemas: TSchemas
-): (data: ExtractFirstInput<TSchemas>) => ExtractLastOutput<TSchemas>;
-
-export function asyncDecoder<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TInput) => Promise<TOutput>;
-export function asyncDecoder<TInput, TOutput>(
-  from: SchemaLike<TInput, unknown>,
-  target: SchemaLike<unknown, TOutput>
-): (data: TInput) => Promise<TOutput>;
-export function asyncDecoder<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(
-  ...schemas: TSchemas
-): (data: ExtractFirstInput<TSchemas>) => Promise<ExtractLastOutput<TSchemas>>;
-
-export function encoder<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TOutput) => TInput;
-export function encoder<TOutput, TTarget>(
-  from: SchemaLike<unknown, TOutput>,
-  target: SchemaLike<unknown, TTarget>
-): (data: TOutput) => TTarget;
-export function encoder<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(
-  ...schemas: TSchemas
-): (data: ExtractFirstOutput<TSchemas>) => ExtractLastOutput<TSchemas>;
-
-export function asyncEncoder<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TOutput) => Promise<TInput>;
-export function asyncEncoder<TOutput, TTarget>(
-  from: SchemaLike<unknown, TOutput>,
-  target: SchemaLike<unknown, TTarget>
-): (data: TOutput) => Promise<TTarget>;
-export function asyncEncoder<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(
-  ...schemas: TSchemas
-): (data: ExtractFirstOutput<TSchemas>) => Promise<ExtractLastOutput<TSchemas>>;
-
-export function assertInput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: unknown
-): asserts data is TInput;
-export function assertInput<TInput, TOutput>(
-  data: unknown,
-  schema: SchemaLike<TInput, TOutput>
-): asserts data is TInput;
-
-export function assertOutput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: unknown
-): asserts data is TOutput;
-export function assertOutput<TInput, TOutput>(
-  data: unknown,
-  schema: SchemaLike<TInput, TOutput>
-): asserts data is TOutput;
-
 /**
- * Async flavor of `assertInput` for schemas with async transformations. The
- * promise rejects with a Sury error on invalid input; TypeScript can't express
- * an async type predicate, so no narrowing happens.
- */
-export function asyncAssertInput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: unknown
-): Promise<void>;
-export function asyncAssertInput<TInput, TOutput>(
-  data: unknown,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<void>;
-
-export function asyncAssertOutput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: unknown
-): Promise<void>;
-export function asyncAssertOutput<TInput, TOutput>(
-  data: unknown,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<void>;
-
-export function inputValidator<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: unknown) => data is TInput;
-
-export function outputValidator<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: unknown) => data is TOutput;
-
-/**
- * The value a constructor accepts for a branded schema: the brand is what the
- * constructor mints, so it can't also be what it demands.
+ * The value `makeInput`/`makeOutput` accepts for a branded schema: the brand is
+ * what they mint, so it can't also be what they demand.
  */
 type Unbranded<T> = T extends { readonly [" brand"]: [infer TValue, string] }
   ? TValue
   : T;
-
-export function inputConstructor<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (value: Unbranded<TInput>) => TInput;
-
-export function asyncInputConstructor<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (value: Unbranded<TInput>) => Promise<TInput>;
-
-export function outputConstructor<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (value: Unbranded<TOutput>) => TOutput;
-
-export function asyncOutputConstructor<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (value: Unbranded<TOutput>) => Promise<TOutput>;
 
 export function tuple<TInput extends unknown[], TOutput>(
   definer: (s: {
