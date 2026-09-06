@@ -409,7 +409,14 @@ export const Option_getWithDefault = (schema: Internal, default_: OptionDefault)
           }`
         );
       }
-      mut.default = v;
+      const originalItem: Internal =
+        originalItems.length === 1 ? originalItems[0]! : unionFactory(originalItems);
+      // Best-effort input form for JSON Schema metadata. A never or async
+      // encode makes it uncomputable, so skip it rather than throw: metadata
+      // is not a value operation.
+      try {
+        mut.default = (getDecoder(reverse(originalItem)) as (input: unknown) => unknown)(v);
+      } catch (_exn) {}
     }
 
     // Not B_conversion: an eager default inlines as a constant instead of
@@ -576,7 +583,20 @@ export const meta = <TValue>(schema: Internal, data: Meta<TValue>): Internal => 
     if (data.examples.length === 0) {
       delete mut.examples;
     } else {
-      mut.examples = data.examples;
+      // A full parse through the reversed schema: the example is checked as an
+      // output value and stored in its input form. A never or async encode
+      // makes that uncomputable, so it is skipped rather than thrown; a
+      // per-value failure still names the author's bad example.
+      try {
+        mut.examples = data.examples.map(
+          getDecoder(unknown, reverse(schema)) as (input: unknown) => unknown,
+        );
+      } catch (exn) {
+        if ((getOrRethrow(exn) as unknown as { code: string }).code !== "invalid_operation") {
+          throw exn;
+        }
+        delete mut.examples;
+      }
     }
   }
   if (data.errorMessage !== U) {

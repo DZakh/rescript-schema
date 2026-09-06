@@ -219,8 +219,8 @@ Object.defineProperty(schemaPrototype, reversedKey, {
       // and double reversal reads the cache below rather than re-deriving, so
       // nothing needs the old value back.
       delete record["default"];
-      // Examples are stored in their owner's output form, which is this copy's
-      // input form; the JSON Schema renderer reads them back through `reverse`.
+      // Examples are stored in their owner's input form, which is this copy's
+      // output form; the JSON Schema renderer decodes them back for this side.
       delete record["examples"];
       if (mut.items) mut.items = mut.items.map(reverse);
       if (mut.properties) mut.properties = reverseDict(mut.properties);

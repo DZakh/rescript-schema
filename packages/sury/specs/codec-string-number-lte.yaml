@@ -3,7 +3,7 @@ ts:
   schema: S.string.with(S.to, S.number).with(S.lte, 100)
   input: string
   output: number
-  instantiations: 4714
+  instantiations: 4716
 jsonSchema:
   input: '{ type: "string" }'
   output: '{ type: "number", maximum: 100 }'

@@ -3,7 +3,7 @@ ts:
   schema: "S.schema({ f: S.optional(S.json.with(S.to, S.unknown, { decode: (json) => json, encode: (value) => (value as { tag: string }).tag })) })"
   input: "{ f?: JSON | undefined; }"
   output: "{ f?: unknown; }"
-  instantiations: 6703
+  instantiations: 6705
 jsonSchema:
   input: '{ type: "object", properties: { f: {} } }'
   output: '{ type: "object", properties: { f: {} } }'
@@ -47,4 +47,6 @@ operations:
         output: "{ f: undefined }"
       null-reaches-the-coder:
         input: "{ f: null }"
-        error: "Failed at f: TypeError: Cannot read properties of null (reading 'tag')"
+        error: |-
+          Failed at f: Expected unknown | undefined, received null
+          - At f: TypeError: Cannot read properties of null (reading 'tag')

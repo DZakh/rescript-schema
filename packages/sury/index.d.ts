@@ -137,9 +137,9 @@ export type Schema<TInput = unknown, TOutput = TInput> = {
   readonly title?: string;
   readonly description?: string;
   readonly deprecated?: boolean;
-  readonly examples?: TOutput[];
+  readonly examples?: TInput[];
   readonly noValidation?: boolean;
-  readonly default?: TOutput;
+  readonly default?: TInput;
   readonly to?: Schema<unknown, unknown>;
   readonly errorMessage?: SchemaErrorMessage;
 
@@ -1121,7 +1121,8 @@ export type Meta<TOutput> = {
   title?: string;
   description?: string;
   deprecated?: boolean;
-  examples?: TOutput[];
+  /** Written as output values; validated and stored on the schema in input form. */
+  examples?: Unbranded<TOutput>[];
   errorMessage?: SchemaErrorMessage;
 };
 

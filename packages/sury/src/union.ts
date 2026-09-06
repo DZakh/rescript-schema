@@ -221,11 +221,8 @@ const unionFail = (
   path: Path,
   input: unknown,
   ...unionErrors: SuryErrorRecord[]
-): never => {
-  // One member got past dispatch and failed on its own terms: that failure is
-  // the error, not `Expected A | B` wrapped around it.
-  if (unionErrors.length === 1) throw unionErrors[0];
-  return B_throw(
+): never =>
+  B_throw(
     B_makeInvalidInputDetails(
       schema,
       unknown,
@@ -234,7 +231,6 @@ const unionFail = (
       unionErrors.length ? unionErrors : U
     )
   );
-};
 
 // Whether a stretch of emitted code can raise is read off `g.t` (see
 // `B_markThrow`) by bracketing the emission, not by inspecting the string it

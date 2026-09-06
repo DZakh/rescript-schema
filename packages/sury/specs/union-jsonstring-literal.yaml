@@ -28,13 +28,19 @@ operations:
         output: '"{\"a\":1}"'
       not-json-at-all:
         input: '"a"'
-        error: Expected JSON string, received "a"
+        error: |-
+          Expected JSON string | "x", received "a"
+          - Expected JSON string, received "a"
       unterminated-object:
         input: '"{"'
-        error: Expected JSON string, received "{"
+        error: |-
+          Expected JSON string | "x", received "{"
+          - Expected JSON string, received "{"
       empty:
         input: '""'
-        error: Expected JSON string, received ""
+        error: |-
+          Expected JSON string | "x", received ""
+          - Expected JSON string, received ""
       the-literal:
         input: '"x"'
         output: '"x"'

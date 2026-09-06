@@ -25,9 +25,13 @@ operations:
         output: "null"
       fails-the-second-member:
         input: '"a"'
-        error: Should pass for all schemas of the allOf property.
+        error: |-
+          Expected JSON | null, received "a"
+          - Should pass for all schemas of the allOf property.
       fails-the-first-member:
         input: "1"
-        error: Should pass for all schemas of the allOf property.
+        error: |-
+          Expected JSON | null, received 1
+          - Should pass for all schemas of the allOf property.
   decode: eq-to-parse
   encode: eq-to-parse

@@ -53,7 +53,8 @@ test("Coerce from string to option of int (union dispatch over a converted value
   t->Assert.deepEqual("undefined"->S.parseOrThrow(~to=schema), None)
   t->U.assertThrowsMessage(
     () => "1.5"->S.parseOrThrow(~to=schema),
-    `Expected int32, received 1.5`,
+    `Expected int32 | undefined, received "1.5"
+- Expected int32, received 1.5`,
   )
 
   // Regression (v0 is not defined): the union discriminant must not be hoisted

@@ -254,12 +254,11 @@ test("Default on a primary item with S.to runs the transformation on parse and r
   let otherDate = Date.fromString("2024-06-15T12:30:45.123Z")
   let schema = S.string->S.to(S.date)->S.option->S.Option.getOr(defaultDate)
 
-  // schema.default is the value the default arm produces; the JSON Schema
-  // renderer encodes it to the input form on demand.
+  // schema.default is the input form (ISO string), not the Date — JSON Schema metadata.
   let untagged = schema->S.untag
   t->Assert.is(untagged.tag, S.AnyOf)
   t->Assert.is(untagged.anyOf->Option.getOrThrow->Array.length, 2)
-  t->Assert.deepEqual(untagged.default, defaultDate->Obj.magic)
+  t->Assert.deepEqual(untagged.default, %raw(`"2024-01-01T00:00:00.000Z"`))
   // The default arm carries the conversion — the union itself has no `.to`.
   t->Assert.is(untagged.to, None)
 
@@ -294,7 +293,7 @@ test("Appending S.to(S.jsonString) after getOr extends the output chain", t => {
 
   let untagged = schema->S.untag
   t->Assert.is(untagged.tag, S.AnyOf)
-  t->Assert.deepEqual(untagged.default, defaultDate->Obj.magic)
+  t->Assert.deepEqual(untagged.default, %raw(`"2024-01-01T00:00:00.000Z"`))
   let toLevel1 = untagged.to->Option.getOrThrow->S.untag
   t->Assert.is(toLevel1.tag, S.String)
 

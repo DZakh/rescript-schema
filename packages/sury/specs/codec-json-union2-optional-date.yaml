@@ -3,7 +3,7 @@ ts:
   schema: "S.json.with(S.to, S.schema({ value: S.union([S.schema({ a: S.optional(S.string.with(S.to, S.date)) }), S.string]) }))"
   input: JSON
   output: "{ value: string | { a?: Date | undefined; }; }"
-  instantiations: 10007
+  instantiations: 10009
 jsonSchema:
   input: '{ type: "object", properties: { value: { anyOf: [{ type: "object", properties: { a: { type: "string", format: "date-time" } }, additionalProperties: false }, { type: "string" }] } }, additionalProperties: false, required: ["value"] }'
   fromInputType: "{ value: string | { a?: string | undefined; }; }"
@@ -26,7 +26,9 @@ operations:
         output: '{ value: "text" }'
       invalid-date-text:
         input: '{ value: { a: "nope" } }'
-        error: "Failed at value.a: Expected Date, received invalid Date"
+        error: |-
+          Failed at value.a: Expected string | undefined, received "nope"
+          - At value.a: Expected Date, received invalid Date
       neither-member:
         input: "{ value: 5 }"
         error: "Failed at value: Expected { a: string | undefined; } | string, received 5"
