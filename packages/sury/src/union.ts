@@ -413,13 +413,13 @@ const unionNarrowSchema = (schema: Internal): Internal => {
     // null/undefined/nan stay literals so the case body passes through.
     narrow.const = schema.const;
   } else if (tagFlag & 2 && schema.format !== U && schema.format !== "json") {
-    // The member's `format` (which toJSONSchema reads), `escapeFree` and
+    // The member's `format` (which toJSONSchema reads), `formatFlag` and
     // `noValidation` ride on the narrow: the case appends the member's format
     // check, so the escape-free splice holds inside it. Not `format: "json"` —
     // jsonString reads that as "already JSON text" (see fieldPiece), where the
     // bare `content` marker says "claims JSON, unchecked".
     narrow.format = schema.format;
-    narrow.escapeFree = schema.escapeFree;
+    narrow.formatFlag = schema.formatFlag;
     narrow.noValidation = schema.noValidation;
   }
   return narrow;
@@ -1169,9 +1169,13 @@ const unionEmit = (
     if (inner.every((c) => c.b === "")) {
       if (!inner.some((c) => c.c === "")) {
         const fused = unionOr(inner);
-        B_pushCheck(narrow, { c: () => fused, f: failInvalidType });
+        // A refine, not a push onto `narrow`: when the source already has the
+        // group's tag the narrow is the bare scope, and a check on a val with
+        // no `prev` has nothing to read its input from.
+        body = B_merge(B_refine(narrow, narrow.s, [{ c: () => fused, f: failInvalidType }]), cond);
+      } else {
+        body = B_merge(narrow, cond);
       }
-      body = B_merge(narrow, cond);
     } else {
       const narrowCode = B_merge(narrow, cond);
       const only = inner.length === 1 ? inner[0]! : U;

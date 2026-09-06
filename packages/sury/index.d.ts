@@ -252,9 +252,10 @@ export type Schema<TInput = unknown, TOutput = TInput> = {
 
 /**
  * Root-first location of a value: object keys and tuple indices as strings,
- * array indices as numbers. `"[]"` stands for "some element".
+ * array indices as numbers. `"[]"` stands for "some element". A symbol appears
+ * only where a `refine` wrote one into its `path`.
  */
-export type Path = ReadonlyArray<string | number>;
+export type Path = ReadonlyArray<string | number | symbol>;
 
 type BaseError = globalThis.Error & {
   readonly name: "SuryError";

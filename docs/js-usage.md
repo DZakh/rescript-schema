@@ -277,6 +277,8 @@ schema["~standard"].validate({ name: 1 });
 // { issues: [{ message: "Expected string, received 1", path: ["name"] }] }
 ```
 
+A schema with an async codec answers with a promise of the same result, as the spec allows; every other schema answers synchronously.
+
 The `~standard` property also implements the [Standard JSON Schema](https://standardschema.dev/json-schema) spec, exposing a `jsonSchema` converter for the schema's input and output types. Call `S.enableStandardJSONSchema()` once to enable it:
 
 ```ts
@@ -417,6 +419,8 @@ S.string.with(S.pattern, /[0-9]/); // Invalid pattern
 
 S.string.with(S.trim); // trim whitespaces
 ```
+
+Length bounds count Unicode code points, the unit JSON Schema's `minLength`/`maxLength` and most non-JS consumers use, so `"😀"` has length 1 even though its `.length` in JS is 2.
 
 For format-specific validation, use the standalone schemas — see [String formats](#string-formats) below.
 

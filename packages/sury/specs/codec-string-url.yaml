@@ -20,6 +20,9 @@ operations:
       valid-normalizes:
         input: '"HTTP://Example.ORG:80/a/../b"'
         output: new URL("http://example.org/b")
+      padded:
+        input: '" http://dzakh.dev/ "'
+        output: new URL("http://dzakh.dev/")
       invalid-no-scheme:
         input: '"cifjhdsfhsd"'
         error: Expected URL, received "cifjhdsfhsd"

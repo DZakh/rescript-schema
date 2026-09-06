@@ -19,6 +19,9 @@ operations:
       valid:
         input: '"2024-01-01T00:00:00.000Z"'
         output: new Date("2024-01-01T00:00:00.000Z")
+      padded:
+        input: '" 2024-01-01T00:00:00.000Z "'
+        error: Expected Date, received invalid Date
       not-a-date-text:
         input: '"nope"'
         error: Expected Date, received invalid Date
