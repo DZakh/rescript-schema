@@ -107,7 +107,7 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
   // No answer of its own for a failure — the exception still is the answer, so
   // `throwTail` still decides the identity case and the promise lift.
   if (!(flag & (128 | 256 | 4096))) {
-    return throwTail(
+    const body = throwTail(
       input,
       code,
       flag & 2048 && isAsync ? `${out}.then(()=>${value})` : value,
@@ -115,6 +115,21 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
       flag,
       hasDefs,
     );
+    // A promise-returning operation must not throw synchronously: a value that
+    // fails its type check before the first await rejects the same way one
+    // that fails after it does, so `OrReject` is the whole story its name
+    // tells.
+    //
+    // Safe to decide here rather than from a flag bit, even though the tail is
+    // registered globally: EVERY operation carrying the async flag goes through
+    // `tailDispatch`, so none of them can be compiled before this emitter is in
+    // place. `hasDefs` is what says the compile is NESTED (recursive.ts is the
+    // only caller that passes defs), and a nested operation stays throwing —
+    // the generated code around it prepends the path on the way out, and has to
+    // reach the value's failure before the promise does.
+    if (body === U || !(flag & 1) || hasDefs || !input.g.t) return body;
+    const e = B_varWithoutAllocation(input.g);
+    return `try{${body}}catch(${e}){return Promise.reject(${e})}`;
   }
   // A promise is only produced for the async flag; the promisable mode (512)
   // asks for the value's own shape instead.

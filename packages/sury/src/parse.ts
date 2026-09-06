@@ -185,21 +185,9 @@ export const throwTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
       isAsync ? `Promise.resolve(${issues})` : issues
     };throw ${e}}`;
   }
-  if (code === "" && out === operationArgVar && !(flag & 1)) return U; // 1
-  const body = `${code}return ${
-    (flag & 1) && !isAsync && !hasDefs ? `Promise.resolve(${out})` : out
-  }`;
-  // A promise-returning operation must not throw synchronously: a value that
-  // fails its type check before the first await rejects the same way one that
-  // fails after it does, so `OrReject` is the whole story its name tells.
-  //
-  // `hasDefs` is what says this compile is NESTED (recursive.ts is the only
-  // caller that passes defs), and a nested operation stays throwing: the
-  // generated code around it prepends the path on the way out, and it has to
-  // reach the value's failure before the promise does.
-  if (!(flag & 1) || hasDefs || !input.g.t) return body;
-  const e = B_varWithoutAllocation(input.g);
-  return `try{${body}}catch(${e}){return Promise.reject(${e})}`;
+  return code === "" && out === operationArgVar && !(flag & 1) // 1
+    ? U
+    : `${code}return ${(flag & 1) && !isAsync && !hasDefs ? `Promise.resolve(${out})` : out}`;
 };
 
 let emitTail: Tail = throwTail;
