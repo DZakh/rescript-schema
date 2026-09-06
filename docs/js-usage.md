@@ -1532,7 +1532,7 @@ Every compiled operation takes the schema and returns a function: `(schema) => (
 - `S.decoder(schema)`: `(data: TInput) => TOutput`
 - `S.asyncDecoder(schema)`: `(data: TInput) => Promise<TOutput>`
 
-`S.noValidation(schema, true)` turns type validations off for a schema even under a parse.
+`S.noValidation(schema, true)` turns type validations off for a schema even under a parse. The value is trusted as it stands, including what it renders to: a `Date` under `S.jsonString` is spliced straight from `toISOString()` with no escaping, so a value that isn't a real `Date` there produces whatever text its method returns.
 
 **Encode** — the reverse direction, exactly `S.decoder` applied to `S.reverse(schema)`:
 
@@ -1814,11 +1814,29 @@ The output side is derived through [`reverse`](#reverse), so nested transforms a
 
 ## Error handling
 
-**Sury** throws `S.Error` which is a subclass of Error class. It contains detailed information about the operation problem.
+**Sury** throws `S.Error`, a subclass of `Error` named `SuryError`, so `instanceof` and `stack` work as usual. Every error carries:
+
+- `path` - where the failure happened, as an array of keys and indices from the root of the value (`[]` at the root, `["items", 0]` inside). `S.pathToText(path)` renders it as `items[0]`.
+- `reason` - the failure itself, without the path: `Expected string, received undefined`.
+- `message` - `reason` prefixed with the path when there is one: `Failed at items[0]: Expected string, received undefined`.
+- `code` - which kind of failure, with extra fields per kind:
+  - `"invalid_input"` - the value doesn't match. `expected` and `received` are schemas describing both sides, `input` is the value, and `unionErrors` lists each member's failure when a union rejected it.
+  - `"unrecognized_keys"` - a `strict` object saw a key it doesn't declare, named in `key`. Checks fail fast, so one error names one key.
+  - `"invalid_conversion"` - a custom `decode`/`encode` threw. `from`/`to` are the schemas and `cause` is what it threw.
+  - `"unsupported_decode"` - the two schemas have no conversion between them. See [When a conversion is rejected](#when-a-conversion-is-rejected).
+  - `"invalid_operation"` - the schema itself can't run this way, such as an async schema under a sync parser.
 
 ```ts
-S.parser(S.schema(false))(true);
-// => Throws S.Error with the following message: Expected false, received true".
+try {
+  S.parser(S.schema({ items: S.array(S.string) }))({ items: ["a", 1] });
+} catch (e) {
+  if (e instanceof S.Error) {
+    e.message; // => 'Failed at items[1]: Expected string, received 1'
+    e.reason; // => 'Expected string, received 1'
+    e.path; // => ["items", 1]
+    e.code; // => "invalid_input"
+  }
+}
 ```
 
 You can catch the error using `S.safe` and `S.safeAsync` helpers:

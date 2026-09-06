@@ -256,9 +256,13 @@ export type Schema<TInput = unknown, TOutput = TInput> = {
  */
 export type Path = ReadonlyArray<string | number>;
 
-type BaseError = {
+type BaseError = globalThis.Error & {
+  readonly name: "SuryError";
+  /** Where the failure happened, as segments from the root of the value. Empty at the root. */
   readonly path: Path;
+  /** `reason`, prefixed with the path when there is one: `Failed at a.b: <reason>`. */
   readonly message: string;
+  /** The failure itself, without the path. */
   readonly reason: string;
 };
 
@@ -286,11 +290,13 @@ export type Error =
     })
   | (BaseError & {
       readonly code: "unrecognized_keys";
-      readonly keys: readonly string[];
+      /** The first key the value carries that the object schema doesn't declare. */
+      readonly key: string;
     });
 
+/** The class every operation throws; use it with `instanceof`. Not meant to be constructed by hand. */
 export const Error: {
-  new (): Error;
+  new (...args: never): Error;
   prototype: Error;
 };
 

@@ -68,7 +68,7 @@ export const parse = (input: Val): Val => {
     appliedEncoderRef = U;
     const loopInput = result;
 
-    if (++loopCount > 50) throw new Error("Loop count exceeded 50");
+    if (++loopCount > 50) panic("Loop count exceeded 50");
 
     const defs = loopInput.e["$defs"];
     if (defs) loopInput.g.d ? Object.assign(loopInput.g.d, defs) : (loopInput.g.d = defs);
