@@ -179,17 +179,23 @@ A form submission is strings, files and missing checkboxes. `S.formData` reads i
 const signup = S.formData.with(
   S.to,
   S.schema({
-    email: S.email,
+    name: S.string.with(S.nonEmpty),
     age: S.number, // "42" -> 42
     agree: true, // a checkbox that has to be ticked
+    newsletter: S.optional(S.boolean), // tri-state: absent -> undefined
+    role: S.union(["admin", "user"]),
+    tags: S.array(S.string), // every "tags" entry
     avatar: S.file,
+    prefs: S.jsonString.with(S.to, S.schema({ theme: S.string })),
   }),
 );
 
 S.decoder(signup)(await request.formData());
-// => { email: "a@b.co", age: 42, agree: true, avatar: File }
-S.encoder(signup)(user);
-// => a FormData, ready for fetch(url, { body })
+// => { name: "Ann", age: 42, agree: true, newsletter: undefined, role: "user",
+//      tags: ["a", "b"], avatar: File, prefs: { theme: "dark" } }
+
+S.encoder(signup)(value);
+// => a FormData with one append per field, ready for fetch(url, { body })
 ```
 
 Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.file` and `S.blob`. Coming next: env and protobuf.

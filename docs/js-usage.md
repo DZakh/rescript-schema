@@ -1178,23 +1178,17 @@ serves both the request handler and the `fetch` body:
 const signup = S.formData.with(
   S.to,
   S.schema({
-    name: S.string.with(S.nonEmpty),
+    email: S.email,
     age: S.number, // "42" -> 42
     agree: true, // a checkbox that has to be ticked
-    newsletter: S.optional(S.boolean), // tri-state: absent -> undefined
-    role: S.union(["admin", "user"]),
-    tags: S.array(S.string), // every "tags" entry
     avatar: S.file,
-    prefs: S.jsonString.with(S.to, S.schema({ theme: S.string })),
   }),
 );
 
 S.decoder(signup)(await request.formData());
-// => { name: "Ann", age: 42, agree: true, newsletter: undefined, role: "user",
-//      tags: ["a", "b"], avatar: File, prefs: { theme: "dark" } }
-
-S.encoder(signup)(value);
-// => a FormData with one append per field, ready for fetch(url, { body })
+// => { email: "a@b.co", age: 42, agree: true, avatar: File }
+S.encoder(signup)(user);
+// => a FormData, ready for fetch(url, { body })
 ```
 
 A field reads its entry as text through the same coercions
@@ -1259,7 +1253,11 @@ declared, so "no entries but these" is not something a form can promise.
 Objects strip by default; keep it that way.
 
 Nested objects have no wire form here — send them as a
-[`S.jsonString`](#advanced-schemas) field, the way `prefs` does above.
+[`S.jsonString`](#advanced-schemas) field:
+
+```ts
+S.schema({ prefs: S.jsonString.with(S.to, S.schema({ theme: S.string })) });
+```
 
 A file input with nothing chosen still submits an empty, unnamed `File`; that
 sentinel reads as absent, so a required `S.file` reports a missing file.
