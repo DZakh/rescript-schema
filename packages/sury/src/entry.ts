@@ -69,6 +69,7 @@ import {
 } from "./operations";
 import {
  getDecoder,
+ getOp,
  getOutputSchema,
  reverse
 } from "./parse";
@@ -167,7 +168,8 @@ export {
 export {
   safe,
   safeAsync,
-} from "./operations";
+} from "./standard";
+export { parseOrThrow, parseAsResult } from "./operations";
 export { array, dict as record } from "./composites";
 export { schemaObject as object, schemaShape as shape, schemaTuple as tuple } from "./factory";
 // `nullish` accepts null | undefined (the 3-member union) — distinct from
@@ -238,18 +240,18 @@ export const asyncEncoder = (a: unknown, ...rest: unknown[]) =>
 // `isOwnSchema` — prototype identity, not the Standard Schema marker: data
 // being validated is untrusted, and a payload carrying a `~standard` key would
 // otherwise be read as the schema while the real schema became the data.
-const assertWith = (a: unknown, b: unknown, isOutput: boolean, flag?: number): unknown => {
+const assertWith = (a: unknown, b: unknown, isOutput: boolean, flag: number): unknown => {
   const aIsSchema = isOwnSchema(a);
   if (!aIsSchema && !isOwnSchema(b)) return panicNotSchema();
   const schema = (aIsSchema ? a : b) as Internal;
-  return getDecoder(unknown, isOutput ? reverse(schema) : schema, assertResult, flag)(
+  return getOp(flag, 3, unknown, isOutput ? reverse(schema) : schema, assertResult)(
     aIsSchema ? b : a,
   );
 };
 
-export const assertInput = (a: unknown, b: unknown): unknown => assertWith(a, b, false);
+export const assertInput = (a: unknown, b: unknown): unknown => assertWith(a, b, false, 0);
 
-export const assertOutput = (a: unknown, b: unknown): unknown => assertWith(a, b, true);
+export const assertOutput = (a: unknown, b: unknown): unknown => assertWith(a, b, true, 0);
 
 export const asyncAssertInput = (a: unknown, b: unknown): unknown => assertWith(a, b, false, 1);
 
@@ -271,7 +273,7 @@ const validator = (schema: Internal): ((data: unknown) => boolean) => {
   // creation means the schema can't check any value, so creating the validator
   // throws rather than every answer reading as `false` — the same split
   // `~standard.validate` makes.
-  const operation = getDecoder(unknown, schema, assertResult) as (data: unknown) => unknown;
+  const operation = getOp(0, 3, unknown, schema, assertResult) as (data: unknown) => unknown;
   return (data) => validatorRun(operation, data);
 };
 
@@ -285,12 +287,12 @@ export const outputValidator = (schema: Internal) => validator(reverse(schema));
 // type checks, conversion, refinements — and the result is dropped, so what
 // comes back is the value handed in rather than a decoded clone of it.
 const construct = (schema: Internal): ((data: unknown) => unknown) => {
-  const operation = getDecoder(unknown, schema, assertResult) as (data: unknown) => unknown;
+  const operation = getOp(0, 3, unknown, schema, assertResult) as (data: unknown) => unknown;
   return (data) => (operation(data), data);
 };
 
 const constructAsync = (schema: Internal): ((data: unknown) => Promise<unknown>) => {
-  const operation = getDecoder(unknown, schema, assertResult, 1) as (
+  const operation = getOp(1, 3, unknown, schema, assertResult) as (
     data: unknown
   ) => Promise<unknown>;
   return (data) => operation(data).then(() => data);
@@ -540,7 +542,7 @@ export const global = (override: GlobalConfigOverride): void => {
 // marks the exports as ReScript-binding internals while staying a valid JS
 // identifier, which is all ReScript externals accept as names.
 
-export { safeResult as $safe, safeAsyncResult as $safeAsync } from "./operations";
+export { safeResult as $safe, safeAsyncResult as $safeAsync } from "./standard";
 export {
   Option_getOr as $Option_getOr,
   Option_getOrWith as $Option_getOrWith,

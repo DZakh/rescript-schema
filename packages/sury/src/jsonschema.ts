@@ -69,11 +69,13 @@ import {
   refineInput
 } from "./modifiers";
 import {
- __setStandardJSONSchemaConverter,
  assertOrThrow
 } from "./operations";
 import {
- getDecoder,
+ __setStandardJSONSchemaConverter
+} from "./standard";
+import {
+ getOp,
  never_,
  parse,
  reverse
@@ -344,7 +346,7 @@ const applyMetadataOverlay = (
     if (original.examples !== U) {
       try {
         jsonSchema.examples = original.examples.map(
-          getDecoder(original) as (v: unknown) => unknown,
+          getOp(0, 1, original) as (v: unknown) => unknown,
         );
       } catch (_exn) {}
     }

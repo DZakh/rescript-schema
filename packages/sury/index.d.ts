@@ -23,10 +23,39 @@ export type SuccessResult<TValue> = {
 
 export type FailureResult = {
   readonly success: false;
-  readonly error: Error;
+  readonly error: DataError;
+  // The `?: undefined` siblings on both branches are what makes
+  // `const { value, error } = result` narrow — without them destructuring
+  // silently doesn't. They mirror the `void 0` fillers the compiled Result tail
+  // emits, so the two branches also share one hidden class at runtime.
+  readonly value?: undefined;
 };
 
 export type Result<TValue> = SuccessResult<TValue> | FailureResult;
+
+/**
+ * A value the operation can be handed again and have succeed: a failure of THIS
+ * value, reportable to whoever supplied it. What every `*AsResult` operation
+ * returns in its `error`.
+ */
+export type DataError = Extract<
+  Error,
+  { readonly code: "invalid_input" | "unrecognized_key" | "invalid_conversion" }
+>;
+
+/**
+ * A schema wired wrong, which fails for every input — the developer's bug, not
+ * an entry in someone's form validation. Never a `Result`: it is raised where
+ * the operation is created, which for an immediate call form
+ * (`S.parseAsResult(schema, data)`) is that same call.
+ */
+export type DefectError = Extract<
+  Error,
+  { readonly code: "invalid_operation" | "unsupported_decode" }
+>;
+
+/** A value, or a promise of one. */
+export type Promisable<T> = T | Promise<T>;
 
 export type NumberFormat = "int32" | "port" | "integer";
 export type StringFormat =
@@ -814,6 +843,132 @@ export function safeAsync<TValue>(
 export function reverse<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>
 ): Schema<TOutput, TInput>;
+
+// ── Operations ───────────────────────────────────────────────────────────────
+//
+// Every operation names its outcome. A suffix names the failure mechanism only
+// when the return type doesn't reveal it: `O` and `Promise<O>` reveal nothing
+// and take `OrThrow`/`OrReject`; `Result<O>` and `Promise<Result<O>>` carry the
+// failure in the type and take none.
+//
+//   OrThrow             O
+//   AsResult            Result<O>
+//   AsPromiseOrReject   Promise<O>
+//   AsResultPromise     Promise<Result<O>>
+//   AsPromisableResult  Result<O> | Promise<Result<O>>
+//
+// Each takes any of four call forms:
+//
+//   op(s)          the compiled operation (curried / data-last)
+//   op(s1, …, sn)  the compiled chain, up to three schemas
+//   op(s…, data)   immediate, schema-first
+//   op(data, s…)   immediate, data-first
+//
+// Three schemas is the ceiling — it is ReScript's ~from/~via/~to; a longer
+// chain is written `.with(S.to, …)`.
+//
+// Nine arity-discriminated overloads each rather than a rest tuple: dedicated
+// arity overloads resolve far cheaper (see `with` above), and `(...schemas,
+// data)` is inexpressible because a rest parameter must be last. The chain
+// overloads precede the `(s, data)` ones, so `op(s1, s2)` never reads as
+// "parse a schema as data" — which is why parsing a Sury schema as data is
+// available only through the compiled form, `S.parseOrThrow(Meta)(schema)`.
+//
+// Papercut: `data` typed `any` (an untyped `req.body`) matches the chain
+// overload on a two-argument call and yields a function rather than a value. It
+// fails at the assignment, not silently — type operation inputs `unknown`.
+
+/** Decodes an unknown value to the schema's Output, throwing `S.Error` on failure. */
+export function parseOrThrow<TOutput>(
+  schema: SchemaLike<unknown, TOutput>
+): (data: unknown) => TOutput;
+export function parseOrThrow<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): (data: unknown) => TOutput;
+export function parseOrThrow<TOutput>(
+  schema: SchemaLike<unknown, TOutput>,
+  data: unknown
+): TOutput;
+export function parseOrThrow<TOutput>(
+  data: unknown,
+  schema: SchemaLike<unknown, TOutput>
+): TOutput;
+export function parseOrThrow<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): (data: unknown) => TOutput;
+export function parseOrThrow<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>,
+  data: unknown
+): TOutput;
+export function parseOrThrow<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): TOutput;
+export function parseOrThrow<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>,
+  data: unknown
+): TOutput;
+export function parseOrThrow<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): TOutput;
+
+/**
+ * `parseOrThrow` with the failure in the return type instead of the call stack.
+ * A `DefectError` — a schema wired wrong, which fails for every input — still
+ * throws: it is raised where the operation is created.
+ */
+export function parseAsResult<TOutput>(
+  schema: SchemaLike<unknown, TOutput>
+): (data: unknown) => Result<TOutput>;
+export function parseAsResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): (data: unknown) => Result<TOutput>;
+export function parseAsResult<TOutput>(
+  schema: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Result<TOutput>;
+export function parseAsResult<TOutput>(
+  data: unknown,
+  schema: SchemaLike<unknown, TOutput>
+): Result<TOutput>;
+export function parseAsResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): (data: unknown) => Result<TOutput>;
+export function parseAsResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Result<TOutput>;
+export function parseAsResult<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): Result<TOutput>;
+export function parseAsResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Result<TOutput>;
+export function parseAsResult<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): Result<TOutput>;
 
 export function parser<TOutput>(
   schema: SchemaLike<unknown, TOutput>

@@ -17,7 +17,12 @@ const source = readFileSync(new URL("../index.mjs", import.meta.url), "utf8");
 
 // Exports whose whole point is the effect, so a bundler must never drop a call
 // to them even when the result is unused.
+// Every dual operation (§ operations.ts): the immediate call forms execute, and
+// a validation-only call discards its result, which an annotated pure call
+// would let esbuild drop — silently deleting the validation.
 const EFFECTFUL: Record<string, string> = {
+  parseOrThrow: "the immediate call forms validate",
+  parseAsResult: "the immediate call forms validate",
   assertInput: "throws on invalid input — the call IS the assertion",
   assertOutput: "throws on invalid input — the call IS the assertion",
   asyncAssertInput: "rejects on invalid input — the call IS the assertion",

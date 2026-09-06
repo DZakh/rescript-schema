@@ -43,7 +43,7 @@ import {
   objectDecoder
 } from "./composites";
 import {
- getDecoder,
+ getOp,
  getOutputSchema,
  nestedLoc,
  nestedOptionParser,
@@ -400,7 +400,7 @@ export const Option_getWithDefault = (schema: Internal, default_: OptionDefault)
       const v = default_.value;
       // Full unknown -> item decode so primitive item types still get type-checked.
       try {
-        (getDecoder(unknown, item) as (input: unknown) => unknown)(v);
+        (getOp(0, 2, unknown, item) as (input: unknown) => unknown)(v);
       } catch (exn) {
         const error = getOrRethrow(exn);
         panic(
@@ -415,7 +415,7 @@ export const Option_getWithDefault = (schema: Internal, default_: OptionDefault)
       // encode makes it uncomputable, so skip it rather than throw: metadata
       // is not a value operation.
       try {
-        mut.default = (getDecoder(reverse(originalItem)) as (input: unknown) => unknown)(v);
+        mut.default = (getOp(0, 1, reverse(originalItem)) as (input: unknown) => unknown)(v);
       } catch (_exn) {}
     }
 
@@ -589,7 +589,7 @@ export const meta = <TValue>(schema: Internal, data: Meta<TValue>): Internal => 
       // per-value failure still names the author's bad example.
       try {
         mut.examples = data.examples.map(
-          getDecoder(unknown, reverse(schema)) as (input: unknown) => unknown,
+          getOp(0, 2, unknown, reverse(schema)) as (input: unknown) => unknown,
         );
       } catch (exn) {
         if ((getOrRethrow(exn) as unknown as { code: string }).code !== "invalid_operation") {

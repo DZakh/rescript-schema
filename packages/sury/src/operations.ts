@@ -1,267 +1,215 @@
-// Operations: turning a schema into a callable, and the StandardSchema
-// interop surface built on top of them.
+// The operation surface: turning schemas into callables.
+//
+// Every operation names its outcome in its own name (`OrThrow`, `AsResult`,
+// `AsPromiseOrReject`, `AsResultPromise`, `AsPromisableResult`) and takes any
+// of four call forms. The Result outcomes are compiled, not wrapped: the tail
+// that builds `{success, value, error}` is emitted into the operation's own
+// body, which is what lets a schema that provably cannot throw skip the `try`
+// entirely — a decision no `safe(() => …)` wrapper can make.
+//
+// Deliberately free of top-level side effects, and deliberately NOT the module
+// that installs the schema prototype's interop getters (standard.ts): a bundle
+// reaching a module carries its top-level statements, and an operation must not
+// drag the Standard Schema machinery in with it.
 
 import {
   type Flag,
-  getOrRethrow,
-  globalConfig,
   initSchema,
-  inputExpression,
   type Internal,
-  pathEmpty,
-  s,
-  schemaPrototype,
-  SuryError,
-  type SuryErrorRecord,
+  isOwnSchema,
+  panic,
+  panicNotSchema,
   U,
   undefinedTag,
   unknown,
-  valKey,
-  valueOptions,
-  vendor
+  type Val
 } from "./base";
-import type { JSONSchemaT, StandardJsonSchemaOptions } from "./jsonschema";
 import {
- getDecoder,
- reverse
+ __setTail,
+ getOp,
+ reverse,
+ throwTail
 } from "./parse";
+import {
+ B_varWithoutAllocation
+} from "./builder";
 import {
  literalDecoder
 } from "./primitives";
 
-// PORT-NOTE: StandardSchema/JSONSchema types are ported as loose, type-only
-// aliases (no runtime import allowed here). `JSONSchemaT` stands in for
-// JSONSchema.t.
-export type StandardIssue = {
-  message: string;
-  path?: unknown[];
-};
-export type StandardResult = {
-  value?: unknown;
-  issues?: StandardIssue[];
-};
-export type StandardProps = {
-  version: number;
-  vendor: string;
-  validate: (input: unknown) => StandardResult | Promise<StandardResult>;
-  jsonSchema?: {
-    input: (options: StandardJsonSchemaOptions) => JSONSchemaT;
-    output: (options: StandardJsonSchemaOptions) => JSONSchemaT;
-  };
-};
-
-// The Standard JSON Schema converter, installed by enableStandardJSONSchema
-// (jsonschema.ts). A plain mutable module binding — the indirection is NOT a
-// forward-reference workaround but the tree-shaking gate: the `~standard`
-// prototype getter below is always retained, so it must not statically
-// reference the converter or every parser-only bundle would ship the whole
-// JSON Schema machinery. Only calling the public opt-in pulls it in.
-let standardJSONSchemaConverter:
-  | ((schema: Internal, options: StandardJsonSchemaOptions, isOutput: boolean) => JSONSchemaT)
-  | undefined;
-export const __setStandardJSONSchemaConverter = (
-  fn: (schema: Internal, options: StandardJsonSchemaOptions, isOutput: boolean) => JSONSchemaT
-): void => {
-  standardJSONSchemaConverter = fn;
-};
-
-export const getStandardJSONSchema = (
-  schema: Internal,
-  options: StandardJsonSchemaOptions,
-  isOutput: boolean
-): JSONSchemaT => {
-  if (standardJSONSchemaConverter !== U) {
-    return standardJSONSchemaConverter(schema, options, isOutput);
-  } else {
-    throw new SuryError({
-      code: "invalid_operation",
-      path: pathEmpty,
-      reason:
-        "~standard.jsonSchema requires S.enableStandardJSONSchema() to be called first",
-    });
-  }
-}
-
-// Mirrors the declared `Schema<TInput, TOutput>`, so a logged schema reads the
-// way its type does — input first, as the type parameters are ordered.
-// Collapsed to one parameter when the sides match, because the point is a
-// readable log line, not a literal type.
-//
-// A prototype method can never be tree-shaken, so this puts `reverse` in every
-// consumer's bundle whether or not they ever print a schema — an accepted cost,
-// recorded across bundleSize.yaml. Walking the `.to` chain instead would be
-// cheaper and wrong: the output of `{ a: string -> int32 }` is `{ a: int32; }`,
-// which only a recursive reversal produces.
-// Deliberately not also registered as Node's `nodejs.util.inspect.custom`:
-// `console.log(schema)` keeps showing the internal shape, which is what someone
-// logging a schema is usually trying to see. Ask for the expression explicitly
-// with `${schema}` or `String(schema)`.
-Object.defineProperty(schemaPrototype, "toString", {
-  value: function (this: Internal): string {
-    const input = inputExpression(this);
-    const output = inputExpression(reverse(this));
-    return `Schema<${input === output ? input : `${input}, ${output}`}>`;
-  },
-});
-
-const toStandardIssues = (exn: unknown): StandardResult => {
-  const error = getOrRethrow(exn);
-  return {
-    issues: [
-      {
-        message: error.reason,
-        path: error.path.length ? (error.path as unknown[]) : U,
-      },
-    ],
-  };
-};
-
-// A lazy prototype getter (not an eager per-schema property — that would put
-// 2 allocations + 4 closures on the baseSchema hot path for a feature most
-// schemas never use), cached on first access: Standard Schema consumers read
-// `schema["~standard"].validate` per validation call, so an uncached getter
-// re-allocates the whole props object per request. The cache is written as a
-// NON-enumerable own property (valueOptions descriptor) on purpose —
-// copySchema's Object.assign copies enumerable own props, and the cached
-// object closes over THIS schema, so an enumerable cache would leak onto
-// derived schemas and validate against the wrong one; non-enumerable means
-// copies lazily re-derive their own.
-Object.defineProperty(schemaPrototype, "~standard", {
-  get: function (this: Internal) {
-    const schema = this;
-    // The decoder lives in the closure: the Standard Schema contract is a
-    // per-call `schema["~standard"].validate(input)`, so the getDecoder
-    // lookup can't be hoisted by the consumer and would outweigh the decode.
-    // `globalConfig.f` is getDecoder's flag source, so re-reading it is the
-    // whole invalidation condition.
-    let decoderFlag: Flag | undefined = U;
-    let decoder: (input: unknown) => unknown;
-    let async: 1 | undefined;
-    const standard: StandardProps = {
-      version: 1,
-      vendor,
-      validate: (input: unknown): StandardResult | Promise<StandardResult> => {
-        // Outside the try: a conversion rejected at operation creation fails
-        // for every input — a schema bug for the developer, not an `issues`
-        // entry for whoever is filling in the form. It throws on every call,
-        // since `decoderFlag` commits only once there is a decoder.
-        if (decoderFlag !== globalConfig.f) {
-          // Async-ness is discovered the way `S.asyncParser` users discover
-          // it: the sync compile rejects, and the async one is tried. The
-          // async flag only lifts that one restriction, so a compile that
-          // fails for any other reason fails the same way twice and the
-          // second throw is the one the developer sees.
-          async = U;
-          try {
-            decoder = getDecoder(unknown, schema) as (input: unknown) => unknown;
-          } catch {
-            decoder = getDecoder(unknown, schema, (async = 1)) as (input: unknown) => unknown;
-          }
-          decoderFlag = globalConfig.f;
-        }
-        // An async operation's type checks ahead of the first await throw
-        // synchronously, like `safeAsync`'s callee — folded into the promise
-        // so the consumer sees one shape.
-        try {
-          const value = decoder(input);
-          return async
-            ? (value as Promise<unknown>).then((value) => ({ value }), toStandardIssues)
-            : { value };
-        } catch (exn) {
-          const issues = toStandardIssues(exn);
-          return async ? Promise.resolve(issues) : issues;
-        }
-      },
-      // Standard JSON Schema spec: https://standardschema.dev/json-schema
-      // `input` returns the JSON Schema of the schema's input type,
-      // `output` the JSON Schema of its output type. The `$schema` URI is
-      // stamped according to `options.target`; an unsupported target throws.
-      // Throws before enableStandardJSONSchema is called.
-      jsonSchema: {
-        input: (options) => getStandardJSONSchema(schema, options, false),
-        output: (options) => getStandardJSONSchema(schema, options, true),
-      },
-    };
-    valueOptions[valKey] = standard;
-    Object.defineProperty(schema, "~standard", valueOptions as PropertyDescriptor);
-    return standard;
-  },
-});
-
-// =============
-// Operations
-// =============
-
+// The `undefined` sentinel an assert/validate operation decodes to: the value
+// runs the whole pipeline and the result is dropped.
 export const assertResult: Internal = /* @__PURE__ */ initSchema(undefinedTag, literalDecoder, (s) => {
   s.const = U;
   s.noValidation = true;
 });
 
 export const assertOrThrow = (any: unknown, schema: Internal): void => {
-  (getDecoder(unknown, schema, assertResult) as (input: unknown) => unknown)(any);
+  (getOp(0, 3, unknown, schema, assertResult) as (input: unknown) => unknown)(any);
 }
 
-export type JsResult<TValue> =
-  | { success: true; value: TValue }
-  | { success: false; error: SuryErrorRecord };
+// ── Result tail ──────────────────────────────────────────────────────────────
 
-export const wrapExnToFailure = (exn: unknown): JsResult<never> => {
-  if (exn && (exn as { s?: symbol }).s === s) {
-    return { success: false, error: exn as unknown as SuryErrorRecord };
-  } else {
-    throw exn;
+// Both branches carry the same keys in the same order — `void 0` in the slot
+// the branch doesn't use — so the two results share one hidden class and a
+// consumer's `.success`/`.value` reads stay monomorphic. It is also what makes
+// `const { value, error } = result` narrow on the TS side (the `?: undefined`
+// sibling fields in `Result`): one decision, both halves.
+const ok = (isRes: boolean, value: string): string =>
+  isRes ? `{TAG:"Ok",_0:${value}}` : `{success:true,value:${value},error:void 0}`;
+const err = (isRes: boolean, e: string): string =>
+  isRes ? `{TAG:"Error",_0:${e}}` : `{success:false,value:void 0,error:${e}}`;
+
+// `s` is the Sury marker symbol, the generated function's second parameter:
+// anything else in flight is somebody else's exception and keeps going up.
+const rethrowUnlessSury = (isRes: boolean, e: string, toPromise: boolean): string => {
+  const result = err(isRes, e);
+  return `if(${e}&&${e}.s===s)return ${toPromise ? `Promise.resolve(${result})` : result};throw ${e}`;
+};
+
+// The tail every operation compiles once a Result operation has been reached:
+// throw mode still delegates to `throwTail`, so the throw path's generated code
+// is byte-for-byte what it was.
+const resultTail = (
+  input: Val,
+  code: string,
+  out: string,
+  isAsync: boolean,
+  flag: Flag,
+  hasDefs: boolean,
+): string | undefined => {
+  if (!(flag & (8 | 16))) return throwTail(input, code, out, isAsync, flag, hasDefs);
+  const isRes = !!(flag & 16);
+  // A promise is only produced for the async flag; the promisable mode (32)
+  // asks for the value's own shape instead.
+  const toPromise = !!(flag & 1) && !(flag & 32) && !hasDefs;
+  const errVar = B_varWithoutAllocation(input.g);
+  const valueVar = isAsync ? B_varWithoutAllocation(input.g) : "";
+  const body = isAsync
+    ? // Inlined into the promise chain the operation already builds, rather
+      // than wrapped around it.
+      `${code}return ${out}.then(${valueVar}=>(${ok(isRes, valueVar)}),${errVar}=>{${rethrowUnlessSury(isRes, errVar, false)}})`
+    : `${code}return ${toPromise ? `Promise.resolve(${ok(isRes, out)})` : ok(isRes, out)}`;
+  // The raise counter: when nothing merged can throw, the operation needs no
+  // `try` at all — the decision a `safe(() => ...)` wrapper can never make.
+  return input.g.t
+    ? `try{${body}}catch(${errVar}){${rethrowUnlessSury(isRes, errVar, toPromise)}}`
+    : body;
+};
+
+// ── Call-form dispatch ───────────────────────────────────────────────────────
+
+// `head` is the source the compiled chain starts from — `S.unknown` for the
+// operations that accept anything (`parse`), `U` where the first schema
+// argument is itself the source (`decode`/`encode`). `rev` reverses that first
+// argument, which is what makes an operation run the encode direction.
+const compile = (
+  head: Internal | undefined,
+  rev: boolean,
+  flag: Flag,
+  // How many schema slots the dispatcher partitioned off, 1 to 3. Passed rather
+  // than inferred from `s1 !== U`: a hole (`op(s, undefined, s)`) would read as
+  // "two arguments" and silently drop the third.
+  n: number,
+  s0: unknown,
+  s1?: unknown,
+  s2?: unknown,
+): ((data: unknown) => unknown) => {
+  // A foreign Standard Schema in a schema slot is named, not silently read as
+  // the data to validate; so is a hole.
+  if (!isOwnSchema(s0) || (n > 1 && !isOwnSchema(s1)) || (n > 2 && !isOwnSchema(s2))) {
+    panicNotSchema();
   }
-}
+  const first = rev ? reverse(s0 as Internal) : (s0 as Internal);
+  return head
+    ? getOp(flag, n + 1, head, first, s1 as Internal, s2 as Internal)
+    : getOp(flag, n, first, s1 as Internal, s2 as Internal);
+};
 
-export const safe = <TValue>(fn: () => TValue): JsResult<TValue> => {
-  try {
-    return {
-      success: true,
-      value: fn(),
-    };
-  } catch (exn) {
-    return wrapExnToFailure(exn);
-  }
-}
-
-// ReScript's `result<'value, S.error>` runtime shape. The Sury marker check
-// replaces the `catch { | S.Exn(e) => }` the binding would otherwise compile
-// to, which drags `internalToException` and the stdlib Promise into S.res.mjs.
-type ResResult<TValue> = { TAG: "Ok"; _0: TValue } | { TAG: "Error"; _0: SuryErrorRecord };
-
-const wrapExnToResError = (exn: unknown): ResResult<never> => {
-  if (exn && (exn as { s?: symbol }).s === s) {
-    return { TAG: "Error", _0: exn as unknown as SuryErrorRecord };
-  } else {
-    throw exn;
+// The four call forms, told apart by `arguments.length` and by which arguments
+// are Sury schemas:
+//
+//   op(s…)        → the compiled operation (curried / data-last)
+//   op(s…, data)  → immediate, schema-first
+//   op(data, s…)  → immediate, data-first
+//
+// Three schemas is the ceiling — it is ReScript's ~from/~via/~to; a longer
+// chain is written with `.with(S.to, …)`.
+//
+// Only the argument count partitions the forms: an argument is NEVER tested
+// for `undefined`, or `op(S.void, undefined)` (arity 2, a trailing non-schema,
+// so a parse of `undefined`) would be misread as the compiled form of
+// `op(S.void)` (arity 1).
+//
+// Accepted and documented: `op(s1, s2)` always reads as a chain, so parsing a
+// Sury schema *as data* is only available compiled — `S.parseOrThrow(Meta)(s)`.
+// No argument order makes both reachable.
+const dispatch = (
+  n: number,
+  a: unknown,
+  b: unknown,
+  c: unknown,
+  d: unknown,
+  head: Internal | undefined,
+  rev: boolean,
+  flag: Flag,
+): unknown => {
+  switch (n) {
+    case 1:
+      return compile(head, rev, flag, 1, a);
+    case 2:
+      return isOwnSchema(a)
+        ? isOwnSchema(b)
+          ? compile(head, rev, flag, 2, a, b)
+          : compile(head, rev, flag, 1, a)(b)
+        : compile(head, rev, flag, 1, b)(a);
+    case 3:
+      return isOwnSchema(a)
+        ? isOwnSchema(c)
+          ? compile(head, rev, flag, 3, a, b, c)
+          : compile(head, rev, flag, 2, a, b)(c)
+        : compile(head, rev, flag, 2, b, c)(a);
+    case 4:
+      return isOwnSchema(a)
+        ? compile(head, rev, flag, 3, a, b, c)(d)
+        : compile(head, rev, flag, 3, b, c, d)(a);
+    default:
+      return n
+        ? panic("Expected at most 3 schemas and a value. Use .with(S.to, ...) for a longer chain")
+        : panicNotSchema();
   }
 };
 
-export const safeResult = <TValue>(fn: () => TValue): ResResult<TValue> => {
-  try {
-    return { TAG: "Ok", _0: fn() };
-  } catch (exn) {
-    return wrapExnToResError(exn);
-  }
+// Every Result operation goes through here, so the tail emitter is registered
+// on first use. It can't be registered at this module's top level: that is a
+// side effect, and a bundle that reaches this module for `parseOrThrow` would
+// then carry the emitter too (parse.ts, `__setResultTail`).
+const resultDispatch = (
+  n: number,
+  a: unknown,
+  b: unknown,
+  c: unknown,
+  d: unknown,
+  head: Internal | undefined,
+  rev: boolean,
+  flag: Flag,
+): unknown => {
+  __setTail(resultTail);
+  return dispatch(n, a, b, c, d, head, rev, flag);
 };
 
-export const safeAsyncResult = <TValue>(
-  fn: () => Promise<TValue>
-): Promise<ResResult<TValue>> => {
-  try {
-    return fn().then((value): ResResult<TValue> => ({ TAG: "Ok", _0: value }), wrapExnToResError);
-  } catch (exn) {
-    return Promise.resolve(wrapExnToResError(exn));
-  }
-};
+// ── Operations ───────────────────────────────────────────────────────────────
+//
+// NEVER annotate one of these `@__NO_SIDE_EFFECTS__`. The immediate call forms
+// execute, and a validation-only call discards its result
+// (`S.parseOrThrow(User, data)` used as a check) — esbuild drops an annotated
+// pure call whose result is unused, which would silently delete the validation.
+// tests/treeShaking_test.ts holds the matching `EFFECTFUL` entries.
 
-export const safeAsync = <TValue>(fn: () => Promise<TValue>): Promise<JsResult<TValue>> => {
-  try {
-    return fn().then(
-      (value): JsResult<TValue> => ({ success: true, value }),
-      wrapExnToFailure
-    );
-  } catch (exn) {
-    return Promise.resolve(wrapExnToFailure(exn));
-  }
+export function parseOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return dispatch(arguments.length, a, b, c, d, unknown, false, 0);
+}
+
+export function parseAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return resultDispatch(arguments.length, a, b, c, d, unknown, false, 8);
 }

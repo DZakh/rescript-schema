@@ -47,6 +47,7 @@ import {
   B_refine,
   B_scope,
   B_unsupportedDecode,
+  B_varWithoutAllocation,
   failInvalidType,
   noopOperation,
   operationArgVar
@@ -143,6 +144,34 @@ export const parseDynamic = (input: Val): Val => {
   }
 }
 
+// How a compiled operation's body ends. `undefined` means "no body at all" —
+// the operation is the identity, and the caller hands back `noopOperation`.
+//
+// A mutable binding rather than a branch on the flag: `compileDecoder` is in
+// every bundle, and the Result modes' emitter (operations.ts) must not be. The
+// throw tail below is the default, and reaching a Result operation is what
+// swaps in the emitter that knows both. Registration happens inside that
+// operation, not at its module's top level, which would be a side effect that
+// survives the same shaking.
+export type Tail = (
+  input: Val,
+  code: string,
+  out: string,
+  isAsync: boolean,
+  flag: Flag,
+  hasDefs: boolean,
+) => string | undefined;
+
+export const throwTail: Tail = (_input, code, out, isAsync, flag, hasDefs) =>
+  code === "" && out === operationArgVar && !(flag & 1) // 1
+    ? U
+    : `${code}return ${(flag & 1) && !isAsync && !hasDefs ? `Promise.resolve(${out})` : out}`;
+
+let emitTail: Tail = throwTail;
+export const __setTail = (fn: Tail): void => {
+  emitTail = fn;
+};
+
 export const compileDecoder = (
   schema: Internal,
   expected: Internal,
@@ -157,15 +186,9 @@ export const compileDecoder = (
   expected.isAsync = isAsync;
   expected.hasTransform = output.t === true;
 
-  if (code === "" && (output === input || output.i === input.i) && !(flag & 1)) {
-    return noopOperation;
-  }
-  let inlinedOutput = output.i;
-  if ((flag & 1) && !isAsync && !defs) inlinedOutput = `Promise.resolve(${inlinedOutput})`;
-  const fn = new Function("e", "s", `return ${operationArgVar}=>{${code}return ${inlinedOutput}}`)(
-    input.g.e,
-    s,
-  );
+  const body = emitTail(input, code, output.i, isAsync, flag, !!defs);
+  if (body === U) return noopOperation;
+  const fn = new Function("e", "s", `return ${operationArgVar}=>{${body}}`)(input.g.e, s);
   fn.embedded = input.g.e;
   return fn;
 }
@@ -346,6 +369,86 @@ export const findOpNode = (
   return U;
 };
 
+// Builds and memoizes the operation for a chain of schema arguments. Called
+// only on a cache miss, so everything it allocates is paid once per distinct
+// (args, flag) operation.
+const compileChain = (
+  cacheTarget: Internal,
+  args: Internal[],
+  flag: Flag
+): (from: unknown) => unknown => {
+  let schema: Internal = args[args.length - 1]!;
+  for (let i = args.length - 2; i >= 0; i--) {
+    const to = schema;
+    schema = updateOutput(args[i]!, (mut) => {
+      mut.to = to;
+      // Only this direction: an operation compiles the chain the way it runs
+      // it, so the encode side is a chain of its own, built from the reversed
+      // schemas. Reported as a missing decoder rather than with the slot
+      // spelling `codecTo` offers — this form has nowhere to write one, and a
+      // custom coder is what answers it.
+      if (
+        B_contentDiffers(B_contentNode(mut).content, B_contentNode(to).content) &&
+        to.to === U
+      ) {
+        mut.parser = (input: Val) => B_unsupportedDecode(input, mut, to);
+      }
+    });
+  }
+  const f = compileDecoder(schema, schema, flag, U) as (from: unknown) => unknown;
+  addOpNode(cacheTarget, args, flag, f);
+  return f;
+};
+
+// THE operation lookup, arity-specialised: `n` (1 to 4) says how many schema
+// slots are filled, so the memo walk is straight-line and nothing is allocated
+// on a hit. The variadic `getDecoder` below reads its `arguments`, which V8
+// must materialize the moment the object is aliased to a variable — measurably
+// the bulk of an operation lookup, and the reason every operation comes
+// through here instead.
+// @__NO_SIDE_EFFECTS__
+export const getOp = (
+  opFlag: Flag,
+  n: number,
+  a0: Internal,
+  a1?: Internal,
+  a2?: Internal,
+  a3?: Internal
+): (from: unknown) => unknown => {
+  const flag = opFlag | globalConfig.f;
+  // The cache lives on the newest-seq argument: the one schema every node for
+  // this operation is reachable from.
+  let cacheTarget = a0;
+  let seq = a0.seq!;
+  if (n > 1) {
+    if (a1!.seq! > seq) (seq = a1!.seq!), (cacheTarget = a1!);
+    if (n > 2) {
+      if (a2!.seq! > seq) (seq = a2!.seq!), (cacheTarget = a2!);
+      if (n > 3 && a3!.seq! > seq) cacheTarget = a3!;
+    }
+  }
+
+  let node = (cacheTarget as unknown as Record<string, OpNode | undefined>)[memoKey];
+  while (node) {
+    const a = node.a;
+    if (
+      node.f === flag &&
+      a.length === n &&
+      a[0] === a0 &&
+      (n < 2 || (a[1] === a1 && (n < 3 || (a[2] === a2 && (n < 4 || a[3] === a3)))))
+    ) {
+      return node.v as (from: unknown) => unknown;
+    }
+    node = node.n;
+  }
+
+  return compileChain(
+    cacheTarget,
+    n > 3 ? [a0, a1!, a2!, a3!] : n > 2 ? [a0, a1!, a2!] : n > 1 ? [a0, a1!] : [a0],
+    flag,
+  );
+};
+
 // A plain (non-arrow, to keep `arguments`) function so call sites can pass
 // getDecoder(s1, s2[, s3][, flag]) with any number of schemas plus an
 // optional trailing flag — the body reads `arguments` directly; the declared
@@ -387,32 +490,11 @@ export function getDecoder(..._args: unknown[]): (from: unknown) => unknown {
     node = node.n;
   }
 
-  let schema: Internal = args[idx - 1] as Internal;
-  for (let i = idx - 2; i >= 0; i--) {
-    const to = schema;
-    schema = updateOutput(args[i] as Internal, (mut) => {
-      mut.to = to;
-      // Only this direction: an operation compiles the chain the way it runs
-      // it, so the encode side is a chain of its own, built from the reversed
-      // schemas. Reported as a missing decoder rather than with the slot
-      // spelling `codecTo` offers — this form has nowhere to write one, and a
-      // custom coder is what answers it.
-      if (
-        B_contentDiffers(B_contentNode(mut).content, B_contentNode(to).content) &&
-        to.to === U
-      ) {
-        mut.parser = (input: Val) => B_unsupportedDecode(input, mut, to);
-      }
-    });
-  }
-  const f = compileDecoder(schema, schema, flag!, U) as (from: unknown) => unknown;
-  addOpNode(
+  return compileChain(
     cacheTarget,
     immutableEmptyArray.slice.call(args, 0, idx) as Internal[],
     flag!,
-    f,
   );
-  return f;
 }
 
 export const nestedLoc = "BS_PRIVATE_NESTED_SOME_NONE";

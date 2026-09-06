@@ -17,7 +17,15 @@ export type Flag = number;
 // Bit-flag literals (esbuild does not inline named consts). Compile (`g.o` /
 // op flag): 0 none, 1 async, 2 disableNaN, 4 union-transform-context (custom
 // transform inside a union case preserves the original exception so dispatch
-// can distinguish Sury failures from foreign ones), 64 flatten.
+// can distinguish Sury failures from foreign ones), 8 JS Result tail
+// (`{success, value, error}`), 16 ReScript Result tail (`{TAG, _0}`), 32
+// promisable (1 without lifting a synchronous result into a promise), 64
+// flatten.
+//
+// 8/16/32 are read only by `compileDecoder`, but they still ride the op flag
+// the operation memo keys on: that is what makes each return mode compile and
+// cache as its own operation, leaving the throw path's generated code
+// untouched.
 // Val (`Val.f`): 0 none, 1 async.
 
 // ── path ──────────────────────────────────────────────────────────────────────

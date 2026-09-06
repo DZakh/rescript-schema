@@ -426,8 +426,6 @@ test("Fails to parses async schema", async (t) => {
 
   expectTypeOf(result.error.code).toEqualTypeOf<
     | "invalid_input"
-    | "invalid_operation"
-    | "unsupported_decode"
     | "invalid_conversion"
     | "unrecognized_key"
   >();
@@ -577,7 +575,8 @@ test("Successfully parses and returns result", (t) => {
   } else {
     expectTypeOf(value).toEqualTypeOf<{
       readonly success: false;
-      readonly error: S.Error;
+      readonly error: S.DataError;
+      readonly value?: undefined;
     }>();
   }
 });
@@ -597,7 +596,8 @@ test("Successfully reverse converts and returns result", (t) => {
   } else {
     expectTypeOf(value).toEqualTypeOf<{
       readonly success: false;
-      readonly error: S.Error;
+      readonly error: S.DataError;
+      readonly value?: undefined;
     }>();
   }
 });

@@ -102,3 +102,36 @@ base64-unpack:
   # The other half: the base64 read plus the pattern check that lets it skip a
   # `try` around `atob`.
   run: decode(data)
+
+parse-or-throw:
+  prepare: |
+    const schema = S.schema({ id: S.string, age: S.number });
+    const data = { id: "u1", age: 30 };
+  # The whole call a consumer writes: argument dispatch, the operation lookup
+  # and the parse, none of it hoisted.
+  run: S.parseOrThrow(schema, data)
+
+parse-as-result:
+  prepare: |
+    const schema = S.schema({ id: S.string, age: S.number });
+    const data = { id: "u1", age: 30 };
+  # Same, for the Result outcome. What `S.safe(() => S.parser(schema)(data))`
+  # used to cost — a closure and a frame per call, plus a `try` the compiler
+  # can now sometimes skip entirely.
+  run: S.parseAsResult(schema, data)
+
+parse-as-result-compiled:
+  prepare: |
+    const schema = S.schema({ id: S.string, age: S.number });
+    const parse = S.parseAsResult(schema);
+    const data = { id: "u1", age: 30 };
+  run: parse(data)
+
+parse-as-result-invalid:
+  prepare: |
+    const schema = S.schema({ id: S.string, age: S.number });
+    const parse = S.parseAsResult(schema);
+    const data = { id: "u1", age: "30" };
+  # The failure path is what a Result outcome exists for, so it is the half
+  # worth watching.
+  run: parse(data)
