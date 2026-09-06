@@ -192,3 +192,173 @@ test("`~standard.validate` is the compiled operation, with no wrapper left", () 
     issues: [{ message: "Expected string, received 1" }],
   });
 });
+
+test("the public types resolve to the right call form", () => {
+  // Nine arity-discriminated overloads per operation. The chain ones come
+  // first, which is why the last block below can't be written any other way.
+  const User = S.schema({ id: S.string, age: S.number });
+  const Str = S.string.with(S.to, S.number, { decode: Number, encode: String });
+  const data: unknown = { id: "a", age: 1 };
+
+  const a = S.parseOrThrow(User)(data); a satisfies { id: string; age: number };
+  const b = S.parseOrThrow(User, data); b satisfies { id: string; age: number };
+  const c = S.parseOrThrow(data, User); c satisfies { id: string; age: number };
+  const d = S.parseOrThrow(S.unknown, Str)("1"); d satisfies number;
+  const e = S.parseOrThrow(S.unknown, S.string, Str, "1"); e satisfies number;
+  const f = S.parseAsResult(User, data); if (f.success) f.value satisfies { id: string };
+  const { value, error } = S.parseAsResult(User, data);
+  if (error) { error.code satisfies "invalid_input" | "invalid_conversion" | "unrecognized_key"; }
+  else { value satisfies { id: string; age: number }; }
+  const g = S.decodeOrThrow(Str, "1"); g satisfies number;
+  const h = S.encodeOrThrow(Str, 1); h satisfies string;
+  const i = S.encodeOrThrow(Str)(1); i satisfies string;
+  const j = S.makeInputOrThrow(User)({ id: "a", age: 1 }); j satisfies { id: string; age: number };
+  const k = S.makeOutputOrThrow(User, { id: "a", age: 1 }); k satisfies { id: string; age: number };
+  const l: unknown = data;
+  if (S.isInput(User, l)) { l satisfies { id: string; age: number }; }
+  const m: unknown = data;
+  S.assertInputOrThrow(User, m); m satisfies { id: string; age: number };
+  const n: unknown = data;
+  S.assertInputOrThrow(n, User); n satisfies { id: string; age: number };
+  const o = S.parseAsResultPromise(User, data); o satisfies Promise<S.Result<{ id: string; age: number }>>;
+  const p = S.parseAsPromiseOrReject(User, data); p satisfies Promise<{ id: string; age: number }>;
+  const q = S.parseAsPromisableResult(User, data);
+  const r = S.isInputAsPromise(User, data); r satisfies Promise<boolean>;
+  const t = S.assertInputAsPromiseOrReject(User, data); t satisfies Promise<void>;
+  const u = S.isInput(User); u satisfies (x: unknown) => boolean;
+  // a schema in a data slot: only via the compiled form
+  const Meta = S.schema({ seq: S.number });
+  const v = S.parseOrThrow(Meta)(S.string); v satisfies { seq: number };
+
+  const chain = S.parseOrThrow(S.unknown, User); chain satisfies (d: unknown) => { id: string };
+  // @ts-expect-error the two-schema form is a chain, never "parse a schema as data"
+  const notValue: { id: string } = S.parseOrThrow(S.unknown, User);
+});
+
+// ── The other verbs ──────────────────────────────────────────────────────────
+
+const strToNum = S.string.with(S.to, S.number, { decode: Number, encode: String });
+
+test("decode and encode run the two directions of the same schema", () => {
+  expect(S.decodeOrThrow(strToNum, "1")).toBe(1);
+  expect(S.encodeOrThrow(strToNum, 1)).toBe("1");
+  expect(S.decodeAsResult(strToNum, "1")).toEqual({ success: true, value: 1, error: undefined });
+  expect(S.encodeAsResult(strToNum)(1)).toEqual({ success: true, value: "1", error: undefined });
+
+  // Only the first schema is reversed, so a chain after it reads forward.
+  expect(S.encodeOrThrow(strToNum, S.jsonString, 1)).toBe(`"1"`);
+  expect(S.decodeOrThrow(S.reverse(strToNum), S.jsonString, 1)).toBe(`"1"`);
+});
+
+test("make validates and hands back the value it was given", () => {
+  // `parse` builds a decoded clone; `make` runs the same checks and keeps the
+  // value's identity.
+  const value = { id: "u1" };
+  expect(S.makeInputOrThrow(user, value)).toBe(value);
+  expect(S.parseOrThrow(user, value)).not.toBe(value);
+  expect(S.makeOutputOrThrow(user)(value)).toBe(value);
+  expect(() => S.makeInputOrThrow(user, { id: 1 as unknown as string })).toThrow(S.Error);
+  expect(S.makeInputAsResult(user, { id: 1 as unknown as string }).error?.code).toBe("invalid_input");
+  expect(S.makeInputAsResult(user, value)).toEqual({
+    success: true,
+    value,
+    error: undefined,
+  });
+
+  // The two directions differ where the schema converts.
+  expect(S.makeInputOrThrow(strToNum, "1")).toBe("1");
+  expect(S.makeOutputOrThrow(strToNum, 1)).toBe(1);
+});
+
+test("make compiles to the checks plus the value, with no wrapper", () => {
+  expect(S.makeInputOrThrow(user).toString()).toMatchInlineSnapshot(
+    `"i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i["id"];typeof v0==="string"||e[0](v0);return i}"`,
+  );
+  // Nothing to check: the operation is the identity itself.
+  expect(S.makeInputOrThrow(S.unknown)).toBe(S.parseOrThrow(S.unknown));
+});
+
+test("is answers a boolean from one compiled operation", () => {
+  expect(S.isInput(user, { id: "a" })).toBe(true);
+  expect(S.isInput({ id: 1 }, user)).toBe(false);
+  expect(S.isOutput(strToNum, 1)).toBe(true);
+  expect(S.isOutput(strToNum, "1")).toBe(false);
+  expect(S.isInput(user).toString()).toMatchInlineSnapshot(
+    `"i=>{try{typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i["id"];typeof v0==="string"||e[0](v0);return true}catch(v1){if(v1&&v1.s===s)return false;throw v1}}"`,
+  );
+  // Nothing can fail, so there is nothing to catch.
+  expect(S.isInput(S.unknown).toString()).toMatchInlineSnapshot(`"i=>{return true}"`);
+  // A schema wired wrong is still the developer's bug, not a `false`.
+  expect(() =>
+    S.isInput(S.boolean.with(S.to, S.number, { decode: "never", encode: "never" }), true),
+  ).toThrow(S.Error);
+});
+
+test("assert throws, and narrows in either argument order", () => {
+  expect(S.assertInputOrThrow(user, { id: "a" })).toBe(undefined);
+  expect(() => S.assertInputOrThrow(user, { id: 1 })).toThrow(S.Error);
+  expect(() => S.assertInputOrThrow({ id: 1 }, user)).toThrow(S.Error);
+  expect(() => S.assertOutputOrThrow(strToNum, "1")).toThrow(S.Error);
+  expect(S.assertOutputOrThrow(strToNum, 1)).toBe(undefined);
+});
+
+test("the async outcomes", async () => {
+  const asyncSchema = S.string.with(S.to, S.number, {
+    decode: { async: async (v: string) => Number(v) },
+    encode: String,
+  });
+  expect(await S.parseAsPromiseOrReject(asyncSchema, "1")).toBe(1);
+  await expect(S.parseAsPromiseOrReject(asyncSchema, 1)).rejects.toThrow(S.Error);
+  expect(await S.parseAsResultPromise(asyncSchema, "1")).toEqual({
+    success: true,
+    value: 1,
+    error: undefined,
+  });
+  expect((await S.parseAsResultPromise(asyncSchema, 1)).error?.code).toBe("invalid_input");
+  expect(await S.isInputAsPromise(asyncSchema, "1")).toBe(true);
+  expect(await S.isInputAsPromise(asyncSchema, 1)).toBe(false);
+  expect(await S.assertInputAsPromiseOrReject(asyncSchema, "1")).toBe(undefined);
+  await expect(S.assertInputAsPromiseOrReject(asyncSchema, 1)).rejects.toThrow(S.Error);
+  const value = "1";
+  expect(await S.makeInputAsPromiseOrReject(asyncSchema, value)).toBe(value);
+
+  // A synchronous schema still answers in the shape the name promises.
+  expect(await S.parseAsPromiseOrReject(S.string, "a")).toBe("a");
+  expect(await S.parseAsResultPromise(S.string, 1)).toEqual({
+    success: false,
+    value: undefined,
+    error: expect.any(S.Error),
+  });
+});
+
+test("a promise-returning operation rejects, it never throws synchronously", () => {
+  // `OrReject` is the whole story its name tells: a value that fails its type
+  // check before the first await comes back as a rejection, like one that
+  // fails after it.
+  const asyncSchema = S.string.with(S.to, S.number, {
+    decode: { async: async (v: string) => Number(v) },
+    encode: String,
+  });
+  for (const call of [
+    () => S.parseAsPromiseOrReject(asyncSchema, 1),
+    () => S.parseAsPromiseOrReject(S.string, 1),
+    () => S.assertInputAsPromiseOrReject(asyncSchema, 1),
+    () => S.makeInputAsPromiseOrReject(asyncSchema, 1 as unknown as string),
+    () => S.isInputAsPromise(asyncSchema, 1),
+  ]) {
+    expect(call()).toBeInstanceOf(Promise);
+  }
+});
+
+test("what an operation compiles to depends on its flag, never on call order", () => {
+  // The tail emitter is registered globally on first use, so a mode that lived
+  // in the emitter's identity rather than in the flag would make an operation
+  // compile differently depending on whether some other operation had been
+  // called first.
+  const before = S.parseAsPromiseOrReject(S.schema({ id: S.string })).toString();
+  S.parseAsResult(S.schema({ other: S.string }), { other: "x" });
+  S.isInput(S.schema({ third: S.string }), {});
+  const after = S.parseAsPromiseOrReject(S.schema({ id: S.string })).toString();
+  expect(after).toBe(before);
+  expect(before).toContain("Promise.reject");
+});

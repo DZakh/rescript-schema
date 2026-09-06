@@ -169,7 +169,37 @@ export {
   safe,
   safeAsync,
 } from "./standard";
-export { parseOrThrow, parseAsResult, parseAsPromisableResult } from "./operations";
+export {
+  parseOrThrow,
+  parseAsResult,
+  parseAsPromiseOrReject,
+  parseAsResultPromise,
+  parseAsPromisableResult,
+  decodeOrThrow,
+  decodeAsResult,
+  decodeAsPromiseOrReject,
+  decodeAsResultPromise,
+  encodeOrThrow,
+  encodeAsResult,
+  encodeAsPromiseOrReject,
+  encodeAsResultPromise,
+  makeInputOrThrow,
+  makeInputAsResult,
+  makeInputAsPromiseOrReject,
+  makeInputAsResultPromise,
+  makeOutputOrThrow,
+  makeOutputAsResult,
+  makeOutputAsPromiseOrReject,
+  makeOutputAsResultPromise,
+  isInput,
+  isOutput,
+  isInputAsPromise,
+  isOutputAsPromise,
+  assertInputOrThrow,
+  assertOutputOrThrow,
+  assertInputAsPromiseOrReject,
+  assertOutputAsPromiseOrReject,
+} from "./operations";
 export { array, dict as record } from "./composites";
 export { schemaObject as object, schemaShape as shape, schemaTuple as tuple } from "./factory";
 // `nullish` accepts null | undefined (the 3-member union) — distinct from

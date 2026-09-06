@@ -28,10 +28,12 @@ import {
  __setTail,
  getOp,
  reverse,
+ type Tail,
  throwTail
 } from "./parse";
 import {
- B_varWithoutAllocation
+ B_varWithoutAllocation,
+ operationArgVar
 } from "./builder";
 import {
  literalDecoder
@@ -48,7 +50,17 @@ export const assertOrThrow = (any: unknown, schema: Internal): void => {
   (getOp(0, 3, unknown, schema, assertResult) as (input: unknown) => unknown)(any);
 }
 
-// ── Result tail ──────────────────────────────────────────────────────────────
+// ── Operation tail ───────────────────────────────────────────────────────────
+//
+// The tail every operation compiles once a mode beyond "the value, or a throw"
+// has been reached. Plain throw mode still delegates to `throwTail`, so the
+// throw path's generated code is byte-for-byte what it always was.
+
+// What the operation yields on success, as an expression in the generated body.
+// 256 (`makeInput`/`makeOutput`) discards the checks' result and hands back the
+// value it was given; 512 (`isInput`/`isOutput`) answers `true`.
+const okValue = (flag: Flag, out: string): string =>
+  flag & 512 ? "true" : flag & 256 ? operationArgVar : out;
 
 // The two Result shapes: 8 the JS `Result`, 16 ReScript's
 // `result<'value, S.error>`. The Standard Schema shape (128) is emitted by
@@ -59,60 +71,96 @@ export const assertOrThrow = (any: unknown, schema: Internal): void => {
 // consumer's `.success`/`.value` reads stay monomorphic. It is also what makes
 // `const { value, error } = result` narrow on the TS side (the `?: undefined`
 // sibling fields in `Result`): one decision, both halves.
-const ok = (isRes: boolean, value: string): string =>
-  isRes ? `{TAG:"Ok",_0:${value}}` : `{success:true,value:${value},error:void 0}`;
-const err = (isRes: boolean, e: string): string =>
-  isRes ? `{TAG:"Error",_0:${e}}` : `{success:false,value:void 0,error:${e}}`;
+const okResult = (flag: Flag, value: string): string =>
+  flag & 16
+    ? `{TAG:"Ok",_0:${value}}`
+    : flag & 8
+      ? `{success:true,value:${value},error:void 0}`
+      : value;
+// The bare `false` is `is`'s answer; nothing else reaches this without a
+// Result shape to fill.
+const errResult = (flag: Flag, e: string): string =>
+  flag & 16
+    ? `{TAG:"Error",_0:${e}}`
+    : flag & 8
+      ? `{success:false,value:void 0,error:${e}}`
+      : "false";
 
 // `s` is the Sury marker symbol, the generated function's second parameter:
 // anything else in flight is somebody else's exception and keeps going up.
-const rethrowUnlessSury = (isRes: boolean, e: string, toPromise: boolean): string => {
-  const result = err(isRes, e);
+const rethrowUnlessSury = (flag: Flag, e: string, toPromise: boolean): string => {
+  const result = errResult(flag, e);
   return `if(${e}&&${e}.s===s)return ${toPromise ? `Promise.resolve(${result})` : result};throw ${e}`;
 };
 
-// The tail every operation compiles once a Result operation has been reached:
-// throw mode still delegates to `throwTail`, so the throw path's generated code
-// is byte-for-byte what it was.
-const resultTail = (
-  input: Val,
-  code: string,
-  out: string,
-  isAsync: boolean,
-  flag: Flag,
-  hasDefs: boolean,
-): string | undefined => {
-  if (!(flag & (8 | 16))) return throwTail(input, code, out, isAsync, flag, hasDefs);
-  const isRes = !!(flag & 16);
+const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
+  // No answer of its own for a failure — the exception still is the answer.
+  // 256 only changes what a success yields, so `throwTail` still decides the
+  // identity case and the promise lift.
+  if (!(flag & (8 | 16 | 512))) {
+    const body = throwTail(
+      input,
+      code,
+      flag & 256
+        ? isAsync
+          ? `${out}.then(()=>${operationArgVar})`
+          : operationArgVar
+        : out,
+      isAsync,
+      flag,
+      hasDefs,
+    );
+    // 1024: a promise-returning operation must not throw synchronously — a
+    // value that fails its type check before the first await rejects the same
+    // way one that fails after it does, so `OrReject` is the whole story its
+    // name tells. It rides the flag rather than the tail's identity because
+    // the tail is registered globally: a mode that lived in the emitter alone
+    // would change what an operation compiled to depending on whether some
+    // other operation had been called first.
+    if (body !== U && flag & 1024 && input.g.t) {
+      const e = B_varWithoutAllocation(input.g);
+      return `try{${body}}catch(${e}){return Promise.reject(${e})}`;
+    }
+    return body;
+  }
   // A promise is only produced for the async flag; the promisable mode (32)
   // asks for the value's own shape instead.
   const toPromise = !!(flag & 1) && !(flag & 32) && !hasDefs;
   const errVar = B_varWithoutAllocation(input.g);
-  const valueVar = isAsync ? B_varWithoutAllocation(input.g) : "";
   const body = isAsync
     ? // Inlined into the promise chain the operation already builds, rather
       // than wrapped around it.
-      `${code}return ${out}.then(${valueVar}=>(${ok(isRes, valueVar)}),${errVar}=>{${rethrowUnlessSury(isRes, errVar, false)}})`
-    : `${code}return ${toPromise ? `Promise.resolve(${ok(isRes, out)})` : ok(isRes, out)}`;
+      (() => {
+        const valueVar = B_varWithoutAllocation(input.g);
+        return `${code}return ${out}.then(${valueVar}=>(${okResult(flag, okValue(flag, valueVar))}),${errVar}=>{${rethrowUnlessSury(flag, errVar, false)}})`;
+      })()
+    : `${code}return ${
+        toPromise
+          ? `Promise.resolve(${okResult(flag, okValue(flag, out))})`
+          : okResult(flag, okValue(flag, out))
+      }`;
   // The raise counter: when nothing merged can throw, the operation needs no
   // `try` at all — the decision a `safe(() => ...)` wrapper can never make.
   // A failure the sync phase raises has to come back in the shape the success
-  // path uses, so an async operation's answer is a promise either way — the
+  // path uses, so an async operation's answer is a promise either way: the
   // consumer sees one shape whether the value died before the first await or
   // after it.
   return input.g.t
-    ? `try{${body}}catch(${errVar}){${rethrowUnlessSury(isRes, errVar, isAsync || toPromise)}}`
+    ? `try{${body}}catch(${errVar}){${rethrowUnlessSury(flag, errVar, isAsync || toPromise)}}`
     : body;
 };
 
 // ── Call-form dispatch ───────────────────────────────────────────────────────
 
 // `head` is the source the compiled chain starts from — `S.unknown` for the
-// operations that accept anything (`parse`), `U` where the first schema
-// argument is itself the source (`decode`/`encode`). `rev` reverses that first
-// argument, which is what makes an operation run the encode direction.
+// operations that accept anything (`parse`, and the check/make families), `U`
+// where the first schema argument is itself the source (`decode`/`encode`).
+// `rev` reverses that first argument, which is what makes an operation run the
+// encode direction. `tail` closes the chain: `assertResult` for the families
+// that validate and discard (`is`, `assert`, `make`).
 const compile = (
   head: Internal | undefined,
+  tail: Internal | undefined,
   rev: boolean,
   flag: Flag,
   // How many schema slots the dispatcher partitioned off, 1 to 3. Passed rather
@@ -128,9 +176,17 @@ const compile = (
   if (!isOwnSchema(s0) || (n > 1 && !isOwnSchema(s1)) || (n > 2 && !isOwnSchema(s2))) {
     panicNotSchema();
   }
-  const first = rev ? reverse(s0 as Internal) : (s0 as Internal);
+  const first = (rev ? reverse(s0 as Internal) : s0) as Internal;
+  // The chain, in order: head, the caller's schemas, tail. Written out rather
+  // than assembled into an array so nothing is allocated on a cache hit.
   return head
-    ? getOp(flag, n + 1, head, first, s1 as Internal, s2 as Internal)
+    ? tail
+      ? n > 2
+        ? getOp(flag, 5, head, first, s1 as Internal, s2 as Internal, tail)
+        : n > 1
+          ? getOp(flag, 4, head, first, s1 as Internal, tail)
+          : getOp(flag, 3, head, first, tail)
+      : getOp(flag, n + 1, head, first, s1 as Internal, s2 as Internal)
     : getOp(flag, n, first, s1 as Internal, s2 as Internal);
 };
 
@@ -159,28 +215,29 @@ const dispatch = (
   c: unknown,
   d: unknown,
   head: Internal | undefined,
+  tail: Internal | undefined,
   rev: boolean,
   flag: Flag,
 ): unknown => {
   switch (n) {
     case 1:
-      return compile(head, rev, flag, 1, a);
+      return compile(head, tail, rev, flag, 1, a);
     case 2:
       return isOwnSchema(a)
         ? isOwnSchema(b)
-          ? compile(head, rev, flag, 2, a, b)
-          : compile(head, rev, flag, 1, a)(b)
-        : compile(head, rev, flag, 1, b)(a);
+          ? compile(head, tail, rev, flag, 2, a, b)
+          : compile(head, tail, rev, flag, 1, a)(b)
+        : compile(head, tail, rev, flag, 1, b)(a);
     case 3:
       return isOwnSchema(a)
         ? isOwnSchema(c)
-          ? compile(head, rev, flag, 3, a, b, c)
-          : compile(head, rev, flag, 2, a, b)(c)
-        : compile(head, rev, flag, 2, b, c)(a);
+          ? compile(head, tail, rev, flag, 3, a, b, c)
+          : compile(head, tail, rev, flag, 2, a, b)(c)
+        : compile(head, tail, rev, flag, 2, b, c)(a);
     case 4:
       return isOwnSchema(a)
-        ? compile(head, rev, flag, 3, a, b, c)(d)
-        : compile(head, rev, flag, 3, b, c, d)(a);
+        ? compile(head, tail, rev, flag, 3, a, b, c)(d)
+        : compile(head, tail, rev, flag, 3, b, c, d)(a);
     default:
       return n
         ? panic("Expected at most 3 schemas and a value. Use .with(S.to, ...) for a longer chain")
@@ -188,22 +245,24 @@ const dispatch = (
   }
 };
 
-// Every Result operation goes through here, so the tail emitter is registered
-// on first use. It can't be registered at this module's top level: that is a
-// side effect, and a bundle that reaches this module for `parseOrThrow` would
-// then carry the emitter too (parse.ts, `__setResultTail`).
-const resultDispatch = (
+// Every operation whose tail is more than "the value, or a throw" comes through
+// here, so the emitter is registered on first use. It can't be registered at
+// this module's top level: that is a side effect, and a bundle that reaches
+// this module for `parseOrThrow` would then carry the emitter too (parse.ts,
+// `__setTail`).
+const tailDispatch = (
   n: number,
   a: unknown,
   b: unknown,
   c: unknown,
   d: unknown,
   head: Internal | undefined,
+  tail: Internal | undefined,
   rev: boolean,
   flag: Flag,
 ): unknown => {
-  __setTail(resultTail);
-  return dispatch(n, a, b, c, d, head, rev, flag);
+  __setTail(operationTail);
+  return dispatch(n, a, b, c, d, head, tail, rev, flag);
 };
 
 // ── Operations ───────────────────────────────────────────────────────────────
@@ -213,24 +272,159 @@ const resultDispatch = (
 // (`S.parseOrThrow(User, data)` used as a check) — esbuild drops an annotated
 // pure call whose result is unused, which would silently delete the validation.
 // tests/treeShaking_test.ts holds the matching `EFFECTFUL` entries.
+//
+// One declaration each, never `export const parseAsResult = makeOp(...)`: a
+// factory call at the top level is a side effect that no bundler will shake.
+//
+// Outcome flags: 0 OrThrow · 8 AsResult · 1 AsPromiseOrReject ·
+// 1|8 AsResultPromise · 1|8|32 AsPromisableResult.
+// Family flags: 256 yield the operation's input · 512 answer a boolean.
 
 export function parseOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return dispatch(arguments.length, a, b, c, d, unknown, false, 0);
+  return dispatch(arguments.length, a, b, c, d, unknown, U, false, 0);
 }
 
 export function parseAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return resultDispatch(arguments.length, a, b, c, d, unknown, false, 8);
+  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 8);
+}
+
+export function parseAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1 | 1024);
+}
+
+export function parseAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1 | 8);
 }
 
 // The Result outcome without committing to a shape: a synchronous schema
 // answers with the Result itself, an async one with a promise of it. One
-// compile covers both, which is what the `~standard` bridge needs (standard.ts)
-// and what a caller who doesn't know a schema's async-ness can hold.
-export function parseAsPromisableResult(
+// compile covers both, so a caller who doesn't know a schema's async-ness
+// doesn't have to lift every answer into a promise to find out.
+export function parseAsPromisableResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1 | 8 | 32);
+}
+
+export function decodeOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return dispatch(arguments.length, a, b, c, d, U, U, false, 0);
+}
+
+export function decodeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, U, U, false, 8);
+}
+
+export function decodeAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, U, U, false, 1 | 1024);
+}
+
+export function decodeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, U, U, false, 1 | 8);
+}
+
+// Only the first schema is reversed: `S.encodeOrThrow(a, ...rest)` starts from
+// a's Output and runs the rest of the chain forward, so a pipeline after the
+// reversed schema is written exactly as in `decode`. Compare
+// `S.decodeOrThrow(S.reverse(a), ...rest)`, which is its longhand.
+export function encodeOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return dispatch(arguments.length, a, b, c, d, U, U, true, 0);
+}
+
+export function encodeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 8);
+}
+
+export function encodeAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 1024);
+}
+
+export function encodeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 8);
+}
+
+// The make family validates and hands back the value it was given (flag 256),
+// rather than the decoded clone `parse` would build: the checks run, their
+// result is discarded, and the value keeps its identity.
+export function makeInputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 256);
+}
+
+export function makeInputAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 8 | 256);
+}
+
+export function makeInputAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 256 | 1024);
+}
+
+export function makeInputAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 8 | 256);
+}
+
+export function makeOutputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 256);
+}
+
+export function makeOutputAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 8 | 256);
+}
+
+export function makeOutputAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 256 | 1024);
+}
+
+export function makeOutputAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 8 | 256);
+}
+
+// ── Checks ───────────────────────────────────────────────────────────────────
+//
+// Direction is a free parameter here — there is no value to read it off — so
+// it is spelled out and mandatory. `is*` answers a boolean (flag 512) and
+// never throws for a failed check; `is*AsPromise` resolves to one and never
+// rejects.
+
+export function isInput(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 512);
+}
+
+export function isOutput(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 512);
+}
+
+export function isInputAsPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 512);
+}
+
+export function isOutputAsPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 512);
+}
+
+// `assert` keeps `OrThrow` against the rule that a suffix names the failure
+// mechanism only when the return type hides it: `assert` doesn't unambiguously
+// mean "throws" in JS (`console.assert` logs and continues), `S.res` already
+// ships `assertOrThrow`, and the async form returns `Promise<void>` — which
+// reveals nothing — so it needs `OrReject` regardless.
+export function assertInputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return dispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 0);
+}
+
+export function assertOutputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return dispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 0);
+}
+
+export function assertInputAsPromiseOrReject(
   a?: unknown,
   b?: unknown,
   c?: unknown,
   d?: unknown,
 ): unknown {
-  return resultDispatch(arguments.length, a, b, c, d, unknown, false, 1 | 8 | 32);
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 1024);
+}
+
+export function assertOutputAsPromiseOrReject(
+  a?: unknown,
+  b?: unknown,
+  c?: unknown,
+  d?: unknown,
+): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 1024);
 }

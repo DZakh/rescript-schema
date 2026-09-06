@@ -424,7 +424,7 @@ const compileChain = (
   return f;
 };
 
-// THE operation lookup, arity-specialised: `n` (1 to 4) says how many schema
+// THE operation lookup, arity-specialised: `n` (1 to 5) says how many schema
 // slots are filled, so the memo walk is straight-line and nothing is allocated
 // on a hit. The variadic `getDecoder` below reads its `arguments`, which V8
 // must materialize the moment the object is aliased to a variable — measurably
@@ -437,7 +437,8 @@ export const getOp = (
   a0: Internal,
   a1?: Internal,
   a2?: Internal,
-  a3?: Internal
+  a3?: Internal,
+  a4?: Internal
 ): (from: unknown) => unknown => {
   const flag = opFlag | globalConfig.f;
   // The cache lives on the newest-seq argument: the one schema every node for
@@ -448,7 +449,10 @@ export const getOp = (
     if (a1!.seq! > seq) (seq = a1!.seq!), (cacheTarget = a1!);
     if (n > 2) {
       if (a2!.seq! > seq) (seq = a2!.seq!), (cacheTarget = a2!);
-      if (n > 3 && a3!.seq! > seq) cacheTarget = a3!;
+      if (n > 3) {
+        if (a3!.seq! > seq) (seq = a3!.seq!), (cacheTarget = a3!);
+        if (n > 4 && a4!.seq! > seq) cacheTarget = a4!;
+      }
     }
   }
 
@@ -459,7 +463,9 @@ export const getOp = (
       node.f === flag &&
       a.length === n &&
       a[0] === a0 &&
-      (n < 2 || (a[1] === a1 && (n < 3 || (a[2] === a2 && (n < 4 || a[3] === a3)))))
+      (n < 2 ||
+        (a[1] === a1 &&
+          (n < 3 || (a[2] === a2 && (n < 4 || (a[3] === a3 && (n < 5 || a[4] === a4)))))))
     ) {
       return node.v as (from: unknown) => unknown;
     }
@@ -468,7 +474,15 @@ export const getOp = (
 
   return compileChain(
     cacheTarget,
-    n > 3 ? [a0, a1!, a2!, a3!] : n > 2 ? [a0, a1!, a2!] : n > 1 ? [a0, a1!] : [a0],
+    n > 4
+      ? [a0, a1!, a2!, a3!, a4!]
+      : n > 3
+        ? [a0, a1!, a2!, a3!]
+        : n > 2
+          ? [a0, a1!, a2!]
+          : n > 1
+            ? [a0, a1!]
+            : [a0],
     flag,
   );
 };

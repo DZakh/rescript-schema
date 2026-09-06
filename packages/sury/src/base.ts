@@ -20,9 +20,13 @@ export type Flag = number;
 // can distinguish Sury failures from foreign ones), 8 JS Result tail
 // (`{success, value, error}`), 16 ReScript Result tail (`{TAG, _0}`), 32
 // promisable (1 without lifting a synchronous result into a promise), 64
-// flatten, 128 Standard Schema tail (`{value}` / `{issues}`).
+// flatten, 128 Standard Schema tail (`{value}` / `{issues}`), 256 yield the
+// operation's input rather than its output (`makeInput`/`makeOutput`), 512
+// answer a boolean (`isInput`/`isOutput`), 1024 a synchronous failure rejects
+// rather than throws (`*AsPromiseOrReject`).
 //
-// 8/16/32/128 are read only by the operation tail, but they still ride the op flag
+// Everything above 4 that names a return mode is read only by the operation
+// tail, but they still ride the op flag
 // the operation memo keys on: that is what makes each return mode compile and
 // cache as its own operation, leaving the throw path's generated code
 // untouched.
