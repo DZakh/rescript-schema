@@ -5,7 +5,8 @@ ts:
   output: string | bigint
   instantiations: 5373
 jsonSchema:
-  input: Expected JSON, received unknown
+  input: "{}"
+  fromInputType: JSON
   output: Expected JSON, received bigint | string
 vs:
   zod:

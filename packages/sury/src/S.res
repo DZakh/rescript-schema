@@ -380,7 +380,7 @@ and errorDetails =
       to: schema<unknown>,
       cause?: exn,
     })
-  | @as("unrecognized_keys") UnrecognizedKeys({path: Path.t, reason: string, keys: array<string>})
+  | @as("unrecognized_key") UnrecognizedKey({path: Path.t, reason: string, key: string})
 
 type exn += private Exn(error)
 
@@ -437,8 +437,8 @@ module Error = {
 @module("sury") external unit: t<unit> = "$unit"
 @module("sury") external nullAsUnit: t<unit> = "$nullAsUnit"
 @module("sury") external string: t<string> = "string"
-@module("sury") external bool: t<bool> = "bool"
-@module("sury") external int: t<int> = "int"
+@module("sury") external bool: t<bool> = "boolean"
+@module("sury") external int: t<int> = "int32"
 // Every format schema carries its own `@unboxed` type, so a format survives in
 // the type system instead of collapsing back into `string`/`float`. Unboxed
 // means the constructor is erased at runtime — the value is the payload, and
@@ -447,7 +447,7 @@ module Error = {
 // Schema's unbounded `integer`) can exceed that range.
 @unboxed type integer = Integer(float)
 @module("sury") external integer: t<integer> = "integer"
-@module("sury") external float: t<float> = "float"
+@module("sury") external float: t<float> = "number"
 @module("sury") external bigint: t<bigint> = "bigint"
 @module("sury") external symbol: t<Symbol.t> = "symbol"
 @module("sury") external nan: t<float> = "nan"
@@ -476,6 +476,8 @@ type formData
 @module("sury") external formData: t<formData> = "formData"
 @unboxed type isoDateTime = IsoDateTime(string)
 @module("sury") external isoDateTime: t<isoDateTime> = "isoDateTime"
+@unboxed type utcDateTime = UtcDateTime(string)
+@module("sury") external utcDateTime: t<utcDateTime> = "utcDateTime"
 @unboxed type port = Port(int)
 @module("sury") external port: t<port> = "port"
 @unboxed type email = Email(string)
@@ -556,7 +558,7 @@ type url
 @module("sury") external compactColumns: t<'value> => t<array<array<'value>>> = "compactColumns"
 @module("sury") external list: t<'value> => t<list<'value>> = "list"
 @module("sury") external instance: unknown => t<unknown> = "instance"
-@module("sury") external dict: t<'value> => t<dict<'value>> = "dict"
+@module("sury") external dict: t<'value> => t<dict<'value>> = "record"
 @module("sury") external option: t<'value> => t<option<'value>> = "$option"
 // The public JS `nullable` called without a default is exactly
 // `union([item, literal(null)])` — what ReScript calls `S.null`.

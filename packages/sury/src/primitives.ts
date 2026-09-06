@@ -197,7 +197,9 @@ export const stringDecoderFn = (input: Val): Val => {
     return B_next(input, `"${const_}"`, schema);
   }
   if ((inputTagFlag & (8 | 4 | 1024))) {
-    return inputToString(input);
+    // The declared schema, not the bare `string`: a bound on the tail has to
+    // reach the document that describes what the coercion produced.
+    return B_next(input, `""+${input.i}`, input.e);
   }
   return B_typeDecode(input, stringTag, inputTagFlag);
 }

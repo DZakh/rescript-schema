@@ -25,6 +25,7 @@ import {
   objectTag,
   pathConcat,
   setHas,
+  stringify,
   tagFlags,
   U,
   undefinedTag,
@@ -72,9 +73,10 @@ import {
 const isItemSchema = (x: AdditionalItems | undefined): x is Internal =>
   x !== U && typeof x !== "string";
 
-// The strict scan: every own or inherited enumerable key that is not one of
-// `keys` raises `unrecognized_keys`. `decl` is `let ` when the caller has not
-// hoisted `keyVar` itself.
+// The strict scan: the first own or inherited enumerable key that is not one
+// of `keys` raises `unrecognized_key`. One key per error, so a collect-all
+// mode reports several errors rather than one carrying a list. `decl` is
+// `let ` when the caller has not hoisted `keyVar` itself.
 export const B_unrecognizedKeys = (
   input: Val,
   keys: string[],
@@ -83,12 +85,12 @@ export const B_unrecognizedKeys = (
 ): string => {
   const fail = B_failWithArg(
     input,
-    (excessFieldName: string) =>
+    (key: string) =>
       ({
-        code: "unrecognized_keys",
+        code: "unrecognized_key",
         path: input.path,
-        reason: `Unrecognized key "${excessFieldName}"`,
-        keys: [excessFieldName],
+        reason: `Unrecognized key ${stringify(key)}`,
+        key,
       }) as ErrorDetails,
     keyVar,
   );

@@ -3,15 +3,6 @@ import { format, inspect } from "node:util";
 
 import * as S from "../index.mjs";
 
-// FIXME: S.lte should be applied to output
-// From https://x.com/dzakh_dev/status/1963982551208309222
-// const PixelSchema = S.pattern(/^\d{1,3}px$/)
-//   .with(S.to, S.number, parseInt)
-//   .with(S.lte, 100)
-//   .with(S.meta, {
-//     description: "A pixel value between 0 and 100",
-//   });
-
 // FIXME: Move the test to e2e
 // import { stringSchema } from "../genType/GenType.gen.js";
 
@@ -438,7 +429,7 @@ test("Fails to parses async schema", async (t) => {
     | "invalid_operation"
     | "unsupported_decode"
     | "invalid_conversion"
-    | "unrecognized_keys"
+    | "unrecognized_key"
   >();
 
   t.expect(result.error.code).toBe("invalid_conversion");

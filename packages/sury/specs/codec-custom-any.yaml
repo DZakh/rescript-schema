@@ -6,7 +6,7 @@ ts:
   instantiations: 4495
 jsonSchema:
   input: '{ type: "string" }'
-  output: Expected JSON, received unknown
+  output: "{}"
 vs:
   zod:
     _skip: not-applicable

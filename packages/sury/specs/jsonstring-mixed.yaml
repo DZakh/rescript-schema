@@ -5,7 +5,7 @@ ts:
   output: string
   instantiations: 6674
 jsonSchema:
-  input: "Failed at u: Expected JSON, received unknown"
+  input: "Failed at big: Expected JSON, received bigint"
   output: '{ type: "string", contentMediaType: "application/json" }'
   openapi-3.0:
     output: '{ type: "string" }'

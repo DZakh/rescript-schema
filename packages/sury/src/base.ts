@@ -249,18 +249,18 @@ export type InvalidConversionDetails = {
   to: Internal;
   cause?: unknown;
 }
-export type UnrecognizedKeysDetails = {
-  code: "unrecognized_keys";
+export type UnrecognizedKeyDetails = {
+  code: "unrecognized_key";
   path: Path;
   reason: string;
-  keys: string[];
+  key: string;
 }
 export type ErrorDetails =
   | InvalidInputDetails
   | InvalidOperationDetails
   | UnsupportedDecodeDetails
   | InvalidConversionDetails
-  | UnrecognizedKeysDetails;
+  | UnrecognizedKeyDetails;
 
 export type SuryErrorRecord = Record<string, unknown> & {
   message: string;

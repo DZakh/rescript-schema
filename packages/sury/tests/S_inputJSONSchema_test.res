@@ -761,8 +761,9 @@ test("Additional raw schema works with optional fields", t => {
   )
 })
 
-test("JSONSchema of unknown schema", t => {
-  t->U.assertThrowsMessage(() => S.unknown->S.inputJSONSchema, `Expected JSON, received unknown`)
+test("JSONSchema of unknown schema is the empty schema", t => {
+  t->Assert.deepEqual(S.unknown->S.inputJSONSchema, %raw(`{}`))
+  t->Assert.deepEqual(S.any->S.inputJSONSchema, %raw(`{}`))
 })
 
 test("JSON schema doesn't affect final schema", t => {

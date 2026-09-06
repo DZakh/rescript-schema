@@ -6,7 +6,7 @@ ts:
   instantiations: 5332
 jsonSchema:
   input: '{ anyOf: [{ type: "string" }, { type: "boolean" }] }'
-  output: Expected JSON, received unknown | boolean
+  output: '{ anyOf: [{}, { type: "boolean" }] }'
 vs:
   zod:
     _skip: not-applicable

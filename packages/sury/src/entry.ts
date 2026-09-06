@@ -86,12 +86,9 @@ import {
 export {
   string,
   bool as boolean,
-  bool,
   int as int32,
-  int,
   integer,
   float as number,
-  float,
   bigint,
   symbol,
   nan,
@@ -107,6 +104,7 @@ export { blob, file } from "./advanced/file";
 export { formData } from "./advanced/formData";
 export {
   isoDateTime,
+  utcDateTime,
   port,
   email,
   uuid,
@@ -169,7 +167,7 @@ export {
   safe,
   safeAsync,
 } from "./operations";
-export { array, dict, dict as record } from "./composites";
+export { array, dict as record } from "./composites";
 export { schemaObject as object, schemaShape as shape, schemaTuple as tuple } from "./factory";
 // `nullish` accepts null | undefined (the 3-member union) — distinct from
 // `nullable` below, which handles null only.

@@ -80,6 +80,12 @@ export const null_ = (item: Internal): Internal =>
 // Built-in refinements
 // =============
 
+// A bound belongs to the value a schema produces, so the asserts below resolve
+// the chain tail and hand it back for every read: `S.string.with(S.to,
+// S.number).with(S.lte, 100)` bounds the number. `updateOutput` already copies
+// to the tail; the reads have to follow it or the head's type is what gets
+// checked.
+//
 // One shape for every way a bound can be called wrong: which call, what it
 // wanted, what it got. What it wanted differs by which half is wrong — a bad
 // bound value is measured against the schema it is being applied to, a bad
@@ -98,7 +104,8 @@ const expects = (fnName: string, expected: string, got: string): string =>
 // A misused schema panics where a bad value raises a SuryError: fromJSONSchema
 // reads the panic as `never` (a document may legally describe an empty range)
 // and lets the SuryError through (a document with `minimum: "5"` is malformed).
-const assertNumericBound = (fnName: string, schema: Internal, value: unknown): void => {
+const assertNumericBound = (fnName: string, root: Internal, value: unknown): Internal => {
+  const schema = getOutputSchema(root);
   const tag = schema.type;
   if (tag !== numberTag && tag !== bigintTag) {
     panic(expects(fnName, "number | bigint schema", inputExpression(schema)));
@@ -110,12 +117,14 @@ const assertNumericBound = (fnName: string, schema: Internal, value: unknown): v
       reason: expects(fnName, inputExpression(schema), stringify(value)),
     });
   }
+  return schema;
 };
 
 // A length is a count, so a negative, fractional or infinite one describes a
 // schema nothing can satisfy — caught here rather than compiling to a check
 // like `i.length>Infinity` that silently rejects everything.
-const assertLengthBound = (fnName: string, schema: Internal, value: unknown): void => {
+const assertLengthBound = (fnName: string, root: Internal, value: unknown): Internal => {
+  const schema = getOutputSchema(root);
   if (schema.type !== stringTag && schema.type !== arrayTag) {
     panic(expects(fnName, "string | array schema", inputExpression(schema)));
   }
@@ -126,6 +135,7 @@ const assertLengthBound = (fnName: string, schema: Internal, value: unknown): vo
       reason: expects(fnName, "integer >= 0", stringify(value)),
     });
   }
+  return schema;
 };
 
 // Don't add a `.size` probe on the class: it gets the answer wrong both ways,
@@ -133,7 +143,8 @@ const assertLengthBound = (fnName: string, schema: Internal, value: unknown): vo
 // and rejects everything) and rejecting one that assigns `this.size` in its
 // constructor. The tag is what's knowable here; `TOutput extends { size:
 // number }` on the signatures covers the rest.
-const assertSizeBound = (fnName: string, schema: Internal, value: unknown): void => {
+const assertSizeBound = (fnName: string, root: Internal, value: unknown): Internal => {
+  const schema = getOutputSchema(root);
   if (schema.type !== instanceTag) {
     panic(expects(fnName, "instance schema", inputExpression(schema)));
   }
@@ -144,6 +155,7 @@ const assertSizeBound = (fnName: string, schema: Internal, value: unknown): void
       reason: expects(fnName, "integer >= 0", stringify(value)),
     });
   }
+  return schema;
 };
 
 // A bigint prints as bare digits, so the suffix goes back on to keep it a
@@ -558,14 +570,14 @@ const assertSize = (schema: Internal, value: number, upper: boolean): void => {
 };
 
 // @__NO_SIDE_EFFECTS__
-export const gte = (schema: Internal, minValue: number | bigint, maybeMessage?: string): Internal => {
-  assertNumericBound("gte", schema, minValue);
+export const gte = (root: Internal, minValue: number | bigint, maybeMessage?: string): Internal => {
+  const schema = assertNumericBound("gte", root, minValue);
   assertLower(schema, minValue, false);
   if (!narrowsLower(schema, minValue, false)) {
     const written = schema.bounds ?? 0;
-    return carryMessage(schema, written & 4 ? "exclusiveMinimum" : written & 1 ? "minimum" : U, maybeMessage);
+    return carryMessage(root, written & 4 ? "exclusiveMinimum" : written & 1 ? "minimum" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = ((schema.bounds ?? 0) & ~4) | 1;
     mut.minimum = minValue;
@@ -575,14 +587,14 @@ export const gte = (schema: Internal, minValue: number | bigint, maybeMessage?: 
 }
 
 // @__NO_SIDE_EFFECTS__
-export const lte = (schema: Internal, maxValue: number | bigint, maybeMessage?: string): Internal => {
-  assertNumericBound("lte", schema, maxValue);
+export const lte = (root: Internal, maxValue: number | bigint, maybeMessage?: string): Internal => {
+  const schema = assertNumericBound("lte", root, maxValue);
   assertUpper(schema, maxValue, false);
   if (!narrowsUpper(schema, maxValue, false)) {
     const written = schema.bounds ?? 0;
-    return carryMessage(schema, written & 8 ? "exclusiveMaximum" : written & 2 ? "maximum" : U, maybeMessage);
+    return carryMessage(root, written & 8 ? "exclusiveMaximum" : written & 2 ? "maximum" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = ((schema.bounds ?? 0) & ~8) | 2;
     mut.maximum = maxValue;
@@ -592,14 +604,14 @@ export const lte = (schema: Internal, maxValue: number | bigint, maybeMessage?: 
 }
 
 // @__NO_SIDE_EFFECTS__
-export const gt = (schema: Internal, minValue: number | bigint, maybeMessage?: string): Internal => {
-  assertNumericBound("gt", schema, minValue);
+export const gt = (root: Internal, minValue: number | bigint, maybeMessage?: string): Internal => {
+  const schema = assertNumericBound("gt", root, minValue);
   assertLower(schema, minValue, true);
   if (!narrowsLower(schema, minValue, true)) {
     const written = schema.bounds ?? 0;
-    return carryMessage(schema, written & 4 ? "exclusiveMinimum" : written & 1 ? "minimum" : U, maybeMessage);
+    return carryMessage(root, written & 4 ? "exclusiveMinimum" : written & 1 ? "minimum" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = ((schema.bounds ?? 0) & ~1) | 4;
     mut.exclusiveMinimum = minValue;
@@ -609,14 +621,14 @@ export const gt = (schema: Internal, minValue: number | bigint, maybeMessage?: s
 }
 
 // @__NO_SIDE_EFFECTS__
-export const lt = (schema: Internal, maxValue: number | bigint, maybeMessage?: string): Internal => {
-  assertNumericBound("lt", schema, maxValue);
+export const lt = (root: Internal, maxValue: number | bigint, maybeMessage?: string): Internal => {
+  const schema = assertNumericBound("lt", root, maxValue);
   assertUpper(schema, maxValue, true);
   if (!narrowsUpper(schema, maxValue, true)) {
     const written = schema.bounds ?? 0;
-    return carryMessage(schema, written & 8 ? "exclusiveMaximum" : written & 2 ? "maximum" : U, maybeMessage);
+    return carryMessage(root, written & 8 ? "exclusiveMaximum" : written & 2 ? "maximum" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = ((schema.bounds ?? 0) & ~2) | 8;
     mut.exclusiveMaximum = maxValue;
@@ -626,8 +638,8 @@ export const lt = (schema: Internal, maxValue: number | bigint, maybeMessage?: s
 }
 
 // @__NO_SIDE_EFFECTS__
-export const multipleOf = (schema: Internal, value: number | bigint, maybeMessage?: string): Internal => {
-  assertNumericBound("multipleOf", schema, value);
+export const multipleOf = (root: Internal, value: number | bigint, maybeMessage?: string): Internal => {
+  const schema = assertNumericBound("multipleOf", root, value);
   // JSON Schema requires a strictly positive divisor, and `x % Infinity`
   // (=== x) would compile to a check that rejects everything but 0.
   if ((value as number) <= 0 || (value as number) === Infinity) {
@@ -644,7 +656,7 @@ export const multipleOf = (schema: Internal, value: number | bigint, maybeMessag
   // A remainder is checked by truthiness, not `=== 0`: a bigint remainder is
   // `0n`, which `=== 0` never matches.
   const existing = schema.multipleOf as number | undefined;
-  if (existing !== U && !(existing % bound)) return carryMessage(schema, "multipleOf", maybeMessage);
+  if (existing !== U && !(existing % bound)) return carryMessage(root, "multipleOf", maybeMessage);
   let divisor: number | bigint = bound;
   if (existing !== U && bound % existing) {
     // Neither divisor implies the other: together they admit exactly the
@@ -670,7 +682,7 @@ export const multipleOf = (schema: Internal, value: number | bigint, maybeMessag
       refuse();
     }
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.multipleOf = divisor;
     setBoundMessage(mut, schema, "multipleOf", maybeMessage);
@@ -678,8 +690,8 @@ export const multipleOf = (schema: Internal, value: number | bigint, maybeMessag
 }
 
 // @__NO_SIDE_EFFECTS__
-export const minLength = (schema: Internal, length: number, maybeMessage?: string): Internal => {
-  assertLengthBound("minLength", schema, length);
+export const minLength = (root: Internal, length: number, maybeMessage?: string): Internal => {
+  const schema = assertLengthBound("minLength", root, length);
   assertSize(schema, length, false);
   const key = sizeKey(schema, false);
   if (!narrowsSize(schema[key], length, false)) {
@@ -690,13 +702,13 @@ export const minLength = (schema: Internal, length: number, maybeMessage?: strin
     // no rendering and no JSON Schema keyword follow it: the bit is what those
     // three read.
     if (length === 0 && schema.type === stringTag && schema[key] === U) {
-      return updateOutput(schema, (mut: Internal) => {
+      return updateOutput(root, (mut: Internal) => {
         mut[key] = 0;
       });
     }
-    return carryMessage(schema, (schema.bounds ?? 0) & 1 ? key : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 1 ? key : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 1;
     mut[key] = length;
@@ -705,14 +717,14 @@ export const minLength = (schema: Internal, length: number, maybeMessage?: strin
 }
 
 // @__NO_SIDE_EFFECTS__
-export const maxLength = (schema: Internal, length: number, maybeMessage?: string): Internal => {
-  assertLengthBound("maxLength", schema, length);
+export const maxLength = (root: Internal, length: number, maybeMessage?: string): Internal => {
+  const schema = assertLengthBound("maxLength", root, length);
   assertSize(schema, length, true);
   const key = sizeKey(schema, true);
   if (!narrowsSize(schema[key], length, true)) {
-    return carryMessage(schema, (schema.bounds ?? 0) & 2 ? key : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 2 ? key : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 2;
     mut[key] = length;
@@ -721,8 +733,8 @@ export const maxLength = (schema: Internal, length: number, maybeMessage?: strin
 }
 
 // @__NO_SIDE_EFFECTS__
-export const length = (schema: Internal, length: number, maybeMessage?: string): Internal => {
-  assertLengthBound("length", schema, length);
+export const length = (root: Internal, length: number, maybeMessage?: string): Internal => {
+  const schema = assertLengthBound("length", root, length);
   assertSize(schema, length, false);
   assertSize(schema, length, true);
   const minKey = sizeKey(schema, false);
@@ -732,9 +744,9 @@ export const length = (schema: Internal, length: number, maybeMessage?: string):
   // non-narrowing bound is for the others. The `===` check reports under
   // minKey, so that's where a message carries.
   if (schema[minKey] === length && schema[maxKey] === length) {
-    return carryMessage(schema, minKey, maybeMessage);
+    return carryMessage(root, minKey, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 3;
     mut[minKey] = length;
@@ -745,13 +757,13 @@ export const length = (schema: Internal, length: number, maybeMessage?: string):
 }
 
 // @__NO_SIDE_EFFECTS__
-export const minSize = (schema: Internal, size: number, maybeMessage?: string): Internal => {
-  assertSizeBound("minSize", schema, size);
+export const minSize = (root: Internal, size: number, maybeMessage?: string): Internal => {
+  const schema = assertSizeBound("minSize", root, size);
   assertSize(schema, size, false);
   if (!narrowsSize(schema.minSize, size, false)) {
-    return carryMessage(schema, (schema.bounds ?? 0) & 1 ? "minSize" : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 1 ? "minSize" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 1;
     mut.minSize = size;
@@ -760,13 +772,13 @@ export const minSize = (schema: Internal, size: number, maybeMessage?: string): 
 }
 
 // @__NO_SIDE_EFFECTS__
-export const maxSize = (schema: Internal, size: number, maybeMessage?: string): Internal => {
-  assertSizeBound("maxSize", schema, size);
+export const maxSize = (root: Internal, size: number, maybeMessage?: string): Internal => {
+  const schema = assertSizeBound("maxSize", root, size);
   assertSize(schema, size, true);
   if (!narrowsSize(schema.maxSize, size, true)) {
-    return carryMessage(schema, (schema.bounds ?? 0) & 2 ? "maxSize" : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 2 ? "maxSize" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 2;
     mut.maxSize = size;
@@ -775,14 +787,14 @@ export const maxSize = (schema: Internal, size: number, maybeMessage?: string): 
 }
 
 // @__NO_SIDE_EFFECTS__
-export const size = (schema: Internal, size: number, maybeMessage?: string): Internal => {
-  assertSizeBound("size", schema, size);
+export const size = (root: Internal, size: number, maybeMessage?: string): Internal => {
+  const schema = assertSizeBound("size", root, size);
   assertSize(schema, size, false);
   assertSize(schema, size, true);
   if (schema.minSize === size && schema.maxSize === size) {
-    return carryMessage(schema, "minSize", maybeMessage);
+    return carryMessage(root, "minSize", maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 3;
     mut.minSize = size;
@@ -874,15 +886,19 @@ const datePattern =
 // touching either; bit 2 lets a length bound trust `.length`, so it belongs
 // only on a pattern that admits no astral character.
 // @__NO_SIDE_EFFECTS__
+// `expression` names the format in messages when the format name alone would
+// misread: it goes through the same `Expected X, received Y` as every other
+// failure rather than replacing the whole reason.
 const stringFormat = (
   format: StringFormat,
   test: RegExp | string | ((value: string) => boolean),
   flag?: number,
-  message?: string,
+  expression?: string,
 ): Internal =>
   initSchema(stringTag, stringDecoderFn, (s) => {
     const re = typeof test === "string" ? new RegExp(test, "i") : test;
     s.format = format;
+    if (expression) s.expression = () => expression;
     // Conditional so an unflagged format carries no key at all: schemas are
     // printed by consumers, and `formatFlag: undefined` is noise on every one.
     if (flag) {
@@ -893,7 +909,7 @@ const stringFormat = (
         {
           c: (inputVar) =>
             `${B_embed(input, re)}${re instanceof RegExp ? ".test" : ""}(${inputVar})`,
-          f: B_failWithErrorMessage("format", message),
+          f: B_failWithErrorMessage("format"),
         },
       ];
     };
@@ -917,31 +933,68 @@ const patternFormat = (
   format: StringFormat,
   source: RegExp | string,
   flag?: number,
+  expression?: string,
 ): Internal => {
   const re = typeof source === stringTag ? new RegExp(source as string) : (source as RegExp);
-  const schema = stringFormat(format, re, flag);
+  const schema = stringFormat(format, re, flag, expression);
   schema.pattern = re;
   return schema;
 };
 
-// UTC-only by choice, which is narrower than the JSON Schema `date-time`
-// format: an RFC 3339 offset like +02:00 is rejected. Hence the name — a
-// rejected `+02:00` timestamp IS a date-time, so `Expected date-time` would
-// read as a bug. That fixed Z is also why second 60 can be spelled out here —
-// it is legal only at 23:59:60 in UTC, where `isoTime` has to do the offset
-// arithmetic to know.
+// The RFC 3339 time-of-day with its zone, unanchored. Groups: hour, minute,
+// second, offset sign, offset hour, offset minute — what the leap-second check
+// below reads, so a pattern built on this must add no capturing group of its
+// own.
+const timeBody =
+  "([01]\\d|2[0-3]):([0-5]\\d):([0-5]\\d|60)(?:\\.\\d+)?(?:[Zz]|([+-])([01]\\d|2[0-3]):([0-5]\\d))";
+
+// RFC 3339 permits second 60 only on a leap-second boundary, which is 23:59:60
+// *in UTC* — so 01:29:60+01:30 is valid and 23:59:60+01:00 is not. The offset
+// has to be applied before the check, which no regex can do.
+// Capturing groups slow `test` down by a third, so the hot path runs a
+// group-free copy of the pattern, and only a value whose seconds start with a
+// 6 — second 60 is the one such spelling — pays for the capturing `exec`.
+// `secondsAt` is where the seconds sit in the anchored pattern.
+const leapSecondValidator = (re: RegExp, secondsAt: number) => {
+  const fast = new RegExp(re.source.replace(/\((?!\?)/g, "(?:"));
+  return (value: string): boolean => {
+    if (!fast.test(value)) {
+      return false;
+    }
+    if (value.charCodeAt(secondsAt) !== 54) {
+      return true;
+    }
+    const m = re.exec(value)!;
+    const sign = m[4] === "-" ? -1 : 1;
+    const minutes =
+      (+m[1]! - sign * +(m[5] || 0)) * 60 + (+m[2]! - sign * +(m[6] || 0));
+    return ((minutes % 1440) + 1440) % 1440 === 1439;
+  };
+};
+
+// The JSON Schema `date-time` format exactly: `Z` or an offset.
 export const isoDateTime: Internal = /* @__PURE__ */ stringFormat(
+  "date-time",
+  /* @__PURE__ */ leapSecondValidator(
+    /* @__PURE__ */ new RegExp(/* @__PURE__ */ anchor(datePattern, "[Tt]", timeBody)),
+    17,
+  ),
+  3,
+);
+
+// UTC only, so narrower than the `date-time` it emits: the `Z`-only regex
+// travels as `pattern` beside the format, and fromJSONSchema reads the pair
+// back as this schema. Named in messages, since a rejected `+02:00` timestamp
+// IS a date-time and `Expected date-time` would read as a bug. A fixed `Z` is
+// what lets second 60 be spelled out as 23:59:60 with no arithmetic.
+export const utcDateTime: Internal = /* @__PURE__ */ patternFormat(
   "date-time",
   /* @__PURE__ */ anchor(
     datePattern,
     "[Tt](?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d|23:59:60)(?:\\.\\d+)?[Zz]",
   ),
   3,
-  // The lone built-in default: `Expected date-time` would read as a bug, since
-  // a rejected `+02:00` timestamp IS a date-time. Phrased like the generic
-  // failure it replaces, minus the `received` half a message can't carry —
-  // see IDEAS.md.
-  "Expected UTC date-time",
+  "UTC date-time",
 );
 
 // The range as real bound fields, for the reason int32 carries its own. The
@@ -1311,25 +1364,11 @@ export const isoDate: Internal = /* @__PURE__ */ stringFormat(
   3,
 );
 
-// RFC 3339 permits second 60 only on a leap-second boundary, which is 23:59:60
-// *in UTC* — so 01:29:60+01:30 is valid and 23:59:60+01:00 is not. The offset
-// has to be applied before the check, which no regex can do.
-const timeRe =
-  /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d|60)(?:\.\d+)?(?:[Zz]|([+-])([01]\d|2[0-3]):([0-5]\d))$/;
-const timeValidator = (value: string) => {
-  const m = timeRe.exec(value);
-  if (!m) {
-    return false;
-  }
-  if (m[3] !== "60") {
-    return true;
-  }
-  const sign = m[4] === "-" ? -1 : 1;
-  const minutes =
-    (+m[1]! - sign * +(m[5] || 0)) * 60 + (+m[2]! - sign * +(m[6] || 0));
-  return ((minutes % 1440) + 1440) % 1440 === 1439;
-};
-export const isoTime: Internal = /* @__PURE__ */ stringFormat("time", timeValidator, 2);
+export const isoTime: Internal = /* @__PURE__ */ stringFormat(
+  "time",
+  /* @__PURE__ */ leapSecondValidator(/* @__PURE__ */ new RegExp(/* @__PURE__ */ anchor(timeBody)), 6),
+  2,
+);
 
 // RFC 3339 Appendix A nests the components rather than making each one
 // independently optional, so P1Y2D and PT1H2S are invalid — a unit may only

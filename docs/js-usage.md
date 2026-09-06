@@ -428,7 +428,7 @@ Length bounds count Unicode code points, the unit JSON Schema's `minLength`/`max
 
 For format-specific validation, use the standalone schemas — see [String formats](#string-formats) below.
 
-> For ISO 8601 UTC datetime strings use the dedicated standalone `S.isoDateTime` schema — see [ISO datetimes](#iso-datetimes) below.
+> For RFC 3339 datetime strings use the dedicated standalone `S.isoDateTime` schema, or `S.utcDateTime` when only `Z` is acceptable — see [ISO datetimes](#iso-datetimes) below.
 
 > ⚠️ Validating email addresses is nearly impossible with just code. Different clients and servers accept different things and many diverge from the various specs defining "valid" emails. The ONLY real way to validate an email address is to send a verification email to it and check that the user got it. With that in mind, Sury picks a relatively simple regex that does not cover all cases.
 
@@ -473,7 +473,8 @@ S.ipv4; // IPv4 address
 S.ipv6; // IPv6 address
 S.isoDate; // Calendar date
 S.isoTime; // Time of day
-S.isoDateTime; // UTC timestamp
+S.isoDateTime; // Timestamp, Z or offset
+S.utcDateTime; // Timestamp, Z only
 S.duration; // Duration
 S.jsonPointer; // JSON Pointer
 S.relativeJsonPointer; // Relative JSON Pointer
@@ -562,17 +563,18 @@ Available keys: `format`, `type`, `minimum`, `maximum`, `minLength`, `maxLength`
 
 ### ISO datetimes
 
-`S.isoDateTime` is a **standalone** string schema (`S.Schema<string, string>`) that validates ISO 8601 UTC datetime strings: no timezone offsets allowed, with arbitrary sub-second decimal precision.
+`S.isoDateTime` is a **standalone** string schema (`S.Schema<string, string>`) that validates RFC 3339 datetime strings, exactly what the JSON Schema `date-time` format means: a `Z` or a timezone offset, with arbitrary sub-second decimal precision. `S.utcDateTime` is the same grammar with only `Z` allowed.
 
 ```ts
-const schema = S.isoDateTime;
-// schema has the type S.Schema<string, string>
+S.parser(S.isoDateTime)("2020-01-01T00:00:00Z"); // pass
+S.parser(S.isoDateTime)("2020-01-01T00:00:00.123456Z"); // pass (arbitrary precision)
+S.parser(S.isoDateTime)("2020-01-01T00:00:00+02:00"); // pass
 
-S.parser(schema)("2020-01-01T00:00:00Z"); // pass
-S.parser(schema)("2020-01-01T00:00:00.123Z"); // pass
-S.parser(schema)("2020-01-01T00:00:00.123456Z"); // pass (arbitrary precision)
-S.parser(schema)("2020-01-01T00:00:00+02:00"); // fail (no offsets allowed)
+S.parser(S.utcDateTime)("2020-01-01T00:00:00Z"); // pass
+S.parser(S.utcDateTime)("2020-01-01T00:00:00+02:00"); // throws: Expected UTC date-time, received "2020-01-01T00:00:00+02:00"
 ```
+
+Both emit `format: "date-time"`. `S.utcDateTime` adds a `pattern` pinning the `Z`, so its document reads back as `S.utcDateTime` through `S.fromJSONSchema`.
 
 To decode an ISO datetime string into a `Date`, chain it with `.with(S.to, S.date)`:
 
@@ -1103,7 +1105,7 @@ S.parser(schema)("2020-01-01T00:00:00Z"); // "2020-01-01T00:00:00Z"
 S.parser(schema)("not-a-date"); // throws
 ```
 
-Standalone string schema that validates ISO 8601 UTC datetime strings. See also [ISO datetimes](#iso-datetimes) under Strings for more details and examples.
+Standalone string schema that validates RFC 3339 datetime strings; `S.utcDateTime` allows only `Z`. See also [ISO datetimes](#iso-datetimes) under Strings for more details and examples.
 
 ## Instance
 
@@ -1361,6 +1363,8 @@ documentedStringSchema.description; // A useful bit of text...
 ```
 
 This can be useful for documenting fields, generating JSON, etc.
+
+`examples` are written in the schema's **Output** type, the same as a default passed to `S.optional`. Both are validated and stored in the **Input** type, so `schema.examples` and `schema.default` read back in wire form and land in the JSON Schema of the input side as they are; the output side's document decodes them back.
 
 ```ts
 S.inputJSONSchema(documentedStringSchema);
@@ -1648,7 +1652,7 @@ Every compiled operation takes the schema and returns a function: `(schema) => (
 - `S.decoder(schema)`: `(data: TInput) => TOutput`
 - `S.asyncDecoder(schema)`: `(data: TInput) => Promise<TOutput>`
 
-`S.noValidation(schema, true)` turns type validations off for a schema even under a parse.
+`S.noValidation(schema, true)` turns type validations off for a schema even under a parse. The value is trusted as it stands, including what it renders to: a `Date` under `S.jsonString` is spliced straight from `toISOString()` with no escaping, so a value that isn't a real `Date` there produces whatever text its method returns.
 
 **Encode** — the reverse direction, exactly `S.decoder` applied to `S.reverse(schema)`:
 
@@ -1930,11 +1934,29 @@ The output side is derived through [`reverse`](#reverse), so nested transforms a
 
 ## Error handling
 
-**Sury** throws `S.Error` which is a subclass of Error class. It contains detailed information about the operation problem.
+**Sury** throws `S.Error`, a subclass of `Error` named `SuryError`, so `instanceof` and `stack` work as usual. Every error carries:
+
+- `path` - where the failure happened, as an array of keys and indices from the root of the value (`[]` at the root, `["items", 0]` inside). `S.pathToText(path)` renders it as `items[0]`.
+- `reason` - the failure itself, without the path: `Expected string, received undefined`.
+- `message` - `reason` prefixed with the path when there is one: `Failed at items[0]: Expected string, received undefined`.
+- `code` - which kind of failure, with extra fields per kind:
+  - `"invalid_input"` - the value doesn't match. `expected` and `received` are schemas describing both sides, `input` is the value, and `unionErrors` lists each member's failure when a union rejected it.
+  - `"unrecognized_key"` - a `strict` object saw a key it doesn't declare, named in `key`. One key per error.
+  - `"invalid_conversion"` - a custom `decode`/`encode` threw. `from`/`to` are the schemas and `cause` is what it threw.
+  - `"unsupported_decode"` - the two schemas have no conversion between them. See [When a conversion is rejected](#when-a-conversion-is-rejected).
+  - `"invalid_operation"` - the schema itself can't run this way, such as an async schema under a sync parser.
 
 ```ts
-S.parser(S.schema(false))(true);
-// => Throws S.Error with the following message: Expected false, received true".
+try {
+  S.parser(S.schema({ items: S.array(S.string) }))({ items: ["a", 1] });
+} catch (e) {
+  if (e instanceof S.Error) {
+    e.message; // => 'Failed at items[1]: Expected string, received 1'
+    e.reason; // => 'Expected string, received 1'
+    e.path; // => ["items", 1]
+    e.code; // => "invalid_input"
+  }
+}
 ```
 
 You can catch the error using `S.safe` and `S.safeAsync` helpers:

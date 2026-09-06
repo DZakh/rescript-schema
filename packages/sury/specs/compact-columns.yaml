@@ -5,7 +5,8 @@ ts:
   output: "{ id: number; name: string; }[]"
   instantiations: 6247
 jsonSchema:
-  input: "Failed at [][]: Expected JSON, received unknown"
+  input: '{ items: { items: {}, type: "array" }, type: "array" }'
+  fromInputType: JSON[][]
   output: '{ items: { type: "object", properties: { id: { type: "number" }, name: { type: "string" } }, required: ["id", "name"] }, type: "array" }'
 vs:
   zod:

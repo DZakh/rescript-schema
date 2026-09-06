@@ -583,11 +583,14 @@ export const meta = <TValue>(schema: Internal, data: Meta<TValue>): Internal => 
     if (data.examples.length === 0) {
       delete mut.examples;
     } else {
-      // A never or async encode makes the input-form examples uncomputable,
-      // so skip them rather than throw. Only the operation-level rejection is
-      // absorbed; a per-value failure still names the author's bad example.
+      // A full parse through the reversed schema: the example is checked as an
+      // output value and stored in its input form. A never or async encode
+      // makes that uncomputable, so it is skipped rather than thrown; a
+      // per-value failure still names the author's bad example.
       try {
-        mut.examples = data.examples.map(getDecoder(reverse(schema)));
+        mut.examples = data.examples.map(
+          getDecoder(unknown, reverse(schema)) as (input: unknown) => unknown,
+        );
       } catch (exn) {
         if ((getOrRethrow(exn) as unknown as { code: string }).code !== "invalid_operation") {
           throw exn;

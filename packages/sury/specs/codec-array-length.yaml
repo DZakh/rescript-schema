@@ -6,7 +6,8 @@ ts:
   instantiations: 1414
 jsonSchema:
   input: '{ items: { type: "string" }, type: "array" }'
-  output: "Failed at []: Expected JSON, received unknown"
+  output: '{ items: {}, type: "array", minItems: 2, maxItems: 2 }'
+  fromOutputType: "[JSON, JSON]"
 vs:
   zod:
     _skip: not-applicable
