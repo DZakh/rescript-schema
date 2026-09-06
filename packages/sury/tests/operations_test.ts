@@ -272,7 +272,7 @@ test("make validates and hands back the value it was given", () => {
 
 test("make compiles to the checks plus the value, with no wrapper", () => {
   expect(S.makeInputOrThrow(user).toString()).toMatchInlineSnapshot(
-    `"i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i["id"];typeof v0==="string"||e[0](v0);return i}"`,
+    `"i=>{let v1=i;typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i["id"];typeof v0==="string"||e[0](v0);return v1}"`,
   );
   // Nothing to check: the operation is the identity itself.
   expect(S.makeInputOrThrow(S.unknown)).toBe(S.parseOrThrow(S.unknown));
@@ -361,4 +361,19 @@ test("what an operation compiles to depends on its flag, never on call order", (
   const after = S.parseAsPromiseOrReject(S.schema({ id: S.string })).toString();
   expect(after).toBe(before);
   expect(before).toContain("Promise.reject");
+});
+
+test("make hands back the value it was given, even when the body rebinds it", () => {
+  // A union rebinds the operation's parameter while dispatching, so `return i`
+  // would answer with the encoded form rather than the value handed in.
+  const toNumber = S.string.with(S.to, S.number, { decode: Number, encode: String });
+  const union = S.union([toNumber, S.boolean]);
+  expect(S.makeOutputOrThrow(union, 5)).toBe(5);
+  expect(S.makeOutputAsResult(union, 5)).toEqual({ success: true, value: 5, error: undefined });
+  expect(S.makeOutputOrThrow(union).toString()).toMatchInlineSnapshot(
+    `"i=>{let v1=i;for(;;){if(typeof i==="number"&&i===i){let v0;try{v0=e[0](i)}catch(x){e[1](x)}typeof v0==="string"||e[2](v0);i=v0;break}if(typeof i==="boolean")break;e[3](i)}return v1}"`,
+  );
+  // Nothing to run means nothing can rebind, so the extra binding isn't there
+  // and the operation still reads as the identity.
+  expect(S.makeInputOrThrow(S.unknown)).toBe(S.parseOrThrow(S.unknown));
 });

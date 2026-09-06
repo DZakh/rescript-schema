@@ -56,12 +56,6 @@ export const assertOrThrow = (any: unknown, schema: Internal): void => {
 // has been reached. Plain throw mode still delegates to `throwTail`, so the
 // throw path's generated code is byte-for-byte what it always was.
 
-// What the operation yields on success, as an expression in the generated body.
-// 256 (`makeInput`/`makeOutput`) discards the checks' result and hands back the
-// value it was given; 512 (`isInput`/`isOutput`) answers `true`.
-const okValue = (flag: Flag, out: string): string =>
-  flag & 4096 ? "true" : flag & 2048 ? operationArgVar : out;
-
 // The two Result shapes: 8 the JS `Result`, 16 ReScript's
 // `result<'value, S.error>`. The Standard Schema shape (128) is emitted by
 // `throwTail` instead — see the comment there.
@@ -94,18 +88,28 @@ const rethrowUnlessSury = (flag: Flag, e: string, toPromise: boolean): string =>
 };
 
 const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
-  // No answer of its own for a failure — the exception still is the answer.
-  // 256 only changes what a success yields, so `throwTail` still decides the
-  // identity case and the promise lift.
+  // 2048 (`makeInput`/`makeOutput`) hands back the value it was given, and the
+  // operation's parameter is not that value once the body has run: a union
+  // rebinds it while dispatching, so `return i` would answer with the encoded
+  // form. Bound before the body instead — except when there is no body, where
+  // the parameter is still the value and the extra `let` would only make an
+  // identity operation stop looking like one.
+  let value = out;
+  if (flag & 2048) {
+    if (code === "") {
+      value = operationArgVar;
+    } else {
+      value = B_varWithoutAllocation(input.g);
+      code = `let ${value}=${operationArgVar};${code}`;
+    }
+  }
+  // No answer of its own for a failure — the exception still is the answer, so
+  // `throwTail` still decides the identity case and the promise lift.
   if (!(flag & (128 | 256 | 4096))) {
     return throwTail(
       input,
       code,
-      flag & 2048
-        ? isAsync
-          ? `${out}.then(()=>${operationArgVar})`
-          : operationArgVar
-        : out,
+      flag & 2048 && isAsync ? `${out}.then(()=>${value})` : value,
       isAsync,
       flag,
       hasDefs,
@@ -115,8 +119,9 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
   // asks for the value's own shape instead.
   const toPromise = !!(flag & 1) && !(flag & 512) && !hasDefs;
   const errVar = B_varWithoutAllocation(input.g);
-  const valueVar = isAsync ? B_varWithoutAllocation(input.g) : out;
-  const success = okResult(flag, okValue(flag, valueVar));
+  // 4096 (`isInput`/`isOutput`) answers `true`; 2048 already picked its value.
+  const valueVar = isAsync ? B_varWithoutAllocation(input.g) : value;
+  const success = okResult(flag, flag & 4096 ? "true" : flag & 2048 ? value : valueVar);
   const body = isAsync
     ? // Inlined into the promise chain the operation already builds, rather
       // than wrapped around it.
