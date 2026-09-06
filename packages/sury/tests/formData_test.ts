@@ -285,6 +285,19 @@ test("a repeated key is a list, so a boolean list is positional", () => {
   expect(S.decoder(schema)(encoded)).toEqual({ flags: [true, false, true] });
 });
 
+test("a repeated key of a union item encodes once per item", () => {
+  // The conversion merges its own chain and the loop merges the item, so
+  // compiling both on the same val emitted the union's dispatch `let` twice
+  // and the operation failed to build at all.
+  const schema = S.formData.with(S.to, S.schema({ picks: S.array(S.union(["a", "b"])) }));
+  expect(entries(S.encoder(schema)({ picks: ["a", "b", "a"] }))).toEqual([
+    ["picks", "a"],
+    ["picks", "b"],
+    ["picks", "a"],
+  ]);
+  expect(S.decoder(schema)(form(["picks", "a"], ["picks", "b"]))).toEqual({ picks: ["a", "b"] });
+});
+
 test("a nullable checkbox reads an absent box as null", () => {
   // Without it the `null` arm would be unreachable: nothing a form submits
   // reads as null, so absence is the only thing left to carry it.

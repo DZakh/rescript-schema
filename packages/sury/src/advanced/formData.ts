@@ -330,7 +330,10 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     // Built before the merge, not inside its callback: `B_mergeWithCatch` runs
     // the merge first, so a var this materializes on the item afterwards would
     // have its `let` dropped and the loop body would read an undeclared name.
-    const appendCode = appendValue(itemVal, fdVar, keyText, true);
+    // On a scope of the item, not the item: the conversion merges its own
+    // chain, and `B_mergeWithPathPrepend` below merges the item — the same val
+    // in both would emit a union's dispatch `let` twice.
+    const appendCode = appendValue(B_scope(itemVal), fdVar, keyText, true);
     const itemCode = B_mergeWithPathPrepend(
       itemVal,
       val,
