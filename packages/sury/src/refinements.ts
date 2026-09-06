@@ -80,6 +80,12 @@ export const null_ = (item: Internal): Internal =>
 // Built-in refinements
 // =============
 
+// A bound belongs to the value a schema produces, so the asserts below resolve
+// the chain tail and hand it back for every read: `S.string.with(S.to,
+// S.number).with(S.lte, 100)` bounds the number. `updateOutput` already copies
+// to the tail; the reads have to follow it or the head's type is what gets
+// checked.
+//
 // One shape for every way a bound can be called wrong: which call, what it
 // wanted, what it got. What it wanted differs by which half is wrong — a bad
 // bound value is measured against the schema it is being applied to, a bad
@@ -98,7 +104,8 @@ const expects = (fnName: string, expected: string, got: string): string =>
 // A misused schema panics where a bad value raises a SuryError: fromJSONSchema
 // reads the panic as `never` (a document may legally describe an empty range)
 // and lets the SuryError through (a document with `minimum: "5"` is malformed).
-const assertNumericBound = (fnName: string, schema: Internal, value: unknown): void => {
+const assertNumericBound = (fnName: string, root: Internal, value: unknown): Internal => {
+  const schema = getOutputSchema(root);
   const tag = schema.type;
   if (tag !== numberTag && tag !== bigintTag) {
     panic(expects(fnName, "number | bigint schema", inputExpression(schema)));
@@ -110,12 +117,14 @@ const assertNumericBound = (fnName: string, schema: Internal, value: unknown): v
       reason: expects(fnName, inputExpression(schema), stringify(value)),
     });
   }
+  return schema;
 };
 
 // A length is a count, so a negative, fractional or infinite one describes a
 // schema nothing can satisfy — caught here rather than compiling to a check
 // like `i.length>Infinity` that silently rejects everything.
-const assertLengthBound = (fnName: string, schema: Internal, value: unknown): void => {
+const assertLengthBound = (fnName: string, root: Internal, value: unknown): Internal => {
+  const schema = getOutputSchema(root);
   if (schema.type !== stringTag && schema.type !== arrayTag) {
     panic(expects(fnName, "string | array schema", inputExpression(schema)));
   }
@@ -126,6 +135,7 @@ const assertLengthBound = (fnName: string, schema: Internal, value: unknown): vo
       reason: expects(fnName, "integer >= 0", stringify(value)),
     });
   }
+  return schema;
 };
 
 // Don't add a `.size` probe on the class: it gets the answer wrong both ways,
@@ -133,7 +143,8 @@ const assertLengthBound = (fnName: string, schema: Internal, value: unknown): vo
 // and rejects everything) and rejecting one that assigns `this.size` in its
 // constructor. The tag is what's knowable here; `TOutput extends { size:
 // number }` on the signatures covers the rest.
-const assertSizeBound = (fnName: string, schema: Internal, value: unknown): void => {
+const assertSizeBound = (fnName: string, root: Internal, value: unknown): Internal => {
+  const schema = getOutputSchema(root);
   if (schema.type !== instanceTag) {
     panic(expects(fnName, "instance schema", inputExpression(schema)));
   }
@@ -144,6 +155,7 @@ const assertSizeBound = (fnName: string, schema: Internal, value: unknown): void
       reason: expects(fnName, "integer >= 0", stringify(value)),
     });
   }
+  return schema;
 };
 
 // A bigint prints as bare digits, so the suffix goes back on to keep it a
@@ -285,11 +297,6 @@ const B_codePointLength = (s: string): number => {
   return n;
 };
 
-// A bound belongs to the value a schema produces, so every helper below reads
-// and writes the chain tail: `S.string.with(S.to, S.number).with(S.lte, 100)`
-// bounds the number. `updateOutput` already copies to the tail; the reads have
-// to follow it or the head's type is what gets checked.
-//
 // One refiner serves every bound and divisor on a schema, reading the fields
 // at codegen time instead of closing over the value each call captured. That
 // is what lets a narrowing call *replace* a check rather than stack a second
@@ -564,8 +571,7 @@ const assertSize = (schema: Internal, value: number, upper: boolean): void => {
 
 // @__NO_SIDE_EFFECTS__
 export const gte = (root: Internal, minValue: number | bigint, maybeMessage?: string): Internal => {
-  const schema = getOutputSchema(root);
-  assertNumericBound("gte", schema, minValue);
+  const schema = assertNumericBound("gte", root, minValue);
   assertLower(schema, minValue, false);
   if (!narrowsLower(schema, minValue, false)) {
     const written = schema.bounds ?? 0;
@@ -582,8 +588,7 @@ export const gte = (root: Internal, minValue: number | bigint, maybeMessage?: st
 
 // @__NO_SIDE_EFFECTS__
 export const lte = (root: Internal, maxValue: number | bigint, maybeMessage?: string): Internal => {
-  const schema = getOutputSchema(root);
-  assertNumericBound("lte", schema, maxValue);
+  const schema = assertNumericBound("lte", root, maxValue);
   assertUpper(schema, maxValue, false);
   if (!narrowsUpper(schema, maxValue, false)) {
     const written = schema.bounds ?? 0;
@@ -600,8 +605,7 @@ export const lte = (root: Internal, maxValue: number | bigint, maybeMessage?: st
 
 // @__NO_SIDE_EFFECTS__
 export const gt = (root: Internal, minValue: number | bigint, maybeMessage?: string): Internal => {
-  const schema = getOutputSchema(root);
-  assertNumericBound("gt", schema, minValue);
+  const schema = assertNumericBound("gt", root, minValue);
   assertLower(schema, minValue, true);
   if (!narrowsLower(schema, minValue, true)) {
     const written = schema.bounds ?? 0;
@@ -618,8 +622,7 @@ export const gt = (root: Internal, minValue: number | bigint, maybeMessage?: str
 
 // @__NO_SIDE_EFFECTS__
 export const lt = (root: Internal, maxValue: number | bigint, maybeMessage?: string): Internal => {
-  const schema = getOutputSchema(root);
-  assertNumericBound("lt", schema, maxValue);
+  const schema = assertNumericBound("lt", root, maxValue);
   assertUpper(schema, maxValue, true);
   if (!narrowsUpper(schema, maxValue, true)) {
     const written = schema.bounds ?? 0;
@@ -636,8 +639,7 @@ export const lt = (root: Internal, maxValue: number | bigint, maybeMessage?: str
 
 // @__NO_SIDE_EFFECTS__
 export const multipleOf = (root: Internal, value: number | bigint, maybeMessage?: string): Internal => {
-  const schema = getOutputSchema(root);
-  assertNumericBound("multipleOf", schema, value);
+  const schema = assertNumericBound("multipleOf", root, value);
   // JSON Schema requires a strictly positive divisor, and `x % Infinity`
   // (=== x) would compile to a check that rejects everything but 0.
   if ((value as number) <= 0 || (value as number) === Infinity) {
@@ -689,8 +691,7 @@ export const multipleOf = (root: Internal, value: number | bigint, maybeMessage?
 
 // @__NO_SIDE_EFFECTS__
 export const minLength = (root: Internal, length: number, maybeMessage?: string): Internal => {
-  const schema = getOutputSchema(root);
-  assertLengthBound("minLength", schema, length);
+  const schema = assertLengthBound("minLength", root, length);
   assertSize(schema, length, false);
   const key = sizeKey(schema, false);
   if (!narrowsSize(schema[key], length, false)) {
@@ -706,8 +707,7 @@ export const minLength = (root: Internal, length: number, maybeMessage?: string)
 
 // @__NO_SIDE_EFFECTS__
 export const maxLength = (root: Internal, length: number, maybeMessage?: string): Internal => {
-  const schema = getOutputSchema(root);
-  assertLengthBound("maxLength", schema, length);
+  const schema = assertLengthBound("maxLength", root, length);
   assertSize(schema, length, true);
   const key = sizeKey(schema, true);
   if (!narrowsSize(schema[key], length, true)) {
@@ -723,8 +723,7 @@ export const maxLength = (root: Internal, length: number, maybeMessage?: string)
 
 // @__NO_SIDE_EFFECTS__
 export const length = (root: Internal, length: number, maybeMessage?: string): Internal => {
-  const schema = getOutputSchema(root);
-  assertLengthBound("length", schema, length);
+  const schema = assertLengthBound("length", root, length);
   assertSize(schema, length, false);
   assertSize(schema, length, true);
   const minKey = sizeKey(schema, false);
@@ -748,8 +747,7 @@ export const length = (root: Internal, length: number, maybeMessage?: string): I
 
 // @__NO_SIDE_EFFECTS__
 export const minSize = (root: Internal, size: number, maybeMessage?: string): Internal => {
-  const schema = getOutputSchema(root);
-  assertSizeBound("minSize", schema, size);
+  const schema = assertSizeBound("minSize", root, size);
   assertSize(schema, size, false);
   if (!narrowsSize(schema.minSize, size, false)) {
     return carryMessage(root, (schema.bounds ?? 0) & 1 ? "minSize" : U, maybeMessage);
@@ -764,8 +762,7 @@ export const minSize = (root: Internal, size: number, maybeMessage?: string): In
 
 // @__NO_SIDE_EFFECTS__
 export const maxSize = (root: Internal, size: number, maybeMessage?: string): Internal => {
-  const schema = getOutputSchema(root);
-  assertSizeBound("maxSize", schema, size);
+  const schema = assertSizeBound("maxSize", root, size);
   assertSize(schema, size, true);
   if (!narrowsSize(schema.maxSize, size, true)) {
     return carryMessage(root, (schema.bounds ?? 0) & 2 ? "maxSize" : U, maybeMessage);
@@ -780,8 +777,7 @@ export const maxSize = (root: Internal, size: number, maybeMessage?: string): In
 
 // @__NO_SIDE_EFFECTS__
 export const size = (root: Internal, size: number, maybeMessage?: string): Internal => {
-  const schema = getOutputSchema(root);
-  assertSizeBound("size", schema, size);
+  const schema = assertSizeBound("size", root, size);
   assertSize(schema, size, false);
   assertSize(schema, size, true);
   if (schema.minSize === size && schema.maxSize === size) {
