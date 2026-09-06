@@ -100,16 +100,16 @@ test("a browser submission decodes field by field", () => {
   const schema = S.formData.with(
     S.to,
     S.schema({
-      name: S.string,
-      blank: S.string,
-      padded: S.string,
-      bio: S.string,
+      name: S.string.with(S.nonEmpty),
+      blank: S.string.with(S.minLength, 0),
+      padded: S.string.with(S.minLength, 0),
+      bio: S.string.with(S.minLength, 0),
       age: S.number,
       agree: S.boolean,
       unchecked: S.boolean,
       plan: S.union(["free", "pro"]),
       tags: S.array(S.string),
-      single: S.string,
+      single: S.string.with(S.nonEmpty),
       none: S.array(S.string),
       dated: S.string.with(S.to, S.date),
       rng: S.number,
@@ -118,8 +118,7 @@ test("a browser submission decodes field by field", () => {
   );
   expect(S.decoder(schema)(submitted())).toEqual({
     name: "Ann",
-    // A required string takes the empty entry as the value it is; `S.nonEmpty`
-    // is how a schema rejects it.
+    // `S.minLength(0)` is how the schema says the empty entry is a value.
     blank: "",
     // Never trimmed — `S.trim` is the opt-in.
     padded: "  spaced  ",
@@ -145,7 +144,16 @@ test("a blank entry is absent for an optional field, and its own value otherwise
   );
   expect(S.decoder(optional)(submitted())).toEqual({ blank: undefined, blankNumber: 7 });
 
-  // Required, so each target answers for itself rather than reporting absence.
+  // A required string must say which it means, and each spelling then answers
+  // for itself.
+  expect(() => S.decoder(S.formData.with(S.to, S.schema({ blank: S.string })))).toThrow(
+    'A form submits "" for a blank field',
+  );
+  expect(
+    S.decoder(S.formData.with(S.to, S.schema({ blank: S.string.with(S.minLength, 0) })))(
+      submitted(),
+    ),
+  ).toEqual({ blank: "" });
   expect(() =>
     S.decoder(S.formData.with(S.to, S.schema({ blank: S.string.with(S.nonEmpty) })))(submitted()),
   ).toThrow('Failed at blank: Expected string.length >= 1, received ""');
@@ -196,10 +204,12 @@ test("a browser adds entries the schema never declared, so S.strict cannot hold"
   // schema, so "no entries but these" is not a thing a form can promise.
   expect(SUBMISSION.map(([key]) => key)).toContain("_charset_");
   expect(() =>
-    S.decoder(S.formData.with(S.to, S.schema({ name: S.string }).with(S.strict))),
+    S.decoder(
+      S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty) }).with(S.strict)),
+    ),
   ).toThrow("S.strict is not supported by S.formData");
   // Stripping is the supported mode, and it reads the same submission fine.
-  expect(S.decoder(S.formData.with(S.to, S.schema({ name: S.string })))(submitted())).toEqual({
-    name: "Ann",
-  });
+  expect(
+    S.decoder(S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty) })))(submitted()),
+  ).toEqual({ name: "Ann" });
 });

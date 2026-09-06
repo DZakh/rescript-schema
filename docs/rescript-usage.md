@@ -193,7 +193,7 @@ The obvious ones, at a glance:
 | `S.string` | `S.t<string>` | [refinements ↓](#string) |
 | `S.bool` | `S.t<bool>` | |
 | `S.int` | `S.t<int>` | [refinements ↓](#int) |
-| `S.integer` | `S.t<float>` | integer without `int`'s range [↓](#int) |
+| `S.integer` | `S.t<S.integer>` | integer without `int`'s range [↓](#int) |
 | `S.float` | `S.t<float>` | [refinements ↓](#float) |
 | `S.bigint` | `S.t<bigint>` | |
 | `S.symbol` | `S.t<Symbol.t>` | |
@@ -243,9 +243,21 @@ The JSON Schema string format vocabulary, as standalone schemas:
 ```rescript
 S.email // Email address
 S.idnEmail // Internationalized email address
-S.uuid // UUID
+S.uuid // UUID, any version
+S.uuidv4 // UUIDv4 — random
+S.uuidv6 // UUIDv6 — reordered time
+S.uuidv7 // UUIDv7 — Unix time, sorts by creation
 S.cuid // CUID
+S.cuid2 // CUID2
+S.ulid // ULID
+S.ksuid // KSUID
+S.xid // XID
+S.nanoid // Nano ID alphabet
+S.e164 // E.164 phone number
+S.mac // MAC address, EUI-48 or EUI-64
+S.hex // Hexadecimal digits
 S.uri // URI — a scheme is required
+S.httpUrl // URI with the scheme pinned to http or https
 S.uriReference // URI or relative reference
 S.uriTemplate // URI Template
 S.iri // IRI — a URI with Unicode allowed
@@ -254,6 +266,8 @@ S.hostname // Host name
 S.idnHostname // Internationalized host name
 S.ipv4 // IPv4 address
 S.ipv6 // IPv6 address
+S.cidrv4 // IPv4 CIDR block
+S.cidrv6 // IPv6 CIDR block
 S.isoDate // Calendar date
 S.isoTime // Time of day
 S.isoDateTime // UTC timestamp
@@ -264,7 +278,38 @@ S.base64 // Base64, standard alphabet with canonical padding
 S.base64url // Base64url, URL-safe alphabet, no padding
 ```
 
-Each survives a round trip through `S.inputJSONSchema` and `S.fromJSONSchema`.
+Each survives a round trip through `S.inputJSONSchema` and `S.fromJSONSchema`,
+though not all of them as a name. A format the JSON Schema vocabulary has no
+keyword for publishes its own regex as `pattern` instead, so what round-trips is
+the behavior. `S.cidrv6` is the one format with neither spelling — its address
+grammar is case-insensitive and a JSON Schema `pattern` carries no flags, so it
+emits a plain `string` and widens on the way back in.
+
+Parsing with a format gives you back a value of that format's own type, not a
+plain `string`:
+
+```rescript
+let email = "dzakh.dev@gmail.com"->S.parseOrThrow(~to=S.email)
+// Email("dzakh.dev@gmail.com")
+```
+
+That way a function asking for an `S.email` can't be handed just any string —
+or a `S.uuid`. To get the string back, coerce it:
+
+```rescript
+(email :> string) // "dzakh.dev@gmail.com"
+```
+
+Nothing happens at runtime: `Email("a@b.com")` *is* `"a@b.com"` in the compiled
+JS, so there's no wrapping cost and no unwrapping when the value crosses over to
+JS.
+
+`S.integer`, `S.port` and `S.jsonString` behave the same way, and `S.nonEmpty`
+marks whatever it constrains:
+
+```rescript
+S.array(S.string)->S.nonEmpty // S.t<S.nonEmpty<array<string>>>
+```
 
 **A format checks syntax, not safety.** Every one is exactly as strict as its
 spec, so a well-formed value passes even when it isn't one you want to accept:
@@ -287,7 +332,7 @@ Two worth knowing before you pick one:
 
 - **`S.url` is not `S.uri`.** `S.url` is an instance of the JS `URL` class, the
   way `S.date` is a `Date` — use it when you want the parsed object and its
-  `.host` / `.pathname`. `S.uri` validates a string and leaves it a string.
+  `.host` / `.pathname`. `S.uri` only validates the text.
 - **`S.uriReference` is usually the one you want for a link field.** `S.uri`
   requires a scheme, so it rejects `/dashboard`.
 
@@ -363,11 +408,11 @@ S.int->S.gte(3000000000)
 // int32 >= 3000000000 contradicts int32 <= 2147483647
 ```
 
-`S.integer` is an integer without that range, typed `S.t<float>` since one can
-exceed ReScript's `int`:
+`S.integer` is an integer without that range. It has its own type,
+`Integer(float)`, since one can exceed ReScript's `int`:
 
 ```rescript
-S.integer->S.gte(5.) // Expected integer >= 5
+S.integer->S.gte(Integer(5.)) // Expected integer >= 5
 ```
 
 ### **`float`**
@@ -1139,7 +1184,7 @@ The `dict` schema represents a dictionary of data of a specific type.
 
 ### **`date`**
 
-`S.t<Js.Date.t>`
+`S.t<S.date>`
 
 ```rescript
 let schema = S.date
@@ -1166,12 +1211,12 @@ Date.fromString("2024-01-01T00:00:00.000Z")->S.convertOrThrow(~from=schema, ~to=
 
 ### **`isoDateTime`**
 
-`S.t<string>`
+`S.t<S.isoDateTime>`
 
 ```rescript
 let schema = S.isoDateTime
 
-"2020-01-01T00:00:00Z"->S.parseOrThrow(~to=schema) // "2020-01-01T00:00:00Z"
+"2020-01-01T00:00:00Z"->S.parseOrThrow(~to=schema) // IsoDateTime("2020-01-01T00:00:00Z")
 "not-a-date"->S.parseOrThrow(~to=schema) // throws
 ```
 
@@ -1189,7 +1234,7 @@ The `S.instance` schema represents an instance of a class. Requires some type ca
 
 ### **`blob`**
 
-`S.t<Js.Blob.t>`
+`S.t<S.blob>`
 
 ```rescript
 S.blob // Expected Blob
@@ -1207,7 +1252,7 @@ S.blob->S.maxSize(1_000_000, ~message="Too large")
 
 ### **`file`**
 
-`S.t<Js.File.t>`
+`S.t<S.file>`
 
 ```rescript
 let schema = S.file->S.maxSize(1_000_000)
@@ -1240,7 +1285,10 @@ let schema = S.formData->S.to(
 A field reads its entry as text through the same coercions `S.dict(S.string)`
 gets; `S.file` and `S.blob` take the entry as it is, and a `S.bool` is a
 checkbox: absent is `false`, `"on"`/`"true"`/`"1"` is `true`, `"false"`/`"0"`
-is `false`, and an encode omits an unchecked box the way a browser does. An empty text input reads as
+is `false`, and an encode omits an unchecked box the way a browser does. A
+required string field must say what a blank entry means — `S.string->S.nonEmpty`
+to reject it, `S.string->S.minLength(0)` to admit it — or the operation fails
+to build. An empty text input reads as
 absent for an optional field, and is handed to the target as `""` for a
 required one — so `S.string` takes it and `S.string->S.nonEmpty` rejects it in
 its own words. The type is
@@ -1262,7 +1310,7 @@ The `S.json` schema represents a data that is compatible with JSON.
 
 ### **`jsonString`**
 
-`S.t<string>`
+`S.t<S.jsonString>`
 
 ```rescript
 let schema = S.jsonString->S.to(S.int)

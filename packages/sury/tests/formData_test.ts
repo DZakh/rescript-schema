@@ -22,7 +22,7 @@ test("an encode appends one entry per field, in field order, as text", () => {
   const schema = S.formData.with(
     S.to,
     S.schema({
-      name: S.string,
+      name: S.string.with(S.nonEmpty),
       age: S.number,
       agree: S.boolean,
       kind: "signup",
@@ -240,7 +240,7 @@ test("a nested document is a JSON text field, both ways", () => {
 });
 
 test("the reverse is spelled the same as jsonString's", () => {
-  const user = S.schema({ name: S.string, age: S.number });
+  const user = S.schema({ name: S.string.with(S.nonEmpty), age: S.number });
   const value = { name: "Ann", age: 42 };
   expect(entries(S.encoder(user, S.formData)(value))).toEqual([
     ["name", "Ann"],

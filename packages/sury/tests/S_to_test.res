@@ -303,13 +303,13 @@ test("Coerce from string to int32", t => {
 test("Coerce from string to port", t => {
   let schema = S.string->S.to(S.port)
 
-  t->Assert.deepEqual("10"->S.parseOrThrow(~to=schema), 10)
+  t->Assert.deepEqual("10"->S.parseOrThrow(~to=schema), S.Port(10))
   t->U.assertThrowsMessage(
     () => "2147483648"->S.parseOrThrow(~to=schema),
     `Expected port, received 2147483648`,
   )
   t->U.assertThrowsMessage(() => "10.2"->S.parseOrThrow(~to=schema), `Expected port, received 10.2`)
-  t->Assert.deepEqual(10->S.convertOrThrow(~from=schema, ~to=S.unknown), %raw(`"10"`))
+  t->Assert.deepEqual(S.Port(10)->S.convertOrThrow(~from=schema, ~to=S.unknown), %raw(`"10"`))
 
   t->U.assertCompiledCode(
     ~schema,
@@ -1095,7 +1095,7 @@ test("Tier 3 fallback for unknown source — transform on unknown variant still 
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{for(;;){if(typeof i==="string")break;let v0;try{v0=e[0](i)}catch(x){e[1](x);e[2](x)}i=v0;break;}return i}`,
+    `i=>{for(;;){if(typeof i==="string")break;let v0;try{v0=e[0](i)}catch(x){e[1](x)}i=v0;break;}return i}`,
   )
 })
 

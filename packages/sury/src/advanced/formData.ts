@@ -100,6 +100,20 @@ const isCheckbox = (schema: Internal): boolean =>
     ? schema.anyOf!.every((variant) => variant.type === undefinedTag || isCheckbox(variant))
     : (tagFlags[schema.type]! & 8) !== 0 && schema.const === U;
 
+// Whether the schema states what a blank entry means. A form always submits a
+// text input, so `""` is what a user leaving one alone sends — and a bare
+// `S.string` is silent about whether that is a value or a missing field. These
+// are the ways a schema answers: a lower length bound (`S.nonEmpty` rejects it,
+// `S.minLength(0)` admits it), a literal, a named format — 30 of the 36 reject
+// `""` and the rest, like `S.jsonPointer`, admit it deliberately — a pattern
+// that rejects it, or a conversion whose far end decides (`S.to(S.date)`).
+const decidesBlank = (schema: Internal): boolean =>
+  schema.minLength !== U ||
+  schema.const !== U ||
+  schema.format !== U ||
+  schema.to !== U ||
+  (schema.pattern !== U && !schema.pattern.test(""));
+
 // A blob takes the entry as it is, and so does `unknown`. Everything else on
 // the wire is text, so it reads through a `string` stage: the entry is checked
 // to be one, and the target's own decoder coerces from there, exactly as it
@@ -421,6 +435,13 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       g: input.g,
       o: U,
     };
+
+    if (!field.optional && (tagFlags[field.present.type]! & 2) && !decidesBlank(field.present)) {
+      B_invalidOperation(
+        item,
+        `A form submits "" for a blank field. Use S.nonEmpty to reject it, or S.minLength(0) to allow it`,
+      );
+    }
 
     let output: Val;
     if (field.checkbox) {

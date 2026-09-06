@@ -282,7 +282,7 @@ test("Default on a primary item with S.to runs the transformation on parse and r
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{if(i instanceof e[0]){i=i.toISOString()}else{e[1](i)}return i}`,
+    `i=>{if(i instanceof e[1]){let v0;try{v0=i.toISOString()}catch(_){e[0](i)}i=v0}else{e[2](i)}return i}`,
   )
 })
 
@@ -297,14 +297,17 @@ test("Appending S.to(S.jsonString) after getOr extends the output chain", t => {
   let toLevel1 = untagged.to->Option.getOrThrow->S.untag
   t->Assert.is(toLevel1.tag, S.String)
 
-  t->Assert.deepEqual(%raw(`undefined`)->S.parseOrThrow(~to=schema), `"2024-01-01T00:00:00.000Z"`)
+  t->Assert.deepEqual(
+    %raw(`undefined`)->S.parseOrThrow(~to=schema),
+    S.JsonString(`"2024-01-01T00:00:00.000Z"`),
+  )
   t->Assert.deepEqual(
     "2024-06-15T12:30:45.123Z"->S.parseOrThrow(~to=schema),
-    `"2024-06-15T12:30:45.123Z"`,
+    S.JsonString(`"2024-06-15T12:30:45.123Z"`),
   )
 
   t->Assert.deepEqual(
-    `"2024-01-01T00:00:00.000Z"`->S.convertOrThrow(~from=schema, ~to=S.unknown),
+    S.JsonString(`"2024-01-01T00:00:00.000Z"`)->S.convertOrThrow(~from=schema, ~to=S.unknown),
     %raw(`"2024-01-01T00:00:00.000Z"`),
   )
 })
@@ -323,8 +326,8 @@ test("getOr default reaches jsonString quoted, not reassociated", t => {
     `i=>{for(;;){if(typeof i==="string"){let v0;try{v0=BigInt(i)}catch(_){e[0](i)}v0||i.trim()||e[0](i);i="\\""+v0+"\\"";break}if(i===void 0){i="\\""+7n+"\\"";break}e[1](i)}return i}`,
   )
 
-  t->Assert.deepEqual(%raw(`undefined`)->S.parseOrThrow(~to=schema), `"7"`)
-  t->Assert.deepEqual("123"->S.parseOrThrow(~to=schema), `"123"`)
+  t->Assert.deepEqual(%raw(`undefined`)->S.parseOrThrow(~to=schema), S.JsonString(`"7"`))
+  t->Assert.deepEqual("123"->S.parseOrThrow(~to=schema), S.JsonString(`"123"`))
 })
 
 // A multi-member transforming union + getOr. Each string-coercing branch
