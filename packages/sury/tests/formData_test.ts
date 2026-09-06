@@ -4,11 +4,14 @@ import { expect, test } from "vitest";
 import * as S from "sury";
 import { withoutGlobalRoutes } from "./withoutGlobal";
 
-// The value side of `S.formData`, for what the spec format can't write down: a
-// golden can't hold a `FormData` (see CONTRIBUTING.md's Spec Harness
-// Suggestions), so every `codec-formdata-*` encode block carries only its
-// failures, and the entries an encode produces are checked here. Codegen and
-// the decode direction stay in the specs.
+// The value side of `S.formData`, for what a `codec-formdata-*` spec can't
+// write down: an example records an input and a result, so a rejection raised
+// in *both* directions, a value read back through its own encode, and an
+// encode that writes into the value it was handed all need a test. Codegen and
+// everything one operation can show stay in the specs.
+//
+// `pnpm --filter=sury fuzz:formdata` crosses the field shapes and checks the
+// same properties over all of them; a case it turns up lands here or in a spec.
 
 const form = (...entries: [string, string | Blob][]): FormData => {
   const f = new FormData();
@@ -221,20 +224,36 @@ test("a multi-file input is an array of entries, both ways", () => {
   );
 });
 
-test("an array of optional items encodes without leaking a declaration", () => {
+test("an array of union items encodes without leaking a declaration", () => {
   // The item's own `let` used to land after the loop body that reads it, so
   // the compiled encoder threw `ReferenceError` on its first item.
-  const schema = S.formData.with(S.to, S.schema({ m: S.array(S.optional(S.string)) }));
-  expect(entries(S.encoder(schema)({ m: ["a", undefined, "b"] }))).toEqual([
+  const schema = S.formData.with(S.to, S.schema({ m: S.array(S.union(["a", "b"])) }));
+  expect(entries(S.encoder(schema)({ m: ["a", "b", "a"] }))).toEqual([
     ["m", "a"],
     ["m", "b"],
+    ["m", "a"],
   ]);
+});
+
+test("a list carries neither a hole nor a list, in either direction", () => {
+  // A repeated key is flat and positional: an item with no entry would shift
+  // the ones after it, and a list of lists would run them together. Both
+  // directions reject rather than silently reshape — an encoder that only ever
+  // encodes would otherwise drop the holes and never hear about it.
+  const holes = S.formData.with(S.to, S.schema({ m: S.array(S.optional(S.string)) }));
+  const positional =
+    "Failed at m: A list item that can be absent is not supported by S.formData: a repeated key is positional";
+  expect(() => S.encoder(holes)({ m: ["a", undefined] })).toThrow(positional);
+  expect(() => S.decoder(holes)(new FormData())).toThrow(positional);
+  const nullableItems = S.formData.with(S.to, S.schema({ m: S.array(S.nullable(S.string)) }));
+  expect(() => S.encoder(nullableItems)({ m: [null] })).toThrow(positional);
+  const slots = S.formData.with(S.to, S.schema({ m: S.schema([S.string, S.optional(S.string)]) }));
+  expect(() => S.encoder(slots)({ m: ["a", undefined] })).toThrow(positional);
+
   const nested = S.formData.with(S.to, S.schema({ n: S.array(S.array(S.string)) }));
-  expect(entries(S.encoder(nested)({ n: [["a", "b"], ["c"]] }))).toEqual([
-    ["n", "a"],
-    ["n", "b"],
-    ["n", "c"],
-  ]);
+  const flat = "Failed at n: A list of lists is not supported by S.formData: a repeated key is flat";
+  expect(() => S.encoder(nested)({ n: [["a"], ["b"]] })).toThrow(flat);
+  expect(() => S.decoder(nested)(new FormData())).toThrow(flat);
 });
 
 test("a checkbox round-trips however the field is wrapped", () => {
@@ -327,15 +346,18 @@ test("a repeated key of a union item encodes once per item", () => {
   expect(S.decoder(schema)(form(["picks", "a"], ["picks", "b"]))).toEqual({ picks: ["a", "b"] });
 });
 
-test("a nullable checkbox reads an absent box as null", () => {
-  // Without it the `null` arm would be unreachable: nothing a form submits
-  // reads as null, so absence is the only thing left to carry it.
+test("a nullable checkbox reads an absent box as null, and spells its false out", () => {
+  // Without the first the `null` arm would be unreachable: nothing a form
+  // submits reads as null, so absence is the only thing left to carry it —
+  // which is what makes the second necessary. Omitting `false` the way a
+  // browser does would hand it back as `null`.
   const schema = S.formData.with(S.to, S.schema({ a: S.nullable(S.boolean) }));
   expect(S.decoder(schema)(new FormData())).toEqual({ a: null });
   expect(S.decoder(schema)(form(["a", "on"]))).toEqual({ a: true });
-  expect(S.decoder(schema)(form(["a", "false"]))).toEqual({ a: false });
   expect(entries(S.encoder(schema)({ a: null }))).toEqual([]);
-  expect(entries(S.encoder(schema)({ a: false }))).toEqual([]);
+  for (const value of [true, false] as const) {
+    expect(S.decoder(schema)(S.encoder(schema)({ a: value }))).toEqual({ a: value });
+  }
 });
 
 test("a checkbox defaulting to true cannot round-trip, because the wire disagrees", () => {
@@ -346,6 +368,25 @@ test("a checkbox defaulting to true cannot round-trip, because the wire disagree
   const schema = S.formData.with(S.to, S.schema({ a: S.optional(S.boolean, true) }));
   expect(entries(S.encoder(schema)({ a: false }))).toEqual([]);
   expect(S.decoder(schema)(S.encoder(schema)({ a: false }))).toEqual({ a: true });
+});
+
+test("FIXME: encoding a tuple of unions writes into the caller's array", () => {
+  // Not this codec's doing — a union dispatch assigns its result back into the
+  // slot it read, and a tuple slot is an index into the input. `S.formData` is
+  // just where it shows: the same schema pair does it with no form in sight.
+  // Pinned so the fix shows up here. Found by `fuzz:formdata`.
+  const schema = S.formData.with(S.to, S.schema({ a: S.schema([S.union([S.boolean, S.number])]) }));
+  const input = { a: [true] as [boolean | number] };
+  S.encoder(schema)(input);
+  expect(input).toEqual({ a: ["true"] });
+
+  const noForm = S.schema({ a: S.schema([S.union([S.boolean, S.number])]) }).with(
+    S.to,
+    S.schema({ a: S.schema([S.string]) }),
+  );
+  const plain = { a: ["true"] as [string] };
+  S.encoder(noForm)(plain);
+  expect(plain).toEqual({ a: [true] });
 });
 
 test("FIXME: a refinement inside S.optional is not checked on encode", () => {

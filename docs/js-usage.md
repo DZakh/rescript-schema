@@ -1225,10 +1225,11 @@ S.schema({
 });
 ```
 
-Encoding omits an unchecked box, exactly as a browser does. `S.optional(S.boolean)`
-is the exception — absent and unchecked are the same wire, so its `false` is
-written out to keep the third state apart, and `S.optional(S.boolean, true)`
-therefore cannot round-trip.
+Encoding omits an unchecked box, exactly as a browser does — unless the field
+has a third state, since absent and unchecked are the same wire:
+`S.optional(S.boolean)` and `S.nullable(S.boolean)` write their `false` out to
+keep it apart. `S.optional(S.boolean, true)` still cannot round-trip: its
+`false` omits, and an absent box is its default.
 
 Any other `value` is a string the schema should name (`S.union(["yes", "no"])`),
 and a list of booleans is rejected: a checkbox group submits the value of each
@@ -1265,7 +1266,9 @@ S.schema({
 
 Only a required, non-nullable string has to choose — every other target answers
 for itself, `S.minLength(0)` being the way to say "the empty string is a value"
-without adding a check.
+without adding a check. It says that inside a wrapper too:
+`S.optional(S.string.with(S.minLength, 0))` reads `""` as `""` and only a
+missing key as absent, which is the one spelling that tells the two apart.
 
 ### Not supported
 
@@ -1280,8 +1283,13 @@ Nested objects have no wire form here — send them as a
 S.schema({ prefs: S.jsonString.with(S.to, S.schema({ theme: S.string })) });
 ```
 
+A repeated key is flat and positional, so every item of a list is exactly one
+entry: `S.array(S.optional(S.string))` and `S.array(S.array(S.string))` are both
+rejected rather than silently closing the gaps.
+
 A file input with nothing chosen still submits an empty, unnamed `File`; that
-sentinel reads as absent, so a required `S.file` reports a missing file.
+sentinel reads as absent, so a required `S.file` reports a missing file and
+`S.nullable(S.file)` reads `null`.
 
 Both directions are sync — nothing reads a file's bytes. `S.FormData` is
 exported as a type for projects with neither `lib.dom` nor `@types/node`, like

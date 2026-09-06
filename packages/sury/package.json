@@ -52,6 +52,7 @@
     "coverage": "pnpm build:entry && vitest run --coverage",
     "spec": "pnpm build:entry && tsx ../spec/cli.ts",
     "build:entry": "tsx ./scripts/pack.ts entry-only",
+    "fuzz:formdata": "tsx ./scripts/formDataFuzz.ts",
     "fuzz:union": "tsx ./scripts/unionFuzz.ts",
     "fuzz:escfree": "pnpm build:entry && tsx ./scripts/escFreeFuzz.ts",
     "bench:jsonstring": "pnpm build:entry && tsx ./scripts/jsonStringifyBench.ts",

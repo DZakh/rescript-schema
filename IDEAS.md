@@ -183,6 +183,25 @@ of a form-data story. What they were built to make cheap, roughly in order:
     `S.record(S.union([S.string, S.number]))` can't be — the union rules reject
     `string -> string | number` before the codec is consulted, since every
     entry satisfies the string arm.
+- **A union dispatch writes its result back into the slot it read**, so
+  encoding a tuple whose slots need one mutates the caller's array:
+  `S.schema([S.union([S.boolean, S.number])]).with(S.to, S.schema([S.string]))`
+  leaves its input holding the converted value. Nothing else in the library
+  does this — an array builds a `new Array`, an object a fresh literal — so it
+  is the dispatch's destination that is wrong: an inlined property access
+  rather than a var of its own. Pinned by a `FIXME:` in `formData_test.ts`,
+  where `fuzz:formdata` found it; the fix belongs in the union compiler and
+  moves every dispatching golden.
+- **A text union can be read from a form but not written to one.** The codec's
+  hook is consulted per target arm on the way in, so
+  `S.union([S.string, S.number])` and `S.union([S.string, S.file])` decode; on
+  the way out `appendValue` hands the whole union to one `-> string`
+  conversion, which the union rules reject as ambiguous before the codec is
+  asked. Writing it needs a runtime dispatch per arm (`v instanceof Blob`, and
+  each arm's own encoder for the rest), which is bundle the common case — a
+  union of literals, which already works both ways — would carry for nothing.
+  Listed in `fuzz:formdata`'s ONE_WAY, so the day it starts working the run
+  says so.
 - **`string -> string | undefined` is still rejected by the union rules**, so
   the env pattern can't read an optional string field — where the form codec
   converts the present arm itself. Pinned by

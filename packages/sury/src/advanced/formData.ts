@@ -110,7 +110,10 @@ const presentArm = (schema: Internal): Internal => {
 // box, which submits `"on"` like any other and must be checked.
 const isCheckbox = (schema: Internal): boolean =>
   schema.type === anyOfTag
-    ? schema.anyOf!.every((variant) => variant.type === undefinedTag || isCheckbox(variant))
+    ? schema.anyOf!.every(
+        (variant) =>
+          variant.type === undefinedTag || variant.type === nullTag || isCheckbox(variant),
+      )
     : (tagFlags[schema.type]! & 8) !== 0;
 
 // Whether the schema states what a blank entry means. A form always submits a
@@ -245,6 +248,35 @@ const listItems = (schema: Internal): Internal[] => {
   return schema.items!.concat(typeof rest === "object" ? [rest] : []);
 };
 
+// What a repeated key can carry, asked by both directions: it is read and
+// written by position, so every item is exactly one entry.
+const assertListItems = (val: Val, schema: Internal): void => {
+  for (const item of listItems(schema)) {
+    if (isCheckbox(item)) {
+      // A checkbox is a whole field: a group of them submits the *value* of
+      // each checked box, never `"on"` per position.
+      B_invalidOperation(
+        val,
+        `A list of booleans is not supported by S.formData: a checkbox group submits the value of each checked box. Use S.array(S.string)`,
+      );
+    }
+    if (isOptional(item) || item.has?.[nullTag] || tagFlags[item.type]! & 32) {
+      // An item with no entry would shift every item after it rather than
+      // leave a hole.
+      B_invalidOperation(
+        val,
+        `A list item that can be absent is not supported by S.formData: a repeated key is positional`,
+      );
+    }
+    if (isList(item)) {
+      B_invalidOperation(
+        val,
+        `A list of lists is not supported by S.formData: a repeated key is flat`,
+      );
+    }
+  }
+};
+
 // Every field decision, taken once off the target: `present` is what a supplied
 // entry converts to, and the rest say how the entry is read. They are read
 // together because they interact — a `S.array(S.file)` is a list whose *item*
@@ -263,7 +295,8 @@ const classify = (schema: Internal): Field => {
   const present = presentArm(schema);
   return {
     optional: isOptional(schema),
-    nullable: schema.type === anyOfTag && !!schema.has![nullTag],
+    nullable:
+      schema.type === nullTag || (schema.type === anyOfTag && !!schema.has![nullTag]),
     present,
     checkbox: isCheckbox(present),
   };
@@ -300,7 +333,8 @@ const absentCode = (item: Val, field: Field, schema: Internal, into: string): st
   if (!field.optional) {
     return field.nullable ? `else{${into}=null}` : "";
   }
-  const absent = schema.anyOf!.find((variant) => variant.type === undefinedTag)!;
+  const absent =
+    schema.anyOf?.find((variant) => variant.type === undefinedTag) || schema;
   return absent.to === U ? "" : `else{${armCode(item, absent, absent, into)}}`;
 };
 
@@ -388,6 +422,12 @@ const readCheckboxField = (item: Val, field: Field, schema: Internal): Val => {
 const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean): string => {
   const schema = val.s;
   const tagFlag = tagFlags[schema.type]!;
+  // Neither `null` nor `undefined` is something a form can carry, so a field
+  // declared as one is simply never written — which is what its own decode
+  // reads back from an absent entry.
+  if (tagFlag & (16 | 32)) {
+    return "";
+  }
   // Only a field is a checkbox. A repeated key is a list, and a list of
   // booleans is positional — dropping the false ones would lose the indices
   // the decoder reads back. (A checkbox *group* submits the values of the
@@ -401,15 +441,17 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     // An unchecked box sends nothing, which is the whole of what the entry
     // list says about `false`, so that is what is written. A tri-state is the
     // one case the platform cannot express — absent and unchecked are the same
-    // wire — so there `false` is spelled out to keep the third value apart.
+    // wire — so there `false` is spelled out to keep the third value apart, or
+    // it would read back as the third one.
     // `S.optional(S.boolean, true)` therefore cannot round-trip: its `false`
     // omits, and an absent entry is its default. That default contradicts the
     // wire, where a missing checkbox means unchecked.
-    return (tagFlag & 256) && schema.has![undefinedTag]
-      ? `if(${val.i}!==void 0){${fdVar}.append(${keyText},${val.i}?"on":"false")}`
+    return (tagFlag & 256) && (schema.has![undefinedTag] || schema.has![nullTag])
+      ? `if(${val.i}!=null){${fdVar}.append(${keyText},${val.i}?"on":"false")}`
       : `if(${val.i}){${fdVar}.append(${keyText},"on")}`;
   }
   if (isList(schema)) {
+    assertListItems(val, schema);
     const slots = schema.items!;
     if (slots.length) {
       // A tuple's slots each have their own schema, so there is no one item a
@@ -459,10 +501,10 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     detached.prev = U;
     return `if(${inputVar}!=null){${appendValue(detached, fdVar, keyText, inList)}}`;
   }
-  if ((tagFlag & 2) || ((tagFlag & 8192) && isBlobClass(schema.class))) {
+  if ((tagFlag & (1 | 2)) || ((tagFlag & 8192) && isBlobClass(schema.class))) {
     return `${fdVar}.append(${keyText},${val.i});`;
   }
-  if (!(tagFlag & ((4 | 8) | (32 | 1024) | (2048 | 8192) | 256))) {
+  if (!(tagFlag & ((4 | 8) | 1024 | (2048 | 8192) | 256))) {
     return B_unsupportedDecode(val, schema, formData);
   }
   val.io = false;
@@ -557,10 +599,16 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     } else {
       // A checkbox tests its entry for truth, which already covers `null` and
       // the `""` of a box carrying an empty value — so it is the one read that
-      // needs no sentinel of its own.
+      // needs no sentinel of its own. `S.minLength(0)` is the other: it is how
+      // a schema says a blank entry is a value, and reading it away would
+      // answer the question the field just answered — an absent field is then
+      // the missing key alone, which is the only reading that tells the two
+      // apart at all.
       B_hoistDecl(
         input,
-        `${readVar}=${slot}${field.checkbox || !absent ? "" : "||void 0"}`,
+        `${readVar}=${slot}${
+          field.checkbox || !absent || field.present.minLength === 0 ? "" : "||void 0"
+        }`,
       );
     }
 
@@ -608,24 +656,13 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     if (field.checkbox) {
       output = readCheckboxField(item, field, schema);
     } else if (list) {
-      // A boolean item would take the checkbox reading, and a checkbox is a
-      // whole field: a group of them submits the *value* of each checked box,
-      // never `"on"` per position, so a list of booleans is not something a
-      // form can send.
-      for (const listItem of listItems(field.present)) {
-        if (isCheckbox(listItem)) {
-          B_invalidOperation(
-            item,
-            `A list of booleans is not supported by S.formData: a checkbox group submits the value of each checked box. Use S.array(S.string)`,
-          );
-        }
-      }
+      assertListItems(item, field.present);
       // A list of entries: each item reads by the same rules a field does,
       // through the same hook.
       output = absent
         ? readOptional(item, field, schema, arrayFactory(formDataField), field.present)
         : ((item.s = arrayFactory(formDataField)), parse(item));
-    } else if (entry || !absent) {
+    } else if (!absent) {
       // The field schema's hook takes it from here: it is consulted once per
       // union arm, so each arm reads by its own rule.
       output = parse(item);
