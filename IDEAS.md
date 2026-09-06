@@ -200,17 +200,27 @@ of a form-data story. What they were built to make cheap, roughly in order:
   field and the target's own business for a required one, and the reverse is
   `new FormData()` + one `append` per field. Still to do from the original
   sketch: `S.urlSearchParams` is the same code minus files, and `S.queryString`
-  is to it what `S.jsonString` is to `S.json`; a `S.record` target
-  (`entries()` into a dict); and bracket notation, which stays out. Two gaps it
-  works around rather than fixes, each with the spec that pins it:
-  `dict-to-object-optional-string` — the union rules reject
-  `string -> string | undefined`, so the env pattern still can't read an
+  is to it what `S.jsonString` is to `S.json`; and a `S.record` target
+  (`entries()` into a dict). One gap it works around rather than fixes, with
+  the spec that pins it: `dict-to-object-optional-string` — the union rules
+  reject `string -> string | undefined`, so the env pattern still can't read an
   optional string field, where the form codec converts the present arm on its
-  own; and `codec-formdata-object-nullable`, where a `S.nullable` field only
-  reads the literal text `"null"`, which no form sends. A refinement inside
-  `S.optional` is still unchecked on encode — the union encode path trusting
-  its typed input, which a plain object target does too — pinned in
-  `tests/formData_test.ts` because the value it produces is a `FormData`.
+  own. A refinement inside `S.optional` is still unchecked on encode — the
+  union encode path trusting its typed input, which a plain object target does
+  too — pinned in `tests/formData_test.ts` because the value it produces is a
+  `FormData`.
+- **Nested keys for `S.formData`, with no API to turn them on.** Nesting the
+  schema is the switch: `S.schema({ user: S.schema({ city }) })` rejects the
+  pair today, and instead should read `user[city]`. Brackets only — PHP
+  invented the spelling, Rails, `qs` and Express read it, and a plain `<form>`
+  can produce it without JS. Dot notation stays out: it is the newer JS-side
+  convention, and accepting both means two `get` calls per leaf for a spelling
+  no browser emits on its own. The point of driving the key off the schema is
+  that none of `qs`'s hazards arrive with it — no depth or parameter limit, no
+  `__proto__` filtering, no array-vs-object heuristic — because the shape is
+  known before a document is read, and a flat schema never probes at all. If a
+  second spelling is ever wanted on the wire out, it is a second constant
+  (`S.formDataNested`), not a config object on the first.
 - **`S.mime`** for uploads, next to the size bounds. Wants a JSON Schema emit
   (`contentMediaType`, and `format: "binary"` for the instances) — which is the
   point at which `minSize`/`maxSize` should be revisited, since neither has a
