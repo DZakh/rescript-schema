@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=./spec.schema.json
+ts:
+  schema: "S.formData.with(S.to, S.schema({ terms: S.schema(true), flags: S.array(S.boolean).with(S.nonEmpty), maybe: S.nullable(S.boolean) }))"
+  input: FormData
+  output: "{ terms: true; flags: [boolean, ...boolean[]]; maybe: boolean | null; }"
+  instantiations: 6837
+jsonSchema:
+  input: Expected JSON, received FormData
+  output: '{ type: "object", properties: { terms: { type: "boolean", const: true }, flags: { items: { type: "boolean" }, type: "array", minItems: 1 }, maybe: { anyOf: [{ type: "boolean" }, { type: "null" }] } }, required: ["terms", "flags", "maybe"] }'
+  fromOutputType: "{ terms: true; flags: boolean[]; maybe: boolean | null; }"
+  openapi-3.0:
+    output: '{ type: "object", properties: { terms: { type: "boolean", enum: [true] }, flags: { items: { type: "boolean" }, type: "array", minItems: 1 }, maybe: { type: "boolean", nullable: true } }, required: ["terms", "flags", "maybe"] }'
+vs:
+  zod:
+    _skip: not-applicable
+operations:
+  parse:
+    expression: i=>{i instanceof e[6]||e[7](i);let v0=i.get("terms")||void 0,v2=i.getAll("flags"),v8=i.get("maybe")||void 0;let v1;(v1=v0==="on"||v0==="true"||v0==="1")||v0==="false"||v0==="0"||v0===void 0||e[0](v0);v1===true||e[1](v1);let v7=new Array(v2.length);for(let v3=0;v3<v2.length;++v3){try{let v5=v2[v3];typeof v5==="string"||e[3](v5);let v4;(v4=v5==="true")||v5==="false"||e[2](v5);v7[v3]=v4}catch(v6){v6.path=["flags",v3,...v6.path];throw v6}}v7.length>0||e[4](v7);let v9;if(v8!==void 0){(v9=v8==="on"||v8==="true"||v8==="1")||v8==="false"||v8==="0"||e[5](v8);}else{v9=null}return {terms:v1,flags:v7,maybe:v9}}
+    examples:
+      checked:
+        input: ((f) => (f.append("terms", "on"), f.append("flags", "true"), f.append("flags", "false"), f.append("maybe", "on"), f))(new FormData())
+        output: "{ terms: true, flags: [true, false], maybe: true }"
+      unchecked-terms:
+        input: ((f) => (f.append("flags", "true"), f.append("maybe", "on"), f))(new FormData())
+        error: "Failed at terms: Expected true, received false"
+      absent-nullable-checkbox:
+        input: ((f) => (f.append("terms", "1"), f.append("flags", "false"), f))(new FormData())
+        output: "{ terms: true, flags: [false], maybe: null }"
+  decode:
+    expression: i=>{let v0=i.get("terms")||void 0,v2=i.getAll("flags"),v8=i.get("maybe")||void 0;let v1;(v1=v0==="on"||v0==="true"||v0==="1")||v0==="false"||v0==="0"||v0===void 0||e[0](v0);v1===true||e[1](v1);let v7=new Array(v2.length);for(let v3=0;v3<v2.length;++v3){try{let v5=v2[v3];typeof v5==="string"||e[3](v5);let v4;(v4=v5==="true")||v5==="false"||e[2](v5);v7[v3]=v4}catch(v6){v6.path=["flags",v3,...v6.path];throw v6}}v7.length>0||e[4](v7);let v9;if(v8!==void 0){(v9=v8==="on"||v8==="true"||v8==="1")||v8==="false"||v8==="0"||e[5](v8);}else{v9=null}return {terms:v1,flags:v7,maybe:v9}}
+    examples:
+      checked:
+        input: ((f) => (f.append("terms", "on"), f.append("flags", "true"), f))(new FormData())
+        output: "{ terms: true, flags: [true], maybe: null }"
+  encode:
+    expression: i=>{let v0=i["flags"],v4=i["maybe"];v0.length>0||e[0](v0);let v2=new e[1]();v2.append("terms","on");for(let v3=0;v3<v0.length;++v3){v2.append("flags",""+v0[v3]);}if(v4!=null){if(v4){v2.append("maybe","on")}}return v2}
+    examples:
+      no-flags:
+        input: "{ terms: true, flags: [], maybe: null }"
+        error: "Failed at flags: Expected boolean[].length >= 1, received []"

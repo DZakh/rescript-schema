@@ -37,7 +37,9 @@ import {
   B_dynamicScope,
   B_embed,
   B_embedInvalidInput,
+  B_failWithArg,
   B_hoistDecl,
+  B_invalidInputBuilder,
   B_markOutput,
   B_merge,
   B_mergeWithPathPrepend,
@@ -99,10 +101,12 @@ const presentArm = (schema: Internal): Internal => {
 // entry is `"on"`, or the `"true"`/`"false"` a hidden input carries. True of a
 // boolean however it is wrapped: `S.optional(S.boolean, false)` is the natural
 // spelling of "checkbox, default unchecked", and its entry is still `"on"`.
+// A boolean literal is one too — `S.schema(true)` is the terms-and-conditions
+// box, which submits `"on"` like any other and must be checked.
 const isCheckbox = (schema: Internal): boolean =>
   schema.type === anyOfTag
     ? schema.anyOf!.every((variant) => variant.type === undefinedTag || isCheckbox(variant))
-    : (tagFlags[schema.type]! & 8) !== 0 && schema.const === U;
+    : (tagFlags[schema.type]! & 8) !== 0;
 
 // Whether the schema states what a blank entry means. A form always submits a
 // text input, so `""` is what a user leaving one alone sends — and a bare
@@ -253,13 +257,26 @@ const readCheckbox = (item: Val, field: Field, schema: Internal): Val => {
   // that value instead of the codec guessing at it.
   const read = `(${outputVar}=${v}==="on"||${v}==="true"||${v}==="1")||${v}==="false"||${v}==="0"||`;
   const fail = B_embedInvalidInput(item, schema);
+  // A literal arm is narrowed against the boolean the read produced, not
+  // against the entry: "must be checked" reports the box it got, not the text
+  // a browser did or didn't send. `assembled` can't emit it — its source is
+  // the field's own schema, so there is nothing left for it to check.
+  const narrow =
+    field.present.const === U
+      ? ""
+      : `${outputVar}===${field.present.const}||${B_failWithArg(
+          item,
+          B_invalidInputBuilder(field.present)(item),
+          outputVar,
+        )};`;
   return assembled(
     item,
     schema,
-    field.optional
+    field.optional || field.nullable
       ? // Absent leaves the var undefined, which is the tri-state's third value
-        // and what a default converts from.
-        `let ${outputVar};if(${v}!==void 0){${read}${fail}}${absentCode(
+        // and what a default, or a `null` arm, converts from. Without one it
+        // would be unreachable: nothing a form submits reads as `null`.
+        `let ${outputVar};if(${v}!==void 0){${read}${fail};${narrow}}${absentCode(
           item,
           field,
           schema,
@@ -267,17 +284,21 @@ const readCheckbox = (item: Val, field: Field, schema: Internal): Val => {
         )}`
       : // An unchecked box sends nothing, so absent is `false` — which is what
         // the comparisons already assigned by the time the guard admits it.
-        `let ${outputVar};${read}${v}===void 0||${fail};`,
+        `let ${outputVar};${read}${v}===void 0||${fail};${narrow}`,
     outputVar,
   );
 };
 
 // `append` takes a string or a blob as it is; every other entry is the string
 // the value converts to, through the same encoders a JSON document uses.
-const appendValue = (val: Val, fdVar: string, keyText: string): string => {
+const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean): string => {
   const schema = val.s;
   const tagFlag = tagFlags[schema.type]!;
-  if (isCheckbox(schema)) {
+  // Only a field is a checkbox. A repeated key is a list, and a list of
+  // booleans is positional — dropping the false ones would lose the indices
+  // the decoder reads back. (A checkbox *group* submits the values of the
+  // checked boxes, which is `S.array(S.string)`.)
+  if (!inList && isCheckbox(schema)) {
     // An unchecked box sends nothing, which is the whole of what the entry
     // list says about `false`, so that is what is written. A tri-state is the
     // one case the platform cannot express — absent and unchecked are the same
@@ -285,9 +306,15 @@ const appendValue = (val: Val, fdVar: string, keyText: string): string => {
     // `S.optional(S.boolean, true)` therefore cannot round-trip: its `false`
     // omits, and an absent entry is its default. That default contradicts the
     // wire, where a missing checkbox means unchecked.
-    return (tagFlag & 256) && schema.has![undefinedTag]
-      ? `if(${val.i}!==void 0){${fdVar}.append(${keyText},${val.i}?"on":"false")}`
-      : `if(${val.i}){${fdVar}.append(${keyText},"on")}`;
+    // A literal settles the entry at compile time — `S.schema(true)` always
+    // submits, `S.schema(false)` never does — so neither needs a guard.
+    return schema.const !== U
+      ? schema.const
+        ? `${fdVar}.append(${keyText},"on");`
+        : ""
+      : (tagFlag & 256) && schema.has![undefinedTag]
+        ? `if(${val.i}!==void 0){${fdVar}.append(${keyText},${val.i}?"on":"false")}`
+        : `if(${val.i}){${fdVar}.append(${keyText},"on")}`;
   }
   const item = listItem(schema);
   if (item !== U) {
@@ -301,7 +328,7 @@ const appendValue = (val: Val, fdVar: string, keyText: string): string => {
     // Built before the merge, not inside its callback: `B_mergeWithCatch` runs
     // the merge first, so a var this materializes on the item afterwards would
     // have its `let` dropped and the loop body would read an undeclared name.
-    const appendCode = appendValue(itemVal, fdVar, keyText);
+    const appendCode = appendValue(itemVal, fdVar, keyText, true);
     const itemCode = B_mergeWithPathPrepend(
       itemVal,
       val,
@@ -322,7 +349,7 @@ const appendValue = (val: Val, fdVar: string, keyText: string): string => {
     const detached = B_next(val, inputVar, presentSchema, presentSchema);
     detached.v = _var;
     detached.prev = U;
-    return `if(${inputVar}!=null){${appendValue(detached, fdVar, keyText)}}`;
+    return `if(${inputVar}!=null){${appendValue(detached, fdVar, keyText, inList)}}`;
   }
   if ((tagFlag & 2) || ((tagFlag & 8192) && isBlobClass(schema.class))) {
     return `${fdVar}.append(${keyText},${val.i});`;

@@ -1286,6 +1286,8 @@ A field reads its entry as text through the same coercions `S.dict(S.string)`
 gets; `S.file` and `S.blob` take the entry as it is, and a `S.bool` is a
 checkbox: absent is `false`, `"on"`/`"true"`/`"1"` is `true`, `"false"`/`"0"`
 is `false`, and an encode omits an unchecked box the way a browser does. A
+`bool` literal is the box that must be a particular way, so `S.literal(true)` is
+the terms-and-conditions field. A
 required, non-nullable string field must say what a blank entry means —
 `S.string->S.nonEmpty` to reject it, `S.string->S.minLength(0)` to admit it,
 `S.option` or `S.null` to read it as absent — or the operation fails to build.

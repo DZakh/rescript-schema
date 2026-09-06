@@ -1220,6 +1220,25 @@ wire, so its `false` is written out to keep the third state apart. For the same
 reason `S.optional(S.boolean, true)` cannot round-trip — a missing checkbox
 entry means unchecked, so that default states something a form never says.
 
+A boolean literal is the box that has to be a particular way, which is the
+terms-and-conditions field:
+
+```ts
+S.schema({
+  terms: S.schema(true), // unchecked -> Expected true, received false
+  spam: S.schema(false), // checked   -> Expected false, received true
+});
+```
+
+`S.nullable(S.boolean)` reads an absent box as `null` rather than `false` — the
+`null` arm has nothing else to come from, since no entry a form submits reads as
+null.
+
+`S.array(S.boolean)` is *not* a checkbox group. A repeated key is a list, so
+each item is written as `"true"`/`"false"` at its own index; dropping the false
+ones would lose the positions. A checkbox group submits the `value` of each
+checked box, which is `S.array(S.string)`.
+
 An empty text input submits `""`, and a required string field has to say what
 that means — Sury will not guess. A bare `S.string` fails at operation
 creation:

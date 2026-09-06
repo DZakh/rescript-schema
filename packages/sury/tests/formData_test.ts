@@ -253,6 +253,49 @@ test("a checkbox round-trips however the field is wrapped", () => {
   }
 });
 
+test("a boolean literal is the must-be-checked box", () => {
+  // The terms-and-conditions checkbox, which submits "on" like any other and
+  // reports the box rather than the entry when it is missing.
+  const schema = S.formData.with(S.to, S.schema({ terms: S.schema(true) }));
+  expect(S.decoder(schema)(form(["terms", "on"]))).toEqual({ terms: true });
+  expect(entries(S.encoder(schema)({ terms: true }))).toEqual([["terms", "on"]]);
+  for (const fd of [new FormData(), form(["terms", "false"]), form(["terms", "0"])]) {
+    expect(() => S.decoder(schema)(fd)).toThrow("Failed at terms: Expected true, received false");
+  }
+  // And its mirror, for a box that must stay clear.
+  const clear = S.formData.with(S.to, S.schema({ spam: S.schema(false) }));
+  expect(S.decoder(clear)(new FormData())).toEqual({ spam: false });
+  expect(entries(S.encoder(clear)({ spam: false }))).toEqual([]);
+  expect(() => S.decoder(clear)(form(["spam", "on"]))).toThrow(
+    "Failed at spam: Expected false, received true",
+  );
+});
+
+test("a repeated key is a list, so a boolean list is positional", () => {
+  // Not a checkbox group: dropping the false entries the way a browser does
+  // would lose the indices the decoder reads back. A checkbox *group* submits
+  // the values of the checked boxes, which is S.array(S.string).
+  const schema = S.formData.with(S.to, S.schema({ flags: S.array(S.boolean) }));
+  const encoded = S.encoder(schema)({ flags: [true, false, true] });
+  expect(entries(encoded)).toEqual([
+    ["flags", "true"],
+    ["flags", "false"],
+    ["flags", "true"],
+  ]);
+  expect(S.decoder(schema)(encoded)).toEqual({ flags: [true, false, true] });
+});
+
+test("a nullable checkbox reads an absent box as null", () => {
+  // Without it the `null` arm would be unreachable: nothing a form submits
+  // reads as null, so absence is the only thing left to carry it.
+  const schema = S.formData.with(S.to, S.schema({ a: S.nullable(S.boolean) }));
+  expect(S.decoder(schema)(new FormData())).toEqual({ a: null });
+  expect(S.decoder(schema)(form(["a", "on"]))).toEqual({ a: true });
+  expect(S.decoder(schema)(form(["a", "false"]))).toEqual({ a: false });
+  expect(entries(S.encoder(schema)({ a: null }))).toEqual([]);
+  expect(entries(S.encoder(schema)({ a: false }))).toEqual([]);
+});
+
 test("a checkbox defaulting to true cannot round-trip, because the wire disagrees", () => {
   // An absent checkbox entry means unchecked, so a default of `true` states
   // something the wire never says. The encode omits `false` like a browser
@@ -277,6 +320,45 @@ test("FIXME: a refinement inside S.optional is not checked on encode", () => {
   );
   expect(() => S.encoder(S.schema({ nick: S.optional(S.string.with(S.maxLength, 3)) }))({ nick: "long" }))
     .not.toThrow();
+});
+
+test("a scalar field takes the first entry of a repeated key", () => {
+  // Parameter pollution: a client can send a key twice for a field the schema
+  // declared once. `get` is what the platform answers with, and it is the
+  // first entry — not the last, and not a silent array.
+  const schema = S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty) }));
+  expect(S.decoder(schema)(form(["name", "first"], ["name", "second"]))).toEqual({
+    name: "first",
+  });
+});
+
+test("a file entry in a text field is reported as the file it is", () => {
+  const schema = S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty) }));
+  expect(() => S.decoder(schema)(form(["name", new File(["x"], "a.txt")]))).toThrow(
+    "Failed at name: Expected string.length >= 1, received File",
+  );
+});
+
+test("what a text input reaching S.number is read as", () => {
+  // A form has no number type, so every one of these is a string a user can
+  // type into a field the schema calls a number. `+text` is the reading, which
+  // is broader than most people expect at both ends.
+  const schema = S.formData.with(S.to, S.schema({ n: S.number }));
+  for (const [text, value] of [
+    ["42", 42],
+    ["  42  ", 42],
+    ["42.00", 42],
+    ["+42", 42],
+    [".5", 0.5],
+    ["1e5", 100000],
+    ["0x10", 16],
+    ["Infinity", Infinity],
+  ] as const) {
+    expect(S.decoder(schema)(form(["n", text])), text).toEqual({ n: value });
+  }
+  for (const text of ["42abc", "1_000", "NaN", "", " "]) {
+    expect(() => S.decoder(schema)(form(["n", text])), text).toThrow("Expected number");
+  }
 });
 
 test("a nested document is a JSON text field, both ways", () => {
