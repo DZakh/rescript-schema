@@ -106,11 +106,11 @@ asyncTest("Compiled async parse code snapshot", async t => {
       S.bool->S.to(S.any, ~custom={decode: Async(i => Promise.resolve(i)), encode: Never}),
     )->S.Option.getOr(false)
 
-  t->Assert.deepEqual(await None->S.parseAsyncOrThrow(~to=schema), false)
+  t->Assert.deepEqual(await None->S.parseAsPromiseOrReject(~to=schema), false)
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ParseAsync,
-    `i=>{for(;;){if(typeof i==="boolean"){let v0=e[0](i);i=v0;break}if(i===void 0){i=false;break}e[1](i)}return Promise.resolve(i)}`,
+    `i=>{try{for(;;){if(typeof i==="boolean"){let v0=e[0](i);i=v0;break}if(i===void 0){i=false;break}e[1](i)}return Promise.resolve(i)}catch(v1){return Promise.reject(v1)}}`,
   )
 
   let schema =
@@ -118,11 +118,11 @@ asyncTest("Compiled async parse code snapshot", async t => {
     ->S.Option.getOr(false)
     ->S.to(S.any, ~custom={decode: Async(i => Promise.resolve(i)), encode: Never})
 
-  t->Assert.deepEqual(await None->S.parseAsyncOrThrow(~to=schema), false)
+  t->Assert.deepEqual(await None->S.parseAsPromiseOrReject(~to=schema), false)
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ParseAsync,
-    `i=>{for(;;){if(typeof i==="boolean")break;if(i===void 0){i=false;break}e[0](i)}let v0;try{v0=e[1](i).catch(x=>e[2](x))}catch(x){e[2](x)}return v0}`,
+    `i=>{try{for(;;){if(typeof i==="boolean")break;if(i===void 0){i=false;break}e[0](i)}let v0;try{v0=e[1](i).catch(x=>e[2](x))}catch(x){e[2](x)}return v0}catch(v1){return Promise.reject(v1)}}`,
   )
 })
 

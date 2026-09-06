@@ -20,7 +20,7 @@ test("Doesn't compile to noop when primitive converted to json string", t => {
 })
 
 test("JsonString output with Async mode", t => {
-  let fn = S.compileConvertAsyncOrThrow(~from=S.string, ~to=S.jsonString)
+  let fn = S.compileConvertAsPromiseOrReject(~from=S.string, ~to=S.jsonString)
   t->assertCode(fn, `i=>{return Promise.resolve(e[0](i))}`)
 })
 
@@ -32,8 +32,8 @@ test("TypeValidation=false works with assert output", t => {
 })
 
 test("Assert output with Async mode", t => {
-  let fn = S.compileConvertAsyncOrThrow(~from=S.unknown, ~to=S.string->S.to(S.literal()->S.noValidation(true)))
-  t->assertCode(fn, `i=>{typeof i==="string"||e[0](i);return Promise.resolve(void 0)}`)
+  let fn = S.compileConvertAsPromiseOrReject(~from=S.unknown, ~to=S.string->S.to(S.literal()->S.noValidation(true)))
+  t->assertCode(fn, `i=>{try{typeof i==="string"||e[0](i);return Promise.resolve(void 0)}catch(v0){return Promise.reject(v0)}}`)
 })
 
 test("Immitate assert returning true with S.to and literal", t => {
@@ -53,9 +53,9 @@ test("compileConvertOrThrow with ~via chains through the middle schema", t => {
 })
 
 test("validate and compileValidate answer with a bool", t => {
-  t->Assert.deepEqual("abc"->S.validate(~to=S.string), true)
-  t->Assert.deepEqual(%raw(`1`)->S.validate(~to=S.string), false)
-  let isString = S.compileValidate(~to=S.string)
+  t->Assert.deepEqual("abc"->S.isInput(~to=S.string), true)
+  t->Assert.deepEqual(%raw(`1`)->S.isInput(~to=S.string), false)
+  let isString = S.compileIsInput(~to=S.string)
   t->Assert.deepEqual(isString("abc"), true)
   t->Assert.deepEqual(isString(%raw(`1`)), false)
 })

@@ -23,7 +23,7 @@ test("Constructor checks the output side of a codec", t => {
 asyncTest("AsyncConstructor awaits the conversion before handing the value back", async t => {
   let schema =
     S.string->S.to(S.float, ~custom={decode: Async(s => Promise.resolve(Float.parseFloat(s))), encode: Auto})
-  let make = S.compileMakeAsyncOrThrow(~schema=schema)
+  let make = S.compileMakeAsPromiseOrReject(~schema=schema)
 
   t->Assert.deepEqual(await make(5.), 5.)
 })
@@ -39,5 +39,5 @@ asyncTest("makeAsyncOrThrow awaits the conversion", async t => {
   let schema =
     S.string->S.to(S.float, ~custom={decode: Async(s => Promise.resolve(Float.parseFloat(s))), encode: Auto})
 
-  t->Assert.deepEqual(await 5.->S.makeAsyncOrThrow(~schema), 5.)
+  t->Assert.deepEqual(await 5.->S.makeAsPromiseOrReject(~schema), 5.)
 })

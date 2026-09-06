@@ -21,6 +21,12 @@ const source = readFileSync(new URL("../index.mjs", import.meta.url), "utf8");
 // a validation-only call discards its result, which an annotated pure call
 // would let esbuild drop — silently deleting the validation.
 const EFFECTFUL: Record<string, string> = {
+  $parseAsResult: "the immediate call forms validate",
+  $parseAsResultPromise: "the immediate call forms validate",
+  $encodeAsResult: "the immediate call forms validate",
+  $encodeAsResultPromise: "the immediate call forms validate",
+  $makeAsResult: "the immediate call forms validate",
+  $makeAsResultPromise: "the immediate call forms validate",
   parseOrThrow: "the immediate call forms validate",
   parseAsResult: "the immediate call forms validate",
   parseAsPromiseOrReject: "the immediate call forms validate",
@@ -52,8 +58,6 @@ const EFFECTFUL: Record<string, string> = {
   assertOutputAsPromiseOrReject: "the immediate call forms validate",
   global: "mutates the global config",
   enableStandardJSONSchema: "registers the converter singleton",
-  $safe: "runs the callback it's given",
-  $safeAsync: "runs the callback it's given",
   $setExnId: "mutates the ReScript exception identity",
   Error: "a class, not a factory",
 };

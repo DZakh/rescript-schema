@@ -98,7 +98,7 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
   // 256 only changes what a success yields, so `throwTail` still decides the
   // identity case and the promise lift.
   if (!(flag & (128 | 256 | 4096))) {
-    const body = throwTail(
+    return throwTail(
       input,
       code,
       flag & 2048
@@ -110,18 +110,6 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
       flag,
       hasDefs,
     );
-    // 1024: a promise-returning operation must not throw synchronously — a
-    // value that fails its type check before the first await rejects the same
-    // way one that fails after it does, so `OrReject` is the whole story its
-    // name tells. It rides the flag rather than the tail's identity because
-    // the tail is registered globally: a mode that lived in the emitter alone
-    // would change what an operation compiled to depending on whether some
-    // other operation had been called first.
-    if (body !== U && flag & 8192 && input.g.t) {
-      const e = B_varWithoutAllocation(input.g);
-      return `try{${body}}catch(${e}){return Promise.reject(${e})}`;
-    }
-    return body;
   }
   // A promise is only produced for the async flag; the promisable mode (32)
   // asks for the value's own shape instead.
@@ -289,7 +277,7 @@ export function parseAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown
 }
 
 export function parseAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1 | 8192);
+  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1);
 }
 
 export function parseAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
@@ -313,7 +301,7 @@ export function decodeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknow
 }
 
 export function decodeAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, false, 1 | 8192);
+  return tailDispatch(arguments.length, a, b, c, d, U, U, false, 1);
 }
 
 export function decodeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
@@ -333,7 +321,7 @@ export function encodeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknow
 }
 
 export function encodeAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 8192);
+  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1);
 }
 
 export function encodeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
@@ -352,7 +340,7 @@ export function makeInputAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unk
 }
 
 export function makeInputAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 2048 | 8192);
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 2048);
 }
 
 export function makeInputAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
@@ -368,7 +356,7 @@ export function makeOutputAsResult(a?: unknown, b?: unknown, c?: unknown, d?: un
 }
 
 export function makeOutputAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 2048 | 8192);
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 2048);
 }
 
 export function makeOutputAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
@@ -417,7 +405,7 @@ export function assertInputAsPromiseOrReject(
   c?: unknown,
   d?: unknown,
 ): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 8192);
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1);
 }
 
 export function assertOutputAsPromiseOrReject(
@@ -426,5 +414,37 @@ export function assertOutputAsPromiseOrReject(
   c?: unknown,
   d?: unknown,
 ): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 8192);
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1);
+}
+
+// ── ReScript result surface ──────────────────────────────────────────────────
+//
+// JS `Result` is `{success, value, error}`; ReScript's `result<'value, S.error>`
+// is `{TAG, _0}`. Two shapes, one compiler (mode bit 256 instead of 128), so
+// these are legitimate `$` exports: a ReScript-only result shape has no public
+// JS equivalent. The ReScript tail ships only to bundles importing S.res.mjs,
+// so the two shapes tree-shake independently.
+
+export function $parseAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 256);
+}
+
+export function $parseAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1 | 256);
+}
+
+export function $encodeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 256);
+}
+
+export function $encodeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 256);
+}
+
+export function $makeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 256 | 2048);
+}
+
+export function $makeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 256 | 2048);
 }

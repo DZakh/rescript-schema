@@ -27,8 +27,11 @@ export type Flag = number;
 // promisable (1 without lifting a synchronous result into a promise), 1024
 // Standard Schema (`{value}` / `{issues}`), 2048 yield the operation's input
 // rather than its output (`makeInput`/`makeOutput`), 4096 answer a boolean
-// (`isInput`/`isOutput`), 8192 a synchronous failure rejects rather than throws
-// (`*AsPromiseOrReject`).
+// (`isInput`/`isOutput`).
+//
+// An async operation (1) also rejects rather than throwing when its value fails
+// before the first await — decided by `throwTail`, from whether the compile is
+// nested, not by a flag of its own.
 //
 // The split at 128 is load-bearing: a nested operation compiled inside another
 // (recursive.ts) masks with `& 127`, because generated code consumes its result

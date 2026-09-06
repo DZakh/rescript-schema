@@ -79,13 +79,13 @@ let getCompiledCodeString = (
       let fn = S.compileConvertOrThrow(~from=S.unknown, ~to=schema)
       fn->magic
     | #ParseAsync =>
-      let fn = S.compileConvertAsyncOrThrow(~from=S.unknown, ~to=schema)
+      let fn = S.compileConvertAsPromiseOrReject(~from=S.unknown, ~to=schema)
       fn->magic
     | #Convert =>
       let fn = S.compileConvertOrThrow(~from=schema->S.reverse, ~to=S.unknown)
       fn->magic
     | #ConvertAsync =>
-      let fn = S.compileConvertAsyncOrThrow(~from=schema->S.reverse, ~to=S.unknown)
+      let fn = S.compileConvertAsPromiseOrReject(~from=schema->S.reverse, ~to=S.unknown)
       fn->magic
     | #Assert =>
       let fn = S.compileConvertOrThrow(~from=S.unknown, ~to=schema->S.to(S.literal()->S.noValidation(true)))
@@ -99,7 +99,7 @@ let getCompiledCodeString = (
         fn->magic
       }
     | #EncodeAsync => {
-        let fn = S.compileConvertAsyncOrThrow(~from=schema, ~to=S.unknown)
+        let fn = S.compileConvertAsPromiseOrReject(~from=schema, ~to=S.unknown)
         fn->magic
       }
     | #EncodeToJson => {

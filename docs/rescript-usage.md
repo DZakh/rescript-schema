@@ -317,9 +317,9 @@ S.array(S.string)->S.nonEmpty // S.t<S.nonEmpty<array<string>>>
 spec, so a well-formed value passes even when it isn't one you want to accept:
 
 ```rescript
-"javascript:alert(1)"->S.assertOrThrow(~to=S.uri) // passes — a valid URI
-"169.254.169.254"->S.assertOrThrow(~to=S.hostname) // passes — a valid host name
-"//evil.com"->S.assertOrThrow(~to=S.uriReference) // passes — a valid reference
+"javascript:alert(1)"->S.assertInputOrThrow(~to=S.uri) // passes — a valid URI
+"169.254.169.254"->S.assertInputOrThrow(~to=S.hostname) // passes — a valid host name
+"//evil.com"->S.assertInputOrThrow(~to=S.uriReference) // passes — a valid reference
 ```
 
 When you want a security decision rather than a syntax check, compose one. The
@@ -1699,37 +1699,57 @@ let apiUserSchema = S.schema(s =>
 
 `S.to` is the same compiler as `S.compileConvertOrThrow` and `S.convertOrThrow`, just used at a single point in a larger schema. The whole tree — top-level operation plus every nested `S.to` — still folds into one generated function, so deep pipelines stay free of runtime overhead.
 
-> 🧠 `S.parseOrThrow` and `S.assertOrThrow` aren't separate primitives — they're just specializations of `S.convertOrThrow` with `S.unknown` on the input side. `data->S.parseOrThrow(~to=schema)` is `data->S.convertOrThrow(~from=S.unknown, ~to=schema)`. `data->S.assertOrThrow(~to=schema)` runs a decoder from `S.unknown` through the schema to `S.literal()->S.noValidation(true)` — the target is a no-op constant with validation disabled, so the compiler emits the schema's validation but no output-construction code at all. That's why `assertOrThrow` is 2–3× faster than `parseOrThrow`.
+> 🧠 `S.parseOrThrow` and `S.assertInputOrThrow` aren't separate primitives — they're just specializations of `S.convertOrThrow` with `S.unknown` on the input side. `data->S.parseOrThrow(~to=schema)` is `data->S.convertOrThrow(~from=S.unknown, ~to=schema)`. `data->S.assertInputOrThrow(~to=schema)` runs a decoder from `S.unknown` through the schema to `S.literal()->S.noValidation(true)` — the target is a no-op constant with validation disabled, so the compiler emits the schema's validation but no output-construction code at all. That's why `assertInputOrThrow` is 2–3× faster than `parseOrThrow`.
 
 ### Built-in operations
 
-Every operation is named `[compile]` + verb + `[Async]` + `[OrThrow]`.
+Every operation is named `[compile]` + verb + outcome, and the names match the JS ones apart from two deliberate divergences: `S.t<'value>` names the **output** type, so what JS spells `encode*` is `convert*` here, and what it spells `makeOutput*` is just `make*`.
 
-`parse`, `convert` and `make` come in both flavors: the bare name returns a `result<'value, S.error>`, and the `OrThrow` name throws `S.Exn`. Asserting has only the throwing form, `assertOrThrow`. `validate` is the non-throwing counterpart to it and answers with a `bool` rather than a `result`, since there is no value to hand back either way.
+`parse`, `convert` and `make` each take four outcomes:
+
+| Suffix | Returns |
+| --- | --- |
+| `OrThrow` | `'value` — throws `S.Exn` |
+| `AsResult` | `result<'value, S.error>` |
+| `AsPromiseOrReject` | `promise<'value>` — rejects, never throws synchronously |
+| `AsResultPromise` | `promise<result<'value, S.error>>` |
+
+The result outcomes are compiled, not wrapped: ReScript's `result` is a second tail the same compiler emits, so nothing pays for a closure per call.
+
+Asserting has the two throwing outcomes, `assertInputOrThrow` and `assertInputAsPromiseOrReject` (plus their `Output` twins). `isInput` / `isOutput` are the non-throwing counterparts and answer with a `bool` rather than a `result`, since there is no value to hand back either way — `assert` is a ReScript keyword, which is why the boolean form is spelled `is*`.
+
+ReScript has no overloads, so where the JS surface reads the call shape at runtime, the binding names it: the `compile*` form is the data-last one, and the bare name applies it.
 
 The `compile` prefix returns the operation as a function to call repeatedly — the fastest way to run one schema many times. Only the throwing operations compile: a compiled operation is for the hot path, where the `result` allocation per call is the cost you are avoiding, so wrap the compiled function yourself if you want a `result` there. `compileValidate` is the exception, since its answer is already a bool.
 
-| Verb         | One-shot                     | Compiled                     | Async                                                  |
-| ------------ | ---------------------------- | ---------------------------- | ------------------------------------------------------ |
-| **parse**    | `parse`, `parseOrThrow`      | `compileParseOrThrow`        | `parseAsync`, `parseAsyncOrThrow`, `compileParseAsyncOrThrow`     |
-| **convert**  | `convert`, `convertOrThrow`  | `compileConvertOrThrow`      | `convertAsync`, `convertAsyncOrThrow`, `compileConvertAsyncOrThrow` |
-| **assert**   | `assertOrThrow`              |                              | `assertAsyncOrThrow`                                   |
-| **validate** | `validate`                   | `compileValidate`            |                                                        |
-| **make**     | `make`, `makeOrThrow`        | `compileMakeOrThrow`         | `makeAsync`, `makeAsyncOrThrow`, `compileMakeAsyncOrThrow`        |
+| Verb        | Throws                                             | Result                                             |
+| ----------- | -------------------------------------------------- | -------------------------------------------------- |
+| **parse**   | `parseOrThrow`, `parseAsPromiseOrReject`           | `parseAsResult`, `parseAsResultPromise`            |
+| **convert** | `convertOrThrow`, `convertAsPromiseOrReject`       | `convertAsResult`, `convertAsResultPromise`        |
+| **make**    | `makeOrThrow`, `makeAsPromiseOrReject`             | `makeAsResult`, `makeAsResultPromise`              |
+| **assert**  | `assertInputOrThrow`, `assertInputAsPromiseOrReject` (and the `Output` twins) | |
+| **is**      | | `isInput`, `isOutput` — a `bool`, not a `result` |
+
+Each has a `compile`-prefixed data-last form: `compileParseOrThrow`, `compileConvertAsResult`, `compileIsOutput`, and so on.
 
 **Parsing** validates the input value against the schema and transforms it to the expected output type:
 
 ```
 S.parseOrThrow: ('any, ~to: S.t<'value>) => 'value
-S.parse: ('any, ~to: S.t<'value>) => result<'value, S.error>
+S.parseAsResult: ('any, ~to: S.t<'value>) => result<'value, S.error>
+S.parseAsPromiseOrReject: ('any, ~to: S.t<'value>) => promise<'value>
+S.parseAsResultPromise: ('any, ~to: S.t<'value>) => promise<result<'value, S.error>>
 S.compileParseOrThrow: (~to: S.t<'value>) => 'any => 'value
+S.compileParseAsResult: (~to: S.t<'value>) => 'any => result<'value, S.error>
+S.compileParseAsPromiseOrReject: (~to: S.t<'value>) => 'any => promise<'value>
+S.compileParseAsResultPromise: (~to: S.t<'value>) => 'any => promise<result<'value, S.error>>
 ```
 
 ```rescript
 let parse = S.compileParseOrThrow(~to=S.string)
 parse("Hello world!") // "Hello world!"
 
-switch data->S.parse(~to=schema) {
+switch data->S.parseAsResult(~to=schema) {
 | Ok(value) => Console.log(value)
 | Error(error) => Console.log(error.message)
 }
@@ -1739,7 +1759,9 @@ switch data->S.parse(~to=schema) {
 
 ```
 S.convertOrThrow: ('from, ~from: S.t<'from>, ~via: S.t<'via>=?, ~to: S.t<'to>) => 'to
-S.convert: ('from, ~from: S.t<'from>, ~via: S.t<'via>=?, ~to: S.t<'to>) => result<'to, S.error>
+S.convertAsResult: ('from, ~from: S.t<'from>, ~via: S.t<'via>=?, ~to: S.t<'to>) => result<'to, S.error>
+S.convertAsPromiseOrReject: ('from, ~from: S.t<'from>, ~via: S.t<'via>=?, ~to: S.t<'to>) => promise<'to>
+S.convertAsResultPromise: ('from, ~from: S.t<'from>, ~via: S.t<'via>=?, ~to: S.t<'to>) => promise<result<'to, S.error>>
 S.compileConvertOrThrow: (~from: S.t<'from>, ~via: S.t<'via>=?, ~to: S.t<'to>) => 'from => 'to
 ```
 
@@ -1770,22 +1792,28 @@ Also, you can use `S.noValidation` helper to turn off type validations for the s
 **Asserting** validates the input value without returning a transformed result. Since no output is constructed, it's 2-3 times faster than `parseOrThrow` depending on the schema:
 
 ```
-S.assertOrThrow: ('any, ~to: S.t<'value>) => ()
-S.assertAsyncOrThrow: ('any, ~to: S.t<'value>) => promise<()>
+S.assertInputOrThrow: ('any, ~to: S.t<'value>) => ()
+S.assertInputAsPromiseOrReject: ('any, ~to: S.t<'value>) => promise<()>
+S.assertOutputOrThrow: ('any, ~schema: S.t<'value>) => ()
+S.assertOutputAsPromiseOrReject: ('any, ~schema: S.t<'value>) => promise<()>
 ```
 
-**Validating** is the non-throwing assert. `assert` is a ReScript keyword, so the boolean-returning flavor is spelled `validate`:
+**Validating** is the non-throwing assert. `assert` is a ReScript keyword, so the boolean-returning flavor takes the JS name — and with it the direction, which is a free parameter here:
 
 ```
-S.validate: ('any, ~to: S.t<'value>) => bool
-S.compileValidate: (~to: S.t<'value>) => 'any => bool
+S.isInput: ('any, ~to: S.t<'value>) => bool
+S.isOutput: ('any, ~schema: S.t<'value>) => bool
+S.compileIsInput: (~to: S.t<'value>) => 'any => bool
+S.compileIsOutput: (~schema: S.t<'value>) => 'any => bool
 ```
 
 **Making** checks a value you built in code rather than received from the wire. Every check the schema carries runs — types, the conversion, refinements — and the value itself comes back, not a decoded copy, so an entity the schema has no way to encode fails at construction rather than at the point it's sent. `S.t<'value>` names the output type, so this is the JS `makeOutputOrThrow`:
 
 ```
 S.makeOrThrow: ('value, ~schema: S.t<'value>) => 'value
-S.make: ('value, ~schema: S.t<'value>) => result<'value, S.error>
+S.makeAsResult: ('value, ~schema: S.t<'value>) => result<'value, S.error>
+S.makeAsPromiseOrReject: ('value, ~schema: S.t<'value>) => promise<'value>
+S.makeAsResultPromise: ('value, ~schema: S.t<'value>) => promise<result<'value, S.error>>
 S.compileMakeOrThrow: (~schema: S.t<'value>) => 'value => 'value
 ```
 

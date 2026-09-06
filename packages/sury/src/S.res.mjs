@@ -56,70 +56,90 @@ function to(from, target, custom) {
 
 function compileConvertOrThrow(from, via, to) {
   if (via !== undefined) {
-    return Sury.encoder(from, via, to);
+    return Sury.encodeOrThrow(from, via, to);
   } else {
-    return Sury.encoder(from, to);
+    return Sury.encodeOrThrow(from, to);
   }
 }
 
-function compileConvertAsyncOrThrow(from, via, to) {
+function compileConvertAsPromiseOrReject(from, via, to) {
   if (via !== undefined) {
-    return Sury.asyncEncoder(from, via, to);
+    return Sury.encodeAsPromiseOrReject(from, via, to);
   } else {
-    return Sury.asyncEncoder(from, to);
+    return Sury.encodeAsPromiseOrReject(from, to);
+  }
+}
+
+function compileConvertAsResult(from, via, to) {
+  if (via !== undefined) {
+    return Sury.$encodeAsResult(from, via, to);
+  } else {
+    return Sury.$encodeAsResult(from, to);
+  }
+}
+
+function compileConvertAsResultPromise(from, via, to) {
+  if (via !== undefined) {
+    return Sury.$encodeAsResultPromise(from, via, to);
+  } else {
+    return Sury.$encodeAsResultPromise(from, to);
   }
 }
 
 function parseOrThrow(any, to) {
-  return Sury.parser(to)(any);
+  return Sury.parseOrThrow(to)(any);
 }
 
-function parseAsyncOrThrow(any, to) {
-  return Sury.asyncParser(to)(any);
+function parseAsPromiseOrReject(any, to) {
+  return Sury.parseAsPromiseOrReject(to)(any);
 }
 
-function parse(any, to) {
-  return Sury.$safe(() => Sury.parser(to)(any));
+function parseAsResult(any, to) {
+  return Sury.$parseAsResult(to)(any);
 }
 
-function parseAsync(any, to) {
-  return Sury.$safeAsync(() => Sury.asyncParser(to)(any));
+function parseAsResultPromise(any, to) {
+  return Sury.$parseAsResultPromise(to)(any);
 }
 
-function validate(any, to) {
-  return Sury.inputValidator(to)(any);
+function isInput(any, to) {
+  return Sury.isInput(to)(any);
+}
+
+function isOutput(any, schema) {
+  return Sury.isOutput(schema)(any);
 }
 
 function convertOrThrow(any, from, via, to) {
   return compileConvertOrThrow(from, via, to)(any);
 }
 
-function convertAsyncOrThrow(any, from, via, to) {
-  return compileConvertAsyncOrThrow(from, via, to)(any);
+function convertAsPromiseOrReject(any, from, via, to) {
+  return compileConvertAsPromiseOrReject(from, via, to)(any);
 }
 
-function convert(any, from, via, to) {
-  return Sury.$safe(() => convertOrThrow(any, from, via, to));
+function convertAsResult(any, from, via, to) {
+  return compileConvertAsResult(from, via, to)(any);
 }
 
-function convertAsync(any, from, via, to) {
-  return Sury.$safeAsync(() => convertAsyncOrThrow(any, from, via, to));
+function convertAsResultPromise(any, from, via, to) {
+  return compileConvertAsResultPromise(from, via, to)(any);
 }
 
 function makeOrThrow(value, schema) {
-  return Sury.outputConstructor(schema)(value);
+  return Sury.makeOutputOrThrow(schema)(value);
 }
 
-function makeAsyncOrThrow(value, schema) {
-  return Sury.asyncOutputConstructor(schema)(value);
+function makeAsPromiseOrReject(value, schema) {
+  return Sury.makeOutputAsPromiseOrReject(schema)(value);
 }
 
-function make(value, schema) {
-  return Sury.$safe(() => Sury.outputConstructor(schema)(value));
+function makeAsResult(value, schema) {
+  return Sury.$makeAsResult(schema)(value);
 }
 
-function makeAsync(value, schema) {
-  return Sury.$safeAsync(() => Sury.asyncOutputConstructor(schema)(value));
+function makeAsResultPromise(value, schema) {
+  return Sury.$makeAsResultPromise(schema)(value);
 }
 
 let Schema = {};
@@ -167,20 +187,23 @@ export {
   refine,
   to,
   compileConvertOrThrow,
-  compileConvertAsyncOrThrow,
+  compileConvertAsPromiseOrReject,
+  compileConvertAsResult,
+  compileConvertAsResultPromise,
   parseOrThrow,
-  parseAsyncOrThrow,
-  parse,
-  parseAsync,
-  validate,
+  parseAsPromiseOrReject,
+  parseAsResult,
+  parseAsResultPromise,
+  isInput,
+  isOutput,
   convertOrThrow,
-  convertAsyncOrThrow,
-  convert,
-  convertAsync,
+  convertAsPromiseOrReject,
+  convertAsResult,
+  convertAsResultPromise,
   makeOrThrow,
-  makeAsyncOrThrow,
-  make,
-  makeAsync,
+  makeAsPromiseOrReject,
+  makeAsResult,
+  makeAsResultPromise,
   Schema,
   $$Object,
   Tuple,

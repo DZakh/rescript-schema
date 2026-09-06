@@ -352,9 +352,9 @@ test("a promise-returning operation rejects, it never throws synchronously", () 
 
 test("what an operation compiles to depends on its flag, never on call order", () => {
   // The tail emitter is registered globally on first use, so a mode that lived
-  // in the emitter's identity rather than in the flag would make an operation
-  // compile differently depending on whether some other operation had been
-  // called first.
+  // in the emitter's identity rather than in the flag (or in what
+  // `compileDecoder` is handed) would make an operation compile differently
+  // depending on whether some other operation had been called first.
   const before = S.parseAsPromiseOrReject(S.schema({ id: S.string })).toString();
   S.parseAsResult(S.schema({ other: S.string }), { other: "x" });
   S.isInput(S.schema({ third: S.string }), {});
