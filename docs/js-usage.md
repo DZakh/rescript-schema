@@ -43,6 +43,9 @@
 - [Blob](#blob)
 - [File](#file)
 - [FormData](#formdata)
+  - [Checkboxes](#checkboxes)
+  - [Blank inputs](#blank-inputs)
+  - [Not supported](#not-supported)
 - [Content](#content)
 - [Meta](#meta)
 - [Brand](#brand)
@@ -1168,21 +1171,21 @@ const upload = (f: S.File) => S.parser(S.file)(f);
 
 ## FormData
 
-`S.formData` validates a `FormData`. Convert it to an object schema with `S.to`
-and one schema serves both the request handler and the `fetch` body:
+`S.formData` validates a `FormData`. Convert it with `S.to` and one schema
+serves both the request handler and the `fetch` body:
 
 ```ts
 const signup = S.formData.with(
   S.to,
   S.schema({
-    name: S.string.with(S.nonEmpty), // a blank entry is rejected
+    name: S.string.with(S.nonEmpty),
     age: S.number, // "42" -> 42
-    agree: S.boolean, // a checkbox: "on" -> true, absent -> false
-    newsletter: S.optional(S.boolean), // tri-state: "true" -> true, absent -> undefined
+    agree: true, // a checkbox that has to be ticked
+    newsletter: S.optional(S.boolean), // tri-state: absent -> undefined
     role: S.union(["admin", "user"]),
     tags: S.array(S.string), // every "tags" entry
     avatar: S.file,
-    prefs: S.jsonString.with(S.to, S.schema({ theme: S.string })), // a JSON text field
+    prefs: S.jsonString.with(S.to, S.schema({ theme: S.string })),
   }),
 );
 
@@ -1190,63 +1193,43 @@ S.decoder(signup)(await request.formData());
 // => { name: "Ann", age: 42, agree: true, newsletter: undefined, role: "user",
 //      tags: ["a", "b"], avatar: File, prefs: { theme: "dark" } }
 
-S.encoder(signup)({ name: "Ann", age: 42, agree: true, role: "user", tags: ["a"], avatar, prefs: { theme: "dark" } });
+S.encoder(signup)(value);
 // => a FormData with one append per field, ready for fetch(url, { body })
 ```
 
 A field reads its entry as text through the same coercions
-[`S.record(S.string)`](#records) gets, so numbers, literals, dates and `S.url`
-all work; `S.file` and `S.blob` take the entry as it is, and `S.array` reads
-every entry of the key — including `S.array(S.file)`, for a multi-file input.
-Nested objects have no wire form here: send them as a
-[`S.jsonString`](#advanced-schemas) field instead.
+[`S.record(S.string)`](#records) gets; `S.file` and `S.blob` take the entry as
+it is, and `S.array` reads every entry of the key — `S.array(S.file)` included,
+for a multi-file input.
 
-A `S.boolean` is a checkbox, since nothing else a browser sends is one, and it
-stays one however you wrap it. Absent reads as `false`, `"on"` and `"true"` as
-`true`. `S.optional(S.boolean)` keeps the tri-state for a form that tells
-"unchecked" from "not on the page":
+### Checkboxes
 
-```ts
-S.formData.with(
-  S.to,
-  S.schema({
-    agree: S.boolean, // "on" -> true, absent -> false
-    terms: S.optional(S.boolean, false), // the same, with the default spelled out
-    notify: S.optional(S.boolean), // tri-state: absent -> undefined
-  }),
-);
-```
-
-Reading accepts `"on"`, `"true"` and `"1"` as checked, `"false"` and `"0"` as
-unchecked, and nothing else — a box carrying any other `value` is a string the
-schema should name. Encoding omits an unchecked box, exactly as a browser does.
-`S.optional(S.boolean)` is the exception: absent and unchecked are the same
-wire, so its `false` is written out to keep the third state apart. For the same
-reason `S.optional(S.boolean, true)` cannot round-trip — a missing checkbox
-entry means unchecked, so that default states something a form never says.
-
-A boolean literal is the box that has to be a particular way, which is the
-terms-and-conditions field:
+A boolean field is a checkbox, since nothing else a browser sends is one, and
+it stays one however you wrap it:
 
 ```ts
 S.schema({
-  terms: S.schema(true), // unchecked -> Expected true, received false
-  spam: S.schema(false), // checked   -> Expected false, received true
+  agree: S.boolean, // "on"/"true"/"1" -> true, "false"/"0" or absent -> false
+  terms: true, // must be ticked:  absent -> Expected true, received false
+  spam: false, // must stay clear: "on"  -> Expected false, received true
+  notify: S.optional(S.boolean), // tri-state: absent -> undefined
+  seen: S.nullable(S.boolean), // absent -> null
 });
 ```
 
-`S.nullable(S.boolean)` reads an absent box as `null` rather than `false` — the
-`null` arm has nothing else to come from, since no entry a form submits reads as
-null.
+Encoding omits an unchecked box, exactly as a browser does. `S.optional(S.boolean)`
+is the exception — absent and unchecked are the same wire, so its `false` is
+written out to keep the third state apart, and `S.optional(S.boolean, true)`
+therefore cannot round-trip.
 
-`S.array(S.boolean)` is *not* a checkbox group. A repeated key is a list, so
-each item is written as `"true"`/`"false"` at its own index; dropping the false
-ones would lose the positions. A checkbox group submits the `value` of each
-checked box, which is `S.array(S.string)`.
+Any other `value` is a string the schema should name (`S.union(["yes", "no"])`),
+and `S.array(S.boolean)` is a positional list, not a checkbox group — a group
+submits the value of each checked box, which is `S.array(S.string)`.
+
+### Blank inputs
 
 An empty text input submits `""`, and a required string field has to say what
-that means — Sury will not guess. A bare `S.string` fails at operation
-creation:
+that means:
 
 ```ts
 S.formData.with(S.to, S.schema({ name: S.string }));
@@ -1255,40 +1238,33 @@ S.formData.with(S.to, S.schema({ name: S.string }));
 ```
 
 ```ts
-S.formData.with(
-  S.to,
-  S.schema({
-    name: S.string.with(S.nonEmpty), // "" -> Expected string.length >= 1
-    bio: S.string.with(S.minLength, 0), // "" -> "", a value
-    nick: S.optional(S.string), // "" -> undefined
-    note: S.nullable(S.string), // "" -> null
-    tier: S.optional(S.number, 1), // "" -> 1, the default
-    age: S.number, // "" -> Expected number
-  }),
-);
+S.schema({
+  name: S.string.with(S.nonEmpty), // "" -> Expected string.length >= 1
+  bio: S.string.with(S.minLength, 0), // "" -> "", a value
+  nick: S.optional(S.string), // "" -> undefined
+  note: S.nullable(S.string), // "" -> null
+  tier: S.optional(S.number, 1), // "" -> 1, the default
+  age: S.number, // "" -> Expected number
+});
 ```
 
-Only a *required, non-nullable string* has to choose. An optional or nullable
-field already says what a blank entry is — absent, its default, or `null`, and
-encoding leaves it out either way — and every other target answers for itself:
-`S.number` rejects `""`,
-`S.email` and the other formats reject it by their own syntax, `S.jsonPointer`
-accepts it because an empty pointer is a real one, a literal matches or
-doesn't, and a `S.pattern` decides by whether it matches `""`.
+Only a required, non-nullable string has to choose — every other target answers
+for itself, `S.minLength(0)` being the way to say "the empty string is a value"
+without adding a check.
 
-`S.minLength(0)` states nothing else: it adds no check, no `minLength` keyword
-to `S.inputJSONSchema`, and nothing to the rendered expression.
+### Not supported
 
-`S.strict` is not supported and fails at operation creation. A browser appends
-entries no schema declared — `_charset_`, one per `dirname` attribute, and an
-image button's `name.x`/`name.y` — so "no entries but these" is not something a
-form submission can promise. Objects strip by default; keep it that way.
+`S.strict` fails at operation creation: a browser adds entries no schema
+declared, so "no entries but these" is not something a form can promise.
+Objects strip by default; keep it that way.
 
-A file input with nothing chosen still submits — the HTML Standard has it
-append an empty, unnamed `File` — so that sentinel reads as absent rather than
-as an upload, and a required `S.file` reports a missing file.
+Nested objects have no wire form here — send them as a
+[`S.jsonString`](#advanced-schemas) field, the way `prefs` does above.
 
-Both directions are sync: nothing reads a file's bytes. `S.FormData` is
+A file input with nothing chosen still submits an empty, unnamed `File`; that
+sentinel reads as absent, so a required `S.file` reports a missing file.
+
+Both directions are sync — nothing reads a file's bytes. `S.FormData` is
 exported as a type for projects with neither `lib.dom` nor `@types/node`, like
 [`S.File`](#file).
 

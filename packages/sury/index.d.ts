@@ -497,15 +497,12 @@ export type FormData = typeof globalThis extends {
 
 /**
  * A form submission, converted to and from an object schema with `S.to`. A
- * field reads through the string coercions (`"42"` -> `S.number`), a `S.file`
- * field takes the entry as it is, and `S.array` reads every entry of the key.
- * A required `S.boolean` is a checkbox: absent is `false`, `"on"` is `true`.
- * A blank text input reads as absent for an optional field and as `null` for a
- * nullable one. A required, non-nullable string field must say what it means —
- * `S.nonEmpty` to reject a blank one, `S.minLength(0)` to admit it — or the
- * operation fails to build. Encoding builds a `FormData` with one `append` per
- * field.
- * @example S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty), age: S.number, avatar: S.file }))
+ * field reads its entry as text (`"42"` -> `S.number`), a boolean is a
+ * checkbox, `S.array` reads every entry of the key, and `S.file` takes the
+ * entry as it is. A required, non-nullable string must say what a blank input
+ * means — `S.nonEmpty`, `S.minLength(0)`, `S.optional` or `S.nullable` — or
+ * the operation fails to build.
+ * @example S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty), agree: true, avatar: S.file }))
  */
 export const formData: Schema<FormData, FormData>;
 

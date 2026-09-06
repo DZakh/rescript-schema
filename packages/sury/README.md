@@ -181,7 +181,7 @@ const signup = S.formData.with(
   S.schema({
     email: S.email,
     age: S.number, // "42" -> 42
-    agree: S.schema(true), // the terms box, which has to be ticked
+    agree: true, // the terms box, which has to be ticked
     tags: S.array(S.string), // every "tags" entry
     avatar: S.file,
   }),

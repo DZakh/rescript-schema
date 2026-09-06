@@ -1273,29 +1273,26 @@ round. It takes the same size bounds.
 ```rescript
 let schema = S.formData->S.to(
   S.schema(s => {
-    name: s.field("name", S.string->S.nonEmpty), // a blank entry is rejected
+    name: s.field("name", S.string->S.nonEmpty),
     age: s.field("age", S.int), // "42" -> 42
+    agree: s.field("agree", S.literal(true)), // a checkbox that has to be ticked
+    notify: s.field("notify", S.bool), // "on" -> true, absent -> false
     tags: s.field("tags", S.array(S.string)), // every "tags" entry
     avatar: s.field("avatar", S.file),
   }),
 )
 
 %raw(`new FormData()`)->S.parseOrThrow(~to=schema) // throws - Failed at ["name"]: Expected string, received undefined
-{name: "Ann", age: 42, tags: ["a"], avatar}->S.reverseConvertOrThrow(~from=schema) // a FormData with one append per field
+value->S.reverseConvertOrThrow(~from=schema) // a FormData with one append per field
 ```
 
 A field reads its entry as text through the same coercions `S.dict(S.string)`
-gets; `S.file` and `S.blob` take the entry as it is, and a `S.bool` is a
-checkbox: absent is `false`, `"on"`/`"true"`/`"1"` is `true`, `"false"`/`"0"`
-is `false`, and an encode omits an unchecked box the way a browser does. A
-`bool` literal is the box that must be a particular way, so `S.literal(true)` is
-the terms-and-conditions field. A
-required, non-nullable string field must say what a blank entry means —
-`S.string->S.nonEmpty` to reject it, `S.string->S.minLength(0)` to admit it,
-`S.option` or `S.null` to read it as absent — or the operation fails to build.
-Every other target is handed the `""` and answers for itself. The type is
-abstract, since the stdlib has no `FormData` module; a value from a fetch
-binding is cast to it.
+gets; `S.file` and `S.blob` take the entry as it is, and an encode omits an
+unchecked box the way a browser does. A required, non-nullable string must say
+what a blank entry means — `S.string->S.nonEmpty`, `S.string->S.minLength(0)`,
+`S.option` or `S.null` — or the operation fails to build. The type is abstract,
+since the stdlib has no `FormData` module; a value from a fetch binding is cast
+to it.
 
 ### **`json`**
 
