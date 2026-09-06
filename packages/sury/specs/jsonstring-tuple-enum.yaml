@@ -24,6 +24,9 @@ operations:
       a:
         input: '["a", 1]'
         output: '"[\"a\",1]"'
+      b:
+        input: '["b", 2]'
+        output: '"[\"b\",2]"'
       not-a-member:
         input: '["c", 1]'
         error: 'Failed at [0]: Expected "a" | "b", received "c"'
