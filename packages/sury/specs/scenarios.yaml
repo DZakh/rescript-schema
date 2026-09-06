@@ -102,3 +102,32 @@ base64-unpack:
   # The other half: the base64 read plus the pattern check that lets it skip a
   # `try` around `atob`.
   run: decode(data)
+
+parse-safe:
+  prepare: |
+    const schema = S.schema({ id: S.string, age: S.number });
+    const data = { id: "u1", age: 30 };
+  # The Result path a consumer writes today: a closure allocated per call, a
+  # wrapper frame around the compiled operation, and the operation lookup
+  # inside it. A compiled result mode emits the catch inside the generated
+  # function instead, so this is the baseline that has to be beaten.
+  run: S.safe(() => S.parser(schema)(data))
+
+parse-safe-compiled:
+  prepare: |
+    const schema = S.schema({ id: S.string, age: S.number });
+    const parse = S.parser(schema);
+    const data = { id: "u1", age: 30 };
+  # Same, with the lookup hoisted away — what is left is the closure and the
+  # wrapper alone.
+  run: S.safe(() => parse(data))
+
+parse-safe-invalid:
+  prepare: |
+    const schema = S.schema({ id: S.string, age: S.number });
+    const parse = S.parser(schema);
+    const data = { id: "u1", age: "30" };
+  # The failure path pays for a thrown exception crossing the wrapper before
+  # it becomes a Result. Result mode never throws it, so this is where the
+  # gap should be widest.
+  run: S.safe(() => parse(data))
