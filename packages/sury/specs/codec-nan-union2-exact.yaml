@@ -22,4 +22,4 @@ operations:
         error: Expected NaN, received 1
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Ambiguous conversion from NaN | string to NaN: the NaN arm matches as it is. Use S.to for a coder, or S.never to drop it"
+    creationError: "SuryError: Ambiguous conversion from NaN | string to NaN. Use S.to(from, to, {decode, encode}), or S.never on an arm"

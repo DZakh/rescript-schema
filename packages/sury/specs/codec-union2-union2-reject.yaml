@@ -22,4 +22,4 @@ operations:
         output: '"ok"'
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Unsupported conversion from never | string to number | string: nothing converts to number. Use S.to for a coder"
+    creationError: "SuryError: Can't decode never | string to number | string. Use S.to to define a custom decoder"

@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Failed at a: Ambiguous conversion from string to string | undefined: the string arm matches as it is. Use S.to for a coder, or S.never to drop it"
+    creationError: "SuryError: Failed at a: Ambiguous conversion from string to string | undefined. Use S.to(from, to, {decode, encode}), or S.never on an arm"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Failed at a: Ambiguous conversion from string | undefined to string: the string arm matches as it is. Use S.to for a coder, or S.never to drop it"
+    creationError: "SuryError: Failed at a: Ambiguous conversion from string | undefined to string. Use S.to(from, to, {decode, encode}), or S.never on an arm"

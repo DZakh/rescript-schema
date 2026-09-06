@@ -316,7 +316,7 @@ test("reachable rejection and unreachable conversion stay distinct", (t) => {
     S.number,
   ]).with(S.to, S.union([S.string, S.number]));
   t.expect(() => S.parser(uncoveredTarget)).toThrow(
-    /nothing converts to string/,
+    /Can.t decode/,
   );
 
   const chainedUncoveredTarget = S.union([
@@ -324,7 +324,7 @@ test("reachable rejection and unreachable conversion stay distinct", (t) => {
     S.number,
   ]).with(S.to, S.union([S.string, S.number]));
   t.expect(() => S.parser(chainedUncoveredTarget)).toThrow(
-    /nothing converts to string/,
+    /Can.t decode/,
   );
 });
 

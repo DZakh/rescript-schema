@@ -50,6 +50,7 @@ import {
   B_embed,
   B_inlineConst,
   B_invalidOperation,
+  B_unsupportedDecode,
   B_neverSlot,
   B_makeInvalidInputDetails,
   B_markOutput,
@@ -597,39 +598,22 @@ const unionCheckPartial = (
       input,
       source,
       target,
-      `: the ${inputExpression(matched!)} arm matches as it is. Use S.to for a coder, or S.never to drop it`
+      `. Use S.to(from, to, {decode, encode}), or S.never on an arm`
     );
   }
 };
 
-const unionUncovered = (
-  input: Val,
-  source: Internal,
-  target: Internal,
-  variant: Internal
-): never =>
-  unionInvalid(
-    input,
-    source,
-    target,
-    `: nothing converts to ${inputExpression(variant)}. Use S.to for a coder`,
-    "Unsupported"
-  );
+// An arm with no counterpart is not ambiguous, it is a pair with no reading —
+// which is what every other unconvertible pair reports, in the same words.
+const unionUncovered = (input: Val, source: Internal, target: Internal): never =>
+  B_unsupportedDecode(input, source, target);
 
-// `why` carries its own leading punctuation so the two callers share one
-// template. Both name the pair first — that is what a reader has to look at —
-// and end in the spellings that resolve it, rather than in the rule that
-// rejected it.
-const unionInvalid = (
-  input: Val,
-  from: Internal,
-  to: Internal,
-  why: string,
-  kind = "Ambiguous"
-): never =>
+// The pair, then the spelling that resolves it — the shape `S.to` already uses
+// for a content pair with two readings.
+const unionInvalid = (input: Val, from: Internal, to: Internal, why: string): never =>
   B_invalidOperation(
     input,
-    `${kind} conversion from ${inputExpression(from)} to ${inputExpression(to)}${why}`
+    `Ambiguous conversion from ${inputExpression(from)} to ${inputExpression(to)}${why}`
   );
 
 // ── Normalize → Analyze → Plan → Emit ────────────────────────────────────────
@@ -1594,7 +1578,7 @@ const unionResolveToUnion = (
       );
     }
     if (matches[s] === U) {
-      unionUncovered(input, source, target, sourceOut);
+      unionUncovered(input, source, target);
     }
   }
   for (let t = 0; t < targets.length; t++) {
@@ -1610,7 +1594,7 @@ const unionResolveToUnion = (
         unionOutput(targetVariant).type === neverTag ||
         !(sourceNullish & tagFlags[opposite]!))
     ) {
-      unionUncovered(input, source, target, targetVariant);
+      unionUncovered(input, source, target);
     }
   }
 

@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Unsupported conversion from never | string to undefined | string: nothing converts to undefined. Use S.to for a coder"
+    creationError: "SuryError: Can't decode never | string to undefined | string. Use S.to to define a custom decoder"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Unsupported conversion from undefined | string to null | string: nothing converts to undefined. Use S.to for a coder"
+    creationError: "SuryError: Can't decode undefined | string to null | string. Use S.to to define a custom decoder"

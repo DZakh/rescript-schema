@@ -14,7 +14,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Unsupported conversion from string | undefined to boolean | null: nothing converts to string. Use S.to for a coder"
+    creationError: "SuryError: Can't decode string | undefined to boolean | null. Use S.to to define a custom decoder"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Unsupported conversion from boolean | null to string | undefined: nothing converts to boolean. Use S.to for a coder"
+    creationError: "SuryError: Can't decode boolean | null to string | undefined. Use S.to to define a custom decoder"
