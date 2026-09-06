@@ -472,10 +472,12 @@ export const jsonString = /* @__PURE__ */ (() => {
     // fixed container is left to the aggregate unless it carries a refiner
     // (it would read unvalidated fields) or a tuple's rest item, whose fixed
     // slots and loop the aggregate validates separately.
+    // `container.to`, not `s`: `jsonStringWithSpace` copies this hook with
+    // the schema, and a pretty document goes through JSON.stringify whole.
     s.fz = (input, container, item) => {
       if (
         input.s.additionalItems === unknown &&
-        !s.space &&
+        !container.to!.space &&
         !(input.g.o & 1) &&
         (item !== U
           ? !(item.to === U && (tagFlags[item.type]! & ((2 | 8) | 32)))
