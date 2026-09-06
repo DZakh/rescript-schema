@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{i instanceof e[6]||e[7](i);let v0=i.get("nick")||void 0,v1=i.get("age")||void 0,v3=i.get("bio")??void 0,v4=i.get("note")||void 0;if(v0!==void 0){typeof v0==="string"||e[1](v0);v0.length<4||e[0](v0);}if(v1!==void 0){typeof v1==="string"||e[3](v1);let v2=+v1;v2===v2&&(v2||v1.trim())||e[2](v1);v1=v2;}else{v1=18;}typeof v3==="string"||e[4](v3);if(v4!==void 0){typeof v4==="string"||e[5](v4);}return {nick:v0,age:v1,bio:v3,note:v4}}
+    expression: i=>{i instanceof e[7]||e[8](i);let v0=i.get("nick")||void 0,v1=i.get("age")||void 0,v3=i.get("bio")??void 0,v4=i.get("note")||void 0;if(v0!==void 0){typeof v0==="string"||e[2](v0);v0.length<4||e[0](v0)<4||e[1](v0);}if(v1!==void 0){typeof v1==="string"||e[4](v1);let v2=+v1;v2===v2&&(v2||v1.trim())||e[3](v1);v1=v2;}else{v1=18;}typeof v3==="string"||e[5](v3);if(v4!==void 0){typeof v4==="string"||e[6](v4);}return {nick:v0,age:v1,bio:v3,note:v4}}
     examples:
       all-present:
         input: ((f) => (f.append("nick", "nn"), f.append("age", "42"), f.append("bio", "hi"), f.append("note", "n"), f))(new FormData())
@@ -36,7 +36,7 @@ operations:
         input: ((f) => (f.append("nick", new File(["nn"], "a.txt")), f.append("bio", "hi"), f))(new FormData())
         error: "Failed at nick: Expected string.length <= 3, received File"
   decode:
-    expression: i=>{let v0=i.get("nick")||void 0,v1=i.get("age")||void 0,v3=i.get("bio")??void 0,v4=i.get("note")||void 0;if(v0!==void 0){typeof v0==="string"||e[1](v0);v0.length<4||e[0](v0);}if(v1!==void 0){typeof v1==="string"||e[3](v1);let v2=+v1;v2===v2&&(v2||v1.trim())||e[2](v1);v1=v2;}else{v1=18;}typeof v3==="string"||e[4](v3);if(v4!==void 0){typeof v4==="string"||e[5](v4);}return {nick:v0,age:v1,bio:v3,note:v4}}
+    expression: i=>{let v0=i.get("nick")||void 0,v1=i.get("age")||void 0,v3=i.get("bio")??void 0,v4=i.get("note")||void 0;if(v0!==void 0){typeof v0==="string"||e[2](v0);v0.length<4||e[0](v0)<4||e[1](v0);}if(v1!==void 0){typeof v1==="string"||e[4](v1);let v2=+v1;v2===v2&&(v2||v1.trim())||e[3](v1);v1=v2;}else{v1=18;}typeof v3==="string"||e[5](v3);if(v4!==void 0){typeof v4==="string"||e[6](v4);}return {nick:v0,age:v1,bio:v3,note:v4}}
     examples:
       all-empty:
         input: ((f) => (f.append("nick", ""), f.append("age", ""), f.append("bio", ""), f.append("note", ""), f))(new FormData())

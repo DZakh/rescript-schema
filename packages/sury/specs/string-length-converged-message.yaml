@@ -11,7 +11,7 @@ vs:
   zod: z.string().max(5, "custom too long").min(5)
 operations:
   parse:
-    expression: i=>{typeof i==="string"||e[2](i);i.length>4||e[0](i);i.length<6||e[1](i);return i}
+    expression: i=>{typeof i==="string"||e[3](i);i.length>9||e[0](i)>4||e[1](i);i.length<6||e[0](i)<6||e[2](i);return i}
     examples:
       at-the-length:
         input: '"abcde"'
@@ -23,7 +23,7 @@ operations:
         input: '"abc"'
         error: Expected string.length == 5, received "abc"
   decode:
-    expression: i=>{i.length>4||e[0](i);i.length<6||e[1](i);return i}
+    expression: i=>{i.length>9||e[0](i)>4||e[1](i);i.length<6||e[0](i)<6||e[2](i);return i}
     examples:
       at-the-length:
         input: '"abcde"'
@@ -35,7 +35,7 @@ operations:
         input: '"abc"'
         error: Expected string.length == 5, received "abc"
   encode:
-    expression: i=>{i.length>4||e[0](i);i.length<6||e[1](i);return i}
+    expression: i=>{i.length>9||e[0](i)>4||e[1](i);i.length<6||e[0](i)<6||e[2](i);return i}
     examples:
       at-the-length:
         input: '"abcde"'

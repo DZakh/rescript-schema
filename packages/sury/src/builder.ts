@@ -883,7 +883,8 @@ export const B_mergeWithPathPrepend = (
           let segments = "";
           for (let idx = 0; idx < parent.path.length; idx++) {
             const segment = parent.path[idx]!;
-            segments += `${typeof segment === "string" ? inlinedValueFromString(segment) : segment},`;
+            // Codegen paths are built from keys and indices, never a symbol.
+            segments += `${typeof segment === "string" ? inlinedValueFromString(segment) : (segment as number)},`;
           }
           if (locationVar !== U) {
             segments += `${locationVar},`;
