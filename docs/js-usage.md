@@ -1187,9 +1187,10 @@ const signup = S.formData.with(
 );
 
 S.decoder(signup)(await request.formData());
-// => { name: "Ann", age: 42, role: "user", tags: ["a", "b"], avatar: File, prefs: { theme: "dark" } }
+// => { name: "Ann", age: 42, agree: true, newsletter: undefined, role: "user",
+//      tags: ["a", "b"], avatar: File, prefs: { theme: "dark" } }
 
-S.encoder(signup)({ name: "Ann", age: 42, role: "user", tags: ["a"], avatar, prefs: { theme: "dark" } });
+S.encoder(signup)({ name: "Ann", age: 42, agree: true, role: "user", tags: ["a"], avatar, prefs: { theme: "dark" } });
 // => a FormData with one append per field, ready for fetch(url, { body })
 ```
 

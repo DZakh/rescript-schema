@@ -82,16 +82,19 @@ const presentArm = (schema: Internal): Internal => {
   if (schema.type !== anyOfTag) {
     return schema;
   }
-  const present = schema.anyOf!.filter(
-    (variant) => variant.type !== undefinedTag && variant.type !== nullTag,
-  );
+  const present: Internal[] = [];
+  const has: Partial<Record<Tag, boolean>> = {};
+  for (const variant of schema.anyOf!) {
+    if (variant.type !== undefinedTag && variant.type !== nullTag) {
+      present.push(variant);
+      setHas(has, variant.type);
+    }
+  }
   if (present.length === 1) {
     return present[0]!;
   }
   const mut = copySchema(schema);
   mut.anyOf = present;
-  const has: Partial<Record<Tag, boolean>> = {};
-  present.forEach((variant) => setHas(has, variant.type));
   mut.has = has;
   return mut;
 };
@@ -276,7 +279,7 @@ const readCheckbox = (item: Val, field: Field, schema: Internal): Val => {
       ? // Absent leaves the var undefined, which is the tri-state's third value
         // and what a default, or a `null` arm, converts from. Without one it
         // would be unreachable: nothing a form submits reads as `null`.
-        `let ${outputVar};if(${v}!==void 0){${read}${fail};${narrow}}${absentCode(
+        `let ${outputVar};if(${v}){${read}${fail};${narrow}}${absentCode(
           item,
           field,
           schema,
@@ -284,7 +287,7 @@ const readCheckbox = (item: Val, field: Field, schema: Internal): Val => {
         )}`
       : // An unchecked box sends nothing, so absent is `false` — which is what
         // the comparisons already assigned by the time the guard admits it.
-        `let ${outputVar};${read}${v}===void 0||${fail};${narrow}`,
+        `let ${outputVar};${read}!${v}||${fail};${narrow}`,
     outputVar,
   );
 };
@@ -299,6 +302,11 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
   // the decoder reads back. (A checkbox *group* submits the values of the
   // checked boxes, which is `S.array(S.string)`.)
   if (!inList && isCheckbox(schema)) {
+    // A literal settles the entry at compile time — `S.schema(true)` always
+    // submits, `S.schema(false)` never does — so neither needs a guard.
+    if (schema.const !== U) {
+      return schema.const ? `${fdVar}.append(${keyText},"on");` : "";
+    }
     // An unchecked box sends nothing, which is the whole of what the entry
     // list says about `false`, so that is what is written. A tri-state is the
     // one case the platform cannot express — absent and unchecked are the same
@@ -306,15 +314,9 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     // `S.optional(S.boolean, true)` therefore cannot round-trip: its `false`
     // omits, and an absent entry is its default. That default contradicts the
     // wire, where a missing checkbox means unchecked.
-    // A literal settles the entry at compile time — `S.schema(true)` always
-    // submits, `S.schema(false)` never does — so neither needs a guard.
-    return schema.const !== U
-      ? schema.const
-        ? `${fdVar}.append(${keyText},"on");`
-        : ""
-      : (tagFlag & 256) && schema.has![undefinedTag]
-        ? `if(${val.i}!==void 0){${fdVar}.append(${keyText},${val.i}?"on":"false")}`
-        : `if(${val.i}){${fdVar}.append(${keyText},"on")}`;
+    return (tagFlag & 256) && schema.has![undefinedTag]
+      ? `if(${val.i}!==void 0){${fdVar}.append(${keyText},${val.i}?"on":"false")}`
+      : `if(${val.i}){${fdVar}.append(${keyText},"on")}`;
   }
   const item = listItem(schema);
   if (item !== U) {
@@ -405,6 +407,10 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     const keyText = inlinedValueFromString(key);
     const field = classify(schema);
     const list = field.item !== U;
+    // Both say a blank entry carries no value, so both read it away and both
+    // compile their arms on their own.
+    const absent = field.optional || field.nullable;
+    const entry = takesEntry(field.present);
 
     // An empty text input submits `""`, and only an optional field reads it as
     // absent — that is the one case where the entry carries no value, and it is
@@ -418,7 +424,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     // optional one folds that empty read into absent, since a form has no other
     // way to submit an empty list.
     const readVar = B_varWithoutAllocation(input.g);
-    if (list && (field.optional || field.nullable)) {
+    if (list && absent) {
       // Two declarations rather than one self-referencing initializer, which
       // would read `readVar` inside its own `let` and hit the temporal dead
       // zone. Both land in the same `let`, in order.
@@ -427,7 +433,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       B_hoistDecl(input, `${readVar}=${allVar}.length?${allVar}:void 0`);
     } else if (list) {
       B_hoistDecl(input, `${readVar}=${inputVar}.getAll(${keyText})`);
-    } else if (takesEntry(field.present)) {
+    } else if (entry) {
       // A file input with nothing chosen still submits: the HTML Standard's
       // entry list gets "a new File object with an empty name,
       // application/octet-stream as type, and an empty body". That sentinel is
@@ -440,11 +446,14 @@ const formDataToObject = (input: Val, target: Internal): Val => {
         `${readVar}=(${entryVar}=${inputVar}.get(${keyText}))&&${entryVar}.name===""&&!${entryVar}.size?void 0:${entryVar}??void 0`,
       );
     } else {
+      // A checkbox tests its entry for truth, which already covers `null` and
+      // the `""` of a box carrying an empty value — so it is the one read that
+      // needs no sentinel of its own.
       B_hoistDecl(
         input,
         `${readVar}=${inputVar}.get(${keyText})${
-          field.optional || field.nullable || field.checkbox ? "||" : "??"
-        }void 0`,
+          field.checkbox ? "" : `${absent ? "||" : "??"}void 0`
+        }`,
       );
     }
 
@@ -479,12 +488,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     // A blank text input submits `""`, so a required string field that says
     // nothing about it has two equally good readings and the codec picks
     // neither.
-    if (
-      !field.optional &&
-      !field.nullable &&
-      (tagFlags[field.present.type]! & 2) &&
-      !decidesBlank(field.present)
-    ) {
+    if (!absent && (tagFlags[field.present.type]! & 2) && !decidesBlank(field.present)) {
       B_invalidOperation(
         item,
         `say what "" means with S.nonEmpty, S.minLength(0), S.optional or S.nullable`,
@@ -503,13 +507,12 @@ const formDataToObject = (input: Val, target: Internal): Val => {
         listTarget = copySchema(listTarget);
         listTarget.additionalItems = fromText(field.item!);
       }
-      output =
-        field.optional || field.nullable
-          ? readOptional(item, field, schema, arrayFactory(unknown), listTarget)
-          : ((item.e = listTarget), parse(item));
-    } else if (takesEntry(field.present)) {
+      output = absent
+        ? readOptional(item, field, schema, arrayFactory(unknown), listTarget)
+        : ((item.e = listTarget), parse(item));
+    } else if (entry) {
       output = parse(item);
-    } else if (field.optional || field.nullable) {
+    } else if (absent) {
       output = readOptional(item, field, schema, unknown, fromText(field.present));
     } else {
       item.e = fromText(schema);
