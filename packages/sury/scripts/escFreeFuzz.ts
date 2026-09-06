@@ -1,6 +1,6 @@
-// Fuzz for jsonString's escape-free splice (the `escapeFree` field in src/base.ts).
+// Fuzz for jsonString's escape-free splice (`formatFlag` bit 1 in src/base.ts).
 //
-// An `escapeFree`-flagged format is spliced between bare quotes with no escaping, so a
+// An escape-free-flagged format is spliced between bare quotes with no escaping, so a
 // value it accepts carrying `"`, `\`, a control char or a lone surrogate would
 // make the encoder emit syntactically broken JSON — a much louder bug than the
 // over-escaping it replaces. The guarantee is a property of the format's
@@ -147,7 +147,7 @@ for (const [name, schema] of stringFormatSchemas) {
   if (!seeds.length) {
     failures.push(
       `${name} (${format}): raw-spliced but this script has no valid seed for it — ` +
-        `add seeds here, or clear its escFree flag in refinements.ts`,
+        `add seeds here, or clear its formatFlag bit 1 in refinements.ts`,
     );
     rows.push([name, format, "RAW SPLICE", "NO SEED — unfuzzed"]);
     continue;
@@ -198,7 +198,7 @@ for (const format of Object.keys(SEEDS)) {
   if (!rawSpliced.has(format)) {
     failures.push(
       `${format}: seeds for a format that is not raw-spliced — drop them, or ` +
-        `restore the escFree flag in refinements.ts`,
+        `restore formatFlag bit 1 in refinements.ts`,
     );
   }
 }

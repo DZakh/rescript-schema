@@ -16,7 +16,7 @@ operations:
   parse:
     expression: i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[0](i);return "{\"d\":\""+i["d"].toISOString()+"\"}"}
     examples:
-      # FIXME: `noValidation` voids `escapeFree`'s proof, and the raw-splice
+      # FIXME: `noValidation` voids the escape-free proof, and the raw-splice
       # guard can't see it: the flag sits on the `S.date` node while the value
       # spliced is `dateTimeString`, which the conversion produced. So a value
       # that isn't a date and returns a quote emits broken JSON rather than

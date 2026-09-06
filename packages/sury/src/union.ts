@@ -409,13 +409,13 @@ const unionNarrowSchema = (schema: Internal): Internal => {
     // null/undefined/nan stay literals so the case body passes through.
     narrow.const = schema.const;
   } else if (tagFlag & 2 && schema.format !== U && schema.format !== "json") {
-    // The member's `format` (which toJSONSchema reads), `escapeFree` and
+    // The member's `format` (which toJSONSchema reads), `formatFlag` and
     // `noValidation` ride on the narrow: the case appends the member's format
     // check, so the escape-free splice holds inside it. Not `format: "json"` —
     // jsonString reads that as "already JSON text" (see fieldPiece), where the
     // bare `content` marker says "claims JSON, unchecked".
     narrow.format = schema.format;
-    narrow.escapeFree = schema.escapeFree;
+    narrow.formatFlag = schema.formatFlag;
     narrow.noValidation = schema.noValidation;
   }
   return narrow;

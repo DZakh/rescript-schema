@@ -363,7 +363,7 @@ export const json: Internal = /* @__PURE__ */ initSchema(refTag, jsonDecoderFn, 
 // opening quote on every input.
 //
 // A call *with arguments* stays out, even though it binds no looser than a bare
-// one: `escapeFree` is a property of the values a schema admits, and what a
+// one: `formatFlag` describes the values a schema admits, and what a
 // conversion hands over is the value its source was never checked to be — so a
 // packed carrier goes through the helper unless it materialized a var of its
 // own. The zero-argument form is grandfathered, `.toISOString()` among it; see
@@ -604,7 +604,7 @@ export const jsonString = /* @__PURE__ */ (() => {
         : typeof c === stringTag && JSON.stringify(c) === `"${c}"`;
     });
   const bareString = copySchema(string);
-  bareString.escapeFree = true;
+  bareString.formatFlag = 1;
 
   // A serialization piece: `p` produces the JSON text, `g` (when set) is the
   // var to test against void 0 — an undefined-able value renders by omission,
@@ -994,13 +994,13 @@ export const jsonString = /* @__PURE__ */ (() => {
       ) {
         return carriedJsonString(input, expectedSchema);
       }
-      // Two ways `escapeFree`'s proof is void here: `noValidation` drops the
+      // Two ways the escape-free proof is void here: `noValidation` drops the
       // pattern check it rests on, and a `.to` chain carrying a default hands
       // over `i===void 0?e[2]:i.toISOString()`, whose default branch is the
       // raw default — a `Date`, not its ISO text. The helper handles both.
       return B_next(
         input,
-        input.s.escapeFree && !input.s.noValidation && accessorRe.test(input.i)
+        (input.s.formatFlag ?? 0) & 1 && !input.s.noValidation && accessorRe.test(input.i)
           ? `"\\""+${input.i}+"\\""`
           : `${B_embedJsonStr(input)}(${input.i})`,
         expectedSchema,

@@ -816,6 +816,48 @@ test("A conversion rejected at operation creation throws from validate, on every
   });
 });
 
+// The Standard Schema contract lets `validate` answer with a promise, and an
+// async codec has nothing else to answer with. Discovery mirrors
+// `S.asyncParser`: the sync compile rejects, the async one is cached instead.
+test("~standard.validate returns a promise for a schema with an async codec", async (t) => {
+  const schema = S.schema({
+    id: S.string.with(S.to, S.number, {
+      decode: { async: (string) => Promise.resolve(string.length) },
+      encode: (number) => "x".repeat(number),
+    }),
+  });
+  const standard = schema["~standard"];
+  for (let i = 0; i < 2; i++) {
+    const valid = standard.validate({ id: "abc" });
+    t.expect(valid).toBeInstanceOf(Promise);
+    await t.expect(valid).resolves.toEqual({ value: { id: 3 } });
+    await t.expect(standard.validate({ id: 1 })).resolves.toEqual({
+      issues: [{ message: "Expected string, received 1", path: ["id"] }],
+    });
+  }
+
+  // A sync schema keeps answering synchronously — a consumer that can't
+  // await must not start getting promises.
+  t.expect(S.string["~standard"].validate("a")).toEqual({ value: "a" });
+
+  // A conversion rejected at operation creation still throws, on the async
+  // retry rather than being read as an async schema.
+  t.expect(() => S.boolean.with(S.to, S.number)["~standard"].validate(true)).toThrow(
+    "Can't decode boolean to number. Use S.to to define a custom decoder"
+  );
+});
+
+// A symbol is a valid `PropertyKey` segment of a Standard Schema issue path,
+// so one written into a refine's `path` reaches the consumer as is.
+test("~standard.validate forwards a symbol path segment", (t) => {
+  const tag = Symbol("tag");
+  const schema = S.string.with(S.refine, () => false, { error: "User error", path: [tag] });
+  t.expect(schema["~standard"].validate("a")).toEqual({
+    issues: [{ message: "User error", path: [tag] }],
+  });
+  t.expect(S.pathToText([tag, "a"])).toBe("[Symbol(tag)].a");
+});
+
 // `S.inputValidator` makes the same split, for the same reason: `false` is an answer about
 // the value, and a schema with no compilable operation has no answer to give.
 test("A conversion rejected at operation creation throws from S.inputValidator, rather than reading as false", (t) => {
