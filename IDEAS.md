@@ -216,23 +216,35 @@ of a form-data story. What they were built to make cheap, roughly in order:
     `S.record(S.union([S.string, S.number]))` can't be — the union rules reject
     `string -> string | number` before the codec is consulted, since every
     entry satisfies the string arm.
-- **A checkbox reading inside a union.** `S.union([S.boolean, S.number])` works
-  as a field, but its boolean arm is the core `string -> boolean` coercion, so
-  it takes `"true"`/`"false"` and not the `"on"`/`"1"`/`"0"` a box submits —
-  and `"0"` reads as the number, never `false`. Widening it needs a boolean
-  schema carrying the checkbox decoder for the codec's subtree (a
-  `formDataField`, internal), substituted for a boolean arm as `fromText`
-  builds the chain. Two things make it a decision rather than a patch:
-  - **`"1"` belongs to both readings.** A box submits it for "checked" and a
-    number field submits it for one, and no rule can have both. That is the
-    same shape as the blank-string question, where the answer was to make the
-    schema say. `S.string.with(S.to, S.union([S.boolean, S.number]), {decode,
-    encode})` already says it in four lines, which may be the whole answer.
-  - **Omitting `false` doesn't round-trip.** A checkbox field encodes `false`
-    as no entry, so the union arm would want the same. But a missing entry
-    then has to read back as `false`, and inside a union it can't: absence is
-    equally "the number wasn't sent". Only `S.optional(S.union([…]))` could
-    carry it, and there absence already means `undefined`.
+- **Move the reading rules onto a field schema, and leave `S.formData` the
+  wiring.** Today `formDataToObject` inspects each target (`classify`,
+  `fromText`, `isCheckbox`) and picks a read, so a rule only applies where that
+  inspection reaches: a boolean is a checkbox as a *field* and a plain
+  `string -> boolean` as a union arm or an array item. An internal
+  `formDataField` — one entry slot, whose `encoder` hook owns every rule keyed
+  on the target — would make each rule apply wherever the schema appears, and
+  reduce `S.formData` to `get`/`getAll`/`append`.
+  The compiler already supports the part that matters: a source's hook is
+  consulted **once per target-union arm**, and its rejection names that arm.
+  `S.uint8Array.with(S.to, S.union([S.string, S.base64]))` compiles both
+  conversions into one dispatch loop, and `S.union([S.string, S.boolean])`
+  reports `Can't decode Uint8Array to boolean` — the same shape a
+  `formDataField` would give for a nested object or a boolean list. It composes
+  through array items too.
+  Two things stay in the wiring, because one entry is all the field schema ever
+  sees: `getAll` versus `get` (and with it the boolean-list rejection, since
+  only the wiring knows it is in list position), and what "no entry" means.
+  The second is worth folding in rather than leaving outside — let the field
+  schema's input include the absent case, so `formDataField -> boolean` maps it
+  to `false` itself, and let its encode result be absent for "append nothing",
+  which is the skip-on-encode flag expressed as a value instead of a flag.
+  Watch the bundle: `formData` is 9150 bytes against the union compiler's
+  12645, because `presentArm` rebuilds unions by hand to avoid retaining it. A
+  `formDataField` *declared* as `string | File | undefined` would pull it into
+  every form; an opaque schema whose hook dispatches keeps that out.
+  It does not settle `S.union([S.boolean, S.number])`: `"1"` is both "checked"
+  and "one", the first matching arm would win silently, so that rejection stays
+  either way.
 - **`string -> string | undefined` is still rejected by the union rules**, so
   the env pattern can't read an optional string field — where the form codec
   converts the present arm itself. Pinned by
