@@ -24,9 +24,9 @@ let polyEmbededSchema = Sury.shape(Sury.string, param => "one");
 
 Vitest$1.test("Embed custom schema for polymorphic variants", t => U.assertEqualSchemas(t, polyEmbededSchema, Sury.shape(Sury.string, param => "one"), undefined));
 
-let dictFieldSchema = Sury.dict(Sury.literal("one"));
+let dictFieldSchema = Sury.record(Sury.literal("one"));
 
-Vitest$1.test("Supported as a dict field", t => U.assertEqualSchemas(t, dictFieldSchema, Sury.dict(Sury.literal("one")), undefined));
+Vitest$1.test("Supported as a dict field", t => U.assertEqualSchemas(t, dictFieldSchema, Sury.record(Sury.literal("one")), undefined));
 
 let recordFieldSchema = Sury.$schema(s => ({
   poly: s.m(Sury.literal("one"))
@@ -48,13 +48,13 @@ let polyWithPayloadsSchema = Sury.union([
   Sury.literal("one"),
   Sury.$schema(s => ({
     NAME: "two",
-    VAL: s.m(Sury.int)
+    VAL: s.m(Sury.int32)
   })),
   Sury.$schema(s => ({
     NAME: "three",
     VAL: [
       s.m(Sury.string),
-      s.m(Sury.float)
+      s.m(Sury.number)
     ]
   })),
   Sury.$schema(s => ({
@@ -70,13 +70,13 @@ Vitest$1.test("Polymorphic variant with payloads (issue #160)", t => {
     Sury.literal("one"),
     Sury.$schema(s => ({
       NAME: "two",
-      VAL: s.m(Sury.int)
+      VAL: s.m(Sury.int32)
     })),
     Sury.$schema(s => ({
       NAME: "three",
       VAL: [
         s.m(Sury.string),
-        s.m(Sury.float)
+        s.m(Sury.number)
       ]
     })),
     Sury.$schema(s => ({
@@ -142,7 +142,7 @@ let polyWithPayloadInheritanceSchema = Sury.union([
   polyWithPayloadsSchema,
   Sury.$schema(s => ({
     NAME: "five",
-    VAL: s.m(Sury.bool)
+    VAL: s.m(Sury.boolean)
   }))
 ]);
 
@@ -151,7 +151,7 @@ Vitest$1.test("Polymorphic variant inheriting a type that has payloads", t => {
     polyWithPayloadsSchema,
     Sury.$schema(s => ({
       NAME: "five",
-      VAL: s.m(Sury.bool)
+      VAL: s.m(Sury.boolean)
     }))
   ]), undefined);
   Vitest.Assert.deepEqual(t, S.parseOrThrow("one", polyWithPayloadInheritanceSchema), "one", undefined);
@@ -202,7 +202,7 @@ let polyInlineInheritanceSchema = Sury.union([
   Sury.literal("a"),
   Sury.$schema(s => ({
     NAME: "b",
-    VAL: s.m(Sury.int)
+    VAL: s.m(Sury.int32)
   })),
   Sury.literal("c")
 ]);
@@ -212,7 +212,7 @@ Vitest$1.test("Polymorphic variant with an inline spread is flattened into one u
     Sury.literal("a"),
     Sury.$schema(s => ({
       NAME: "b",
-      VAL: s.m(Sury.int)
+      VAL: s.m(Sury.int32)
     })),
     Sury.literal("c")
   ]), undefined);

@@ -8,13 +8,13 @@ import * as Vitest$1 from "vitest";
 
 let simpleObjectSchema = Sury.$schema(s => ({
   label: s.m(Sury.string),
-  value: s.m(Sury.int)
+  value: s.m(Sury.int32)
 }));
 
 Vitest$1.test("Simple object schema", t => {
   U.assertEqualSchemas(t, simpleObjectSchema, Sury.$schema(s => ({
     label: s.m(Sury.string),
-    value: s.m(Sury.int)
+    value: s.m(Sury.int32)
   })), undefined);
   Vitest.Assert.deepEqual(t, S.parseOrThrow({label:"foo",value:1}, simpleObjectSchema), {
     label: "foo",

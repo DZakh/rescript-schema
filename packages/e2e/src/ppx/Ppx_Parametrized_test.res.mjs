@@ -12,7 +12,7 @@ function wrapperSchema(_aSchema) {
 }
 
 Vitest$1.test("Parametrized record with single type param — int", t => {
-  let schema = wrapperSchema(Sury.int);
+  let schema = wrapperSchema(Sury.int32);
   Vitest.Assert.deepEqual(t, S.parseOrThrow({"value": 42}, schema), {
     value: 42
   }, undefined);
@@ -26,7 +26,7 @@ Vitest$1.test("Parametrized record with single type param — string", t => {
 });
 
 let parentSchema = Sury.$schema(s => ({
-  wrapped: s.m(wrapperSchema(Sury.int))
+  wrapped: s.m(wrapperSchema(Sury.int32))
 }));
 
 Vitest$1.test("Record using parametrized type as field", t => Vitest.Assert.deepEqual(t, S.parseOrThrow({"wrapped": {"value": 42}}, parentSchema), {
@@ -57,7 +57,7 @@ function withOptionSchema(_aSchema) {
 }
 
 Vitest$1.test("Parametrized type with option field", t => {
-  let schema = withOptionSchema(Sury.int);
+  let schema = withOptionSchema(Sury.int32);
   Vitest.Assert.deepEqual(t, S.parseOrThrow({"data": 5}, schema), {
     data: 5
   }, undefined);
@@ -94,7 +94,7 @@ function result2Schema(aSchema, bSchema) {
 }
 
 let holderSchema = Sury.$schema(s => ({
-  res: s.m(result2Schema(Sury.int, Sury.string))
+  res: s.m(result2Schema(Sury.int32, Sury.string))
 }));
 
 Vitest$1.test("Record field with @s.matches override for a 2-param type", t => {
