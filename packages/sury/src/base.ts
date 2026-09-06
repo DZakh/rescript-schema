@@ -350,14 +350,17 @@ export type Internal = {
   // `B_readsPayload` in builder.ts.
   opens?: boolean;
   opensBack?: boolean;
-  // jsonString splices this value between bare quotes with no escaping, so
-  // every value the schema admits must be free of `"`, `\`, controls and lone
-  // surrogates. Set it only where that is proven — a pattern whose range
-  // excludes them, or a conversion that manufactures the string — and re-run
+  // Properties of every value a string schema admits, which let generated code
+  // skip work: 1 escape-free (no `"`, `\`, controls or lone surrogates, so
+  // jsonString splices it between bare quotes with no escaping), 2 BMP-only
+  // (no astral character, so `.length` is already its code-point count and a
+  // length bound needs no count). Set a bit only where that is proven — a
+  // pattern whose range excludes the characters, or a conversion that
+  // manufactures the string — and for bit 1 re-run
   // `pnpm --filter=sury fuzz:escfree`, because getting it wrong emits broken
   // JSON rather than merely over-escaped JSON. `noValidation` voids the proof;
-  // the read site handles that.
-  escapeFree?: boolean;
+  // the read sites handle that.
+  formatFlag?: number;
   has?: Partial<Record<Tag, boolean>>;
   anyOf?: Internal[];
   additionalItems?: AdditionalItems;
