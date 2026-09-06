@@ -440,7 +440,11 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       // not an upload, so it reads as absent — a required field then reports a
       // missing file rather than accepting an empty one. A string entry falls
       // through the guard untouched (`"".name` is undefined).
+      // Declared on its own: the sentinel is read three times, and an
+      // assignment inside the initializer would otherwise be an implicit
+      // global — `new Function` is sloppy mode, so nothing would say so.
       const entryVar = B_varWithoutAllocation(input.g);
+      B_hoistDecl(input, entryVar);
       B_hoistDecl(
         input,
         `${readVar}=(${entryVar}=${inputVar}.get(${keyText}))&&${entryVar}.name===""&&!${entryVar}.size?void 0:${entryVar}??void 0`,

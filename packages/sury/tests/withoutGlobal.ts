@@ -12,7 +12,14 @@ const run = (name: string, body: string): string =>
     [
       "--input-type=module",
       "-e",
-      `delete globalThis.${name};
+      // `File`, `Blob` and `FormData` are one internal undici module, lazily
+      // loaded on first touch since node 24, and its initializer reads the
+      // global `File`. Deleting one and then touching another loads undici
+      // with that binding already gone (`ReferenceError: File is not
+      // defined`). Reading all three first finishes the load while they are
+      // all still there, so the delete takes only what Sury reads.
+      `void [globalThis.File, globalThis.Blob, globalThis.FormData];
+       delete globalThis.${name};
        const S = await import(${JSON.stringify(fileURLToPath(new URL("../index.mjs", import.meta.url)))});
        ${body}`,
     ],

@@ -117,6 +117,68 @@ export const lintSkips = (obj: unknown, path: string, out: string[]): void => {
     for (const [k, v] of Object.entries(obj)) lintSkips(v, path ? `${path}.${k}` : k, out);
 };
 
+// Every name a compiled operation binds, so an assignment to anything else can
+// be spotted. Scans the golden text rather than parsing it: the shapes Sury
+// emits are `let a,b=…`, `for(let i=…`, `for(let k in o)` and `catch(x)`, and
+// each one names its bindings up to the first `;`, `)` or `in`/`of` at depth 0.
+const boundNames = (code: string): Set<string> => {
+  // `i` is the operation's argument and `e` its embed array — the only two
+  // free names generated code is allowed to read.
+  const out = new Set(["i", "e"]);
+  const heads = /\b(?:let|const|var)\s+|\bcatch\(/g;
+  let head: RegExpExecArray | null;
+  while ((head = heads.exec(code))) {
+    let at = heads.lastIndex;
+    for (;;) {
+      let name = "";
+      while (/\s/.test(code[at]!)) at++;
+      while (/[\w$]/.test(code[at] ?? "")) name += code[at++];
+      if (name) out.add(name);
+      if (head[0] === "catch(") break;
+      let depth = 0;
+      for (;;) {
+        const c = code[at];
+        if (c === undefined) return out;
+        if ("([{".includes(c)) depth++;
+        else if (")]}".includes(c)) {
+          if (depth === 0) break;
+          depth--;
+        } else if (depth === 0 && (c === ";" || c === ",")) break;
+        at++;
+      }
+      if (code[at] !== ",") break;
+      at++;
+    }
+  }
+  return out;
+};
+
+// An operation that assigns a name it never bound writes a *global*: Sury
+// builds its functions with `new Function`, whose body is sloppy mode, so
+// nothing reports it and two operations end up sharing the slot. The goldens
+// are the only place the generated code is written down, so this is where it
+// gets caught.
+export const undeclaredAssignments = (spec: Spec, out: string[]): void => {
+  const ops = spec.operations as Partial<Record<OpName, Operation>> | undefined;
+  if (ops == null) return;
+  for (const opName of OP_ORDER) {
+    const op = ops[opName];
+    if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) continue;
+    const code = op.expression;
+    if (typeof code !== "string") continue;
+    const bound = boundNames(code);
+    const leaked = new Set<string>();
+    for (const [, name] of code.matchAll(/[({,;&|?:!= ]([A-Za-z_$][\w$]*)\s*=(?![=>])/g)) {
+      if (!bound.has(name!)) leaked.add(name!);
+    }
+    if (leaked.size)
+      out.push(
+        `operations.${opName}: assigns ${[...leaked].join(", ")} without declaring ` +
+          "it — generated code runs in sloppy mode, so that lands on globalThis",
+      );
+  }
+};
+
 // A full op block is chosen over `identity`/`eq-to-parse` precisely because it
 // has real codegen — and nothing ever runs that codegen until an example does,
 // so an empty map snapshots an expression no test executes.
@@ -1131,6 +1193,7 @@ export const checkSpec = async (
 
   lintSkips(spec, "", errs);
   lintExamples(spec, errs);
+  undeclaredAssignments(spec, errs);
 
   // Collected before the canonical form is built (rather than dropped) so a
   // disallowed comment is reported as itself, not as a "not canonical" diff —

@@ -20,6 +20,7 @@ import {
   lintComments,
   lintExamples,
   lintSkips,
+  undeclaredAssignments,
   lintSpecsDir,
   checkBundleSize,
   checkScenarios,
@@ -258,6 +259,12 @@ describe.each(specs)("spec: $id", ({ file }) => {
     const errs: string[] = [];
     lintSkips(spec, "", errs);
     expect(errs, errs.join("\n")).toEqual([]);
+  });
+
+  test("no compiled op assigns an undeclared var (run `pnpm spec check`)", () => {
+    const errs: string[] = [];
+    undeclaredAssignments(readSpec(file), errs);
+    expect(errs).toEqual([]);
   });
 
   test("every compiled op block has examples (run `pnpm spec check`)", () => {
