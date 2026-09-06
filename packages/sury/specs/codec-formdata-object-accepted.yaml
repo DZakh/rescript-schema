@@ -15,7 +15,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{i instanceof e[7]||e[8](i);let v0=e[0](i),v1=v0.get("terms"),v3=e[3](v0.get("picks")),v7=v0.get("maybe");let v2;(v2=v1==="on"||v1==="true"||v1==="1")||v1==="false"||v1==="0"||!v1||e[1](v1);v2===true||e[2](v2);for(let v4=0;v4<v3.length;++v4){try{let v5=v3[v4];typeof v5==="string"||e[4](v5);}catch(v6){v6.path=["picks",v4,...v6.path];throw v6}}v3.length>0||e[5](v3);let v8;if(v7){(v8=v7==="on"||v7==="true"||v7==="1")||v7==="false"||v7==="0"||e[6](v7);}else{v8=null}return {terms:v2,picks:v3,maybe:v8}}
+    expression: i=>{i instanceof e[7]||e[8](i);let v0=e[0](i),v1=v0.get("terms"),v2=e[3](v0.get("picks")),v6=v0.get("maybe")||void 0;v1=v1==="on"||v1==="true"||v1==="1"||(v1==="false"||v1==="0"||!v1?false:e[1](v1));v1===true||e[2](v1);for(let v3=0;v3<v2.length;++v3){try{let v4=v2[v3];typeof v4==="string"||e[4](v4);}catch(v5){v5.path=["picks",v3,...v5.path];throw v5}}v2.length>0||e[5](v2);if(v6){v6=v6==="on"||v6==="true"||v6==="1"||(v6==="false"||v6==="0"||!v6?false:e[6](v6));}else{v6=null}return {terms:v1,picks:v2,maybe:v6}}
     examples:
       checked:
         input: ((f) => (f.append("terms", "on"), f.append("picks", "a"), f.append("picks", "b"), f.append("maybe", "on"), f))(new FormData())
@@ -27,7 +27,7 @@ operations:
         input: ((f) => (f.append("terms", "1"), f.append("picks", "a"), f))(new FormData())
         output: '{ terms: true, picks: ["a"], maybe: null }'
   decode:
-    expression: i=>{let v0=e[0](i),v1=v0.get("terms"),v3=e[3](v0.get("picks")),v7=v0.get("maybe");let v2;(v2=v1==="on"||v1==="true"||v1==="1")||v1==="false"||v1==="0"||!v1||e[1](v1);v2===true||e[2](v2);for(let v4=0;v4<v3.length;++v4){try{let v5=v3[v4];typeof v5==="string"||e[4](v5);}catch(v6){v6.path=["picks",v4,...v6.path];throw v6}}v3.length>0||e[5](v3);let v8;if(v7){(v8=v7==="on"||v7==="true"||v7==="1")||v7==="false"||v7==="0"||e[6](v7);}else{v8=null}return {terms:v2,picks:v3,maybe:v8}}
+    expression: i=>{let v0=e[0](i),v1=v0.get("terms"),v2=e[3](v0.get("picks")),v6=v0.get("maybe")||void 0;v1=v1==="on"||v1==="true"||v1==="1"||(v1==="false"||v1==="0"||!v1?false:e[1](v1));v1===true||e[2](v1);for(let v3=0;v3<v2.length;++v3){try{let v4=v2[v3];typeof v4==="string"||e[4](v4);}catch(v5){v5.path=["picks",v3,...v5.path];throw v5}}v2.length>0||e[5](v2);if(v6){v6=v6==="on"||v6==="true"||v6==="1"||(v6==="false"||v6==="0"||!v6?false:e[6](v6));}else{v6=null}return {terms:v1,picks:v2,maybe:v6}}
     examples:
       checked:
         input: ((f) => (f.append("terms", "on"), f.append("picks", "a"), f))(new FormData())

@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{i instanceof e[5]||e[6](i);let v0=e[0](i),v1=v0.get("role"),v2=v0.get("plan")||void 0;typeof v1==="string"||e[2](v1);(v1==="admin"||v1==="user")||e[1](v1);if(v2!==void 0){typeof v2==="string"||e[4](v2);(v2==="free"||v2==="pro")||e[3](v2);}return {role:v1,plan:v2}}
+    expression: i=>{i instanceof e[5]||e[6](i);let v0=e[0](i),v1=v0.get("role"),v2=v0.get("plan")||void 0;typeof v1==="string"||e[2](v1);(v1==="admin"||v1==="user")||e[1](v1);if(v2){typeof v2==="string"||e[4](v2);(v2==="free"||v2==="pro")||e[3](v2);}return {role:v1,plan:v2}}
     examples:
       members:
         input: ((f) => (f.append("role", "admin"), f.append("plan", "pro"), f))(new FormData())
@@ -30,7 +30,7 @@ operations:
         input: ((f) => (f.append("role", "user"), f.append("plan", "trial"), f))(new FormData())
         error: 'Failed at plan: Expected "free" | "pro", received "trial"'
   decode:
-    expression: i=>{let v0=e[0](i),v1=v0.get("role"),v2=v0.get("plan")||void 0;typeof v1==="string"||e[2](v1);(v1==="admin"||v1==="user")||e[1](v1);if(v2!==void 0){typeof v2==="string"||e[4](v2);(v2==="free"||v2==="pro")||e[3](v2);}return {role:v1,plan:v2}}
+    expression: i=>{let v0=e[0](i),v1=v0.get("role"),v2=v0.get("plan")||void 0;typeof v1==="string"||e[2](v1);(v1==="admin"||v1==="user")||e[1](v1);if(v2){typeof v2==="string"||e[4](v2);(v2==="free"||v2==="pro")||e[3](v2);}return {role:v1,plan:v2}}
     examples:
       members:
         input: ((f) => (f.append("role", "admin"), f.append("plan", "pro"), f))(new FormData())

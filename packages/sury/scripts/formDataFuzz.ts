@@ -15,6 +15,11 @@
 //                notices.
 //   no mutation  encoding does not write into the value it was handed.
 //   round-trip   `decode(encode(value))` is `value`.
+//   wire         every entry list a client could send is either rejected with
+//                a Sury error or read as a value the schema's own output type
+//                accepts. This is the half a round-trip can't reach: a repeated
+//                key, a file where text belongs, a blank entry — none of them
+//                is something an encode would ever produce.
 //
 // Each has a list of the cases known not to hold, keyed by what the run prints,
 // with the reason written out — a blank entry and an absent one are the same
@@ -28,7 +33,7 @@
 
 import * as S from "../index.mjs";
 
-type Leaf = { schema: unknown; values: unknown[] };
+type Leaf = { schema: unknown; values: unknown[]; list?: boolean };
 
 const file = (name: string, body: string): File => new File([body], name);
 
@@ -55,6 +60,10 @@ const LEAVES: Record<string, Leaf> = {
   "union-text": { schema: S.union([S.string, S.number]), values: ["x", 1] },
   "union-checkbox": { schema: S.union([S.boolean, S.number]), values: [true, false, 0, 1, 2] },
   "union-entry": { schema: S.union([S.string, S.file]), values: ["x", file("a.txt", "hi")] },
+  trimmed: { schema: S.string.with(S.trim), values: ["x"] },
+  email: { schema: S.email, values: ["a@b.co"] },
+  "bounded-number": { schema: S.number.with(S.gte, 18), values: [18, 65] },
+  "json-string-bare": { schema: S.jsonString, values: ['{"a":1}', '"x"'] },
   unknown: { schema: S.unknown, values: ["x"] },
   null: { schema: S.schema(null), values: [null] },
   void: { schema: S.void, values: [undefined] },
@@ -82,15 +91,54 @@ const WRAPPERS: Record<string, (leaf: Leaf) => Leaf> = {
   array: (leaf) => ({
     schema: S.array(leaf.schema as never),
     values: [[], leaf.values, [leaf.values[0]]],
+    list: true,
   }),
   "optional-array": (leaf) => ({
     schema: S.optional(S.array(leaf.schema as never)),
     values: [leaf.values, undefined],
+    list: true,
+  }),
+  "optional-nullable": (leaf) => ({
+    schema: S.optional(S.nullable(leaf.schema as never)),
+    values: [...leaf.values, null, undefined],
   }),
   tuple: (leaf) => ({
     schema: S.schema([leaf.schema, leaf.schema] as never),
     values: [[leaf.values[0], leaf.values[leaf.values.length - 1]]],
+    list: true,
   }),
+};
+
+// Entry lists a client could send for the one field the cross declares. Values
+// an encode would never produce are the point: a key sent twice, a file where
+// text belongs, the empty File an unchosen file input submits.
+const WIRE: [string, unknown][][] = [
+  [],
+  [["a", ""]],
+  [["a", "x"]],
+  [["a", "42"]],
+  [["a", "on"]],
+  [["a", "false"]],
+  [["a", "0"]],
+  [["a", "null"]],
+  [["a", " "]],
+  [["a", file("up.txt", "hi")]],
+  [["a", new File([], "", { type: "application/octet-stream" })]],
+  [
+    ["a", "x"],
+    ["a", "y"],
+  ],
+  [
+    ["a", "x"],
+    ["a", file("up.txt", "hi")],
+  ],
+  [["b", "x"]],
+];
+
+const form = (entries: [string, unknown][]): FormData => {
+  const formData = new FormData();
+  for (const [key, value] of entries) formData.append(key, value as string);
+  return formData;
 };
 
 // Fields the codec reads but cannot write, which the author hears about when
@@ -110,6 +158,7 @@ const KNOWN: Record<string, string> = {
   "optional-array/union-checkbox <- [true,false,0,1,2]": "the same, per item",
   "nullish/* <- null":
     "a form has one way to say nothing, so a field declaring both sentinels reads it as the weaker one",
+  "optional-nullable/* <- null": "the same, spelled as two wrappers",
   "optional/null <- null": "the same, from the other side",
   "defaulted/boolean <- false":
     "an unchecked box sends nothing, so a default of `true` states what the wire never says and reads back as itself",
@@ -122,15 +171,19 @@ const MUTATES: Record<string, string> = {
     "a union dispatch assigns its result back into the slot it read, and a tuple slot is an index into the caller's array. Not this codec's doing — `S.schema([union]).with(S.to, S.schema([S.string]))` does it with no form in sight (see IDEAS)",
 };
 
-// A key matches its own entry, or one naming `*` for the wrapper or the leaf.
-const reasonFor = (
+// The key that covers a case: its own, or one naming `*` for the wrapper or
+// the leaf. Returned rather than the reason, so two entries that share a
+// wording are still tracked apart.
+const keyFor = (
   list: Record<string, string>,
   wrapper: string,
   leaf: string,
   value?: string,
 ): string | undefined => {
   const tail = value === undefined ? "" : ` <- ${value}`;
-  return list[`${wrapper}/${leaf}${tail}`] ?? list[`*/${leaf}${tail}`] ?? list[`${wrapper}/*${tail}`];
+  return [`${wrapper}/${leaf}${tail}`, `*/${leaf}${tail}`, `${wrapper}/*${tail}`].find(
+    (key) => list[key] !== undefined,
+  );
 };
 
 // Blob identity is not object identity: `append` renames a bare Blob to "blob"
@@ -169,6 +222,9 @@ const copy = (value: unknown): unknown => {
   return value;
 };
 
+const wireText = (entries: [string, unknown][]): string =>
+  entries.length ? entries.map(([key, value]) => `${key}=${show(value)}`).join("&") : "nothing";
+
 const show = (value: unknown): string => {
   if (value instanceof File) return `File(${value.name})`;
   if (value instanceof Blob) return `Blob(${value.size})`;
@@ -198,6 +254,7 @@ const compile = (build: () => unknown): { fn?: unknown; rejected?: string; crash
 const findings: string[] = [];
 const used = new Set<string>();
 let checked = 0;
+let wires = 0;
 let rejected = 0;
 
 // Listed with a reason, which is what keeps a pass from being silent.
@@ -207,11 +264,11 @@ const excused = (
   leaf: string,
   value?: string,
 ): boolean => {
-  const reason = reasonFor(list, wrapper, leaf, value);
-  if (reason === undefined) {
+  const key = keyFor(list, wrapper, leaf, value);
+  if (key === undefined) {
     return false;
   }
-  used.add(reason);
+  used.add(key);
   return true;
 };
 
@@ -228,6 +285,7 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
     const schema = S.formData.with(S.to, S.schema({ a: field.schema as never }) as never);
     const decode = compile(() => S.decoder(schema));
     const encode = compile(() => S.encoder(schema));
+    const valid = compile(() => S.outputValidator(schema));
 
     for (const [direction, result] of [
       ["decode", decode],
@@ -242,12 +300,35 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
       if (!excused(ONE_WAY, wrapperName, leafName)) {
         findings.push(`${id}: ${shape} — ${decode.rejected ?? encode.rejected}`);
       }
-    } else if (reasonFor(ONE_WAY, wrapperName, leafName) !== undefined) {
+    } else if (keyFor(ONE_WAY, wrapperName, leafName) !== undefined) {
       findings.push(`${id}: listed in ONE_WAY but works in both directions — delete the entry`);
     }
     if (decode.rejected || encode.rejected || decode.crash || encode.crash) {
       rejected += 1;
       continue;
+    }
+
+    // What a client can send, checked against the schema's own output type:
+    // a decode either rejects an entry list or reads it as a value the schema
+    // says it produces. Nothing here is a value an encode could have written.
+    for (const entries of WIRE) {
+      let read: unknown;
+      try {
+        read = (decode.fn as (form: FormData) => unknown)(form(entries));
+      } catch (error) {
+        if (!(error instanceof S.Error)) {
+          findings.push(
+            `${id} <- ${wireText(entries)}: decode threw ${(error as Error).constructor.name} — ${(error as Error).message.split("\n")[0]}`,
+          );
+        }
+        continue;
+      }
+      wires += 1;
+      if (!(valid.fn as (value: unknown) => boolean)(read)) {
+        findings.push(
+          `${id} <- ${wireText(entries)}: read as ${show(read)}, which the schema's own output type rejects`,
+        );
+      }
     }
 
     let mutated = false;
@@ -274,15 +355,72 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
         }
       }
       if (same(before, back)) {
-        if (reasonFor(KNOWN, wrapperName, leafName, printed) !== undefined) {
+        if (keyFor(KNOWN, wrapperName, leafName, printed) !== undefined) {
           findings.push(`${key}: listed in KNOWN but round-trips — delete the entry`);
         }
       } else if (!excused(KNOWN, wrapperName, leafName, printed)) {
         findings.push(`${key}: read back as ${show(back)}`);
       }
     }
-    if (!mutated && reasonFor(MUTATES, wrapperName, leafName) !== undefined) {
+    if (!mutated && keyFor(MUTATES, wrapperName, leafName) !== undefined) {
       findings.push(`${id}: listed in MUTATES but leaves its input alone — delete the entry`);
+    }
+  }
+}
+
+// Every field that works, in one schema. A field on its own can't show a name
+// the compiler hands out twice, a declaration hoisted after the code that reads
+// it, or a read that answers another field's entry — all of which have happened
+// here, and none of which the cross above can see.
+const together: Record<string, unknown> = {};
+const wire: [string, unknown][] = [];
+for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
+  for (const [leafName, leaf] of Object.entries(LEAVES)) {
+    let field: Leaf;
+    try {
+      field = wrap(leaf);
+    } catch {
+      continue;
+    }
+    const one = S.formData.with(S.to, S.schema({ a: field.schema as never }) as never);
+    if (compile(() => S.decoder(one)).fn && compile(() => S.encoder(one)).fn) {
+      const key = `${wrapperName}_${leafName}`.replace(/-/g, "_");
+      together[key] = field.schema;
+      // One entry each, so every field is read with its neighbours supplied.
+      wire.push([key, field.list ? "x" : "on"]);
+    }
+  }
+}
+const combined = S.formData.with(S.to, S.schema(together as never) as never);
+for (const [direction, build] of [
+  ["decode", () => S.decoder(combined)],
+  ["encode", () => S.encoder(combined)],
+] as const) {
+  const result = compile(build);
+  if (result.crash) {
+    findings.push(`all ${Object.keys(together).length} fields in one schema: ${direction} — ${result.crash}`);
+  } else if (result.rejected) {
+    findings.push(
+      `all ${Object.keys(together).length} fields in one schema: ${direction} rejected it — ${result.rejected}`,
+    );
+  }
+}
+const combinedDecode = compile(() => S.decoder(combined)).fn as
+  | ((form: FormData) => unknown)
+  | undefined;
+if (combinedDecode) {
+  for (const [label, entries] of [
+    ["nothing", []],
+    ["one entry each", wire],
+  ] as const) {
+    try {
+      combinedDecode(form(entries as [string, unknown][]));
+    } catch (error) {
+      if (!(error instanceof S.Error)) {
+        findings.push(
+          `all fields in one schema <- ${label}: decode threw ${(error as Error).constructor.name} — ${(error as Error).message.split("\n")[0]}`,
+        );
+      }
     }
   }
 }
@@ -292,8 +430,8 @@ for (const [name, list] of [
   ["KNOWN", KNOWN],
   ["MUTATES", MUTATES],
 ] as const) {
-  for (const [key, reason] of Object.entries(list)) {
-    if (!used.has(reason)) {
+  for (const key of Object.keys(list)) {
+    if (!used.has(key)) {
       findings.push(`${key}: listed in ${name} but no such case ran — the catalog moved under it`);
     }
   }
@@ -314,7 +452,7 @@ if (process.argv.includes("--show-known")) {
 }
 
 console.log(
-  `${checked} round-trips over ${Object.keys(WRAPPERS).length}x${Object.keys(LEAVES).length} fields, ${rejected} rejected in both directions`,
+  `${checked} round-trips and ${wires} entry lists read over ${Object.keys(WRAPPERS).length}x${Object.keys(LEAVES).length} fields (${rejected} rejected in both directions), ${Object.keys(together).length} of them compiled together`,
 );
 if (findings.length) {
   console.log(`\n${findings.length} finding(s):`);

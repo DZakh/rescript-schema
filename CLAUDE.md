@@ -130,13 +130,19 @@ changelog against a git commit, not the gate. `--seed=N` widens the search.
 
 A field's reading depends on its wrapper as much as its type, and a spec covers
 one schema. `pnpm --filter=sury fuzz:formdata` crosses every wrapper with every
-leaf and checks three properties: a field works in both directions or is
-rejected in both, an encode does not write into the value it was handed, and
-`decode(encode(v))` is `v`. Each has a list in the script of the cases known not
-to hold, keyed by what the run prints, and the reason is written by hand — the
-run fails on an unexplained one *and* on a listed one that has started to hold.
-It is exhaustive, so there is no seed. A case it turns up becomes a spec, or a
-test where an example can't hold it.
+leaf and checks four properties: a field works in both directions or is rejected
+in both, an encode does not write into the value it was handed, `decode(encode(v))`
+is `v`, and every entry list a client could send is either rejected or read as a
+value the schema's own output type accepts — the half a round-trip can't reach,
+since a repeated key or a file where text belongs is nothing an encode would
+produce. It then compiles every field that works into one schema, which is where
+a name handed out twice or a declaration hoisted after its reader shows.
+
+Each property has a list in the script of the cases known not to hold, keyed by
+what the run prints, and the reason is written by hand — the run fails on an
+unexplained one *and* on a listed one that has started to hold. It is exhaustive,
+so there is no seed. A case it turns up becomes a spec, or a test where an
+example can't hold it.
 
 `CODEC_SPEC.md` is the normative statement of what conversions are legal,
 built-in and custom alike; `CONTENT_CODEC_SPEC.md` covers the carrier/format

@@ -14,7 +14,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{i instanceof e[6]||e[7](i);let v0=e[0](i),v1=v0.get("s")||void 0,v2=v0.get("n")||void 0,v4=v0.get("tag")||void 0;if(v1!==void 0){typeof v1==="string"||e[1](v1);}else{v1=null}if(v2!==void 0){typeof v2==="string"||e[3](v2);let v3=+v2;v3===v3&&(v3||v2.trim())||e[2](v2);v2=v3;}else{v2=null}if(v4!==void 0){typeof v4==="string"||e[5](v4);(v4==="yes"||v4==="no")||e[4](v4);}else{v4=null}return {s:v1,n:v2,tag:v4}}
+    expression: i=>{i instanceof e[6]||e[7](i);let v0=e[0](i),v1=v0.get("s")||void 0,v2=v0.get("n")||void 0,v4=v0.get("tag")||void 0;if(v1){typeof v1==="string"||e[1](v1);}else{v1=null}if(v2){typeof v2==="string"||e[3](v2);let v3=+v2;v3===v3&&(v3||v2.trim())||e[2](v2);v2=v3;}else{v2=null}if(v4){typeof v4==="string"||e[5](v4);(v4==="yes"||v4==="no")||e[4](v4);}else{v4=null}return {s:v1,n:v2,tag:v4}}
     examples:
       number:
         input: ((f) => (f.append("s", "x"), f.append("n", "1"), f.append("tag", "yes"), f))(new FormData())
@@ -29,7 +29,7 @@ operations:
         input: ((f) => (f.append("n", "null"), f))(new FormData())
         error: 'Failed at n: Expected number, received "null"'
   decode:
-    expression: i=>{let v0=e[0](i),v1=v0.get("s")||void 0,v2=v0.get("n")||void 0,v4=v0.get("tag")||void 0;if(v1!==void 0){typeof v1==="string"||e[1](v1);}else{v1=null}if(v2!==void 0){typeof v2==="string"||e[3](v2);let v3=+v2;v3===v3&&(v3||v2.trim())||e[2](v2);v2=v3;}else{v2=null}if(v4!==void 0){typeof v4==="string"||e[5](v4);(v4==="yes"||v4==="no")||e[4](v4);}else{v4=null}return {s:v1,n:v2,tag:v4}}
+    expression: i=>{let v0=e[0](i),v1=v0.get("s")||void 0,v2=v0.get("n")||void 0,v4=v0.get("tag")||void 0;if(v1){typeof v1==="string"||e[1](v1);}else{v1=null}if(v2){typeof v2==="string"||e[3](v2);let v3=+v2;v3===v3&&(v3||v2.trim())||e[2](v2);v2=v3;}else{v2=null}if(v4){typeof v4==="string"||e[5](v4);(v4==="yes"||v4==="no")||e[4](v4);}else{v4=null}return {s:v1,n:v2,tag:v4}}
     examples:
       blank-is-null:
         input: ((f) => (f.append("s", ""), f.append("n", ""), f.append("tag", ""), f))(new FormData())

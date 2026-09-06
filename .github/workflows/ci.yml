@@ -61,6 +61,15 @@ jobs:
       - run: pnpm fuzz:union --seed=1
         working-directory: packages/sury
 
+      # A form field's reading depends on its wrapper as much as its type, and
+      # a spec covers one schema (CLAUDE.md, "Changing the form codec"). This
+      # crosses the two and checks what a golden cannot: that a field works in
+      # both directions or neither, that an encode leaves its input alone, and
+      # that every entry list a client could send is either rejected or read as
+      # a value the schema itself accepts. Exhaustive, so no seed. Seconds.
+      - run: pnpm fuzz:formdata
+        working-directory: packages/sury
+
       # artifact_test.ts checks jsr.json against package.json; only JSR itself
       # checks the parts npm has no opinion on (slow types, the exclude list).
       - run: npx --yes jsr@0.14.3 publish --dry-run --allow-dirty

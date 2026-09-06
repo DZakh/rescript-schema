@@ -62,6 +62,7 @@ import {
   unsupportedInstance
 } from "../parse";
 import {
+ bool,
  string
 } from "../primitives";
 
@@ -92,8 +93,11 @@ const presentArm = (schema: Internal): Internal => {
       setHas(has, variant.type);
     }
   }
-  if (present.length === 1) {
-    return present[0]!;
+  if (present.length < 2) {
+    // Nothing left to supply means the field is never on the wire, and it is
+    // its own present arm: an entry where none belongs is then reported
+    // against the sentinels the schema does declare.
+    return present[0] || schema;
   }
   const mut = copySchema(schema);
   mut.anyOf = present;
@@ -129,6 +133,17 @@ const decidesBlank = (schema: Internal): boolean =>
   schema.format !== U ||
   schema.to !== U ||
   (schema.pattern !== U && !schema.pattern.test(""));
+
+// A `null` arm, or the bare `null` schema: either way the field has an absent
+// reading, and no entry of its own.
+const isNullable = (schema: Internal): boolean =>
+  schema.type === nullTag || (schema.type === anyOfTag && !!schema.has![nullTag]);
+
+// Whether the schema says what "no entry" means. It is the one question both
+// directions ask of a field — the decode has somewhere to put a missing key,
+// and the encode has a value it must not write — and the one that makes an
+// item unfit for a list, where every position is an entry.
+const isAbsent = (schema: Internal): boolean => isOptional(schema) || isNullable(schema);
 
 // A blob takes the entry as it is, and so does `unknown`. Everything else on
 // the wire is text, so it reads through a `string` stage: the entry is checked
@@ -260,7 +275,7 @@ const assertListItems = (val: Val, schema: Internal): void => {
         `A list of booleans is not supported by S.formData: a checkbox group submits the value of each checked box. Use S.array(S.string)`,
       );
     }
-    if (isOptional(item) || item.has?.[nullTag] || tagFlags[item.type]! & 32) {
+    if (isAbsent(item)) {
       // An item with no entry would shift every item after it rather than
       // leave a hole.
       B_invalidOperation(
@@ -287,18 +302,29 @@ type Field = {
   // it absent — both are a schema saying what an empty input means, so both
   // answer the blank question and neither is ambiguous.
   nullable: boolean;
+  list: boolean;
+  entry: boolean;
+  // Whether the read answers `undefined` for every shape of "no entry", which
+  // is what lets the absent test be the value's own truth. Two readings keep
+  // something falsy that is not an absence, and both have to test for
+  // `undefined` itself: a blank entry that `S.minLength(0)` declares a value,
+  // and an entry taken as it is, where `""` is a text field where a file
+  // belongs and has to be reported.
+  normalized: boolean;
   present: Internal;
-  checkbox: boolean;
 };
 
 const classify = (schema: Internal): Field => {
   const present = presentArm(schema);
+  const list = isList(present);
+  const entry = takesEntry(present);
   return {
     optional: isOptional(schema),
-    nullable:
-      schema.type === nullTag || (schema.type === anyOfTag && !!schema.has![nullTag]),
+    nullable: isNullable(schema),
+    list,
+    entry,
+    normalized: list || !(entry || present.minLength === 0),
     present,
-    checkbox: isCheckbox(present),
   };
 };
 
@@ -314,28 +340,27 @@ const assembled = (item: Val, schema: Internal, code: string, resultVar: string)
 };
 
 // One arm of a possibly-absent entry, compiled on a scope of the field's own
-// val and written back into `into` — the reader's result var, which is not
-// always the val's own: a checkbox assembles its boolean elsewhere.
-const armCode = (item: Val, source: Internal, target: Internal, into: string): string => {
+// val and left in that val's var, which is where the other arm writes too.
+const armCode = (item: Val, source: Internal, target: Internal): string => {
   const armIn = B_scope(item);
   armIn.io = false;
   armIn.s = source;
   armIn.e = target;
   const armOut = parse(armIn);
-  return B_merge(armOut) + (armOut.i === into ? "" : `${into}=${armOut.i};`);
+  return B_merge(armOut) + (armOut.i === item.i ? "" : `${item.i}=${armOut.i};`);
 };
 
 // What a blank entry becomes. A `null` arm makes it `null`; an `undefined` one
 // leaves the var alone, which is already absent, and runs that arm's own chain
 // — where `S.optional(x, default)` keeps its default. A field with both takes
 // the optional reading, since absence is the weaker claim.
-const absentCode = (item: Val, field: Field, schema: Internal, into: string): string => {
+const absentCode = (item: Val, field: Field, schema: Internal): string => {
   if (!field.optional) {
-    return field.nullable ? `else{${into}=null}` : "";
+    return field.nullable ? `else{${item.i}=null}` : "";
   }
   const absent =
     schema.anyOf?.find((variant) => variant.type === undefinedTag) || schema;
-  return absent.to === U ? "" : `else{${armCode(item, absent, absent, into)}}`;
+  return absent.to === U ? "" : `else{${armCode(item, absent, absent)}}`;
 };
 
 // A possibly-absent entry, each arm converted on its own. The present one
@@ -343,78 +368,37 @@ const absentCode = (item: Val, field: Field, schema: Internal, into: string): st
 // string reaching `X | undefined` would be routed through the union rules,
 // which reject `string | undefined` outright and otherwise dispatch on the text
 // `"undefined"`.
-const readOptional = (
-  item: Val,
-  field: Field,
-  schema: Internal,
-  source: Internal,
-  target: Internal,
-): Val =>
+const readOptional = (item: Val, field: Field, schema: Internal): Val =>
   assembled(
     item,
     schema,
-    `if(${item.i}!==void 0){${armCode(item, source, target, item.i)}}${absentCode(
+    `if(${field.normalized ? item.i : `${item.i}!==void 0`}){${armCode(
       item,
-      field,
-      schema,
-      item.i,
-    )}`,
+      item.s,
+      field.present,
+    )}}${absentCode(item, field, schema)}`,
     item.i,
   );
 
 // One entry read as a checkbox: `"on"` is what a checked box with no `value`
-// attribute submits, the rest are the hidden-input spellings, and anything
-// falsy (absent, `null`, the `""` of a box carrying an empty value) is an
-// unchecked box.
+// attribute submits, the rest are the hidden-input spellings, and match what
+// VineJS accepts. Anything falsy — absent, `null`, the `""` of a box carrying
+// an empty value — is an unchecked box, so a required boolean needs no absent
+// reading of its own. A checkbox carrying any other `value` is not a boolean:
+// the schema names that value instead of the codec guessing at it.
+//
+// The result is a `bool`, not the target: whatever more the target asks — the
+// `true` of a box that must be ticked — is its own decoder's to check, against
+// the boolean this produced rather than against the text a browser sent.
 const readCheckbox = (input: Val, target: Internal): Val => {
   const v = input.i;
-  const outputVar = B_varWithoutAllocation(input.g);
-  const output = B_next(input, outputVar, target, target);
+  const output = B_next(input, v, bool, target);
   output.v = _var;
-  output.io = true;
-  output.cp = `let ${outputVar};(${outputVar}=${v}==="on"||${v}==="true"||${v}==="1")||${v}==="false"||${v}==="0"||!${v}||${B_embedInvalidInput(input, target)};`;
-  return B_markOutput(output, input);
-};
-
-const readCheckboxField = (item: Val, field: Field, schema: Internal): Val => {
-  const v = item.i;
-  const outputVar = B_varWithoutAllocation(item.g);
-  // `"on"` is the entry a checked box with no `value` attribute submits; the
-  // rest are the hidden-input spellings, and match what VineJS accepts. A
-  // checkbox carrying any other `value` is not a boolean — the schema names
-  // that value instead of the codec guessing at it.
-  const read = `(${outputVar}=${v}==="on"||${v}==="true"||${v}==="1")||${v}==="false"||${v}==="0"||`;
-  const fail = B_embedInvalidInput(item, schema);
-  // A literal arm is narrowed against the boolean the read produced, not
-  // against the entry: "must be checked" reports the box it got, not the text
-  // a browser did or didn't send. `assembled` can't emit it — its source is
-  // the field's own schema, so there is nothing left for it to check.
-  const narrow =
-    field.present.const === U
-      ? ""
-      : `${outputVar}===${field.present.const}||${B_failWithArg(
-          item,
-          B_invalidInputBuilder(field.present)(item),
-          outputVar,
-        )};`;
-  return assembled(
-    item,
-    schema,
-    field.optional || field.nullable
-      ? // Absent leaves the var undefined, which is the tri-state's third value
-        // and what a default, or a `null` arm, converts from. Without one it
-        // would be unreachable: nothing a form submits reads as `null`.
-        `let ${outputVar};if(${v}){${read}${fail};${narrow}}${absentCode(
-          item,
-          field,
-          schema,
-          outputVar,
-        )}`
-      : // An unchecked box sends nothing, so absent is `false` — which is what
-        // the comparisons already assigned by the time the guard admits it.
-        `let ${outputVar};${read}!${v}||${fail};${narrow}`,
-    outputVar,
-  );
+  // Into the entry's own var, and in one expression: the failure is raised
+  // while the right-hand side is still being evaluated, so a union arm that
+  // rejects the entry leaves it as it was for the next arm to read.
+  output.cp = `${v}=${v}==="on"||${v}==="true"||${v}==="1"||(${v}==="false"||${v}==="0"||!${v}?false:${B_embedInvalidInput(input, target)});`;
+  return output;
 };
 
 // `append` takes a string or a blob as it is; every other entry is the string
@@ -446,7 +430,7 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     // `S.optional(S.boolean, true)` therefore cannot round-trip: its `false`
     // omits, and an absent entry is its default. That default contradicts the
     // wire, where a missing checkbox means unchecked.
-    return (tagFlag & 256) && (schema.has![undefinedTag] || schema.has![nullTag])
+    return isAbsent(schema)
       ? `if(${val.i}!=null){${fdVar}.append(${keyText},${val.i}?"on":"false")}`
       : `if(${val.i}){${fdVar}.append(${keyText},"on")}`;
   }
@@ -488,7 +472,7 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     );
     return `for(let ${iterVar}=0;${iterVar}<${arrayVar}.length;++${iterVar}){${itemCode}}`;
   }
-  if ((tagFlag & 256) && (schema.has![undefinedTag] || schema.has![nullTag])) {
+  if (isAbsent(schema)) {
     // Neither absent nor null is an entry, so the whole append sits behind one
     // loose guard — `!= null` is both sentinels and shorter than testing them
     // apart.
@@ -556,26 +540,23 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     const schema = properties[key]!;
     const keyText = inlinedValueFromString(key);
     const field = classify(schema);
-    const list = isList(field.present);
+    const { list, entry } = field;
     // Both say a blank entry carries no value, so both read it away and both
     // compile their arms on their own.
-    const absent = field.optional || field.nullable;
-    const entry = takesEntry(field.present);
+    const absent = isAbsent(schema);
 
-    // An empty text input submits `""`, and only an optional field reads it as
-    // absent — that is the one case where the entry carries no value, and it is
-    // what makes a default apply. A required field is handed `""` unchanged, so
-    // the target answers for itself: `S.string` accepts it, `S.nonEmpty` and
-    // `S.number` reject it in their own words. A checkbox is the exception
-    // either way: a box carries no text, so an empty value is an unchecked box
-    // rather than a value to report on.
-    //
-    // A list is `getAll`, which answers `[]` rather than `undefined`; an
-    // optional one folds that empty read into absent, since a form has no other
-    // way to submit an empty list.
+    // Three reads, one per shape the wire has, each answering `undefined` for
+    // "no entry" where the field has an absent reading to hand it to. A
+    // required field is handed the entry as it stands and the target answers
+    // for itself — `""` is a value to `S.string`, an unchecked box to
+    // `S.boolean`, and a failure to `S.nonEmpty` and `S.number`, each in its
+    // own words.
     const readVar = B_varWithoutAllocation(input.g);
     const slot = `${entriesVar}.get(${keyText})`;
     if (list) {
+      // A repeated key is `getAll`, which answers `[]` rather than `undefined`;
+      // an optional list folds that empty read into absent, since a form has no
+      // other way to submit an empty one.
       B_hoistDecl(
         input,
         `${readVar}=${B_embed(input, absent ? asOptionalList : asList)}(${slot})`,
@@ -597,18 +578,11 @@ const formDataToObject = (input: Val, target: Internal): Val => {
         `${readVar}=(${entryVar}=${slot})&&${entryVar}.name===""&&!${entryVar}.size?void 0:${entryVar}`,
       );
     } else {
-      // A checkbox tests its entry for truth, which already covers `null` and
-      // the `""` of a box carrying an empty value — so it is the one read that
-      // needs no sentinel of its own. `S.minLength(0)` is the other: it is how
-      // a schema says a blank entry is a value, and reading it away would
-      // answer the question the field just answered — an absent field is then
-      // the missing key alone, which is the only reading that tells the two
-      // apart at all.
+      // The entry as it stands, with a blank one read away where the field has
+      // somewhere to put it (see `normalized`).
       B_hoistDecl(
         input,
-        `${readVar}=${slot}${
-          field.checkbox || !absent || field.present.minLength === 0 ? "" : "||void 0"
-        }`,
+        `${readVar}=${slot}${absent && field.normalized ? "||void 0" : ""}`,
       );
     }
 
@@ -622,7 +596,10 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       p: input,
       v: _var,
       i: readVar,
-      s: list && !field.optional ? arrayFactory(unknown) : formDataField,
+      // The entry, or the list of them, read as the field schema — whose hook
+      // is consulted once per arm of a union target, so each arm reads by its
+      // own rule.
+      s: list ? arrayFactory(formDataField) : formDataField,
       io: U,
       e: schema,
       prev: U,
@@ -652,26 +629,17 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       );
     }
 
-    let output: Val;
-    if (field.checkbox) {
-      output = readCheckboxField(item, field, schema);
-    } else if (list) {
+    if (list) {
       assertListItems(item, field.present);
-      // A list of entries: each item reads by the same rules a field does,
-      // through the same hook.
-      output = absent
-        ? readOptional(item, field, schema, arrayFactory(formDataField), field.present)
-        : ((item.s = arrayFactory(formDataField)), parse(item));
-    } else if (!absent) {
-      // The field schema's hook takes it from here: it is consulted once per
-      // union arm, so each arm reads by its own rule.
-      output = parse(item);
-    } else {
-      // What "no entry" means is the reader's to say — the union rules have no
-      // conversion into `undefined` or `null` to dispatch on.
-      output = readOptional(item, field, schema, formDataField, field.present);
     }
-    B_addObjectField(objectVal, key, output);
+    B_addObjectField(
+      objectVal,
+      key,
+      // What "no entry" means is the reader's to say — the union rules have no
+      // conversion into `undefined` or `null` to dispatch on. Everything else
+      // is the field schema's own.
+      absent ? readOptional(item, field, schema) : parse(item),
+    );
   }
 
   return B_markOutput(completeObjectVal(objectVal), input);
