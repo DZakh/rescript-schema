@@ -6,7 +6,6 @@ import {
   type Internal,
   stringTag,
   tagFlags,
-  U,
   type Val
 } from "../base";
 import {
@@ -57,12 +56,7 @@ export const date: Internal = /* @__PURE__ */ initSchema(
   (input: Val): Val => {
     const inputTagFlag = tagFlags[input.s.type]!;
     if ((inputTagFlag & 2)) {
-      // `+x`, `BigInt(x)` and `new URL(x)` strip surrounding whitespace by
-      // spec; `Date.parse` of a padded string is implementation-defined, so
-      // the trim is explicit here. A declared format already rejected padding.
-      return invalidDateRefine(
-        B_next(input, `new Date(${input.i}${input.s.format === U ? ".trim()" : ""})`, date),
-      );
+      return invalidDateRefine(B_next(input, `new Date(${input.i})`, date));
     } else if ((inputTagFlag & 1)) {
       return invalidDateRefine(instanceDecoder(input));
     } else if ((inputTagFlag & 8192) && input.s.class === date.class) {
