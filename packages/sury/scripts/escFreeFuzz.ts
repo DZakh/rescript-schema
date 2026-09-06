@@ -107,7 +107,7 @@ const stringFormatSchemas = Object.entries(S as Record<string, unknown>).filter(
   },
 );
 
-// One compiled validator per schema: `inputValidator` builds an operation, and
+// One compiled validator per schema: `S.isInput` builds an operation, and
 // building it per candidate would dominate a 400k-case run.
 const validators = new Map<StringSchema, (value: string) => boolean>();
 

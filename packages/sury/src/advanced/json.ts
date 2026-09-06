@@ -282,8 +282,8 @@ export const jsonDecoderFn = (input: Val): Val => {
     // JSON.stringify accepts (or silently drops) anything, so it still needs
     // the JSON validation here.
     // FIXME: should this also check !input.e.refiner, like `carriedJsonString`'s caller does?
-    // The `undefined` sentinel `S.assertInput` targets is `noValidation` and reads
-    // nothing, so encoding into it asserts nothing either — `S.inputValidator(S.json)(x)`
+    // The `undefined` sentinel `S.assertInputOrThrow` targets is `noValidation` and reads
+    // nothing, so encoding into it asserts nothing either — `S.isInput(S.json, x)`
     // answered true for a function. A `noValidation` document is a different
     // thing: it still holds the value, and the encode is how it is described.
     const preEncode: boolean =
@@ -948,7 +948,7 @@ export const jsonString = /* @__PURE__ */ (() => {
     stringVal.s = expectedSchema;
     stringVal.e = expectedSchema;
 
-    // `S.assertInput`'s `undefined` result sentinel alongside `unknown`: neither
+    // `S.assertInputOrThrow`'s `undefined` result sentinel alongside `unknown`: neither
     // reads the text, so neither can stand in for the parse below.
     if (
       to !== U &&
@@ -1016,7 +1016,7 @@ export const jsonString = /* @__PURE__ */ (() => {
       // silent null. An expression (not a statement) so a `!== void 0`
       // omission guard around the piece keeps guarding the check too.
       // Blamed on `json`, not on the jsonString target: what the value fails
-      // to be is a JSON value, and `S.parser(S.json)` rejects it with that
+      // to be is a JSON value, and `S.parseOrThrow(S.json)` rejects it with that
       // same wording.
       const inputVar = input.v();
       return B_next(

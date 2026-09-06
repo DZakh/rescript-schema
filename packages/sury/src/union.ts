@@ -1264,7 +1264,7 @@ export const unionDecoder: Builder = (input: Val) => {
   const self = input.e;
   // The union's own `.to` chain, applied per case during decoding. None when a
   // custom parser owns the conversion, or when the target is the `noValidation`
-  // sentinel `S.assertInput` appends: fusing that into every case replaces each
+  // sentinel `S.assertInputOrThrow` appends: fusing that into every case replaces each
   // member's own check with the sentinel's, which silently breaks dispatch.
   // Left alone, it converts the union's assembled output once instead.
   const toPerCase =
@@ -1443,7 +1443,7 @@ export const unionRewriteTo = (input: Val, target: Internal): Val =>
 
 // Whether the union should hand itself to the target untouched — recursive
 // schemas and `S.json` decode a union source per variant on their own, and a
-// `noValidation` target (`S.assertInput`'s result sentinel) discards the value, so
+// `noValidation` target (`S.assertInputOrThrow`'s result sentinel) discards the value, so
 // converting each member into it would replace every member's check with the
 // sentinel's.
 const unionTargetOwns = (target: Internal) =>
@@ -1505,7 +1505,7 @@ const unionResolve = (
   }
   // Rule 3 — every source variant gets its own built-in decoder to the target.
   // Two targets are never ambiguous: `unknown`, the top type, which decodes
-  // nothing; and a `noValidation` target (S.assertInput's result sentinel), which
+  // nothing; and a `noValidation` target (S.assertInputOrThrow's result sentinel), which
   // discards the value entirely.
   if (!(tagFlags[target.type]! & 1) && !target.noValidation) {
     unionCheckPartial(input, source, target, variants, true);

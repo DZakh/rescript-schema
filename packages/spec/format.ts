@@ -75,7 +75,7 @@ const operationExpression = S.schema({
   // Absent means sync; `false` is never written, so there's one spelling per state.
   isAsync: S.optional(S.schema(true)).with(S.meta, {
     description:
-      "`true` if this direction is async (built with S.asyncParser/asyncDecoder/asyncEncoder, " +
+      "`true` if this direction is async (built with the AsPromiseOrReject operations, " +
       "examples awaited). Written when the block is first created; `spec check` errors when it " +
       "disagrees with the schema. Omit when sync.",
   }),

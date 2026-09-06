@@ -729,7 +729,7 @@ export const B_scope = (val: Val): Val => {
 //    the wrong thing is caught there.
 //  - otherwise (the ReScript adapter's decodeToOutput / encodeFromOutput):
 //    the result claims the target itself, so the loop only runs what a typed
-//    decode would, the same deal `S.decoder` gives a caller who declares the
+//    decode would, the same deal `S.decodeOrThrow` gives a caller who declares the
 //    input's schema. The ReScript compiler has already checked the coder's
 //    signature, so the skipped work is provably redundant.
 //
