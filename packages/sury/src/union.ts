@@ -597,7 +597,7 @@ const unionCheckPartial = (
       input,
       source,
       target,
-      `${inputExpression(matched!)} has the same type as the ${outputSide ? "target" : "source"} and the others don't`
+      `: the ${inputExpression(matched!)} arm matches as it is. Use S.to for a coder, or S.never to drop it`
     );
   }
 };
@@ -612,15 +612,24 @@ const unionUncovered = (
     input,
     source,
     target,
-    `${inputExpression(variant)} has no same-type variant on the other side`
+    `: nothing converts to ${inputExpression(variant)}. Use S.to for a coder`,
+    "Unsupported"
   );
 
-const unionInvalid = (input: Val, from: Internal, to: Internal, why: string): never =>
+// `why` carries its own leading punctuation so the two callers share one
+// template. Both name the pair first — that is what a reader has to look at —
+// and end in the spellings that resolve it, rather than in the rule that
+// rejected it.
+const unionInvalid = (
+  input: Val,
+  from: Internal,
+  to: Internal,
+  why: string,
+  kind = "Ambiguous"
+): never =>
   B_invalidOperation(
     input,
-    `Invalid operation: can't convert ${inputExpression(from)} to ${inputExpression(
-      to
-    )} — ${why}. Use S.to to say what you mean, or S.never to mark a variant unreachable`
+    `${kind} conversion from ${inputExpression(from)} to ${inputExpression(to)}${why}`
   );
 
 // ── Normalize → Analyze → Plan → Emit ────────────────────────────────────────

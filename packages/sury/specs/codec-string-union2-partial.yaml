@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Invalid operation: can't convert string to number | string — string has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable"
+    creationError: "SuryError: Ambiguous conversion from string to number | string: the string arm matches as it is. Use S.to for a coder, or S.never to drop it"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Invalid operation: can't convert number | string to string — string has the same type as the target and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable"
+    creationError: "SuryError: Ambiguous conversion from number | string to string: the string arm matches as it is. Use S.to for a coder, or S.never to drop it"

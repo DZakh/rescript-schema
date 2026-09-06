@@ -216,6 +216,23 @@ of a form-data story. What they were built to make cheap, roughly in order:
     `S.record(S.union([S.string, S.number]))` can't be — the union rules reject
     `string -> string | number` before the codec is consulted, since every
     entry satisfies the string arm.
+- **A checkbox reading inside a union.** `S.union([S.boolean, S.number])` works
+  as a field, but its boolean arm is the core `string -> boolean` coercion, so
+  it takes `"true"`/`"false"` and not the `"on"`/`"1"`/`"0"` a box submits —
+  and `"0"` reads as the number, never `false`. Widening it needs a boolean
+  schema carrying the checkbox decoder for the codec's subtree (a
+  `formDataField`, internal), substituted for a boolean arm as `fromText`
+  builds the chain. Two things make it a decision rather than a patch:
+  - **`"1"` belongs to both readings.** A box submits it for "checked" and a
+    number field submits it for one, and no rule can have both. That is the
+    same shape as the blank-string question, where the answer was to make the
+    schema say. `S.string.with(S.to, S.union([S.boolean, S.number]), {decode,
+    encode})` already says it in four lines, which may be the whole answer.
+  - **Omitting `false` doesn't round-trip.** A checkbox field encodes `false`
+    as no entry, so the union arm would want the same. But a missing entry
+    then has to read back as `false`, and inside a union it can't: absence is
+    equally "the number wasn't sent". Only `S.optional(S.union([…]))` could
+    carry it, and there absence already means `undefined`.
 - **`string -> string | undefined` is still rejected by the union rules**, so
   the env pattern can't read an optional string field — where the form codec
   converts the present arm itself. Pinned by

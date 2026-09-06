@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Invalid operation: can't convert string to string | undefined — string has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable"
+    creationError: "SuryError: Ambiguous conversion from string to string | undefined: the string arm matches as it is. Use S.to for a coder, or S.never to drop it"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Invalid operation: can't convert string | undefined to string — string has the same type as the target and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable"
+    creationError: "SuryError: Ambiguous conversion from string | undefined to string: the string arm matches as it is. Use S.to for a coder, or S.never to drop it"

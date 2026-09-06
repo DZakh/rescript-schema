@@ -843,7 +843,7 @@ test("Rejects widening a union into one with an uncovered member", t => {
 
   t->U.assertThrowsMessage(
     () => "123"->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert string | number to string | number | boolean — boolean has no same-type variant on the other side. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Unsupported conversion from string | number to string | number | boolean: nothing converts to boolean. Use S.to for a coder`,
   )
 
   // S.never marks the extra member unreachable, and the rest passes through.
@@ -879,7 +879,7 @@ test("Fails to transform union to union to string", t => {
   // others, which is the ambiguity rule 2 rejects.
   t->U.assertThrowsMessage(
     () => true->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert string to string | number | boolean — string has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Ambiguous conversion from string to string | number | boolean: the string arm matches as it is. Use S.to for a coder, or S.never to drop it`,
   )
 })
 
@@ -909,7 +909,7 @@ test("Rejects a source matching some but not all target members", t => {
 
   t->U.assertThrowsMessage(
     () => "true"->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert string to boolean | string — string has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Ambiguous conversion from string to boolean | string: the string arm matches as it is. Use S.to for a coder, or S.never to drop it`,
   )
 
   // Pass strings through, never producing a boolean:
@@ -1003,7 +1003,7 @@ test("Instance source matching one of two instance members is ambiguous", t => {
 
   t->U.assertThrowsMessage(
     () => %raw(`new Set(["a"])`)->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert Set to Map | Set — Set has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Ambiguous conversion from Set to Map | Set: the Set arm matches as it is. Use S.to for a coder, or S.never to drop it`,
   )
 
   let explicit =
@@ -1038,7 +1038,7 @@ test("S.date -> S.union([S.string, S.date]) is an ambiguous widening", t => {
 
   t->U.assertThrowsMessage(
     () => d->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert Date to string | Date — Date has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Ambiguous conversion from Date to string | Date: the Date arm matches as it is. Use S.to for a coder, or S.never to drop it`,
   )
 
   let explicit =
@@ -1108,7 +1108,7 @@ test("Refined+converted target union is still an ambiguous widening", t => {
 
   t->U.assertThrowsMessage(
     () => "123"->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert string to string | number | boolean — string has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Ambiguous conversion from string to string | number | boolean: the string arm matches as it is. Use S.to for a coder, or S.never to drop it`,
   )
 
   // Narrow the target to the reachable member and both the refinement and the
@@ -1203,7 +1203,7 @@ test("Rejects a nested union whose member has no same-type target member", t => 
 
   t->U.assertThrowsMessage(
     () => {"f": %raw(`123n`)}->S.parseOrThrow(~to=schema),
-    `Failed at f: Invalid operation: can't convert bigint | null to string | undefined — bigint has no same-type variant on the other side. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Failed at f: Unsupported conversion from bigint | null to string | undefined: nothing converts to bigint. Use S.to for a coder`,
   )
 })
 
@@ -1229,7 +1229,7 @@ test("Rejects a nested union where only some members match the single target", t
 
   t->U.assertThrowsMessage(
     () => {"f": %raw(`123`)}->S.parseOrThrow(~to=schema),
-    `Failed at f: Invalid operation: can't convert string | number to string — string has the same type as the target and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Failed at f: Ambiguous conversion from string | number to string: the string arm matches as it is. Use S.to for a coder, or S.never to drop it`,
   )
 })
 

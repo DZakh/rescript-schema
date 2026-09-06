@@ -22,4 +22,4 @@ operations:
         error: Expected NaN, received 1
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Invalid operation: can't convert NaN | string to NaN — NaN has the same type as the target and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable"
+    creationError: "SuryError: Ambiguous conversion from NaN | string to NaN: the NaN arm matches as it is. Use S.to for a coder, or S.never to drop it"

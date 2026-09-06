@@ -316,7 +316,7 @@ test("reachable rejection and unreachable conversion stay distinct", (t) => {
     S.number,
   ]).with(S.to, S.union([S.string, S.number]));
   t.expect(() => S.parser(uncoveredTarget)).toThrow(
-    /string has no same-type variant on the other side/,
+    /nothing converts to string/,
   );
 
   const chainedUncoveredTarget = S.union([
@@ -324,7 +324,7 @@ test("reachable rejection and unreachable conversion stay distinct", (t) => {
     S.number,
   ]).with(S.to, S.union([S.string, S.number]));
   t.expect(() => S.parser(chainedUncoveredTarget)).toThrow(
-    /string has no same-type variant on the other side/,
+    /nothing converts to string/,
   );
 });
 

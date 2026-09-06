@@ -14,7 +14,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Invalid operation: can't convert string | undefined to boolean | null — string has no same-type variant on the other side. Use S.to to say what you mean, or S.never to mark a variant unreachable"
+    creationError: "SuryError: Unsupported conversion from string | undefined to boolean | null: nothing converts to string. Use S.to for a coder"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Invalid operation: can't convert boolean | null to string | undefined — boolean has no same-type variant on the other side. Use S.to to say what you mean, or S.never to mark a variant unreachable"
+    creationError: "SuryError: Unsupported conversion from boolean | null to string | undefined: nothing converts to boolean. Use S.to for a coder"
