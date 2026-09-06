@@ -1200,6 +1200,11 @@ const schema = S.formData.with(
 );
 ```
 
+`S.strict` is not supported and fails at operation creation. A browser appends
+entries no schema declared — `_charset_`, one per `dirname` attribute, and an
+image button's `name.x`/`name.y` — so "no entries but these" is not something a
+form submission can promise. Objects strip by default; keep it that way.
+
 A file input with nothing chosen still submits — the HTML Standard has it
 append an empty, unnamed `File` — so that sentinel reads as absent rather than
 as an upload, and a required `S.file` reports a missing file.

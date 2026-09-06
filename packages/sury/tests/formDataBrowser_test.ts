@@ -190,22 +190,16 @@ test("a checkbox with a value attribute is not a boolean", () => {
   ).toEqual({ emptyValued: false });
 });
 
-test("a browser adds entries the schema never declared", () => {
-  // `_charset_` is filled in by the browser, and `dirname` and an image
-  // button's `name.x`/`name.y` arrive the same way — so `S.strict` cannot mean
-  // "no other entries" against a real submission.
-  const schema = S.formData.with(S.to, S.schema({ name: S.string }).with(S.strict));
-  expect(() => S.decoder(schema)(submitted())).toThrow("Unrecognized key");
-  // Even a schema that declares every control the author wrote still trips on
-  // the one the browser added.
-  const declared = S.formData.with(
-    S.to,
-    S.schema({ name: S.string, blank: S.string }).with(S.strict),
-  );
-  const partial = new FormData();
-  partial.append("name", "Ann");
-  partial.append("blank", "");
-  expect(S.decoder(declared)(partial)).toEqual({ name: "Ann", blank: "" });
-  partial.append("_charset_", "UTF-8");
-  expect(() => S.decoder(declared)(partial)).toThrow('Unrecognized key "_charset_"');
+test("a browser adds entries the schema never declared, so S.strict cannot hold", () => {
+  // `_charset_` is filled in by the browser; a `dirname` attribute and an image
+  // button's `name.x`/`name.y` arrive the same way. None of them is in any
+  // schema, so "no entries but these" is not a thing a form can promise.
+  expect(SUBMISSION.map(([key]) => key)).toContain("_charset_");
+  expect(() =>
+    S.decoder(S.formData.with(S.to, S.schema({ name: S.string }).with(S.strict))),
+  ).toThrow("S.strict is not supported by S.formData");
+  // Stripping is the supported mode, and it reads the same submission fine.
+  expect(S.decoder(S.formData.with(S.to, S.schema({ name: S.string })))(submitted())).toEqual({
+    name: "Ann",
+  });
 });

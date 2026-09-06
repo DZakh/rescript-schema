@@ -15,7 +15,6 @@ import {
   anyOfTag,
   arrayTag,
   copySchema,
-  type ErrorDetails,
   inlinedValueFromString,
   instanceTag,
   initSchema,
@@ -37,11 +36,11 @@ import {
   B_dynamicScope,
   B_embed,
   B_embedInvalidInput,
-  B_failWithArg,
   B_hoistDecl,
   B_markOutput,
   B_merge,
   B_mergeWithPathPrepend,
+  B_invalidOperation,
   B_next,
   B_scope,
   B_unsupportedDecode,
@@ -310,7 +309,26 @@ const appendValue = (val: Val, fdVar: string, keyText: string): string => {
   return B_merge(converted) + `${fdVar}.append(${keyText},${converted.i});`;
 };
 
+// `S.strict` means "no entries but these", which a form submission cannot
+// honour: a browser appends entries of its own that no schema declared —
+// `_charset_` for a hidden input of that name, one per `dirname` attribute,
+// and an image button's `name.x`/`name.y`. Rejected where the pair is written
+// rather than silently read as `S.strip`.
+const assertNotStrict = (input: Val, schema: Internal): void => {
+  // `seq` is what separates a schema someone declared from the object shape a
+  // val builds as it assembles fields (`makeObjectVal`), which is always
+  // `"strict"` and is not a statement about the wire. Only the declaration is
+  // rejected.
+  if (schema.additionalItems === "strict" && schema.seq !== U) {
+    B_invalidOperation(
+      input,
+      `S.strict is not supported by S.formData — a browser adds entries of its own (_charset_, dirname, an image button's name.x/name.y). Use S.strip`,
+    );
+  }
+};
+
 const objectToFormData = (input: Val): Val => {
+  assertNotStrict(input, input.s);
   const fdVar = B_varWithoutAllocation(input.g);
   const properties = input.s.properties!;
   let code = `let ${fdVar}=new ${B_embed(input, input.e.class)}();`;
@@ -324,6 +342,7 @@ const objectToFormData = (input: Val): Val => {
 };
 
 const formDataToObject = (input: Val, target: Internal): Val => {
+  assertNotStrict(input, target);
   const objectVal = makeObjectVal(input, target);
   const inputVar = input.v();
   const properties = target.properties!;
@@ -426,27 +445,6 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       output = parse(item);
     }
     B_addObjectField(objectVal, key, output);
-  }
-
-  if (target.additionalItems === "strict") {
-    const keyVar = B_varWithoutAllocation(input.g);
-    const fail = B_failWithArg(
-      input,
-      (excessFieldName: string) =>
-        ({
-          code: "unrecognized_keys",
-          path: objectVal.path,
-          reason: `Unrecognized key "${excessFieldName}"`,
-          keys: [excessFieldName],
-        }) as ErrorDetails,
-      keyVar,
-    );
-    let cond = "";
-    for (const key in properties) {
-      cond += `${cond ? "&&" : ""}${keyVar}!==${inlinedValueFromString(key)}`;
-    }
-    objectVal.cp +=
-      `for(const ${keyVar} of ${inputVar}.keys())` + (cond ? `if(${cond})` : "") + fail + ";";
   }
 
   return B_markOutput(completeObjectVal(objectVal), input);
