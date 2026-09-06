@@ -104,8 +104,6 @@ Object.defineProperty(schemaPrototype, "toString", {
   },
 });
 
-const toStandardValue = (value: unknown): StandardResult => ({ value });
-
 const toStandardIssues = (exn: unknown): StandardResult => {
   const error = getOrRethrow(exn);
   return {
@@ -138,7 +136,7 @@ Object.defineProperty(schemaPrototype, "~standard", {
     // whole invalidation condition.
     let decoderFlag: Flag | undefined = U;
     let decoder: (input: unknown) => unknown;
-    let isAsync: boolean;
+    let async: 1 | undefined;
     const standard: StandardProps = {
       version: 1,
       vendor,
@@ -153,12 +151,11 @@ Object.defineProperty(schemaPrototype, "~standard", {
           // async flag only lifts that one restriction, so a compile that
           // fails for any other reason fails the same way twice and the
           // second throw is the one the developer sees.
+          async = U;
           try {
             decoder = getDecoder(unknown, schema) as (input: unknown) => unknown;
-            isAsync = false;
           } catch {
-            decoder = getDecoder(unknown, schema, 1) as (input: unknown) => unknown;
-            isAsync = true;
+            decoder = getDecoder(unknown, schema, (async = 1)) as (input: unknown) => unknown;
           }
           decoderFlag = globalConfig.f;
         }
@@ -167,12 +164,12 @@ Object.defineProperty(schemaPrototype, "~standard", {
         // so the consumer sees one shape.
         try {
           const value = decoder(input);
-          return isAsync
-            ? (value as Promise<unknown>).then(toStandardValue, toStandardIssues)
-            : toStandardValue(value);
+          return async
+            ? (value as Promise<unknown>).then((value) => ({ value }), toStandardIssues)
+            : { value };
         } catch (exn) {
           const issues = toStandardIssues(exn);
-          return isAsync ? Promise.resolve(issues) : issues;
+          return async ? Promise.resolve(issues) : issues;
         }
       },
       // Standard JSON Schema spec: https://standardschema.dev/json-schema

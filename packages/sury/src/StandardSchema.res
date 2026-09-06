@@ -46,6 +46,12 @@ module Result = {
   external success: success<'output> => t<'output> = "%identity"
   external failure: failure => t<'output> = "%identity"
 
+  // What `validate` answers: the spec lets a library return a promise, which
+  // Sury does for a schema with an async codec and never otherwise. Untagged,
+  // so the runtime value is the result object or the promise itself.
+  @unboxed
+  type maybeAsync<'output> = Sync(t<'output>) | Async(promise<t<'output>>)
+
   let classify = (t: t<'output>): result<success<'output>, failure> =>
     if %raw(`t.issues`) {
       Error(t->Obj.magic)
@@ -91,7 +97,7 @@ module JsonSchema = {
 type props<'input, 'output> = {
   version: int,
   vendor: string,
-  validate: 'any. 'any => Result.t<'output>,
+  validate: 'any. 'any => Result.maybeAsync<'output>,
   jsonSchema?: JsonSchema.converter,
 }
 
