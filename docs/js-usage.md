@@ -1827,7 +1827,7 @@ The output side is derived through [`reverse`](#reverse), so nested transforms a
 - `message` - `reason` prefixed with the path when there is one: `Failed at items[0]: Expected string, received undefined`.
 - `code` - which kind of failure, with extra fields per kind:
   - `"invalid_input"` - the value doesn't match. `expected` and `received` are schemas describing both sides, `input` is the value, and `unionErrors` lists each member's failure when a union rejected it.
-  - `"unrecognized_keys"` - a `strict` object saw a key it doesn't declare, named in `key`. Checks fail fast, so one error names one key.
+  - `"unrecognized_keys"` - a `strict` object saw keys it doesn't declare, listed in `keys`. Checks fail fast, so one key today.
   - `"invalid_conversion"` - a custom `decode`/`encode` threw. `from`/`to` are the schemas and `cause` is what it threw.
   - `"unsupported_decode"` - the two schemas have no conversion between them. See [When a conversion is rejected](#when-a-conversion-is-rejected).
   - `"invalid_operation"` - the schema itself can't run this way, such as an async schema under a sync parser.

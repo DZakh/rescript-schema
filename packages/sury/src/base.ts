@@ -249,7 +249,7 @@ export type UnrecognizedKeysDetails = {
   code: "unrecognized_keys";
   path: Path;
   reason: string;
-  key: string;
+  keys: string[];
 }
 export type ErrorDetails =
   | InvalidInputDetails

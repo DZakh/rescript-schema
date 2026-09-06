@@ -291,13 +291,13 @@ export type Error =
     })
   | (BaseError & {
       readonly code: "unrecognized_keys";
-      /** The first key the value carries that the object schema doesn't declare. */
-      readonly key: string;
+      /** Keys the value carries that the object schema doesn't declare. Checks fail fast, so one today. */
+      readonly keys: readonly string[];
     });
 
-/** The class every operation throws; use it with `instanceof`. Not meant to be constructed by hand. */
+/** The class every operation throws; use it with `instanceof`. */
 export const Error: {
-  new (...args: never): Error;
+  [Symbol.hasInstance](value: unknown): value is Error;
   prototype: Error;
 };
 

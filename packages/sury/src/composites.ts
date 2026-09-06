@@ -75,8 +75,8 @@ const isItemSchema = (x: AdditionalItems | undefined): x is Internal =>
 
 // The strict scan: the first own or inherited enumerable key that is not one
 // of `keys` raises `unrecognized_keys`. Fails fast like every other check, so
-// the error names one key. `decl` is `let ` when the caller has not hoisted
-// `keyVar` itself.
+// `keys` holds one entry; the array is the shape a collect-all mode would
+// fill. `decl` is `let ` when the caller has not hoisted `keyVar` itself.
 export const B_unrecognizedKeys = (
   input: Val,
   keys: string[],
@@ -90,7 +90,7 @@ export const B_unrecognizedKeys = (
         code: "unrecognized_keys",
         path: input.path,
         reason: `Unrecognized key ${stringify(key)}`,
-        key,
+        keys: [key],
       }) as ErrorDetails,
     keyVar,
   );
