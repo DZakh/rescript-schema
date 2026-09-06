@@ -11,11 +11,20 @@ vs:
   zod: z.string().length(2)
 operations:
   parse:
-    expression: i=>{typeof i==="string"||e[1](i);i.length===2||e[0](i);return i}
+    expression: i=>{typeof i==="string"||e[2](i);e[0](i)===2||e[1](i);return i}
     examples:
       at-the-length:
         input: '"ab"'
         output: '"ab"'
+      two-astral-code-points:
+        input: '"😀😀"'
+        output: '"😀😀"'
+      one-astral-code-point-two-units:
+        input: '"😀"'
+        error: Expected string.length == 2, received "😀"
+      zwj-sequence-counts-code-points:
+        input: '"👨‍👩"'
+        error: Expected string.length == 2, received "👨‍👩"
       longer:
         input: '"abc"'
         error: Expected string.length == 2, received "abc"
@@ -32,11 +41,20 @@ operations:
         input: "1"
         error: Expected string.length == 2, received 1
   decode:
-    expression: i=>{i.length===2||e[0](i);return i}
+    expression: i=>{e[0](i)===2||e[1](i);return i}
     examples:
       at-the-length:
         input: '"ab"'
         output: '"ab"'
+      two-astral-code-points:
+        input: '"😀😀"'
+        output: '"😀😀"'
+      one-astral-code-point-two-units:
+        input: '"😀"'
+        error: Expected string.length == 2, received "😀"
+      zwj-sequence-counts-code-points:
+        input: '"👨‍👩"'
+        error: Expected string.length == 2, received "👨‍👩"
       shorter:
         input: '"a"'
         error: Expected string.length == 2, received "a"
@@ -44,11 +62,20 @@ operations:
         input: '""'
         error: Expected string.length == 2, received ""
   encode:
-    expression: i=>{i.length===2||e[0](i);return i}
+    expression: i=>{e[0](i)===2||e[1](i);return i}
     examples:
       at-the-length:
         input: '"ab"'
         output: '"ab"'
+      two-astral-code-points:
+        input: '"😀😀"'
+        output: '"😀😀"'
+      one-astral-code-point-two-units:
+        input: '"😀"'
+        error: Expected string.length == 2, received "😀"
+      zwj-sequence-counts-code-points:
+        input: '"👨‍👩"'
+        error: Expected string.length == 2, received "👨‍👩"
       shorter:
         input: '"a"'
         error: Expected string.length == 2, received "a"

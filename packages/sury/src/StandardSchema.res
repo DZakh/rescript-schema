@@ -10,7 +10,7 @@ module Issue = {
   // A single element of `StandardSchemaV1.Issue.path`: `PropertyKey |
   // PathSegment`. `PropertyKey` is `string | number | symbol`, but ReScript's
   // unboxed variants can't disambiguate a `symbol` case, so it's omitted here
-  // (Sury never emits symbol path keys).
+  // (Sury's codegen never emits one; only a refine's user-written `path` can).
   // FIXME: Add a `Symbol(Symbol.t)` case when ReScript supports symbols in
   // `@unboxed` variants.
   // Each variant is unboxed, so at runtime this is just the underlying

@@ -28,6 +28,7 @@ import {
   B_contentDiffers,
   B_conversion,
   B_embed,
+  B_embedPure,
   B_failWithErrorMessage,
   B_next,
   B_readOnce,
@@ -262,6 +263,28 @@ const multipleOfValidator = (d: number) => (value: number): boolean => {
   return Math.abs(ratio - Math.round(ratio)) < Number.EPSILON * Math.max(Math.abs(ratio), 1);
 };
 
+const surrogateRe = /[\uD800-\uDFFF]/;
+
+// JSON Schema's minLength/maxLength count code points, and so does every
+// non-JS consumer of a length bound, so the generated check has to as well or
+// the schema and the JSON Schema it emits disagree on astral input.
+// `.length` counts UTF-16 units; the two only differ once a surrogate is
+// present, and the regex scan is what keeps BMP input — nearly all of it — a
+// single native pass with no allocation. A lone surrogate counts as one, the
+// way `[...s].length` counts it.
+const B_codePointLength = (s: string): number => {
+  let n = s.length;
+  if (surrogateRe.test(s)) {
+    for (let i = 0; i < s.length; i++) {
+      if ((s.charCodeAt(i) & 0xfc00) === 0xd800 && (s.charCodeAt(i + 1) & 0xfc00) === 0xdc00) {
+        n--;
+        i++;
+      }
+    }
+  }
+  return n;
+};
+
 // One refiner serves every bound and divisor on a schema, reading the fields
 // at codegen time instead of closing over the value each call captured. That
 // is what lets a narrowing call *replace* a check rather than stack a second
@@ -284,6 +307,18 @@ const boundsRefiner = (input: Val): Check[] => {
     const min = written & 1 ? (s[minKey] as number) : U;
     const max = written & 2 ? (s[maxKey] as number) : U;
     const em = s.errorMessage as Record<string, string | undefined> | undefined;
+    // A string measures itself in code points (B_codePointLength above), but
+    // only where a unit count could answer differently: a bound of 0 or 1
+    // can't, since a string has a code point exactly when it has a unit. The
+    // unit count stays in front as the fast path where it already decides —
+    // under an upper bound, or at twice a lower one, since a code point is at
+    // most two units — so only a value near the bound pays for the count.
+    let counter: string | undefined;
+    const counted = s.type === stringTag;
+    const measure = (inputVar: string, bound: number): string =>
+      counted && bound > 1
+        ? `${(counter ??= B_embedPure(input, B_codePointLength))}(${inputVar})`
+        : `${inputVar}${member}`;
     // Collapsing to `===` folds both directions into one check with one
     // message — sound only when both directions would say the same thing.
     // Independent minLength(5)/maxLength(5, "custom") calls converge without
@@ -291,19 +326,25 @@ const boundsRefiner = (input: Val): Check[] => {
     // "custom": those keep a check per direction, each with its own key.
     if (min !== U && min === max && (em !== U ? em[minKey] : U) === (em !== U ? em[maxKey] : U)) {
       checks.push({
-        c: (inputVar) => `${inputVar}${member}===${min}`,
+        c: (inputVar) => `${measure(inputVar, min)}===${min}`,
         f: B_failWithErrorMessage(minKey),
       });
     } else {
       if (min !== U) {
         checks.push({
-          c: (inputVar) => `${inputVar}${member}>${min - 1}`,
+          c: (inputVar) =>
+            counted && min > 1
+              ? `${inputVar}${member}>${2 * min - 1}||${measure(inputVar, min)}>${min - 1}`
+              : `${inputVar}${member}>${min - 1}`,
           f: B_failWithErrorMessage(minKey),
         });
       }
       if (max !== U) {
         checks.push({
-          c: (inputVar) => `${inputVar}${member}<${max + 1}`,
+          c: (inputVar) =>
+            counted && max > 1
+              ? `${inputVar}${member}<${max + 1}||${measure(inputVar, max)}<${max + 1}`
+              : `${inputVar}${member}<${max + 1}`,
           f: B_failWithErrorMessage(maxKey),
         });
       }

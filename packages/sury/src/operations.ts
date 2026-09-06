@@ -43,7 +43,7 @@ export type StandardResult = {
 export type StandardProps = {
   version: number;
   vendor: string;
-  validate: (input: unknown) => StandardResult;
+  validate: (input: unknown) => StandardResult | Promise<StandardResult>;
   jsonSchema?: {
     input: (options: StandardJsonSchemaOptions) => JSONSchemaT;
     output: (options: StandardJsonSchemaOptions) => JSONSchemaT;
@@ -104,6 +104,20 @@ Object.defineProperty(schemaPrototype, "toString", {
   },
 });
 
+const toStandardValue = (value: unknown): StandardResult => ({ value });
+
+const toStandardIssues = (exn: unknown): StandardResult => {
+  const error = getOrRethrow(exn);
+  return {
+    issues: [
+      {
+        message: error.reason,
+        path: error.path.length ? (error.path as unknown[]) : U,
+      },
+    ],
+  };
+};
+
 // A lazy prototype getter (not an eager per-schema property — that would put
 // 2 allocations + 4 closures on the baseSchema hot path for a feature most
 // schemas never use), cached on first access: Standard Schema consumers read
@@ -124,32 +138,41 @@ Object.defineProperty(schemaPrototype, "~standard", {
     // whole invalidation condition.
     let decoderFlag: Flag | undefined = U;
     let decoder: (input: unknown) => unknown;
+    let isAsync: boolean;
     const standard: StandardProps = {
       version: 1,
       vendor,
-      validate: (input: unknown): StandardResult => {
+      validate: (input: unknown): StandardResult | Promise<StandardResult> => {
         // Outside the try: a conversion rejected at operation creation fails
         // for every input — a schema bug for the developer, not an `issues`
         // entry for whoever is filling in the form. It throws on every call,
         // since `decoderFlag` commits only once there is a decoder.
         if (decoderFlag !== globalConfig.f) {
-          decoder = getDecoder(unknown, schema) as (input: unknown) => unknown;
+          // Async-ness is discovered the way `S.asyncParser` users discover
+          // it: the sync compile rejects, and the async one is tried. The
+          // async flag only lifts that one restriction, so a compile that
+          // fails for any other reason fails the same way twice and the
+          // second throw is the one the developer sees.
+          try {
+            decoder = getDecoder(unknown, schema) as (input: unknown) => unknown;
+            isAsync = false;
+          } catch {
+            decoder = getDecoder(unknown, schema, 1) as (input: unknown) => unknown;
+            isAsync = true;
+          }
           decoderFlag = globalConfig.f;
         }
+        // An async operation's type checks ahead of the first await throw
+        // synchronously, like `safeAsync`'s callee — folded into the promise
+        // so the consumer sees one shape.
         try {
-          return {
-            value: decoder(input),
-          };
+          const value = decoder(input);
+          return isAsync
+            ? (value as Promise<unknown>).then(toStandardValue, toStandardIssues)
+            : toStandardValue(value);
         } catch (exn) {
-          const error = getOrRethrow(exn);
-          return {
-            issues: [
-              {
-                message: error.reason,
-                path: error.path.length ? (error.path as unknown[]) : U,
-              },
-            ],
-          };
+          const issues = toStandardIssues(exn);
+          return isAsync ? Promise.resolve(issues) : issues;
         }
       },
       // Standard JSON Schema spec: https://standardschema.dev/json-schema

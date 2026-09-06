@@ -27,11 +27,10 @@ export type Flag = number;
 // locations without a concrete value (JSON Schema conversion, dynamic parse).
 //
 // Never mutated: details objects, codegen closures and retained user errors
-// share instances, so every prepend/concat allocates. Never a symbol: every
-// key that becomes a segment comes from `Object.keys` or a generated `for-in`,
-// which skip them — `S.res`'s `propertyKey` and the `~standard` bridge rely on
-// that.
-export type Path = readonly (string | number)[];
+// share instances, so every prepend/concat allocates. A symbol only ever
+// arrives from a user-written `path` (`S.refine`): every key codegen turns into
+// a segment comes from `Object.keys` or a generated `for-in`, which skip them.
+export type Path = readonly (string | number | symbol)[];
 
 export const pathEmpty: Path = [];
 export const pathDynamic: Path = ["[]"];

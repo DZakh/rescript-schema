@@ -11,11 +11,20 @@ vs:
   zod: z.string().max(2)
 operations:
   parse:
-    expression: i=>{typeof i==="string"||e[1](i);i.length<3||e[0](i);return i}
+    expression: i=>{typeof i==="string"||e[2](i);i.length<3||e[0](i)<3||e[1](i);return i}
     examples:
       at-the-length:
         input: '"ab"'
         output: '"ab"'
+      two-astral-code-points-four-units:
+        input: '"😀😀"'
+        output: '"😀😀"'
+      three-astral-code-points:
+        input: '"😀😀😀"'
+        error: Expected string.length <= 2, received "😀😀😀"
+      astral-and-bmp:
+        input: '"😀a"'
+        output: '"😀a"'
       longer:
         input: '"abc"'
         error: Expected string.length <= 2, received "abc"
@@ -32,11 +41,20 @@ operations:
         input: "1"
         error: Expected string.length <= 2, received 1
   decode:
-    expression: i=>{i.length<3||e[0](i);return i}
+    expression: i=>{i.length<3||e[0](i)<3||e[1](i);return i}
     examples:
       at-the-length:
         input: '"ab"'
         output: '"ab"'
+      two-astral-code-points-four-units:
+        input: '"😀😀"'
+        output: '"😀😀"'
+      three-astral-code-points:
+        input: '"😀😀😀"'
+        error: Expected string.length <= 2, received "😀😀😀"
+      astral-and-bmp:
+        input: '"😀a"'
+        output: '"😀a"'
       shorter:
         input: '"a"'
         output: '"a"'
@@ -44,11 +62,20 @@ operations:
         input: '""'
         output: '""'
   encode:
-    expression: i=>{i.length<3||e[0](i);return i}
+    expression: i=>{i.length<3||e[0](i)<3||e[1](i);return i}
     examples:
       at-the-length:
         input: '"ab"'
         output: '"ab"'
+      two-astral-code-points-four-units:
+        input: '"😀😀"'
+        output: '"😀😀"'
+      three-astral-code-points:
+        input: '"😀😀😀"'
+        error: Expected string.length <= 2, received "😀😀😀"
+      astral-and-bmp:
+        input: '"😀a"'
+        output: '"😀a"'
       shorter:
         input: '"a"'
         output: '"a"'

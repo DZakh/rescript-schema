@@ -4,7 +4,9 @@
 type never
 
 module Path = {
-  // Standard Schema's `PropertyKey` minus `symbol`, which Sury never emits.
+  // Standard Schema's `PropertyKey` minus `symbol`: an untagged variant can't
+  // carry a symbol case, so one written into a refine's `path` from JS reads
+  // as neither. Codegen itself never emits one.
   @unboxed
   type propertyKey = String(string) | Number(float)
   type t = array<propertyKey>
