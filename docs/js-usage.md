@@ -1101,7 +1101,7 @@ S.parser(schema)("2020-01-01T00:00:00Z"); // "2020-01-01T00:00:00Z"
 S.parser(schema)("not-a-date"); // throws
 ```
 
-Standalone string schema that validates ISO 8601 UTC datetime strings. See also [ISO datetimes](#iso-datetimes) under Strings for more details and examples.
+Standalone string schema that validates RFC 3339 datetime strings; `S.utcDateTime` allows only `Z`. See also [ISO datetimes](#iso-datetimes) under Strings for more details and examples.
 
 ## Instance
 
@@ -1829,7 +1829,7 @@ The output side is derived through [`reverse`](#reverse), so nested transforms a
 - `message` - `reason` prefixed with the path when there is one: `Failed at items[0]: Expected string, received undefined`.
 - `code` - which kind of failure, with extra fields per kind:
   - `"invalid_input"` - the value doesn't match. `expected` and `received` are schemas describing both sides, `input` is the value, and `unionErrors` lists each member's failure when a union rejected it.
-  - `"unrecognized_keys"` - a `strict` object saw a key it doesn't declare, named in `key`. One key per error.
+  - `"unrecognized_key"` - a `strict` object saw a key it doesn't declare, named in `key`. One key per error.
   - `"invalid_conversion"` - a custom `decode`/`encode` threw. `from`/`to` are the schemas and `cause` is what it threw.
   - `"unsupported_decode"` - the two schemas have no conversion between them. See [When a conversion is rejected](#when-a-conversion-is-rejected).
   - `"invalid_operation"` - the schema itself can't run this way, such as an async schema under a sync parser.

@@ -429,7 +429,7 @@ test("Fails to parses async schema", async (t) => {
     | "invalid_operation"
     | "unsupported_decode"
     | "invalid_conversion"
-    | "unrecognized_keys"
+    | "unrecognized_key"
   >();
 
   t.expect(result.error.code).toBe("invalid_conversion");

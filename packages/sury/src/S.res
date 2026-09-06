@@ -380,7 +380,7 @@ and errorDetails =
       to: schema<unknown>,
       cause?: exn,
     })
-  | @as("unrecognized_keys") UnrecognizedKeys({path: Path.t, reason: string, key: string})
+  | @as("unrecognized_key") UnrecognizedKey({path: Path.t, reason: string, key: string})
 
 type exn += private Exn(error)
 

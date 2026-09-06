@@ -312,14 +312,6 @@ which is what `packages/sury/specs/<format>.yaml` examples are drawn from.
   in `toJSONSchema` — the denylist in the string branch drops it. Zod emits a
   regex `pattern` in that situation, which would let it survive a round trip
   through a JSON Schema consumer.
-- Decide whether `S.isoDateTime` should accept RFC 3339 offsets. It is UTC-only
-  by choice, and that is the only thing between it and 23/23 — the three
-  remaining suite failures are all offset forms. `S.isoTime` already has the
-  offset and leap-second machinery to compose with, so it is a small change,
-  but it is breaking and belongs to a major version. Alternative: keep
-  `isoDateTime` strict and add a separate lenient export, at the cost of two
-  schemas emitting `format: "date-time"` (only one can be the `fromJSONSchema`
-  target).
 - `S.pattern` drops the regex flags when emitting JSON Schema, so
   `S.string.with(S.pattern, /^https:\/\//i)` accepts `HTTPS://` while emitting
   `pattern: "^https:\\/\\/"`, which a downstream validator reads

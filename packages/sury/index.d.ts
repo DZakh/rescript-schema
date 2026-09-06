@@ -290,7 +290,7 @@ export type Error =
       readonly cause?: unknown;
     })
   | (BaseError & {
-      readonly code: "unrecognized_keys";
+      readonly code: "unrecognized_key";
       /** The key the value carries that the object schema doesn't declare. One key per error. */
       readonly key: string;
     });
@@ -491,7 +491,7 @@ export const file: Schema<File, File>;
 /**
  * RFC 3339 timestamp — the JSON Schema `date-time` format exactly: `Z` or an
  * offset like `+02:00`. Calendar-aware: month, day, hour, minute and leap
- * second are all range-checked.
+ * second are all range-checked, the leap second against UTC under the offset.
  * @example "1963-06-19T08:30:06.283185Z"
  * @example "1963-06-19T10:30:06+02:00"
  */
