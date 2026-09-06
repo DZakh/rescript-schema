@@ -56,9 +56,10 @@ export const assertOrThrow = (any: unknown, schema: Internal): void => {
 // has been reached. Plain throw mode still delegates to `throwTail`, so the
 // throw path's generated code is byte-for-byte what it always was.
 
-// The two Result shapes: 8 the JS `Result`, 16 ReScript's
-// `result<'value, S.error>`. The Standard Schema shape (128) is emitted by
-// `throwTail` instead — see the comment there.
+// The two Result shapes: 128 the JS `Result`, 256 ReScript's
+// `result<'value, S.error>`. The Standard Schema shape (1024) is emitted by
+// `throwTail` instead — see the comment there. Neither bit means the value is
+// its own answer, which is `is`'s `true`.
 //
 // The JS pair carries the same keys in the same order — `void 0` in the slot
 // the branch doesn't use — so the two branches share one hidden class and a

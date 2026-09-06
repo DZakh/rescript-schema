@@ -298,7 +298,7 @@ describeArtifact("artifact", () => {
   test("both entries expose the public API", async () => {
     const esm = await import(pathToFileURL(path.join(artifactsPath, "index.mjs")).href);
     for (const entry of [requireCjsEntry(), esm]) {
-      expect(entry.parser(entry.schema({ xp: entry.number }))({ xp: 1 })).toEqual({ xp: 1 });
+      expect(entry.parseOrThrow(entry.schema({ xp: entry.number }), { xp: 1 })).toEqual({ xp: 1 });
       expect(typeof entry.object).toBe("function");
     }
   });
