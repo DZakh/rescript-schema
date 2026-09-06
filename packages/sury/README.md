@@ -36,6 +36,8 @@ type Event = S.Output<typeof eventSchema>;
 //      | { type: "user.deleted"; id: bigint; payload: S.JSON }
 ```
 
+Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.file` and `S.blob`. Coming next: env and protobuf.
+
 The same schema parses and encodes - no second definition. Encoding is even faster than `JSON.stringify` - read more in [Encode, Don't Stringify: How JSON.stringify Lies to You](https://dev.to/dzakh/encode-dont-stringify-how-jsonstringify-lies-to-you-38fk):
 
 ```ts
@@ -197,8 +199,6 @@ S.decoder(signup)(await request.formData());
 S.encoder(signup)(value);
 // => a FormData with one append per field, ready for fetch(url, { body })
 ```
-
-Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.file` and `S.blob`. Coming next: env and protobuf.
 
 ### The code a schema turns into
 
