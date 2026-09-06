@@ -183,35 +183,6 @@ of a form-data story. What they were built to make cheap, roughly in order:
     `S.record(S.union([S.string, S.number]))` can't be — the union rules reject
     `string -> string | number` before the codec is consulted, since every
     entry satisfies the string arm.
-- **Move the reading rules onto a field schema, and leave `S.formData` the
-  wiring.** Today `formDataToObject` inspects each target (`classify`,
-  `fromText`, `isCheckbox`) and picks a read, so a rule only applies where that
-  inspection reaches: a boolean is a checkbox as a *field* and a plain
-  `string -> boolean` as a union arm or an array item. An internal
-  `formDataField` — one entry slot, whose `encoder` hook owns every rule keyed
-  on the target — would make each rule apply wherever the schema appears, and
-  reduce `S.formData` to `get`/`getAll`/`append`.
-  The compiler already supports the part that matters: a source's hook is
-  consulted **once per target-union arm**, and its rejection names that arm.
-  `S.uint8Array.with(S.to, S.union([S.string, S.base64]))` compiles both
-  conversions into one dispatch loop, and `S.union([S.string, S.boolean])`
-  reports `Can't decode Uint8Array to boolean` — the same shape a
-  `formDataField` would give for a nested object or a boolean list. It composes
-  through array items too.
-  Two things stay in the wiring, because one entry is all the field schema ever
-  sees: `getAll` versus `get` (and with it the boolean-list rejection, since
-  only the wiring knows it is in list position), and what "no entry" means.
-  The second is worth folding in rather than leaving outside — let the field
-  schema's input include the absent case, so `formDataField -> boolean` maps it
-  to `false` itself, and let its encode result be absent for "append nothing",
-  which is the skip-on-encode flag expressed as a value instead of a flag.
-  Watch the bundle: `formData` is 9150 bytes against the union compiler's
-  12645, because `presentArm` rebuilds unions by hand to avoid retaining it. A
-  `formDataField` *declared* as `string | File | undefined` would pull it into
-  every form; an opaque schema whose hook dispatches keeps that out.
-  It does not settle `S.union([S.boolean, S.number])`: `"1"` is both "checked"
-  and "one", the first matching arm would win silently, so that rejection stays
-  either way.
 - **`string -> string | undefined` is still rejected by the union rules**, so
   the env pattern can't read an optional string field — where the form codec
   converts the present arm itself. Pinned by
