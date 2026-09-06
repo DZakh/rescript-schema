@@ -930,25 +930,52 @@ const patternFormat = (
   return schema;
 };
 
-// The RFC 3339 time-of-day, unanchored and without a zone. Second 60 is legal
-// only where it lands on 23:59:60 UTC, which under an offset takes arithmetic
-// `isoTime` does and this does not; it is admitted at any offset instead.
-const dateTimeBody = "[Tt](?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d|23:59:60)(?:\\.\\d+)?";
+// The RFC 3339 time-of-day with its zone, unanchored. Groups: hour, minute,
+// second, offset sign, offset hour, offset minute — what the leap-second check
+// below reads, so a pattern built on this must add no capturing group of its
+// own.
+const timeBody =
+  "([01]\\d|2[0-3]):([0-5]\\d):([0-5]\\d|60)(?:\\.\\d+)?(?:[Zz]|([+-])([01]\\d|2[0-3]):([0-5]\\d))";
+
+// RFC 3339 permits second 60 only on a leap-second boundary, which is 23:59:60
+// *in UTC* — so 01:29:60+01:30 is valid and 23:59:60+01:00 is not. The offset
+// has to be applied before the check, which no regex can do.
+// `test` first: it allocates no match array, and only a value spelling second
+// 60 pays for the `exec` that reads the groups.
+const leapSecondValidator = (re: RegExp) => (value: string): boolean => {
+  if (!re.test(value)) {
+    return false;
+  }
+  if (value.indexOf(":60") === -1) {
+    return true;
+  }
+  const m = re.exec(value)!;
+  const sign = m[4] === "-" ? -1 : 1;
+  const minutes =
+    (+m[1]! - sign * +(m[5] || 0)) * 60 + (+m[2]! - sign * +(m[6] || 0));
+  return ((minutes % 1440) + 1440) % 1440 === 1439;
+};
 
 // The JSON Schema `date-time` format exactly: `Z` or an offset.
 export const isoDateTime: Internal = /* @__PURE__ */ stringFormat(
   "date-time",
-  /* @__PURE__ */ anchor(datePattern, dateTimeBody, "(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)"),
+  /* @__PURE__ */ leapSecondValidator(
+    /* @__PURE__ */ new RegExp(/* @__PURE__ */ anchor(datePattern, "[Tt]", timeBody)),
+  ),
   3,
 );
 
 // UTC only, so narrower than the `date-time` it emits: the `Z`-only regex
 // travels as `pattern` beside the format, and fromJSONSchema reads the pair
 // back as this schema. Named in messages, since a rejected `+02:00` timestamp
-// IS a date-time and `Expected date-time` would read as a bug.
+// IS a date-time and `Expected date-time` would read as a bug. A fixed `Z` is
+// what lets second 60 be spelled out as 23:59:60 with no arithmetic.
 export const utcDateTime: Internal = /* @__PURE__ */ patternFormat(
   "date-time",
-  /* @__PURE__ */ anchor(datePattern, dateTimeBody, "[Zz]"),
+  /* @__PURE__ */ anchor(
+    datePattern,
+    "[Tt](?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d|23:59:60)(?:\\.\\d+)?[Zz]",
+  ),
   3,
   "UTC date-time",
 );
@@ -1320,25 +1347,11 @@ export const isoDate: Internal = /* @__PURE__ */ stringFormat(
   3,
 );
 
-// RFC 3339 permits second 60 only on a leap-second boundary, which is 23:59:60
-// *in UTC* — so 01:29:60+01:30 is valid and 23:59:60+01:00 is not. The offset
-// has to be applied before the check, which no regex can do.
-const timeRe =
-  /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d|60)(?:\.\d+)?(?:[Zz]|([+-])([01]\d|2[0-3]):([0-5]\d))$/;
-const timeValidator = (value: string) => {
-  const m = timeRe.exec(value);
-  if (!m) {
-    return false;
-  }
-  if (m[3] !== "60") {
-    return true;
-  }
-  const sign = m[4] === "-" ? -1 : 1;
-  const minutes =
-    (+m[1]! - sign * +(m[5] || 0)) * 60 + (+m[2]! - sign * +(m[6] || 0));
-  return ((minutes % 1440) + 1440) % 1440 === 1439;
-};
-export const isoTime: Internal = /* @__PURE__ */ stringFormat("time", timeValidator, 2);
+export const isoTime: Internal = /* @__PURE__ */ stringFormat(
+  "time",
+  /* @__PURE__ */ leapSecondValidator(/* @__PURE__ */ new RegExp(/* @__PURE__ */ anchor(timeBody))),
+  2,
+);
 
 // RFC 3339 Appendix A nests the components rather than making each one
 // independently optional, so P1Y2D and PT1H2S are invalid — a unit may only
