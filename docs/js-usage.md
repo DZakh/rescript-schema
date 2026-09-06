@@ -1226,8 +1226,8 @@ creation:
 
 ```ts
 S.formData.with(S.to, S.schema({ name: S.string }));
-// throws at S.decoder: Ambiguous at name: A blank entry.
-// Use S.nonEmpty, S.minLength(0), S.optional or S.nullable
+// throws at S.decoder: Ambiguous at name: say what "" means with
+// S.nonEmpty, S.minLength(0), S.optional or S.nullable
 ```
 
 ```ts

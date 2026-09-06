@@ -460,7 +460,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     ) {
       B_invalidOperation(
         item,
-        `A blank entry. Use S.nonEmpty, S.minLength(0), S.optional or S.nullable`,
+        `say what "" means with S.nonEmpty, S.minLength(0), S.optional or S.nullable`,
         "Ambiguous",
       );
     }
