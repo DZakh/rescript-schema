@@ -37,7 +37,7 @@ Vitest$1.test("Self-recursive record", t => {
 let treeSchema = Sury.recursive("tree", treeSchema => Sury.union([
   Sury.$schema(s => ({
     TAG: "Leaf",
-    _0: s.m(Sury.int)
+    _0: s.m(Sury.int32)
   })),
   Sury.$schema(s => ({
     TAG: "Branch",
@@ -65,7 +65,7 @@ Vitest$1.test("Self-recursive variant", t => U.assertReverseParsesBack(t, treeSc
 let polyTreeSchema = Sury.recursive("polyTree", polyTreeSchema => Sury.union([
   Sury.$schema(s => ({
     NAME: "leaf",
-    VAL: s.m(Sury.int)
+    VAL: s.m(Sury.int32)
   })),
   Sury.$schema(s => ({
     NAME: "branch",
@@ -120,9 +120,9 @@ Vitest$1.test("Self-recursive through tuple", t => U.assertReverseParsesBack(t, 
   ]
 }));
 
-let notActuallyRecSchema = Sury.int;
+let notActuallyRecSchema = Sury.int32;
 
-Vitest$1.test("A rec type that never references itself stays a plain schema", t => U.assertEqualSchemas(t, notActuallyRecSchema, Sury.int, undefined));
+Vitest$1.test("A rec type that never references itself stays a plain schema", t => U.assertEqualSchemas(t, notActuallyRecSchema, Sury.int32, undefined));
 
 let exprSchema = Sury.recursive("expr", exprSchema => {
   let stmtSchema = Sury.recursive("stmt", stmtSchema => Sury.$schema(s => ({
@@ -132,7 +132,7 @@ let exprSchema = Sury.recursive("expr", exprSchema => {
   return Sury.union([
     Sury.$schema(s => ({
       TAG: "Num",
-      _0: s.m(Sury.int)
+      _0: s.m(Sury.int32)
     })),
     Sury.$schema(s => ({
       TAG: "Block",
@@ -145,7 +145,7 @@ let stmtSchema = Sury.recursive("stmt", stmtSchema => {
   let exprSchema = Sury.recursive("expr", exprSchema => Sury.union([
     Sury.$schema(s => ({
       TAG: "Num",
-      _0: s.m(Sury.int)
+      _0: s.m(Sury.int32)
     })),
     Sury.$schema(s => ({
       TAG: "Block",

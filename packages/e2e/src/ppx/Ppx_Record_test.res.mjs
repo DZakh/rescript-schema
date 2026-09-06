@@ -48,13 +48,13 @@ let combinedRecordSchema = Sury.meta(Sury.strict(Sury.$schema(s => ({
 
 let simpleRecordSchema = Sury.$schema(s => ({
   label: s.m(Sury.string),
-  value: s.m(Sury.int)
+  value: s.m(Sury.int32)
 }));
 
 Vitest$1.test("Simple record schema", t => {
   U.assertEqualSchemas(t, simpleRecordSchema, Sury.$schema(s => ({
     label: s.m(Sury.string),
-    value: s.m(Sury.int)
+    value: s.m(Sury.int32)
   })), undefined);
   Vitest.Assert.deepEqual(t, S.parseOrThrow({label:"foo",value:1}, simpleRecordSchema), {
     label: "foo",
@@ -64,13 +64,13 @@ Vitest$1.test("Simple record schema", t => {
 
 let recordWithAliasSchema = Sury.$schema(s => ({
   "aliased-label": s.m(Sury.string),
-  value: s.m(Sury.int)
+  value: s.m(Sury.int32)
 }));
 
 Vitest$1.test("Record schema with alias for field name", t => {
   U.assertEqualSchemas(t, recordWithAliasSchema, Sury.$schema(s => ({
     "aliased-label": s.m(Sury.string),
-    value: s.m(Sury.int)
+    value: s.m(Sury.int32)
   })), undefined);
   Vitest.Assert.deepEqual(t, S.parseOrThrow({"aliased-label":"foo",value:1}, recordWithAliasSchema), {
     "aliased-label": "foo",
@@ -80,13 +80,13 @@ Vitest$1.test("Record schema with alias for field name", t => {
 
 let recordWithOptionalSchema = Sury.$schema(s => ({
   label: s.m(Sury.$option(Sury.string)),
-  value: s.m(Sury.$option(Sury.int))
+  value: s.m(Sury.$option(Sury.int32))
 }));
 
 Vitest$1.test("Record schema with optional fields", t => {
   U.assertEqualSchemas(t, recordWithOptionalSchema, Sury.$schema(s => ({
     label: s.m(Sury.$option(Sury.string)),
-    value: s.m(Sury.$option(Sury.int))
+    value: s.m(Sury.$option(Sury.int32))
   })), undefined);
   Vitest.Assert.deepEqual(t, S.parseOrThrow({"label":"foo",value:1}, recordWithOptionalSchema), {
     label: "foo",
@@ -219,7 +219,7 @@ Vitest$1.test("Record schema with type spread", t => {
 });
 
 let schema$1 = Sury.$schema(s => ({
-  score: s.m(Sury.float)
+  score: s.m(Sury.number)
 }));
 
 let Extra = {
@@ -227,7 +227,7 @@ let Extra = {
 };
 
 let recordWithMultipleSpreadsSchema = Sury.$schema(s => Object.assign({
-  active: s.m(Sury.bool)
+  active: s.m(Sury.boolean)
 }, schema.properties, schema$1.properties));
 
 Vitest$1.test("Record schema with multiple type spreads", t => {
@@ -279,7 +279,7 @@ Vitest$1.test("Record schema with spread and @as-aliased own field", t => {
 });
 
 let recordWithSpreadAndOptionalFieldSchema = Sury.$schema(s => Object.assign({
-  extra: s.m(Sury.$option(Sury.int))
+  extra: s.m(Sury.$option(Sury.int32))
 }, schema.properties));
 
 Vitest$1.test("Record schema with spread and optional own field", t => {

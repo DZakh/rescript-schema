@@ -20,7 +20,7 @@ let A = {
 };
 
 let payloadSchema$1 = Sury.$schema(s => ({
-  b: s.m(Sury.$option(Sury.int))
+  b: s.m(Sury.$option(Sury.int32))
 }));
 
 let schema$1 = Sury.$schema(s => ({
@@ -68,7 +68,7 @@ let CknittelBugReport = {
 };
 
 let aSchema = Sury.$schema(s => ({
-  x: s.m(Sury.int)
+  x: s.m(Sury.int32)
 }));
 
 let bSchema = Sury.$schema(s => ({

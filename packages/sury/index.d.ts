@@ -257,9 +257,13 @@ export type Schema<TInput = unknown, TOutput = TInput> = {
  */
 export type Path = ReadonlyArray<string | number | symbol>;
 
-type BaseError = {
+type BaseError = globalThis.Error & {
+  readonly name: "SuryError";
+  /** Where the failure happened, as segments from the root of the value. Empty at the root. */
   readonly path: Path;
+  /** `reason`, prefixed with the path when there is one: `Failed at a.b: <reason>`. */
   readonly message: string;
+  /** The failure itself, without the path. */
   readonly reason: string;
 };
 
@@ -286,12 +290,14 @@ export type Error =
       readonly cause?: unknown;
     })
   | (BaseError & {
-      readonly code: "unrecognized_keys";
-      readonly keys: readonly string[];
+      readonly code: "unrecognized_key";
+      /** The key the value carries that the object schema doesn't declare. One key per error. */
+      readonly key: string;
     });
 
+/** The class every operation throws; use it with `instanceof`. */
 export const Error: {
-  new (): Error;
+  [Symbol.hasInstance](value: unknown): value is Error;
   prototype: Error;
 };
 
@@ -483,12 +489,21 @@ export const blob: Schema<Blob, Blob>;
 export const file: Schema<File, File>;
 
 /**
- * RFC 3339 timestamp, **UTC only** — an offset like `+02:00` is rejected, which
- * is narrower than the JSON Schema `date-time` format it emits.
- * Calendar-aware: month, day, hour, minute and leap second are all range-checked.
+ * RFC 3339 timestamp — the JSON Schema `date-time` format exactly: `Z` or an
+ * offset like `+02:00`. Calendar-aware: month, day, hour, minute and leap
+ * second are all range-checked, the leap second against UTC under the offset.
  * @example "1963-06-19T08:30:06.283185Z"
+ * @example "1963-06-19T10:30:06+02:00"
  */
 export const isoDateTime: Schema<string, string>;
+
+/**
+ * RFC 3339 timestamp, **UTC only** — an offset like `+02:00` is rejected.
+ * Emits `date-time` with a `pattern` that pins the `Z`, so the document reads
+ * back as this schema.
+ * @example "1963-06-19T08:30:06.283185Z"
+ */
+export const utcDateTime: Schema<string, string>;
 
 export const port: Schema<number, number>;
 
@@ -1115,7 +1130,8 @@ export type Meta<TOutput> = {
   title?: string;
   description?: string;
   deprecated?: boolean;
-  examples?: TOutput[];
+  /** Written as output values; validated and stored on the schema in input form. */
+  examples?: Unbranded<TOutput>[];
   errorMessage?: SchemaErrorMessage;
 };
 

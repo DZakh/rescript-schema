@@ -34,8 +34,7 @@ const EFFECTFUL: Record<string, string> = {
 
 // Public name -> the local binding it resolves to in the bundle. Read off the
 // emitted `export { … }` block rather than assumed: `enum` is emitted as
-// `enum_`, `record` and `dict` share one binding, and an added alias would
-// otherwise go unchecked.
+// `enum_`, and an added alias would otherwise go unchecked.
 const exportedLocals = (): Map<string, string> => {
   const block = /\nexport \{([^}]*)\};?\s*$/.exec(source);
   expect(block, "index.mjs should end with an export block").not.toBe(null);

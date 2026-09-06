@@ -153,7 +153,17 @@ export const recursive = (name: string, fn: (schema: Internal) => Internal): Int
     // would set this object's prototype instead of taking a key.
     globalConfig.d = Object.create(null);
   }
-  const def = fn(refSchema);
+  let def: Internal;
+  // A definer that throws must not leave the accumulator behind: every later
+  // top-level `recursive` would then see itself as nested and return a ref
+  // with no `$defs`. A nested one leaves it to the outer call, whose definer
+  // may catch and carry on.
+  try {
+    def = fn(refSchema);
+  } catch (e) {
+    if (!isNestedRec) globalConfig.d = U;
+    throw e;
+  }
   if (def.name) {
     refSchema.name = def.name;
   }

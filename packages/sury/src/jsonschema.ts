@@ -36,7 +36,9 @@ import {
   tagFlags,
   U,
   undefinedTag,
-  unknown
+  unknown,
+  unknownTag,
+  reversedKey,
 } from "./base";
 import {
  json
@@ -71,6 +73,7 @@ import {
  assertOrThrow
 } from "./operations";
 import {
+ getDecoder,
  never_,
  parse,
  reverse
@@ -98,6 +101,7 @@ import {
   iriReference,
   isoDate,
   isoDateTime,
+  utcDateTime,
   isoTime,
   jsonPointer,
   lt,
@@ -322,8 +326,28 @@ const applyMetadataOverlay = (
       }
     }
   }
-  for (const k of ["description", "title", "deprecated", "examples"] as const) {
+  for (const k of ["description", "title", "deprecated"] as const) {
     if (schema[k] !== U) (jsonSchema as Record<string, unknown>)[k] = schema[k];
+  }
+  // Examples live on a schema in its input form, which is what this document
+  // describes. A reversed copy carries none of its own (see `reverse`): the
+  // original's are decoded through it to reach this side. Only a copy the
+  // getter made has the cache as an own key, so this never forces a reverse —
+  // the `.to` path above renders a val's schema, whose members the builder
+  // makes without the prototype a reverse needs. A never or async decode
+  // drops them: metadata is not a value operation.
+  const examples = schema.examples;
+  if (examples !== U) {
+    jsonSchema.examples = examples;
+  } else if (Object.hasOwn(schema, reversedKey)) {
+    const original = schema.r!;
+    if (original.examples !== U) {
+      try {
+        jsonSchema.examples = original.examples.map(
+          getDecoder(original) as (v: unknown) => unknown,
+        );
+      } catch (_exn) {}
+    }
   }
   if (schema["$defs"] !== U) Object.assign(defs, schema["$defs"]);
   const metadataRawSchema = Metadata_get(schema, jsonSchemaMetadataId) as
@@ -622,6 +646,8 @@ const internalToJSONSchemaBase = (
     if (required.length !== 0) jsonSchema.required = required;
   } else if (tag === refTag && schema["$ref"] === `${defsPath}${jsonName}`) {
     // S.json → empty {}
+  } else if (tag === unknownTag) {
+    // `{}` accepts any instance, which is exactly what unknown and any admit.
   } else if (tag === refTag) {
     jsonSchema.$ref = schema["$ref"];
   } else if (tag === nullTag) {
@@ -1626,7 +1652,14 @@ export const fromJSONSchema = (
       stringFormatSchemas[jsonSchema.format!] ||
       contentEncodingSchemas[jsonSchema.contentEncoding!] ||
       string;
-    if (jsonSchema.pattern !== U) schema = pattern(schema, B_compilePattern(jsonSchema.pattern));
+    if (jsonSchema.pattern !== U) {
+      // `utcDateTime` publishes its regex beside `date-time`: the pair reads
+      // back as that schema, not as the wide format plus a refinement.
+      schema =
+        schema === isoDateTime && jsonSchema.pattern === utcDateTime.pattern!.source
+          ? utcDateTime
+          : pattern(schema, B_compilePattern(jsonSchema.pattern));
+    }
     if (jsonSchema.minLength !== U || jsonSchema.maxLength !== U) {
       const minimum = jsonSchema.minLength;
       const maximum = jsonSchema.maxLength;

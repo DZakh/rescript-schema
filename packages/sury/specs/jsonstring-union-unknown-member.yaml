@@ -5,9 +5,13 @@ ts:
   output: string
   instantiations: 6498
 jsonSchema:
-  input: 'Failed at []: Expected JSON, received { kind: "a"; v: string; } | unknown'
+  input: '{ items: { anyOf: [{ type: "object", properties: { kind: { type: "string", const: "a" }, v: { type: "string" } }, required: ["kind", "v"] }, {}] }, type: "array" }'
+  fromInputType: '(JSON | { kind: "a"; v: string; })[]'
   output: '{ type: "string", contentMediaType: "application/json" }'
+  draft-2020-12:
+    output: '{ type: "string", contentMediaType: "application/json", contentSchema: { items: { anyOf: [{ type: "object", properties: { kind: { type: "string", const: "a" }, v: { type: "string" } }, required: ["kind", "v"] }, {}] }, type: "array" }, $schema: "https://json-schema.org/draft/2020-12/schema" }'
   openapi-3.0:
+    input: '{ items: { anyOf: [{ type: "object", properties: { kind: { type: "string", enum: ["a"] }, v: { type: "string" } }, required: ["kind", "v"] }, {}] }, type: "array" }'
     output: '{ type: "string" }'
 vs:
   zod:

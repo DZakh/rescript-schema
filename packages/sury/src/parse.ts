@@ -68,7 +68,7 @@ export const parse = (input: Val): Val => {
     appliedEncoderRef = U;
     const loopInput = result;
 
-    if (++loopCount > 50) throw new Error("Loop count exceeded 50");
+    if (++loopCount > 50) panic("Loop count exceeded 50");
 
     const defs = loopInput.e["$defs"];
     if (defs) loopInput.g.d ? Object.assign(loopInput.g.d, defs) : (loopInput.g.d = defs);
@@ -219,6 +219,9 @@ Object.defineProperty(schemaPrototype, reversedKey, {
       // and double reversal reads the cache below rather than re-deriving, so
       // nothing needs the old value back.
       delete record["default"];
+      // Examples are stored in their owner's input form, which is this copy's
+      // output form; the JSON Schema renderer decodes them back for this side.
+      delete record["examples"];
       if (mut.items) mut.items = mut.items.map(reverse);
       if (mut.properties) mut.properties = reverseDict(mut.properties);
       // Skip tuple

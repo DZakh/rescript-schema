@@ -43,29 +43,6 @@
   case never uses the child — `{let v0=i["VAL"];break}` in
   `S_union_test.res`'s issue-101 golden. Eliminating it means making
   field-val inline strings lazy, a cross-cutting builder change.
-- **`S.isoDateTime` deserves a real error, and probably a different name.** It
-  is UTC-only, so it rejects `2026-01-15T10:30:00+02:00` — a string that plainly
-  IS an RFC 3339 date-time. `Expected date-time, received "...+02:00"` therefore
-  reads as a bug in Sury rather than a constraint, which is why this schema
-  carries the codebase's only built-in `stringFormat` message. That message is a
-  poor patch: a custom message replaces the whole reason, so it drops the
-  `received` half every other failure prints, and the two halves can't be
-  composed today.
-  - The fix is to let a check contribute the *expected* half and keep the
-    generic `received` — `B_failWithErrorMessage` currently chooses one or the
-    other (`B_invalidInputBuilder(U, U, m)` vs `failInvalidType`). Then this
-    renders `Expected UTC date-time, received "2026-01-15T10:30:00+02:00"` with
-    no special case. Setting `name` on the schema also produces that string and
-    is NOT the answer: `name` is public meta that also drives `$defs` naming,
-    and a multi-word name renders as `UTC date-time[]` inside a composite
-    expression.
-  - Consider renaming the export while at it. `isoDateTime` says nothing about
-    the UTC restriction, and the JSON Schema `date-time` format it emits is
-    genuinely wider than what it accepts — so a document round-tripped through
-    `toJSONSchema`/`fromJSONSchema` widens silently. `S.utcDateTime` (keeping
-    `isoDateTime` as a deprecated alias) would put the constraint in the name,
-    where the error message is trying to compensate for its absence. Breaking,
-    so it wants a CHANGELOG line.
 - Add `promise` type and `S.promise` (instead of async flag internally)
 - Async output refiner runs on the Promise wrapper, not the resolved value.
   When a decoder result is async (e.g. a union with an async member) and the
@@ -136,16 +113,6 @@ S.reverse(S.schema({
   `Expected int32`, and `int32Check` would stop being a module-level const —
   the one place `primitives.ts` deliberately avoids a per-compile closure.
   Do it with the item above, not before it: both rewrite the same emit.
-
-- **A bound applied after `S.to` panics at creation.**
-  `S.string.with(S.to, S.number).with(S.lte, 100)` throws
-  `S.lte expects number | bigint schema, got string`: the bound helpers type-check
-  the root schema where the bound belongs to the tail (`to`'s target), so a
-  bound can only be written before the conversion. (The transform-then-bound
-  case that used to emit no check — `S.string.with(S.trim).with(S.minLength, 5)`
-  — is fixed and checks the tail.) Pinned by the FIXME at the top of
-  `tests/S_test.ts`; needs a spec for to-then-bound in both directions before
-  the fix, since none exists today.
 
 - **Rewrite a zero length bound on an array to a real empty tuple at runtime.** The
   type-level half of "a hard-coded length is arity" is done, for the exact
@@ -345,14 +312,6 @@ which is what `packages/sury/specs/<format>.yaml` examples are drawn from.
   in `toJSONSchema` — the denylist in the string branch drops it. Zod emits a
   regex `pattern` in that situation, which would let it survive a round trip
   through a JSON Schema consumer.
-- Decide whether `S.isoDateTime` should accept RFC 3339 offsets. It is UTC-only
-  by choice, and that is the only thing between it and 23/23 — the three
-  remaining suite failures are all offset forms. `S.isoTime` already has the
-  offset and leap-second machinery to compose with, so it is a small change,
-  but it is breaking and belongs to a major version. Alternative: keep
-  `isoDateTime` strict and add a separate lenient export, at the cost of two
-  schemas emitting `format: "date-time"` (only one can be the `fromJSONSchema`
-  target).
 - `S.pattern` drops the regex flags when emitting JSON Schema, so
   `S.string.with(S.pattern, /^https:\/\//i)` accepts `HTTPS://` while emitting
   `pattern: "^https:\\/\\/"`, which a downstream validator reads
