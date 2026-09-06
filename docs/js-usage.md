@@ -1220,6 +1220,17 @@ Any other `value` is a string the schema should name (`S.union(["yes", "no"])`),
 and `S.array(S.boolean)` is a positional list, not a checkbox group — a group
 submits the value of each checked box, which is `S.array(S.string)`.
 
+A boolean beside another type is rejected: only a whole field can be a
+checkbox, so `S.union([S.boolean, S.number])` would read `"on"` as text rather
+than as a tick. Spell the reading out instead:
+
+```ts
+S.string.with(S.to, S.union([S.boolean, S.number]), {
+  decode: (t) => (t === "on" || t === "true" ? true : t === "false" ? false : +t),
+  encode: (v) => (typeof v === "boolean" ? (v ? "on" : "false") : "" + v),
+});
+```
+
 ### Blank inputs
 
 An empty text input submits `""`, and a required string field has to say what

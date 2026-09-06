@@ -1282,7 +1282,7 @@ let schema = S.formData->S.to(
   }),
 )
 
-%raw(`new FormData()`)->S.parseOrThrow(~to=schema) // throws - Failed at ["name"]: Expected string, received undefined
+%raw(`new FormData()`)->S.parseOrThrow(~to=schema) // throws - Failed at name: Expected string, received undefined
 value->S.reverseConvertOrThrow(~from=schema) // a FormData with one append per field
 ```
 

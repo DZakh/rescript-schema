@@ -370,6 +370,24 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
 // `_charset_` for a hidden input of that name, one per `dirname` attribute,
 // and an image button's `name.x`/`name.y`. Rejected where the pair is written
 // rather than silently read as `S.strip`.
+// A boolean field is a checkbox, and only a field is: an arm beside a
+// non-boolean reads through the plain `string -> boolean` coercion, which takes
+// `"true"`/`"false"` and not the `"on"` a box submits. Rejected in both
+// directions rather than left to differ silently — encoding it would build a
+// FormData its own decoder refuses.
+const assertNoBooleanArm = (input: Val, schema: Internal, checkbox: boolean): void => {
+  if (
+    !checkbox &&
+    schema.type === anyOfTag &&
+    schema.anyOf!.some((variant) => tagFlags[variant.type]! & 8)
+  ) {
+    B_invalidOperation(
+      input,
+      `A boolean in a union is not supported by S.formData: only a whole field can be a checkbox. Use S.to with {decode, encode}`,
+    );
+  }
+};
+
 const assertNotStrict = (input: Val, schema: Internal): void => {
   // `seq` is what separates a schema someone declared from the object shape a
   // val builds as it assembles fields (`makeObjectVal`), which is always
@@ -389,7 +407,9 @@ const objectToFormData = (input: Val): Val => {
   const properties = input.s.properties!;
   let code = `let ${fdVar}=new ${B_embed(input, input.e.class)}();`;
   for (const key in properties) {
-    code += appendValue(valGet(input, key), fdVar, inlinedValueFromString(key));
+    const field = valGet(input, key);
+    assertNoBooleanArm(field, presentArm(field.s), isCheckbox(field.s));
+    code += appendValue(field, fdVar, inlinedValueFromString(key));
   }
   const output = B_next(input, fdVar, input.e);
   output.v = _var;
@@ -488,6 +508,8 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       g: input.g,
       o: U,
     };
+
+    assertNoBooleanArm(item, field.present, field.checkbox);
 
     // A blank text input submits `""`, so a required string field that says
     // nothing about it has two equally good readings and the codec picks

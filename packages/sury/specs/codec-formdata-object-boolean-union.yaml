@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=./spec.schema.json
+ts:
+  schema: "S.formData.with(S.to, S.schema({ a: S.union([S.boolean, S.number]), n: S.number }))"
+  input: FormData
+  output: "{ a: number | boolean; n: number; }"
+  instantiations: 6222
+jsonSchema:
+  input: Expected JSON, received FormData
+  output: '{ type: "object", properties: { a: { anyOf: [{ type: "boolean" }, { type: "number" }] }, n: { type: "number" } }, required: ["a", "n"] }'
+vs:
+  zod:
+    _skip: not-applicable
+operations:
+  parse:
+    creationError: "SuryError: Failed at a: A boolean in a union is not supported by S.formData: only a whole field can be a checkbox. Use S.to with {decode, encode}"
+  decode: eq-to-parse
+  encode: eq-to-parse
