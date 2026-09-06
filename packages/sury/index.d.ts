@@ -291,8 +291,8 @@ export type Error =
     })
   | (BaseError & {
       readonly code: "unrecognized_keys";
-      /** Keys the value carries that the object schema doesn't declare. Checks fail fast, so one today. */
-      readonly keys: readonly string[];
+      /** The key the value carries that the object schema doesn't declare. One key per error. */
+      readonly key: string;
     });
 
 /** The class every operation throws; use it with `instanceof`. */
