@@ -36,7 +36,9 @@ import {
   tagFlags,
   U,
   undefinedTag,
-  unknown
+  unknown,
+  unknownTag,
+  reversedKey,
 } from "./base";
 import {
  json
@@ -71,6 +73,7 @@ import {
  assertOrThrow
 } from "./operations";
 import {
+ getDecoder,
  never_,
  parse,
  reverse
@@ -322,8 +325,25 @@ const applyMetadataOverlay = (
       }
     }
   }
-  for (const k of ["description", "title", "deprecated", "examples"] as const) {
+  for (const k of ["description", "title", "deprecated"] as const) {
     if (schema[k] !== U) (jsonSchema as Record<string, unknown>)[k] = schema[k];
+  }
+  // Examples live on a schema in its output form. This document describes the
+  // input side, so they are encoded here. A never or async encode drops them:
+  // metadata is not a value operation.
+  const examples = schema.examples;
+  if (examples !== U) {
+    try {
+      jsonSchema.examples = examples.map(getDecoder(reverse(schema)) as (v: unknown) => unknown);
+    } catch (_exn) {}
+  } else if (Object.hasOwn(schema, reversedKey)) {
+    // A reversed copy carries none of its own (see `reverse`): the original's
+    // are already in the form this side wants. Only a copy the getter made
+    // has the cache as an own key, so this never forces a reverse — the `.to`
+    // path above renders a val's schema, whose members the builder makes
+    // without the prototype a reverse needs.
+    const reversed = schema.r!.examples;
+    if (reversed !== U) jsonSchema.examples = reversed;
   }
   if (schema["$defs"] !== U) Object.assign(defs, schema["$defs"]);
   const metadataRawSchema = Metadata_get(schema, jsonSchemaMetadataId) as
@@ -564,7 +584,12 @@ const internalToJSONSchemaBase = (
     });
 
     const itemsNumber = items.length;
-    if (schema.default !== U) jsonSchema.default = schema.default;
+    // Stored in output form, like examples; encoded best-effort the same way.
+    if (schema.default !== U) {
+      try {
+        jsonSchema.default = (getDecoder(reverse(schema)) as (v: unknown) => unknown)(schema.default);
+      } catch (_exn) {}
+    }
 
     // Detect whether a definition is the "null" representation for the
     // current target. Sury models nullable as a union `[X, null]`; for
@@ -622,6 +647,8 @@ const internalToJSONSchemaBase = (
     if (required.length !== 0) jsonSchema.required = required;
   } else if (tag === refTag && schema["$ref"] === `${defsPath}${jsonName}`) {
     // S.json → empty {}
+  } else if (tag === unknownTag) {
+    // `{}` accepts any instance, which is exactly what unknown and any admit.
   } else if (tag === refTag) {
     jsonSchema.$ref = schema["$ref"];
   } else if (tag === nullTag) {

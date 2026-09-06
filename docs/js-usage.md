@@ -1246,6 +1246,8 @@ documentedStringSchema.description; // A useful bit of text...
 
 This can be useful for documenting fields, generating JSON, etc.
 
+`examples` are written in the schema's **Output** type, the same as a default passed to `S.optional`. Both are stored as written and read back through `schema.examples` and `schema.default`; the JSON Schema of the input side encodes them on the way out, so a codec's document shows them in wire form.
+
 ```ts
 S.inputJSONSchema(documentedStringSchema);
 // {

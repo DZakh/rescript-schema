@@ -3,9 +3,10 @@ ts:
   schema: "S.compactColumns(S.unknown).with(S.to, S.array(S.schema({ id: S.string, name: S.nullable(S.string), deleted: S.boolean })))"
   input: unknown[][]
   output: "{ id: string; name: string | null; deleted: boolean; }[]"
-  instantiations: 6619
+  instantiations: 6617
 jsonSchema:
-  input: "Failed at [][]: Expected JSON, received unknown"
+  input: '{ items: { items: {}, type: "array" }, type: "array" }'
+  fromInputType: JSON[][]
   output: '{ items: { type: "object", properties: { id: { type: "string" }, name: { anyOf: [{ type: "string" }, { type: "null" }] }, deleted: { type: "boolean" } }, required: ["id", "name", "deleted"] }, type: "array" }'
   openapi-3.0:
     output: '{ items: { type: "object", properties: { id: { type: "string" }, name: { type: "string", nullable: true }, deleted: { type: "boolean" } }, required: ["id", "name", "deleted"] }, type: "array" }'

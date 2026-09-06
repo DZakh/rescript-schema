@@ -137,16 +137,6 @@ S.reverse(S.schema({
   the one place `primitives.ts` deliberately avoids a per-compile closure.
   Do it with the item above, not before it: both rewrite the same emit.
 
-- **A bound applied after `S.to` panics at creation.**
-  `S.string.with(S.to, S.number).with(S.lte, 100)` throws
-  `S.lte expects number | bigint schema, got string`: the bound helpers type-check
-  the root schema where the bound belongs to the tail (`to`'s target), so a
-  bound can only be written before the conversion. (The transform-then-bound
-  case that used to emit no check — `S.string.with(S.trim).with(S.minLength, 5)`
-  — is fixed and checks the tail.) Pinned by the FIXME at the top of
-  `tests/S_test.ts`; needs a spec for to-then-bound in both directions before
-  the fix, since none exists today.
-
 - **Rewrite a zero length bound on an array to a real empty tuple at runtime.** The
   type-level half of "a hard-coded length is arity" is done, for the exact
   bound and the lower one alike: on an array `S.length(N)` infers the N-tuple,

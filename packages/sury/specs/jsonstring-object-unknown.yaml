@@ -3,10 +3,13 @@ ts:
   schema: "S.schema({a: S.optional(S.unknown), b: S.string}).with(S.to, S.jsonString)"
   input: "{ b: string; a?: unknown; }"
   output: string
-  instantiations: 6098
+  instantiations: 6096
 jsonSchema:
-  input: "Failed at a: Expected JSON, received unknown | undefined"
+  input: '{ type: "object", properties: { a: {}, b: { type: "string" } }, required: ["b"] }'
+  fromInputType: "{ b: string; a?: JSON | undefined; }"
   output: '{ type: "string", contentMediaType: "application/json" }'
+  draft-2020-12:
+    output: '{ type: "string", contentMediaType: "application/json", contentSchema: { type: "object", properties: { a: {}, b: { type: "string" } }, required: ["b"] }, $schema: "https://json-schema.org/draft/2020-12/schema" }'
   openapi-3.0:
     output: '{ type: "string" }'
 vs:

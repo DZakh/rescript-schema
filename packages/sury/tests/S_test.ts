@@ -3,15 +3,6 @@ import { format, inspect } from "node:util";
 
 import * as S from "../index.mjs";
 
-// FIXME: S.lte should be applied to output
-// From https://x.com/dzakh_dev/status/1963982551208309222
-// const PixelSchema = S.pattern(/^\d{1,3}px$/)
-//   .with(S.to, S.number, parseInt)
-//   .with(S.lte, 100)
-//   .with(S.meta, {
-//     description: "A pixel value between 0 and 100",
-//   });
-
 // FIXME: Move the test to e2e
 // import { stringSchema } from "../genType/GenType.gen.js";
 
@@ -619,9 +610,9 @@ test("Successfully parses undefined using the default value for transformed sche
   const value = S.parser(schema)(undefined);
 
   t.expect(value).toEqual("false");
-  t.expect(schema.default).toEqual(false);
+  t.expect(schema.default).toEqual("false");
 
-  expectTypeOf(schema.default).toEqualTypeOf<boolean | undefined>();
+  expectTypeOf(schema.default).toEqualTypeOf<string | undefined>();
   expectSchemaType(schema).toBe<boolean | undefined, string>();
 });
 
@@ -1349,12 +1340,11 @@ test("Example of transformed schema", (t) => {
   //   name: string;
   // }
 
-  // 3. Use examples directly
-  //    See how they are in the Input format 🔥
+  // 3. Use examples directly, in the Output format they were written in
   t.expect(userSchema.examples).toEqual([
     {
-      USER_ID: "0",
-      USER_NAME: "Dmitry",
+      id: 0n,
+      name: "Dmitry",
     },
   ]);
 

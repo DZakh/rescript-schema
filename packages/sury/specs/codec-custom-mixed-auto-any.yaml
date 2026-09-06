@@ -3,9 +3,9 @@ ts:
   schema: 'S.any.with(S.to, S.number, { decode: "auto", encode: (value) => value })'
   input: any
   output: number
-  instantiations: 4490
+  instantiations: 4488
 jsonSchema:
-  input: Expected JSON, received unknown
+  input: "{}"
   output: '{ type: "number" }'
 vs:
   zod:

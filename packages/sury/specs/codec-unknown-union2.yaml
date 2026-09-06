@@ -3,9 +3,10 @@ ts:
   schema: S.unknown.with(S.to, S.union([S.bigint, S.string]))
   input: unknown
   output: string | bigint
-  instantiations: 5373
+  instantiations: 5371
 jsonSchema:
-  input: Expected JSON, received unknown
+  input: "{}"
+  fromInputType: JSON
   output: Expected JSON, received bigint | string
 vs:
   zod:

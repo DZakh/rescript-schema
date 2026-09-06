@@ -262,6 +262,11 @@ const multipleOfValidator = (d: number) => (value: number): boolean => {
   return Math.abs(ratio - Math.round(ratio)) < Number.EPSILON * Math.max(Math.abs(ratio), 1);
 };
 
+// A bound belongs to the value a schema produces, so every helper below reads
+// and writes the chain tail: `S.string.with(S.to, S.number).with(S.lte, 100)`
+// bounds the number. `updateOutput` already copies to the tail; the reads have
+// to follow it or the head's type is what gets checked.
+//
 // One refiner serves every bound and divisor on a schema, reading the fields
 // at codegen time instead of closing over the value each call captured. That
 // is what lets a narrowing call *replace* a check rather than stack a second
@@ -516,14 +521,15 @@ const assertSize = (schema: Internal, value: number, upper: boolean): void => {
 };
 
 // @__NO_SIDE_EFFECTS__
-export const gte = (schema: Internal, minValue: number | bigint, maybeMessage?: string): Internal => {
+export const gte = (root: Internal, minValue: number | bigint, maybeMessage?: string): Internal => {
+  const schema = getOutputSchema(root);
   assertNumericBound("gte", schema, minValue);
   assertLower(schema, minValue, false);
   if (!narrowsLower(schema, minValue, false)) {
     const written = schema.bounds ?? 0;
-    return carryMessage(schema, written & 4 ? "exclusiveMinimum" : written & 1 ? "minimum" : U, maybeMessage);
+    return carryMessage(root, written & 4 ? "exclusiveMinimum" : written & 1 ? "minimum" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = ((schema.bounds ?? 0) & ~4) | 1;
     mut.minimum = minValue;
@@ -533,14 +539,15 @@ export const gte = (schema: Internal, minValue: number | bigint, maybeMessage?: 
 }
 
 // @__NO_SIDE_EFFECTS__
-export const lte = (schema: Internal, maxValue: number | bigint, maybeMessage?: string): Internal => {
+export const lte = (root: Internal, maxValue: number | bigint, maybeMessage?: string): Internal => {
+  const schema = getOutputSchema(root);
   assertNumericBound("lte", schema, maxValue);
   assertUpper(schema, maxValue, false);
   if (!narrowsUpper(schema, maxValue, false)) {
     const written = schema.bounds ?? 0;
-    return carryMessage(schema, written & 8 ? "exclusiveMaximum" : written & 2 ? "maximum" : U, maybeMessage);
+    return carryMessage(root, written & 8 ? "exclusiveMaximum" : written & 2 ? "maximum" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = ((schema.bounds ?? 0) & ~8) | 2;
     mut.maximum = maxValue;
@@ -550,14 +557,15 @@ export const lte = (schema: Internal, maxValue: number | bigint, maybeMessage?: 
 }
 
 // @__NO_SIDE_EFFECTS__
-export const gt = (schema: Internal, minValue: number | bigint, maybeMessage?: string): Internal => {
+export const gt = (root: Internal, minValue: number | bigint, maybeMessage?: string): Internal => {
+  const schema = getOutputSchema(root);
   assertNumericBound("gt", schema, minValue);
   assertLower(schema, minValue, true);
   if (!narrowsLower(schema, minValue, true)) {
     const written = schema.bounds ?? 0;
-    return carryMessage(schema, written & 4 ? "exclusiveMinimum" : written & 1 ? "minimum" : U, maybeMessage);
+    return carryMessage(root, written & 4 ? "exclusiveMinimum" : written & 1 ? "minimum" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = ((schema.bounds ?? 0) & ~1) | 4;
     mut.exclusiveMinimum = minValue;
@@ -567,14 +575,15 @@ export const gt = (schema: Internal, minValue: number | bigint, maybeMessage?: s
 }
 
 // @__NO_SIDE_EFFECTS__
-export const lt = (schema: Internal, maxValue: number | bigint, maybeMessage?: string): Internal => {
+export const lt = (root: Internal, maxValue: number | bigint, maybeMessage?: string): Internal => {
+  const schema = getOutputSchema(root);
   assertNumericBound("lt", schema, maxValue);
   assertUpper(schema, maxValue, true);
   if (!narrowsUpper(schema, maxValue, true)) {
     const written = schema.bounds ?? 0;
-    return carryMessage(schema, written & 8 ? "exclusiveMaximum" : written & 2 ? "maximum" : U, maybeMessage);
+    return carryMessage(root, written & 8 ? "exclusiveMaximum" : written & 2 ? "maximum" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = ((schema.bounds ?? 0) & ~2) | 8;
     mut.exclusiveMaximum = maxValue;
@@ -584,7 +593,8 @@ export const lt = (schema: Internal, maxValue: number | bigint, maybeMessage?: s
 }
 
 // @__NO_SIDE_EFFECTS__
-export const multipleOf = (schema: Internal, value: number | bigint, maybeMessage?: string): Internal => {
+export const multipleOf = (root: Internal, value: number | bigint, maybeMessage?: string): Internal => {
+  const schema = getOutputSchema(root);
   assertNumericBound("multipleOf", schema, value);
   // JSON Schema requires a strictly positive divisor, and `x % Infinity`
   // (=== x) would compile to a check that rejects everything but 0.
@@ -602,7 +612,7 @@ export const multipleOf = (schema: Internal, value: number | bigint, maybeMessag
   // A remainder is checked by truthiness, not `=== 0`: a bigint remainder is
   // `0n`, which `=== 0` never matches.
   const existing = schema.multipleOf as number | undefined;
-  if (existing !== U && !(existing % bound)) return carryMessage(schema, "multipleOf", maybeMessage);
+  if (existing !== U && !(existing % bound)) return carryMessage(root, "multipleOf", maybeMessage);
   let divisor: number | bigint = bound;
   if (existing !== U && bound % existing) {
     // Neither divisor implies the other: together they admit exactly the
@@ -628,7 +638,7 @@ export const multipleOf = (schema: Internal, value: number | bigint, maybeMessag
       refuse();
     }
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.multipleOf = divisor;
     setBoundMessage(mut, schema, "multipleOf", maybeMessage);
@@ -636,14 +646,15 @@ export const multipleOf = (schema: Internal, value: number | bigint, maybeMessag
 }
 
 // @__NO_SIDE_EFFECTS__
-export const minLength = (schema: Internal, length: number, maybeMessage?: string): Internal => {
+export const minLength = (root: Internal, length: number, maybeMessage?: string): Internal => {
+  const schema = getOutputSchema(root);
   assertLengthBound("minLength", schema, length);
   assertSize(schema, length, false);
   const key = sizeKey(schema, false);
   if (!narrowsSize(schema[key], length, false)) {
-    return carryMessage(schema, (schema.bounds ?? 0) & 1 ? key : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 1 ? key : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 1;
     mut[key] = length;
@@ -652,14 +663,15 @@ export const minLength = (schema: Internal, length: number, maybeMessage?: strin
 }
 
 // @__NO_SIDE_EFFECTS__
-export const maxLength = (schema: Internal, length: number, maybeMessage?: string): Internal => {
+export const maxLength = (root: Internal, length: number, maybeMessage?: string): Internal => {
+  const schema = getOutputSchema(root);
   assertLengthBound("maxLength", schema, length);
   assertSize(schema, length, true);
   const key = sizeKey(schema, true);
   if (!narrowsSize(schema[key], length, true)) {
-    return carryMessage(schema, (schema.bounds ?? 0) & 2 ? key : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 2 ? key : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 2;
     mut[key] = length;
@@ -668,7 +680,8 @@ export const maxLength = (schema: Internal, length: number, maybeMessage?: strin
 }
 
 // @__NO_SIDE_EFFECTS__
-export const length = (schema: Internal, length: number, maybeMessage?: string): Internal => {
+export const length = (root: Internal, length: number, maybeMessage?: string): Internal => {
+  const schema = getOutputSchema(root);
   assertLengthBound("length", schema, length);
   assertSize(schema, length, false);
   assertSize(schema, length, true);
@@ -679,9 +692,9 @@ export const length = (schema: Internal, length: number, maybeMessage?: string):
   // non-narrowing bound is for the others. The `===` check reports under
   // minKey, so that's where a message carries.
   if (schema[minKey] === length && schema[maxKey] === length) {
-    return carryMessage(schema, minKey, maybeMessage);
+    return carryMessage(root, minKey, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 3;
     mut[minKey] = length;
@@ -692,13 +705,14 @@ export const length = (schema: Internal, length: number, maybeMessage?: string):
 }
 
 // @__NO_SIDE_EFFECTS__
-export const minSize = (schema: Internal, size: number, maybeMessage?: string): Internal => {
+export const minSize = (root: Internal, size: number, maybeMessage?: string): Internal => {
+  const schema = getOutputSchema(root);
   assertSizeBound("minSize", schema, size);
   assertSize(schema, size, false);
   if (!narrowsSize(schema.minSize, size, false)) {
-    return carryMessage(schema, (schema.bounds ?? 0) & 1 ? "minSize" : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 1 ? "minSize" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 1;
     mut.minSize = size;
@@ -707,13 +721,14 @@ export const minSize = (schema: Internal, size: number, maybeMessage?: string): 
 }
 
 // @__NO_SIDE_EFFECTS__
-export const maxSize = (schema: Internal, size: number, maybeMessage?: string): Internal => {
+export const maxSize = (root: Internal, size: number, maybeMessage?: string): Internal => {
+  const schema = getOutputSchema(root);
   assertSizeBound("maxSize", schema, size);
   assertSize(schema, size, true);
   if (!narrowsSize(schema.maxSize, size, true)) {
-    return carryMessage(schema, (schema.bounds ?? 0) & 2 ? "maxSize" : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 2 ? "maxSize" : U, maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 2;
     mut.maxSize = size;
@@ -722,14 +737,15 @@ export const maxSize = (schema: Internal, size: number, maybeMessage?: string): 
 }
 
 // @__NO_SIDE_EFFECTS__
-export const size = (schema: Internal, size: number, maybeMessage?: string): Internal => {
+export const size = (root: Internal, size: number, maybeMessage?: string): Internal => {
+  const schema = getOutputSchema(root);
   assertSizeBound("size", schema, size);
   assertSize(schema, size, false);
   assertSize(schema, size, true);
   if (schema.minSize === size && schema.maxSize === size) {
-    return carryMessage(schema, "minSize", maybeMessage);
+    return carryMessage(root, "minSize", maybeMessage);
   }
-  return updateBounds(schema, (mut: Internal) => {
+  return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
     mut.bounds = (schema.bounds ?? 0) | 3;
     mut.minSize = size;

@@ -137,9 +137,9 @@ export type Schema<TInput = unknown, TOutput = TInput> = {
   readonly title?: string;
   readonly description?: string;
   readonly deprecated?: boolean;
-  readonly examples?: TInput[];
+  readonly examples?: TOutput[];
   readonly noValidation?: boolean;
-  readonly default?: TInput;
+  readonly default?: TOutput;
   readonly to?: Schema<unknown, unknown>;
   readonly errorMessage?: SchemaErrorMessage;
 
