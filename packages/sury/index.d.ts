@@ -489,12 +489,21 @@ export const blob: Schema<Blob, Blob>;
 export const file: Schema<File, File>;
 
 /**
- * RFC 3339 timestamp, **UTC only** — an offset like `+02:00` is rejected, which
- * is narrower than the JSON Schema `date-time` format it emits.
- * Calendar-aware: month, day, hour, minute and leap second are all range-checked.
+ * RFC 3339 timestamp — the JSON Schema `date-time` format exactly: `Z` or an
+ * offset like `+02:00`. Calendar-aware: month, day, hour, minute and leap
+ * second are all range-checked.
  * @example "1963-06-19T08:30:06.283185Z"
+ * @example "1963-06-19T10:30:06+02:00"
  */
 export const isoDateTime: Schema<string, string>;
+
+/**
+ * RFC 3339 timestamp, **UTC only** — an offset like `+02:00` is rejected.
+ * Emits `date-time` with a `pattern` that pins the `Z`, so the document reads
+ * back as this schema.
+ * @example "1963-06-19T08:30:06.283185Z"
+ */
+export const utcDateTime: Schema<string, string>;
 
 export const port: Schema<number, number>;
 

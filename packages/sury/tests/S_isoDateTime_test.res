@@ -23,18 +23,31 @@ test("Successfully parses valid data", t => {
   )
 })
 
-test("Fails to parse non UTC date string", t => {
+test("Fails to parse a non ISO date string", t => {
   let schema = S.isoDateTime
 
   t->U.assertThrowsMessage(
     () => "Thu Apr 20 2023 10:45:48 GMT+0400"->S.parseOrThrow(~to=schema),
-    `Expected UTC date-time, received "Thu Apr 20 2023 10:45:48 GMT+0400"`,
+    `Expected date-time, received "Thu Apr 20 2023 10:45:48 GMT+0400"`,
   )
 })
 
-test("Fails to parse UTC date with timezone offset", t => {
+test("Accepts a timezone offset", t => {
   let schema = S.isoDateTime
 
+  t->Assert.deepEqual(
+    "2020-01-01T00:00:00+02:00"->S.parseOrThrow(~to=schema),
+    S.IsoDateTime("2020-01-01T00:00:00+02:00"),
+  )
+})
+
+test("utcDateTime rejects a timezone offset", t => {
+  let schema = S.utcDateTime
+
+  t->Assert.deepEqual(
+    "2020-01-01T00:00:00Z"->S.parseOrThrow(~to=schema),
+    S.UtcDateTime("2020-01-01T00:00:00Z"),
+  )
   t->U.assertThrowsMessage(
     () => "2020-01-01T00:00:00+02:00"->S.parseOrThrow(~to=schema),
     `Expected UTC date-time, received "2020-01-01T00:00:00+02:00"`,
@@ -59,6 +72,6 @@ test("Can be combined with S.to(S.date) for string-to-Date decoding", t => {
   )
   t->U.assertThrowsMessage(
     () => "not-a-date"->S.parseOrThrow(~to=schema),
-    `Expected UTC date-time, received "not-a-date"`,
+    `Expected date-time, received "not-a-date"`,
   )
 })

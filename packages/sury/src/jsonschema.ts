@@ -101,6 +101,7 @@ import {
   iriReference,
   isoDate,
   isoDateTime,
+  utcDateTime,
   isoTime,
   jsonPointer,
   lt,
@@ -1651,7 +1652,14 @@ export const fromJSONSchema = (
       stringFormatSchemas[jsonSchema.format!] ||
       contentEncodingSchemas[jsonSchema.contentEncoding!] ||
       string;
-    if (jsonSchema.pattern !== U) schema = pattern(schema, B_compilePattern(jsonSchema.pattern));
+    if (jsonSchema.pattern !== U) {
+      // `utcDateTime` publishes its regex beside `date-time`: the pair reads
+      // back as that schema, not as the wide format plus a refinement.
+      schema =
+        schema === isoDateTime && jsonSchema.pattern === utcDateTime.pattern!.source
+          ? utcDateTime
+          : pattern(schema, B_compilePattern(jsonSchema.pattern));
+    }
     if (jsonSchema.minLength !== U || jsonSchema.maxLength !== U) {
       const minimum = jsonSchema.minLength;
       const maximum = jsonSchema.maxLength;

@@ -922,28 +922,34 @@ const patternFormat = (
   format: StringFormat,
   source: RegExp | string,
   flag?: number,
+  expression?: string,
 ): Internal => {
   const re = typeof source === stringTag ? new RegExp(source as string) : (source as RegExp);
-  const schema = stringFormat(format, re, flag);
+  const schema = stringFormat(format, re, flag, expression);
   schema.pattern = re;
   return schema;
 };
 
-// UTC-only by choice, which is narrower than the JSON Schema `date-time`
-// format: an RFC 3339 offset like +02:00 is rejected. Hence the name — a
-// rejected `+02:00` timestamp IS a date-time, so `Expected date-time` would
-// read as a bug. That fixed Z is also why second 60 can be spelled out here —
-// it is legal only at 23:59:60 in UTC, where `isoTime` has to do the offset
-// arithmetic to know.
+// The RFC 3339 time-of-day, unanchored and without a zone. Second 60 is legal
+// only where it lands on 23:59:60 UTC, which under an offset takes arithmetic
+// `isoTime` does and this does not; it is admitted at any offset instead.
+const dateTimeBody = "[Tt](?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d|23:59:60)(?:\\.\\d+)?";
+
+// The JSON Schema `date-time` format exactly: `Z` or an offset.
 export const isoDateTime: Internal = /* @__PURE__ */ stringFormat(
   "date-time",
-  /* @__PURE__ */ anchor(
-    datePattern,
-    "[Tt](?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d|23:59:60)(?:\\.\\d+)?[Zz]",
-  ),
+  /* @__PURE__ */ anchor(datePattern, dateTimeBody, "(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)"),
   3,
-  // `Expected date-time` would read as a bug, since a rejected `+02:00`
-  // timestamp IS a date-time.
+);
+
+// UTC only, so narrower than the `date-time` it emits: the `Z`-only regex
+// travels as `pattern` beside the format, and fromJSONSchema reads the pair
+// back as this schema. Named in messages, since a rejected `+02:00` timestamp
+// IS a date-time and `Expected date-time` would read as a bug.
+export const utcDateTime: Internal = /* @__PURE__ */ patternFormat(
+  "date-time",
+  /* @__PURE__ */ anchor(datePattern, dateTimeBody, "[Zz]"),
+  3,
   "UTC date-time",
 );
 

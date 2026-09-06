@@ -185,6 +185,7 @@ export const FUZZ_EXPORTS: Record<string, FuzzExport> = {
   uriReference: schema((S) => S.uriReference),
   uriTemplate: schema((S) => S.uriTemplate),
   url: schema((S) => S.url),
+  utcDateTime: schema((S) => S.utcDateTime),
   uuid: schema((S) => S.uuid),
   uuidv4: schema((S) => S.uuidv4),
   uuidv6: schema((S) => S.uuidv6),

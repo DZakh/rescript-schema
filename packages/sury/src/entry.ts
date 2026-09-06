@@ -103,6 +103,7 @@ export { url } from "./advanced/url";
 export { blob, file } from "./advanced/file";
 export {
   isoDateTime,
+  utcDateTime,
   port,
   email,
   uuid,

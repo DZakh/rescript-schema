@@ -424,7 +424,7 @@ Length bounds count Unicode code points, the unit JSON Schema's `minLength`/`max
 
 For format-specific validation, use the standalone schemas — see [String formats](#string-formats) below.
 
-> For ISO 8601 UTC datetime strings use the dedicated standalone `S.isoDateTime` schema — see [ISO datetimes](#iso-datetimes) below.
+> For RFC 3339 datetime strings use the dedicated standalone `S.isoDateTime` schema, or `S.utcDateTime` when only `Z` is acceptable — see [ISO datetimes](#iso-datetimes) below.
 
 > ⚠️ Validating email addresses is nearly impossible with just code. Different clients and servers accept different things and many diverge from the various specs defining "valid" emails. The ONLY real way to validate an email address is to send a verification email to it and check that the user got it. With that in mind, Sury picks a relatively simple regex that does not cover all cases.
 
@@ -469,7 +469,8 @@ S.ipv4; // IPv4 address
 S.ipv6; // IPv6 address
 S.isoDate; // Calendar date
 S.isoTime; // Time of day
-S.isoDateTime; // UTC timestamp
+S.isoDateTime; // Timestamp, Z or offset
+S.utcDateTime; // Timestamp, Z only
 S.duration; // Duration
 S.jsonPointer; // JSON Pointer
 S.relativeJsonPointer; // Relative JSON Pointer
@@ -558,17 +559,18 @@ Available keys: `format`, `type`, `minimum`, `maximum`, `minLength`, `maxLength`
 
 ### ISO datetimes
 
-`S.isoDateTime` is a **standalone** string schema (`S.Schema<string, string>`) that validates ISO 8601 UTC datetime strings: no timezone offsets allowed, with arbitrary sub-second decimal precision.
+`S.isoDateTime` is a **standalone** string schema (`S.Schema<string, string>`) that validates RFC 3339 datetime strings, exactly what the JSON Schema `date-time` format means: a `Z` or a timezone offset, with arbitrary sub-second decimal precision. `S.utcDateTime` is the same grammar with only `Z` allowed.
 
 ```ts
-const schema = S.isoDateTime;
-// schema has the type S.Schema<string, string>
+S.parser(S.isoDateTime)("2020-01-01T00:00:00Z"); // pass
+S.parser(S.isoDateTime)("2020-01-01T00:00:00.123456Z"); // pass (arbitrary precision)
+S.parser(S.isoDateTime)("2020-01-01T00:00:00+02:00"); // pass
 
-S.parser(schema)("2020-01-01T00:00:00Z"); // pass
-S.parser(schema)("2020-01-01T00:00:00.123Z"); // pass
-S.parser(schema)("2020-01-01T00:00:00.123456Z"); // pass (arbitrary precision)
-S.parser(schema)("2020-01-01T00:00:00+02:00"); // fail (no offsets allowed)
+S.parser(S.utcDateTime)("2020-01-01T00:00:00Z"); // pass
+S.parser(S.utcDateTime)("2020-01-01T00:00:00+02:00"); // throws: Expected UTC date-time, received "2020-01-01T00:00:00+02:00"
 ```
+
+Both emit `format: "date-time"`. `S.utcDateTime` adds a `pattern` pinning the `Z`, so its document reads back as `S.utcDateTime` through `S.fromJSONSchema`.
 
 To decode an ISO datetime string into a `Date`, chain it with `.with(S.to, S.date)`:
 
