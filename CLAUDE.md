@@ -33,11 +33,17 @@ stopped being true; delete those yourself.
 
 ```
 base → builder → primitives → parse → union → composites → factory
-     → modifiers → refinements → operations → advanced/* → jsonschema → entry
+     → modifiers → refinements → operations → standard → advanced/* → jsonschema → entry
 ```
 
-- Only type-only imports may point "up"; `operations → jsonschema` is the one
+- Only type-only imports may point "up"; `standard → jsonschema` is the one
   real exception.
+- `operations.ts` holds the operation surface and must stay free of top-level
+  side effects; `standard.ts` holds the schema-prototype interop getters
+  (`toString`, `~standard`), which ARE top-level side effects. A bundle that
+  reaches a module carries its top-level statements, so an operation must not
+  reach the Standard Schema machinery — that is the whole reason they are two
+  modules.
 - `base.ts` takes **no** outgoing imports. A constant two modules recognise by
   name lives there rather than with its schema.
 - `src/advanced/` is one file per schema nothing else builds on; a schema other

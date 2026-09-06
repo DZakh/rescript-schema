@@ -28,48 +28,49 @@ standard-schema-validate-invalid:
   # construction it does is part of what a consumer pays on bad input.
   run: schema["~standard"].validate(data)
 
-input-validator:
+is-input:
   prepare: |
     const schema = S.schema({ id: S.string, age: S.number });
     const data = { id: "u1", age: 30 };
-  # A caller that doesn't hoist the validator pays the lookup and a closure
-  # per call; the next scenario is what hoisting it saves.
+  # A caller that doesn't hoist the operation pays the lookup per call; the
+  # next scenario is what hoisting it saves.
   run: S.isInput(schema)(data)
 
-input-validator-compiled:
+is-input-compiled:
   prepare: |
     const schema = S.schema({ id: S.string, age: S.number });
     const validate = S.isInput(schema);
     const data = { id: "u1", age: 30 };
   run: validate(data)
 
-output-validator:
+is-output:
   prepare: |
     const schema = S.schema({ id: S.string, age: S.number.with(S.to, S.string) });
     const data = { id: "u1", age: "30" };
   # Same dispatch through `reverse` — a second cache on a second schema.
   run: S.isOutput(schema)(data)
 
-assert-input:
+assert-input-or-throw:
   prepare: |
     const schema = S.schema({ id: S.string, age: S.number });
     const data = { id: "u1", age: 30 };
   run: S.assertInputOrThrow(schema, data)
 
-output-constructor:
+make-output:
   prepare: |
     const schema = S.schema({ id: S.string, age: S.number });
     const construct = S.makeOutputOrThrow(schema);
     const value = { id: "u1", age: 30 };
-  # What building an entity costs once the operation is compiled: the checks
-  # plus the wrapper that hands the value back.
+  # What building an entity costs once the operation is compiled: the checks,
+  # and the value handed back straight out of the generated body.
   run: construct(value)
 
-parser-lookup:
+parse-lookup:
   prepare: |
     const schema = S.schema({ id: S.string, age: S.number });
   # No parsing at all: the cost of asking an already-compiled schema for its
-  # operation, which is what a caller that doesn't hoist `S.parseOrThrow` repeats.
+  # operation, which is what a caller that doesn't hoist `S.parseOrThrow`
+  # repeats on every call.
   run: S.parseOrThrow(schema)
 
 alternating-lookup:
@@ -80,7 +81,7 @@ alternating-lookup:
   # single-slot cache is most at risk of making slower than no cache at all.
   run: (S.parseOrThrow(schema), S.decodeOrThrow(schema))
 
-encoder-lookup:
+encode-lookup:
   prepare: |
     const schema = S.schema({ id: S.string, age: S.number.with(S.to, S.string) });
   # Same, through `reverse` — a second cache on a second schema.

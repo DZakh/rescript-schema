@@ -25,19 +25,19 @@ import {
   type Val
 } from "./base";
 import {
- __setTail,
- getOp,
- reverse,
- type Tail,
- throwTail
-} from "./parse";
-import {
  B_varWithoutAllocation,
  operationArgVar
 } from "./builder";
 import {
  literalDecoder
 } from "./primitives";
+import {
+ __setTail,
+ getOp,
+ reverse,
+ type Tail,
+ throwTail
+} from "./parse";
 
 // The `undefined` sentinel an assert/validate operation decodes to: the value
 // runs the whole pipeline and the result is dropped.
@@ -111,22 +111,17 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
       hasDefs,
     );
   }
-  // A promise is only produced for the async flag; the promisable mode (32)
+  // A promise is only produced for the async flag; the promisable mode (512)
   // asks for the value's own shape instead.
   const toPromise = !!(flag & 1) && !(flag & 512) && !hasDefs;
   const errVar = B_varWithoutAllocation(input.g);
+  const valueVar = isAsync ? B_varWithoutAllocation(input.g) : out;
+  const success = okResult(flag, okValue(flag, valueVar));
   const body = isAsync
     ? // Inlined into the promise chain the operation already builds, rather
       // than wrapped around it.
-      (() => {
-        const valueVar = B_varWithoutAllocation(input.g);
-        return `${code}return ${out}.then(${valueVar}=>(${okResult(flag, okValue(flag, valueVar))}),${errVar}=>{${rethrowUnlessSury(flag, errVar, false)}})`;
-      })()
-    : `${code}return ${
-        toPromise
-          ? `Promise.resolve(${okResult(flag, okValue(flag, out))})`
-          : okResult(flag, okValue(flag, out))
-      }`;
+      `${code}return ${out}.then(${valueVar}=>(${success}),${errVar}=>{${rethrowUnlessSury(flag, errVar, false)}})`
+    : `${code}return ${toPromise ? `Promise.resolve(${success})` : success}`;
   // The raise counter: when nothing merged can throw, the operation needs no
   // `try` at all — the decision a `safe(() => ...)` wrapper can never make.
   // A failure the sync phase raises has to come back in the shape the success
