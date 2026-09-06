@@ -32,9 +32,11 @@ import {
   inputExpression,
   type Internal,
   jsonName,
+  isOwnSchema,
   isSchemaObject,
   objectTag,
   panic,
+  panicNotSchema,
   pathEmpty,
   type Path,
   stringify,
@@ -232,33 +234,26 @@ export const encoder = (a: unknown, ...rest: unknown[]) =>
 export const asyncEncoder = (a: unknown, ...rest: unknown[]) =>
   getDecoder(reverse(a as Internal), ...rest, 1);
 
-// The asserts accept both `(schema, data)` and `(data, schema)`, told apart
-// by the Standard Schema marker. The truthiness guard keeps falsy data from
-// throwing on the marker access, routing it to the data slot so validation
-// fails with a proper Sury error.
-export const assertInput = (a: unknown, b: unknown): unknown => {
-  const aIsSchema = !!a && isSchemaObject(a);
+// The asserts accept both `(schema, data)` and `(data, schema)`, told apart by
+// `isOwnSchema` — prototype identity, not the Standard Schema marker: data
+// being validated is untrusted, and a payload carrying a `~standard` key would
+// otherwise be read as the schema while the real schema became the data.
+const assertWith = (a: unknown, b: unknown, isOutput: boolean, flag?: number): unknown => {
+  const aIsSchema = isOwnSchema(a);
+  if (!aIsSchema && !isOwnSchema(b)) return panicNotSchema();
   const schema = (aIsSchema ? a : b) as Internal;
-  return getDecoder(unknown, schema, assertResult)(aIsSchema ? b : a);
+  return getDecoder(unknown, isOutput ? reverse(schema) : schema, assertResult, flag)(
+    aIsSchema ? b : a,
+  );
 };
 
-export const assertOutput = (a: unknown, b: unknown): unknown => {
-  const aIsSchema = !!a && isSchemaObject(a);
-  const schema = reverse((aIsSchema ? a : b) as Internal);
-  return getDecoder(unknown, schema, assertResult)(aIsSchema ? b : a);
-};
+export const assertInput = (a: unknown, b: unknown): unknown => assertWith(a, b, false);
 
-export const asyncAssertInput = (a: unknown, b: unknown): unknown => {
-  const aIsSchema = !!a && isSchemaObject(a);
-  const schema = (aIsSchema ? a : b) as Internal;
-  return getDecoder(unknown, schema, assertResult, 1)(aIsSchema ? b : a);
-};
+export const assertOutput = (a: unknown, b: unknown): unknown => assertWith(a, b, true);
 
-export const asyncAssertOutput = (a: unknown, b: unknown): unknown => {
-  const aIsSchema = !!a && isSchemaObject(a);
-  const schema = reverse((aIsSchema ? a : b) as Internal);
-  return getDecoder(unknown, schema, assertResult, 1)(aIsSchema ? b : a);
-};
+export const asyncAssertInput = (a: unknown, b: unknown): unknown => assertWith(a, b, false, 1);
+
+export const asyncAssertOutput = (a: unknown, b: unknown): unknown => assertWith(a, b, true, 1);
 
 const validatorRun = (operation: (data: unknown) => unknown, data: unknown): boolean => {
   try {

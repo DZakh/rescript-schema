@@ -727,6 +727,10 @@ export const inputExpression = (schema: Internal, skipOverride?: boolean): strin
 // ── schema ────────────────────────────────────────────────────────────────────
 
 export function Schema(this: Internal): void {}
+// One of exactly two schema prototypes, both rooted at `Object.create(null)`.
+// `isOwnSchema` (below) recognises a Sury schema by identity against these two,
+// which is what keeps operation dispatch from reading a payload as a schema —
+// adding a third prototype breaks every operation's argument dispatch.
 export const schemaPrototype: Record<string, unknown> = Object.create(null);
 // A plain (non-enumerable) method, not a getter returning a closure: the
 // getter form allocated a fresh arrow on every `.with` access, and `.with` is
@@ -755,6 +759,7 @@ Schema.prototype = schemaPrototype;
 // field names on hot objects survive minification (CLAUDE.md).
 export const reversedKey = "r";
 function SelfReverseSchema(this: Internal): void {}
+// The second (and last) schema prototype — see `isOwnSchema`.
 const selfReversePrototype: Record<string, unknown> = Object.create(schemaPrototype);
 Object.defineProperty(selfReversePrototype, reversedKey, {
   get() {
@@ -763,6 +768,26 @@ Object.defineProperty(selfReversePrototype, reversedKey, {
 });
 Object.defineProperty(selfReversePrototype, "sr", { value: true });
 SelfReverseSchema.prototype = selfReversePrototype;
+
+// The dispatch predicate: is this argument one of OUR schemas?
+//
+// Distinct from `isSchemaObject` above on purpose. That one duck-types on the
+// Standard Schema marker, which is right where foreign Standard Schemas are
+// legitimate (definition parsing) and wrong wherever an argument slot holds
+// either a schema or untrusted data: `{"~standard":1}` from a JSON body would
+// be read as the schema. Only the two prototypes above are Sury schemas, and
+// both are `Object.create(null)`-rooted, so no plain object and no
+// `JSON.parse` result can match — `JSON.parse` makes `__proto__` an own
+// property, never a prototype.
+export const isOwnSchema = (value: unknown): boolean => {
+  const proto = value && Object.getPrototypeOf(value as object);
+  return proto === schemaPrototype || proto === selfReversePrototype;
+};
+
+// What every operation says when no argument in a schema slot is one. Shared so
+// the sentence exists once: a foreign Standard Schema handed to an operation
+// gets this rather than being silently read as the data to validate.
+export const panicNotSchema = (): never => panic("Expected a Sury schema");
 
 let seq = 1;
 

@@ -1156,6 +1156,49 @@ test("Assert throws a Sury error for null/undefined data in both arg orders", (t
   t.expect(() => S.assertInput(undefined, schema)).toThrow(S.Error);
 });
 
+test("Assert reads a `~standard`-carrying payload as data, not as the schema", (t) => {
+  const schema = S.schema({ id: S.string });
+  // A JSON body can carry any key. Duck-typing the Standard Schema marker read
+  // this as the schema — and the real schema as the data to validate.
+  const payload = JSON.parse('{"~standard": 1, "id": "u1"}') as unknown;
+  t.expect(S.assertInput(payload, schema)).toBe(undefined);
+  t.expect(() => S.assertInput(JSON.parse('{"~standard": 1}'), schema)).toThrow(S.Error);
+});
+
+test("Assert panics when no argument is a Sury schema", (t) => {
+  const foreign = {
+    "~standard": { version: 1, vendor: "other", validate: (v: unknown) => ({ value: v }) },
+  };
+  t.expect(() => (S.assertInput as (a: unknown, b: unknown) => void)("x", foreign)).toThrow(
+    "Expected a Sury schema",
+  );
+  t.expect(() => (S.assertOutput as (a: unknown, b: unknown) => void)("x", foreign)).toThrow(
+    "Expected a Sury schema",
+  );
+});
+
+test("Every construction path keeps a schema recognizable to operation dispatch", (t) => {
+  // `S.assertInput(data, schema)` only finds the schema in the second slot when
+  // the schema still has one of the two schema prototypes, so every way of
+  // making a schema has to preserve it.
+  type Node = { id: string; next?: Node };
+  const recursed = S.recursive<Node, Node>("Node", (self) =>
+    S.schema({ id: S.string, next: S.optional(self) }),
+  );
+  const schemas: S.Schema<any, any>[] = [
+    S.string,
+    S.string.with(S.meta, { description: "copied" }),
+    S.string.with(S.to, S.number, { decode: Number, encode: String }),
+    S.reverse(S.string.with(S.to, S.number, { decode: Number, encode: String })),
+    S.union(["a", "b"]),
+    recursed,
+  ];
+  for (const schema of schemas) {
+    // Reaches the data slot only if the schema was recognized in slot two.
+    t.expect(() => S.assertInput(Symbol("not data"), schema)).toThrow(S.Error);
+  }
+});
+
 test("Schema of object with empty prototype", (t) => {
   const obj = Object.create(null) as { foo: S.Schema<string> };
   obj.foo = S.string;
