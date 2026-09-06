@@ -81,8 +81,8 @@ Five outcomes, five suffixes. A suffix names the failure mechanism only when the
 They combine with the verbs - `parse` (unknown in), `decode`/`encode` (the two directions of a pipeline), `makeInput`/`makeOutput` (check a value you built, keep its identity) - plus the checks, whose direction is a free parameter and so is always spelled out:
 
 ```ts
-S.decodeAsResult(envSchema, process.env);           // Result<Config>
-await S.encodeAsResultPromise(configSchema, config); // Promise<Result<File>>
+S.decodeAsResult(envSchema, process.env);            // Result<Config>
+await S.decodeAsResultPromise(configSchema, file);   // Promise<Result<Config>>
 S.isInput(eventSchema, input);                       // boolean, and it narrows
 S.assertInputOrThrow(eventSchema, input);            // narrows `input` in place
 ```

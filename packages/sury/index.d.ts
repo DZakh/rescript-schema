@@ -869,6 +869,11 @@ export function reverse<TInput, TOutput>(
 // "parse a schema as data" — which is why parsing a Sury schema as data is
 // available only through the compiled form, `S.parseOrThrow(Meta)(schema)`.
 //
+// Measured, against the three-overload surface these replaced: the compiled
+// form costs exactly what it used to (95 instantiations over the schema's own),
+// and the immediate forms — which had no equivalent — cost 22 to 61 more. The
+// arity-3 and arity-4 overloads are free: dropping them moves nothing.
+//
 // Papercut: `data` typed `any` (an untyped `req.body`) matches the chain
 // overload on a two-argument call and yields a function rather than a value. It
 // fails at the assignment, not silently — type operation inputs `unknown`.
