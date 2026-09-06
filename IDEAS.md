@@ -197,8 +197,25 @@ of a form-data story. What they were built to make cheap, roughly in order:
 - **`S.urlSearchParams` and `S.queryString`**, now that `S.formData` has shipped.
   The codec only calls `get`/`getAll`/`append`, all of which `URLSearchParams`
   has, so the first is the same code minus files and the second is to it what
-  `S.jsonString` is to `S.json`. A `S.record` target (`entries()` into a dict)
-  is the other shape the same reader serves.
+  `S.jsonString` is to `S.json`.
+- **A `S.record` target for the same readers**, for a form whose keys aren't
+  known ahead of time. `S.formData.with(S.to, S.record(S.string))` is rejected
+  today: the codec takes the object path only when `additionalItems` is
+  `"strip"`/`"strict"`, and a record's is the value schema, so the pair falls
+  through to `Can't decode FormData to { [key: string]: string; }`. Two things
+  to settle before it can be written:
+  - **What a repeated key becomes.** The declared path answers `getAll` for a
+    `S.array` field and `get` for every other, which a record has no field to
+    ask. `Object.fromEntries(fd)` keeps the last value and loses the rest;
+    `S.record(S.array(V))` keeps them but wraps the common case in a
+    one-element array. A third reading — `getAll` where the value type is an
+    array and `get` otherwise — matches the declared path exactly and is
+    probably the one.
+  - **Which value types can work.** Only ones a text wire can discriminate:
+    `S.record(S.string)` and `S.record(S.number)` are fine, and
+    `S.record(S.union([S.string, S.number]))` can't be — the union rules reject
+    `string -> string | number` before the codec is consulted, since every
+    entry satisfies the string arm.
 - **`string -> string | undefined` is still rejected by the union rules**, so
   the env pattern can't read an optional string field — where the form codec
   converts the present arm itself. Pinned by
