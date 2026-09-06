@@ -135,18 +135,6 @@ const takesEntry = (schema: Internal): boolean =>
   schema.type === unknownTag ||
   (schema.type === instanceTag && isBlobClass(schema.class));
 
-// A string-tagged target checks the entry is a string itself — and reads it as
-// its own document where it is a format, which a `string` stage in front would
-// instead escape into a JSON string value.
-const fromText = (schema: Internal): Internal => {
-  if (takesEntry(schema) || (tagFlags[schema.type]! & 2)) {
-    return schema;
-  }
-  const text = copySchema(string);
-  text.to = schema;
-  return text;
-};
-
 // What a field's own `.to` converts from, so a reader that assembles the value
 // itself can hand the parse loop something still owing that conversion.
 const beforeTo = (schema: Internal): Internal => {
@@ -644,7 +632,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     } else {
       // What "no entry" means is the reader's to say — the union rules have no
       // conversion into `undefined` or `null` to dispatch on.
-      output = readOptional(item, field, schema, unknown, fromText(field.present));
+      output = readOptional(item, field, schema, formDataField, field.present);
     }
     B_addObjectField(objectVal, key, output);
   }
