@@ -183,7 +183,7 @@ test("Reverse converts nullableAsOption string-to-date schema", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{for(;;){if(typeof i==="string"){let v0=new Date(i);!Number.isNaN(v0.getTime())||e[0](v0);i=v0;break}if(i===void 0)break;if(i===null){i=void 0;break}e[1](i)}return i}`,
+    `i=>{for(;;){if(typeof i==="string"){let v0=new Date(i.trim());!Number.isNaN(v0.getTime())||e[0](v0);i=v0;break}if(i===void 0)break;if(i===null){i=void 0;break}e[1](i)}return i}`,
   )
 
   t->Assert.deepEqual(

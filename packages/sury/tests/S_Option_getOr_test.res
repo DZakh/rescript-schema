@@ -277,7 +277,7 @@ test("Default on a primary item with S.to runs the transformation on parse and r
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{for(;;){if(typeof i==="string"){let v0=new Date(i);!Number.isNaN(v0.getTime())||e[0](v0);i=v0;break}if(i===void 0){i=e[1];break}e[2](i)}return i}`,
+    `i=>{for(;;){if(typeof i==="string"){let v0=new Date(i.trim());!Number.isNaN(v0.getTime())||e[0](v0);i=v0;break}if(i===void 0){i=e[1];break}e[2](i)}return i}`,
   )
   t->U.assertCompiledCode(
     ~schema,
