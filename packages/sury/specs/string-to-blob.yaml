@@ -16,12 +16,18 @@ operations:
   parse:
     expression: i=>{typeof i==="string"||e[1](i);return new e[0]([i])}
     examples:
+      the-text:
+        input: '"hi"'
+        output: new Blob(["hi"])
       not-a-string:
         input: "42"
         error: Expected string, received 42
   decode:
     expression: i=>{return new e[0]([i])}
     examples:
+      the-text:
+        input: '"hi"'
+        output: new Blob(["hi"])
       not-a-part:
         input: '{ toString: () => { throw new Error("boom") } }'
         error: boom

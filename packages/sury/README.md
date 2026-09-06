@@ -173,7 +173,7 @@ S.encoder(rows)([{ id: 1n, city: "Tbilisi" }, { id: 2n, city: "Batumi" }]);
 // => [["1", "2"], ["Tbilisi", "Batumi"]]
 ```
 
-A form submission is strings, files and missing checkboxes. `S.formData` reads it as what you declared, and the same schema builds the body you post back:
+A form submission is strings, files and missing checkboxes. `S.formData` reads it as what you declared, and builds the body you post back:
 
 ```ts
 const signup = S.formData.with(
@@ -181,19 +181,16 @@ const signup = S.formData.with(
   S.schema({
     email: S.email,
     age: S.number, // "42" -> 42
-    agree: true, // the terms box, which has to be ticked
-    tags: S.array(S.string), // every "tags" entry
+    agree: true, // a checkbox that has to be ticked
     avatar: S.file,
   }),
 );
 
 S.decoder(signup)(await request.formData());
-// => { email: "a@b.co", age: 42, agree: true, tags: ["ts", "forms"], avatar: File }
-
-fetch(url, { method: "POST", body: S.encoder(signup)(value) });
+// => { email: "a@b.co", age: 42, agree: true, avatar: File }
+S.encoder(signup)(user);
+// => a FormData, ready for fetch(url, { body })
 ```
-
-A boolean field is a checkbox, because nothing else a browser sends is one: absent reads as unchecked, and encoding leaves it out exactly as a form does.
 
 Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.file` and `S.blob`. Coming next: env and protobuf.
 

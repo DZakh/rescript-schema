@@ -77,6 +77,9 @@ operations:
   encode:
     expression: i=>{let v0=i["seen"],v2=i["asText"],v3=i["age"];typeof v0==="boolean"||e[0](v0);let v1;(v1=v2==="true")||v2==="false"||e[1](v2);v3>=18||e[2](v3);let v4=new e[3]();if(i["agree"]){v4.append("agree","on")}if(i["notify"]!==void 0){v4.append("notify",i["notify"]?"on":"false")}if(v0){v4.append("seen","on")}if(v1){v4.append("asText","on")}v4.append("age",""+v3);return v4}
     examples:
+      built:
+        input: '{ agree: true, notify: false, seen: false, asText: "true", age: 42 }'
+        output: ((f) => (f.append("agree", "on"), f.append("notify", "false"), f.append("asText", "on"), f.append("age", "42"), f))(new FormData())
       too-young:
         input: "{ agree: true, age: 7 }"
         error: "Failed at seen: Expected boolean, received undefined"

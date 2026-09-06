@@ -35,6 +35,9 @@ operations:
   encode:
     expression: i=>{let v0=i["flags"],v4=i["maybe"];v0.length>0||e[0](v0);let v2=new e[1]();v2.append("terms","on");for(let v3=0;v3<v0.length;++v3){v2.append("flags",""+v0[v3]);}if(v4!=null){if(v4){v2.append("maybe","on")}}return v2}
     examples:
+      built:
+        input: "{ terms: true, flags: [true, false], maybe: null }"
+        output: ((f) => (f.append("terms", "on"), f.append("flags", "true"), f.append("flags", "false"), f))(new FormData())
       no-flags:
         input: "{ terms: true, flags: [], maybe: null }"
         error: "Failed at flags: Expected boolean[].length >= 1, received []"

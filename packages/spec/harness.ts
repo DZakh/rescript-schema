@@ -774,7 +774,65 @@ const keyToCode = (k: string): string =>
 // throw rather than emit: a cyclic value would recurse forever, and a class
 // instance would silently flatten to a plain-object literal — each of those
 // would record a golden that looks fine but doesn't equal the real output.
-const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet()): string => {
+// A binary container's bytes are only readable asynchronously, so they are
+// collected in one pass before rendering and handed to `valueToCode` through
+// this map. Everything the writer walks is walked here too, in the same order.
+type Bytes = WeakMap<object, Uint8Array>;
+const readBytes = async (v: unknown, out: Bytes): Promise<void> => {
+  if (v === null || typeof v !== "object") return;
+  if (isBlob(v)) {
+    out.set(v, new Uint8Array(await (v as Blob).arrayBuffer()));
+    return;
+  }
+  if (isFormData(v)) {
+    for (const [, entry] of (v as FormData).entries()) await readBytes(entry, out);
+    return;
+  }
+  if (v instanceof Map) for (const pair of v) await readBytes(pair, out);
+  else if (v instanceof Set || Array.isArray(v)) for (const item of v as Iterable<unknown>) await readBytes(item, out);
+  else if (Object.getPrototypeOf(v) === Object.prototype) for (const item of Object.values(v)) await readBytes(item, out);
+};
+
+const globalClass = (name: string): Function | undefined =>
+  (globalThis as Record<string, unknown>)[name] as Function | undefined;
+const isBlob = (v: object): boolean => {
+  const c = globalClass("Blob");
+  return c !== undefined && v instanceof c;
+};
+const isFile = (v: object): boolean => {
+  const c = globalClass("File");
+  return c !== undefined && v instanceof c;
+};
+const isFormData = (v: object): boolean => {
+  const c = globalClass("FormData");
+  return c !== undefined && v instanceof c;
+};
+
+// Bytes read best as the text that produced them, which is what a spec author
+// writes; anything else (and anything with a control byte, which YAML would
+// have to escape) falls back to the byte array.
+const TEXT_SAFE = /^[^\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]*$/;
+const bytesToCode = (bytes: Uint8Array): string => {
+  const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+  return TEXT_SAFE.test(text) && String(new TextEncoder().encode(text)) === String(bytes)
+    ? escapeC1(JSON.stringify(text))
+    : `new Uint8Array([${[...bytes].join(", ")}])`;
+};
+
+// `type` is rendered only when set, and `lastModified` never: it defaults to
+// the moment the file is built, so recording it would rewrite the golden on
+// every run.
+const blobToCode = (v: object, bytes: Bytes): string => {
+  const own = bytes.get(v);
+  if (own === undefined) throw new Error("cannot represent a Blob whose bytes were not read");
+  const type = (v as Blob).type;
+  const options = type ? `, { type: ${JSON.stringify(type)} }` : "";
+  return isFile(v)
+    ? `new File([${bytesToCode(own)}], ${JSON.stringify((v as File).name)}${options})`
+    : `new Blob([${bytesToCode(own)}]${options})`;
+};
+
+const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet(), bytes: Bytes = new WeakMap()): string => {
   if (v === undefined) return "undefined";
   if (typeof v === "bigint") return `${v}n`;
   if (typeof v === "number") return Object.is(v, -0) ? "-0" : String(v);
@@ -797,9 +855,20 @@ const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet()): string 
       // stays unrepresentable rather than silently narrowed.
       if (Object.getPrototypeOf(v) === Uint8Array.prototype)
         return `new Uint8Array([${[...(v as Uint8Array)].join(", ")}])`;
-      if (v instanceof Map) return `new Map(${valueToCode([...v], seen)})`;
-      if (v instanceof Set) return `new Set(${valueToCode([...v], seen)})`;
-      if (Array.isArray(v)) return `[${v.map((x) => valueToCode(x, seen)).join(", ")}]`;
+      if (isBlob(v)) return blobToCode(v, bytes);
+      // The same idiom a spec author writes for an input: `append` returns
+      // nothing, so the comma expression hands the FormData back.
+      if (isFormData(v)) {
+        const appends = [...(v as FormData).entries()]
+          .map(([k, entry]) => `f.append(${JSON.stringify(k)}, ${valueToCode(entry, seen, bytes)})`)
+          .join(", ");
+        return appends
+          ? `((f) => (${appends}, f))(new FormData())`
+          : "new FormData()";
+      }
+      if (v instanceof Map) return `new Map(${valueToCode([...v], seen, bytes)})`;
+      if (v instanceof Set) return `new Set(${valueToCode([...v], seen, bytes)})`;
+      if (Array.isArray(v)) return `[${v.map((x) => valueToCode(x, seen, bytes)).join(", ")}]`;
       const proto = Object.getPrototypeOf(v);
       if (proto !== Object.prototype && proto !== null)
         throw new Error(
@@ -807,10 +876,10 @@ const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet()): string 
         );
       // Symbol keys ride along as computed keys — only registry symbols, for the
       // same reason as symbol values above. Object.entries would drop them.
-      const parts = Object.entries(v).map(([k, val]) => `${keyToCode(k)}: ${valueToCode(val, seen)}`);
+      const parts = Object.entries(v).map(([k, val]) => `${keyToCode(k)}: ${valueToCode(val, seen, bytes)}`);
       for (const sym of Object.getOwnPropertySymbols(v)) {
         if (!Object.getOwnPropertyDescriptor(v, sym)!.enumerable) continue;
-        parts.push(`[${valueToCode(sym, seen)}]: ${valueToCode((v as Record<symbol, unknown>)[sym], seen)}`);
+        parts.push(`[${valueToCode(sym, seen, bytes)}]: ${valueToCode((v as Record<symbol, unknown>)[sym], seen, bytes)}`);
       }
       if (parts.length === 0) return "{}";
       return `{ ${parts.join(", ")} }`;
@@ -904,6 +973,10 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
         // same catch handles — a rejection and a synchronous throw are one
         // outcome to the author.
         const out = await fn(value);
+        // Binary containers only yield their bytes asynchronously, so they are
+        // read here, before the sync writer runs.
+        const bytes: Bytes = new WeakMap();
+        await readBytes(out, bytes);
         // An operation that hands its input straight back records the input's
         // own source rather than a re-derived spelling of the same value. It
         // reads better, and it's the only way a value the serializer can't
@@ -912,7 +985,7 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
         // could be *run* but never written down as a result.
         op.examples[name] = clean({
           input: ex.input,
-          output: out === value ? ex.input : valueToCode(out),
+          output: out === value ? ex.input : valueToCode(out, new WeakSet(), bytes),
         });
       } catch (e) {
         if (e instanceof Error && e.message.startsWith("cannot represent ")) throw e;

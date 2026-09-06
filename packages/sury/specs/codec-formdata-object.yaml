@@ -53,6 +53,9 @@ operations:
   encode:
     expression: i=>{let v0=i["name"],v1=i["age"],v4=i["since"];v0.length>0||e[0](v0);v1>=18||e[1](v1);let v2=new e[2]();v2.append("name",v0);v2.append("age",""+v1);if(i["agree"]){v2.append("agree","on")}v2.append("kind","signup");let v3;try{v3=v4.toISOString()}catch(_){e[3](v4)}v2.append("since",v3);return v2}
     examples:
+      built:
+        input: '{ name: "Ann", age: 42, agree: true, kind: "signup", since: new Date("2024-01-01T00:00:00.000Z") }'
+        output: ((f) => (f.append("name", "Ann"), f.append("age", "42"), f.append("agree", "on"), f.append("kind", "signup"), f.append("since", "2024-01-01T00:00:00.000Z"), f))(new FormData())
       too-young:
         input: '{ name: "Ann", age: 7, agree: true, kind: "signup", since: new Date("2024-01-01T00:00:00.000Z") }'
         error: "Failed at age: Expected number >= 18, received 7"

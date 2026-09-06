@@ -194,21 +194,15 @@ of a form-data story. What they were built to make cheap, roughly in order:
   fail with `invalid_operation`. `advanced/uint8Array.ts` is the shape to copy.
   The payoff is `S.file.with(S.to, S.jsonString.with(S.to, configSchema))` —
   parse an upload into a typed value, and reverse it to *build* the upload.
-- **`S.formData` landed** (`advanced/formData.ts`): a field reads through a
-  `string` stage so the env coercions apply, `S.file`/`S.blob` take the entry,
-  `S.array` is `getAll`, a boolean is a checkbox, `""` is absent for an optional
-  field and the target's own business for a required one, and the reverse is
-  `new FormData()` + one `append` per field. Still to do from the original
-  sketch: `S.urlSearchParams` is the same code minus files, and `S.queryString`
-  is to it what `S.jsonString` is to `S.json`; and a `S.record` target
-  (`entries()` into a dict). One gap it works around rather than fixes, with
-  the spec that pins it: `dict-to-object-optional-string` — the union rules
-  reject `string -> string | undefined`, so the env pattern still can't read an
-  optional string field, where the form codec converts the present arm on its
-  own. A refinement inside `S.optional` is still unchecked on encode — the
-  union encode path trusting its typed input, which a plain object target does
-  too — pinned in `tests/formData_test.ts` because the value it produces is a
-  `FormData`.
+- **`S.urlSearchParams` and `S.queryString`**, now that `S.formData` has shipped.
+  The codec only calls `get`/`getAll`/`append`, all of which `URLSearchParams`
+  has, so the first is the same code minus files and the second is to it what
+  `S.jsonString` is to `S.json`. A `S.record` target (`entries()` into a dict)
+  is the other shape the same reader serves.
+- **`string -> string | undefined` is still rejected by the union rules**, so
+  the env pattern can't read an optional string field — where the form codec
+  converts the present arm itself. Pinned by
+  `specs/dict-to-object-optional-string`.
 - **Nested keys for `S.formData`, with no API to turn them on.** Nesting the
   schema is the switch: `S.schema({ user: S.schema({ city }) })` rejects the
   pair today, and instead should read `user[city]`. Brackets only — PHP

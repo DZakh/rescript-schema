@@ -35,6 +35,9 @@ operations:
   encode:
     expression: i=>{let v0=i["avatar"],v2=i["cover"];v0.size<5||e[0](v0);let v1=new e[1]();v1.append("avatar",v0);if(v2!=null){v1.append("cover",v2);}v1.append("raw",i["raw"]);return v1}
     examples:
+      built:
+        input: '{ avatar: new File(["ok"], "a.png", { type: "image/png" }), cover: new File(["c"], "c.png"), raw: new Blob(["r"]) }'
+        output: '((f) => (f.append("avatar", new File(["ok"], "a.png", { type: "image/png" })), f.append("cover", new File(["c"], "c.png")), f.append("raw", new File(["r"], "blob")), f))(new FormData())'
       too-large:
         input: '{ avatar: new File(["12345"], "a.png"), raw: new Blob(["r"]) }'
         error: "Failed at avatar: Expected File.size <= 4, received File"
