@@ -5,7 +5,6 @@
 
 import {
   type Flag,
-  getOrRethrow,
   globalConfig,
   inputExpression,
   type Internal,
@@ -100,18 +99,6 @@ Object.defineProperty(schemaPrototype, "toString", {
   },
 });
 
-const toStandardIssues = (exn: unknown): StandardResult => {
-  const error = getOrRethrow(exn);
-  return {
-    issues: [
-      {
-        message: error.reason,
-        path: error.path.length ? (error.path as unknown[]) : U,
-      },
-    ],
-  };
-};
-
 // A lazy prototype getter (not an eager per-schema property — that would put
 // 2 allocations + 4 closures on the baseSchema hot path for a feature most
 // schemas never use), cached on first access: Standard Schema consumers read
@@ -125,48 +112,33 @@ const toStandardIssues = (exn: unknown): StandardResult => {
 Object.defineProperty(schemaPrototype, "~standard", {
   get: function (this: Internal) {
     const schema = this;
-    // The decoder lives in the closure: the Standard Schema contract is a
-    // per-call `schema["~standard"].validate(input)`, so the getOp
-    // lookup can't be hoisted by the consumer and would outweigh the decode.
-    // `globalConfig.f` is getOp's flag source, so re-reading it is the
-    // whole invalidation condition.
+    // The operation lives in the closure: the Standard Schema contract is a
+    // per-call `schema["~standard"].validate(input)`, so the getOp lookup
+    // can't be hoisted by the consumer and would outweigh the decode.
+    // `globalConfig.f` is getOp's flag source, so re-reading it is the whole
+    // invalidation condition.
     let decoderFlag: Flag | undefined = U;
-    let decoder: (input: unknown) => unknown;
-    let async: 1 | undefined;
+    let validateOp: (input: unknown) => StandardResult | Promise<StandardResult>;
     const standard: StandardProps = {
       version: 1,
       vendor,
       validate: (input: unknown): StandardResult | Promise<StandardResult> => {
-        // Outside the try: a conversion rejected at operation creation fails
-        // for every input — a schema bug for the developer, not an `issues`
-        // entry for whoever is filling in the form. It throws on every call,
-        // since `decoderFlag` commits only once there is a decoder.
+        // The Standard Schema result is compiled straight into the operation
+        // (mode bit 128), promisable (32) so one compile answers for both a
+        // sync and an async schema: no `try` on the valid path, no
+        // sync-compile / catch / recompile-async dance, and no second object
+        // to translate one result shape into the other.
+        //
+        // Outside any guard on purpose: a conversion rejected at operation
+        // creation fails for every input — a schema bug for the developer, not
+        // an `issues` entry for whoever is filling in the form. It throws on
+        // every call, since `decoderFlag` commits only once there is an
+        // operation.
         if (decoderFlag !== globalConfig.f) {
-          // Async-ness is discovered the way `S.asyncParser` users discover
-          // it: the sync compile rejects, and the async one is tried. The
-          // async flag only lifts that one restriction, so a compile that
-          // fails for any other reason fails the same way twice and the
-          // second throw is the one the developer sees.
-          async = U;
-          try {
-            decoder = getOp(0, 2, unknown, schema) as (input: unknown) => unknown;
-          } catch {
-            decoder = getOp((async = 1), 2, unknown, schema) as (input: unknown) => unknown;
-          }
+          validateOp = getOp(1 | 32 | 128, 2, unknown, schema) as typeof validateOp;
           decoderFlag = globalConfig.f;
         }
-        // An async operation's type checks ahead of the first await throw
-        // synchronously, like `safeAsync`'s callee — folded into the promise
-        // so the consumer sees one shape.
-        try {
-          const value = decoder(input);
-          return async
-            ? (value as Promise<unknown>).then((value) => ({ value }), toStandardIssues)
-            : { value };
-        } catch (exn) {
-          const issues = toStandardIssues(exn);
-          return async ? Promise.resolve(issues) : issues;
-        }
+        return validateOp(input);
       },
       // Standard JSON Schema spec: https://standardschema.dev/json-schema
       // `input` returns the JSON Schema of the schema's input type,

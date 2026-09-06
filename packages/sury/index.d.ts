@@ -970,6 +970,55 @@ export function parseAsResult<TOutput>(
   s3: SchemaLike<unknown, TOutput>
 ): Result<TOutput>;
 
+/**
+ * The Result outcome without committing to a shape: a synchronous schema
+ * answers with the `Result` itself, an async one with a promise of it. One
+ * compiled operation covers both, so a caller that doesn't know a schema's
+ * async-ness doesn't have to lift every answer into a promise to find out.
+ */
+export function parseAsPromisableResult<TOutput>(
+  schema: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  schema: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  data: unknown,
+  schema: SchemaLike<unknown, TOutput>
+): Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): Promisable<Result<TOutput>>;
+
 export function parser<TOutput>(
   schema: SchemaLike<unknown, TOutput>
 ): (data: unknown) => TOutput;

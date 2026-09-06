@@ -169,7 +169,7 @@ export {
   safe,
   safeAsync,
 } from "./standard";
-export { parseOrThrow, parseAsResult } from "./operations";
+export { parseOrThrow, parseAsResult, parseAsPromisableResult } from "./operations";
 export { array, dict as record } from "./composites";
 export { schemaObject as object, schemaShape as shape, schemaTuple as tuple } from "./factory";
 // `nullish` accepts null | undefined (the 3-member union) — distinct from

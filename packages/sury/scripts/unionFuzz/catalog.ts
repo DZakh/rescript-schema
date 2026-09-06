@@ -149,6 +149,7 @@ export const FUZZ_EXPORTS: Record<string, FuzzExport> = {
   outputExpression: skip("debug printer, not a schema factory"),
   outputJSONSchema: skip("JSON Schema export, not a schema factory"),
   outputValidator: skip("operation, not a schema factory"),
+  parseAsPromisableResult: skip("operation, not a schema factory"),
   parseAsResult: skip("operation, not a schema factory"),
   parseOrThrow: skip("operation, not a schema factory"),
   parser: skip("operation, not a schema factory"),

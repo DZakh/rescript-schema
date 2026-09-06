@@ -162,10 +162,34 @@ export type Tail = (
   hasDefs: boolean,
 ) => string | undefined;
 
-export const throwTail: Tail = (_input, code, out, isAsync, flag, hasDefs) =>
-  code === "" && out === operationArgVar && !(flag & 1) // 1
+// Throw mode, plus the Standard Schema tail (mode bit 128). The Standard
+// Schema arm is here rather than behind the `__setTail` hook because the
+// `~standard` prototype getter can never be tree-shaken (standard.ts), so a
+// registration from it would drag the whole emitter into every consumer bundle
+// — the very thing the hook exists to prevent. Keeping the one shape that
+// getter needs here costs a branch; the JS and ReScript Result shapes stay
+// behind the hook (operations.ts).
+export const throwTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
+  if (flag & 128) {
+    const e = B_varWithoutAllocation(input.g);
+    // `path` is omitted at the root, which is what Standard Schema consumers
+    // expect; `s` is the Sury marker symbol, the generated function's second
+    // parameter, so anything else in flight keeps going up.
+    const issues = `{issues:[{message:${e}.reason,path:${e}.path.length?${e}.path:void 0}]}`;
+    const v = isAsync ? B_varWithoutAllocation(input.g) : "";
+    const body = isAsync
+      ? `${code}return ${out}.then(${v}=>({value:${v}}),${e}=>{if(${e}&&${e}.s===s)return ${issues};throw ${e}})`
+      : `${code}return {value:${out}}`;
+    // An async operation answers with a promise either way, so a failure the
+    // sync phase raises comes back in the same shape as one after the await.
+    return `try{${body}}catch(${e}){if(${e}&&${e}.s===s)return ${
+      isAsync ? `Promise.resolve(${issues})` : issues
+    };throw ${e}}`;
+  }
+  return code === "" && out === operationArgVar && !(flag & 1) // 1
     ? U
     : `${code}return ${(flag & 1) && !isAsync && !hasDefs ? `Promise.resolve(${out})` : out}`;
+};
 
 let emitTail: Tail = throwTail;
 export const __setTail = (fn: Tail): void => {

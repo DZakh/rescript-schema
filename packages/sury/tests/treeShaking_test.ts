@@ -23,6 +23,7 @@ const source = readFileSync(new URL("../index.mjs", import.meta.url), "utf8");
 const EFFECTFUL: Record<string, string> = {
   parseOrThrow: "the immediate call forms validate",
   parseAsResult: "the immediate call forms validate",
+  parseAsPromisableResult: "the immediate call forms validate",
   assertInput: "throws on invalid input — the call IS the assertion",
   assertOutput: "throws on invalid input — the call IS the assertion",
   asyncAssertInput: "rejects on invalid input — the call IS the assertion",

@@ -154,3 +154,41 @@ test("a defect throws instead of becoming a Result", () => {
   expect(() => S.parseAsResult(undecodable, true)).toThrow(S.Error);
   expect(() => S.parseAsResult(undecodable)).toThrow(S.Error);
 });
+
+test("the promisable Result mode follows the schema's own shape", async () => {
+  const sync = S.parseAsPromisableResult(user, { id: "a" });
+  expect(sync).toEqual({ success: true, value: { id: "a" }, error: undefined });
+
+  const asyncSchema = S.string.with(S.to, S.number, {
+    decode: { async: async (v: string) => Number(v) },
+    encode: String,
+  });
+  const promised = S.parseAsPromisableResult(asyncSchema, "1");
+  expect(promised).toBeInstanceOf(Promise);
+  expect(await promised).toEqual({ success: true, value: 1, error: undefined });
+
+  // A failure the sync phase raises still comes back as a promise, so an async
+  // operation answers in one shape whether the value died before the first
+  // await or after it.
+  const early = S.parseAsPromisableResult(asyncSchema, 1);
+  expect(early).toBeInstanceOf(Promise);
+  expect((await early).error?.code).toBe("invalid_input");
+});
+
+test("`~standard.validate` is the compiled operation, with no wrapper left", () => {
+  // The Standard Schema result shape is a tail of its own (mode bit 128), so
+  // there is no wrapper translating one result shape into another. It is
+  // emitted by `throwTail` rather than behind the `__setTail` hook: the
+  // `~standard` prototype getter can never be tree-shaken, so registering from
+  // it would drag the whole emitter into every consumer bundle.
+  expect(S.parseAsResult(user).toString()).toContain("success:true");
+  const schema = S.schema({ id: S.string });
+  expect(schema["~standard"].validate({ id: "a" })).toEqual({ value: { id: "a" } });
+  expect(schema["~standard"].validate({ id: 1 })).toEqual({
+    issues: [{ message: "Expected string, received 1", path: ["id"] }],
+  });
+  // `path` is omitted at the root rather than sent as an empty array.
+  expect(S.string["~standard"].validate(1)).toEqual({
+    issues: [{ message: "Expected string, received 1" }],
+  });
+});

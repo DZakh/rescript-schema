@@ -50,8 +50,12 @@ export const assertOrThrow = (any: unknown, schema: Internal): void => {
 
 // ── Result tail ──────────────────────────────────────────────────────────────
 
-// Both branches carry the same keys in the same order — `void 0` in the slot
-// the branch doesn't use — so the two results share one hidden class and a
+// The two Result shapes: 8 the JS `Result`, 16 ReScript's
+// `result<'value, S.error>`. The Standard Schema shape (128) is emitted by
+// `throwTail` instead — see the comment there.
+//
+// The JS pair carries the same keys in the same order — `void 0` in the slot
+// the branch doesn't use — so the two branches share one hidden class and a
 // consumer's `.success`/`.value` reads stay monomorphic. It is also what makes
 // `const { value, error } = result` narrow on the TS side (the `?: undefined`
 // sibling fields in `Result`): one decision, both halves.
@@ -92,8 +96,12 @@ const resultTail = (
     : `${code}return ${toPromise ? `Promise.resolve(${ok(isRes, out)})` : ok(isRes, out)}`;
   // The raise counter: when nothing merged can throw, the operation needs no
   // `try` at all — the decision a `safe(() => ...)` wrapper can never make.
+  // A failure the sync phase raises has to come back in the shape the success
+  // path uses, so an async operation's answer is a promise either way — the
+  // consumer sees one shape whether the value died before the first await or
+  // after it.
   return input.g.t
-    ? `try{${body}}catch(${errVar}){${rethrowUnlessSury(isRes, errVar, toPromise)}}`
+    ? `try{${body}}catch(${errVar}){${rethrowUnlessSury(isRes, errVar, isAsync || toPromise)}}`
     : body;
 };
 
@@ -212,4 +220,17 @@ export function parseOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown)
 
 export function parseAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
   return resultDispatch(arguments.length, a, b, c, d, unknown, false, 8);
+}
+
+// The Result outcome without committing to a shape: a synchronous schema
+// answers with the Result itself, an async one with a promise of it. One
+// compile covers both, which is what the `~standard` bridge needs (standard.ts)
+// and what a caller who doesn't know a schema's async-ness can hold.
+export function parseAsPromisableResult(
+  a?: unknown,
+  b?: unknown,
+  c?: unknown,
+  d?: unknown,
+): unknown {
+  return resultDispatch(arguments.length, a, b, c, d, unknown, false, 1 | 8 | 32);
 }
