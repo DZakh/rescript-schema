@@ -1292,8 +1292,8 @@ entry: `S.array(S.optional(S.string))` and `S.array(S.array(S.string))` are both
 rejected rather than silently closing the gaps.
 
 A file input with nothing chosen still submits an empty, unnamed `File`; that
-sentinel reads as absent, so a required `S.file` reports a missing file and
-`S.nullable(S.file)` reads `null`.
+sentinel reads as absent, so a required `S.file` reports a missing file,
+`S.nullable(S.file)` reads `null`, and `S.array(S.file)` reads `[]`.
 
 ## Content
 

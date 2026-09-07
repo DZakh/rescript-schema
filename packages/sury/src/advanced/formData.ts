@@ -132,6 +132,14 @@ const decidesBlank = (schema: Internal): boolean =>
   schema.to !== U ||
   (schema.pattern !== U && !schema.pattern.test(""));
 
+// Whether the schema names `""` as a value of its own - `S.minLength(0)`, the
+// literal, or an arm that is either - so a blank entry is handed to it rather
+// than read as absent.
+const admitsBlank = (schema: Internal): boolean =>
+  schema.minLength === 0 ||
+  schema.const === "" ||
+  (schema.type === anyOfTag && schema.anyOf!.some(admitsBlank));
+
 // A `null` arm, or the bare `null` schema: either way the field has an absent
 // reading, and no entry of its own.
 const isNullable = (schema: Internal): boolean =>
@@ -182,6 +190,14 @@ const beforeTo = (schema: Internal): Internal => {
 const readEntries = (formData: FormData): Map<string, unknown> => {
   const entries = new Map<string, unknown>();
   for (const [key, value] of formData as unknown as Iterable<[string, unknown]>) {
+    // A file input with nothing chosen still submits: the HTML Standard's
+    // entry list gets "a new File object with an empty name,
+    // application/octet-stream as type, and an empty body". That sentinel is
+    // not an upload, so no field sees it - a required one reports a missing
+    // file, a list reads without it.
+    if (typeof value !== "string" && (value as File).name === "" && !(value as File).size) {
+      continue;
+    }
     const prev = entries.get(key);
     prev === U
       ? entries.set(key, value)
@@ -323,7 +339,7 @@ const classify = (schema: Internal): Field => {
     nullable: isNullable(schema),
     list,
     entry,
-    normalized: list || !(entry || present.minLength === 0),
+    normalized: list || !(entry || admitsBlank(present)),
     present,
   };
 };
@@ -356,7 +372,13 @@ const armCode = (item: Val, source: Internal, target: Internal): string => {
 // the optional reading, since absence is the weaker claim.
 const absentCode = (item: Val, field: Field, schema: Internal): string => {
   if (!field.optional) {
-    return field.nullable ? `else{${item.i}=null}` : "";
+    if (!field.nullable) {
+      return "";
+    }
+    // The arm's own chain where it has one - `S.nullable(x, default)` keeps
+    // its default there - and the `null` the var does not yet hold otherwise.
+    const absent = schema.anyOf?.find((variant) => variant.type === nullTag) || schema;
+    return `else{${absent.to === U ? `${item.i}=null` : armCode(item, absent, absent)}}`;
   }
   const absent =
     schema.anyOf?.find((variant) => variant.type === undefinedTag) || schema;
@@ -368,17 +390,22 @@ const absentCode = (item: Val, field: Field, schema: Internal): string => {
 // string reaching `X | undefined` would be routed through the union rules,
 // which reject `string | undefined` outright and otherwise dispatch on the text
 // `"undefined"`.
-const readOptional = (item: Val, field: Field, schema: Internal): Val =>
-  assembled(
+const readOptional = (item: Val, field: Field, schema: Internal): Val => {
+  const v = item.i;
+  const present = armCode(item, item.s, field.present);
+  const absent = absentCode(item, field, schema);
+  // An arm with nothing to run leaves no empty block behind.
+  return assembled(
     item,
     schema,
-    `if(${field.normalized ? item.i : `${item.i}!==void 0`}){${armCode(
-      item,
-      item.s,
-      field.present,
-    )}}${absentCode(item, field, schema)}`,
+    present
+      ? `if(${field.normalized ? v : `${v}!==void 0`}){${present}}${absent}`
+      : absent
+        ? `if(${field.normalized ? `!${v}` : `${v}===void 0`}){${absent.slice(5)}`
+        : "",
     item.i,
   );
+};
 
 // One entry read as a checkbox: `"on"` is what a checked box with no `value`
 // attribute submits, the rest are the hidden-input spellings, and match what
@@ -392,12 +419,13 @@ const readOptional = (item: Val, field: Field, schema: Internal): Val =>
 // the boolean this produced rather than against the text a browser sent.
 const readCheckbox = (input: Val, target: Internal): Val => {
   const v = input.i;
-  const output = B_next(input, v, bool, target);
+  // Into a var of its own, not the entry's: a check the target adds after
+  // this - the `true` of a box that must be ticked - fails on the boolean, and
+  // the next arm of a union then reads the entry as the browser sent it.
+  const out = B_varWithoutAllocation(input.g);
+  const output = B_next(input, out, bool, target);
   output.v = _var;
-  // Into the entry's own var, and in one expression: the failure is raised
-  // while the right-hand side is still being evaluated, so a union arm that
-  // rejects the entry leaves it as it was for the next arm to read.
-  output.cp = `${v}=${v}==="on"||${v}==="true"||${v}==="1"||(${v}==="false"||${v}==="0"||!${v}?false:${B_embedInvalidInput(input, target)});`;
+  output.cp = `let ${out}=${v}==="on"||${v}==="true"||${v}==="1"||(${v}==="false"||${v}==="0"||!${v}?false:${B_embedInvalidInput(input, target)});`;
   return output;
 };
 
@@ -485,7 +513,14 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     detached.prev = U;
     return `if(${inputVar}!=null){${appendValue(detached, fdVar, keyText, inList)}}`;
   }
-  if ((tagFlag & (1 | 2)) || ((tagFlag & 8192) && isBlobClass(schema.class))) {
+  if (tagFlag & 1) {
+    // An entry, or nothing: `append` stringifies whatever is neither, and
+    // `"[object Object]"` is not what an `unknown` field held. `undefined`
+    // and `null` are what its decode reads from no entry, so they write none.
+    const v = val.v();
+    return `if(${v}!=null){typeof ${v}==="string"||${v} instanceof ${B_embed(val, globalThis.Blob)}||${B_embedInvalidInput(val, formDataField)};${fdVar}.append(${keyText},${v});}`;
+  }
+  if ((tagFlag & 2) || ((tagFlag & 8192) && isBlobClass(schema.class))) {
     return `${fdVar}.append(${keyText},${val.i});`;
   }
   if (!(tagFlag & ((4 | 8) | 1024 | (2048 | 8192) | 256))) {
@@ -540,7 +575,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     const schema = properties[key]!;
     const keyText = inlinedValueFromString(key);
     const field = classify(schema);
-    const { list, entry } = field;
+    const { list } = field;
     // Both say a blank entry carries no value, so both read it away and both
     // compile their arms on their own.
     const absent = isAbsent(schema);
@@ -560,22 +595,6 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       B_hoistDecl(
         input,
         `${readVar}=${B_embed(input, absent ? asOptionalList : asList)}(${slot})`,
-      );
-    } else if (entry) {
-      // A file input with nothing chosen still submits: the HTML Standard's
-      // entry list gets "a new File object with an empty name,
-      // application/octet-stream as type, and an empty body". That sentinel is
-      // not an upload, so it reads as absent - a required field then reports a
-      // missing file rather than accepting an empty one. A string entry falls
-      // through the guard untouched (`"".name` is undefined).
-      // Declared on its own: the sentinel is read three times, and an
-      // assignment inside the initializer would otherwise be an implicit
-      // global - `new Function` is sloppy mode, so nothing would say so.
-      const entryVar = B_varWithoutAllocation(input.g);
-      B_hoistDecl(input, entryVar);
-      B_hoistDecl(
-        input,
-        `${readVar}=(${entryVar}=${slot})&&${entryVar}.name===""&&!${entryVar}.size?void 0:${entryVar}`,
       );
     } else {
       // The entry as it stands, with a blank one read away where the field has
@@ -631,6 +650,11 @@ const formDataToObject = (input: Val, target: Internal): Val => {
 
     if (list) {
       assertListItems(item, field.present);
+    } else if (field.present.type === unknownTag) {
+      // One entry as it is: a repeated key is two where one belongs, and is
+      // reported rather than read as the array its encode could not write.
+      // Here and not in the field hook, which an `unknown` target never asks.
+      item.cp = `Array.isArray(${readVar})&&${B_embedInvalidInput(item, formDataField)};`;
     }
     B_addObjectField(
       objectVal,

@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{i instanceof e[10]||e[11](i);let v0=e[0](i),v2,v1=(v2=v0.get("avatar"))&&v2.name===""&&!v2.size?void 0:v2,v4,v3=(v4=v0.get("cover"))&&v4.name===""&&!v4.size?void 0:v4,v6,v5=(v6=v0.get("logo"))&&v6.name===""&&!v6.size?void 0:v6,v8,v7=(v8=v0.get("raw"))&&v8.name===""&&!v8.size?void 0:v8;v1 instanceof e[2]||e[3](v1);v1.size<5||e[1](v1);if(v3!==void 0){v3 instanceof e[4]||e[5](v3);}if(v5!==void 0){v5 instanceof e[6]||e[7](v5);}else{v5=null}v7 instanceof e[8]||e[9](v7);return {avatar:v1,cover:v3,logo:v5,raw:v7}}
+    expression: i=>{i instanceof e[10]||e[11](i);let v0=e[0](i),v1=v0.get("avatar"),v2=v0.get("cover"),v3=v0.get("logo"),v4=v0.get("raw");v1 instanceof e[2]||e[3](v1);v1.size<5||e[1](v1);if(v2!==void 0){v2 instanceof e[4]||e[5](v2);}if(v3!==void 0){v3 instanceof e[6]||e[7](v3);}else{v3=null}v4 instanceof e[8]||e[9](v4);return {avatar:v1,cover:v2,logo:v3,raw:v4}}
     examples:
       text-where-file:
         input: ((f) => (f.append("avatar", "x"), f.append("raw", new File(["r"], "r.bin")), f))(new FormData())
@@ -30,7 +30,7 @@ operations:
         input: ((f) => (f.append("avatar", new File(["a"], "a.png")), f.append("cover", "x"), f.append("raw", new File(["r"], "r.bin")), f))(new FormData())
         error: 'Failed at cover: Expected File, received "x"'
   decode:
-    expression: i=>{let v0=e[0](i),v2,v1=(v2=v0.get("avatar"))&&v2.name===""&&!v2.size?void 0:v2,v4,v3=(v4=v0.get("cover"))&&v4.name===""&&!v4.size?void 0:v4,v6,v5=(v6=v0.get("logo"))&&v6.name===""&&!v6.size?void 0:v6,v8,v7=(v8=v0.get("raw"))&&v8.name===""&&!v8.size?void 0:v8;v1 instanceof e[2]||e[3](v1);v1.size<5||e[1](v1);if(v3!==void 0){v3 instanceof e[4]||e[5](v3);}if(v5!==void 0){v5 instanceof e[6]||e[7](v5);}else{v5=null}v7 instanceof e[8]||e[9](v7);return {avatar:v1,cover:v3,logo:v5,raw:v7}}
+    expression: i=>{let v0=e[0](i),v1=v0.get("avatar"),v2=v0.get("cover"),v3=v0.get("logo"),v4=v0.get("raw");v1 instanceof e[2]||e[3](v1);v1.size<5||e[1](v1);if(v2!==void 0){v2 instanceof e[4]||e[5](v2);}if(v3!==void 0){v3 instanceof e[6]||e[7](v3);}else{v3=null}v4 instanceof e[8]||e[9](v4);return {avatar:v1,cover:v2,logo:v3,raw:v4}}
     examples:
       text-where-file:
         input: ((f) => (f.append("avatar", "x"), f.append("raw", new File(["r"], "r.bin")), f))(new FormData())

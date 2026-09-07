@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{i instanceof e[5]||e[6](i);let v0=e[0](i),v1=v0.get("a");for(;;){let r;try{v1=v1==="on"||v1==="true"||v1==="1"||(v1==="false"||v1==="0"||!v1?false:e[1](v1));break}catch(x){(r||(r=[])).push(e[3](x))}if(typeof v1==="string"){try{let v2=+v1;v2===v2&&(v2||v1.trim())||e[2](v1);v1=v2;break}catch(x){(r||(r=[])).push(e[3](x))}}e[4](v1,...(r||[]))}return {a:v1}}
+    expression: i=>{i instanceof e[5]||e[6](i);let v0=e[0](i),v1=v0.get("a");for(;;){let r;try{let v2=v1==="on"||v1==="true"||v1==="1"||(v1==="false"||v1==="0"||!v1?false:e[1](v1));v1=v2;break}catch(x){(r||(r=[])).push(e[3](x))}if(typeof v1==="string"){try{let v3=+v1;v3===v3&&(v3||v1.trim())||e[2](v1);v1=v3;break}catch(x){(r||(r=[])).push(e[3](x))}}e[4](v1,...(r||[]))}return {a:v1}}
     examples:
       checked:
         input: ((f) => (f.append("a", "on"), f))(new FormData())
@@ -30,7 +30,7 @@ operations:
           - At a: Expected boolean, received "x"
           - At a: Expected number, received "x"
   decode:
-    expression: i=>{let v0=e[0](i),v1=v0.get("a");for(;;){let r;try{v1=v1==="on"||v1==="true"||v1==="1"||(v1==="false"||v1==="0"||!v1?false:e[1](v1));break}catch(x){(r||(r=[])).push(e[3](x))}if(typeof v1==="string"){try{let v2=+v1;v2===v2&&(v2||v1.trim())||e[2](v1);v1=v2;break}catch(x){(r||(r=[])).push(e[3](x))}}e[4](v1,...(r||[]))}return {a:v1}}
+    expression: i=>{let v0=e[0](i),v1=v0.get("a");for(;;){let r;try{let v2=v1==="on"||v1==="true"||v1==="1"||(v1==="false"||v1==="0"||!v1?false:e[1](v1));v1=v2;break}catch(x){(r||(r=[])).push(e[3](x))}if(typeof v1==="string"){try{let v3=+v1;v3===v3&&(v3||v1.trim())||e[2](v1);v1=v3;break}catch(x){(r||(r=[])).push(e[3](x))}}e[4](v1,...(r||[]))}return {a:v1}}
     examples:
       checked:
         input: ((f) => (f.append("a", "on"), f))(new FormData())
