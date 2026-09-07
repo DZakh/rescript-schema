@@ -83,7 +83,7 @@ test("an absent optional is no entry, and a default fills the absent one back", 
 test("a boolean is a checkbox: on when set, nothing when not", () => {
   const schema = S.formData.with(S.to, S.schema({ agree: S.boolean, notify: S.optional(S.boolean) }));
   // An unchecked box sends nothing, which is all the entry list says about
-  // `false` — so that is what an encode writes.
+  // `false` - so that is what an encode writes.
   expect(entries(S.encoder(schema)({ agree: false }))).toEqual([]);
   expect(entries(S.encoder(schema)({ agree: true, notify: false }))).toEqual([
     ["agree", "on"],
@@ -130,7 +130,7 @@ test("a nullable field reads a blank entry as null, and omits null on the way ou
   expect(S.decoder(schema)(form(["nick", ""], ["age", ""]))).toEqual({ nick: null, age: null });
   expect(S.decoder(schema)(new FormData())).toEqual({ nick: null, age: null });
   expect(S.decoder(schema)(form(["nick", "nn"], ["age", "42"]))).toEqual({ nick: "nn", age: 42 });
-  // `null` is not an entry, so it is omitted — and reads back as null.
+  // `null` is not an entry, so it is omitted - and reads back as null.
   expect(entries(S.encoder(schema)({ nick: null, age: null }))).toEqual([]);
   expect(entries(S.encoder(schema)({ nick: "nn", age: 42 }))).toEqual([
     ["nick", "nn"],
@@ -238,7 +238,7 @@ test("an array of union items encodes without leaking a declaration", () => {
 test("a list carries neither a hole nor a list, in either direction", () => {
   // A repeated key is flat and positional: an item with no entry would shift
   // the ones after it, and a list of lists would run them together. Both
-  // directions reject rather than silently reshape — an encoder that only ever
+  // directions reject rather than silently reshape - an encoder that only ever
   // encodes would otherwise drop the holes and never hear about it.
   const holes = S.formData.with(S.to, S.schema({ m: S.array(S.optional(S.string)) }));
   const positional =
@@ -292,7 +292,7 @@ test("a boolean literal is the must-be-checked box", () => {
 
 test("a union arm reads by its own rule, not the field's", () => {
   // The reading belongs to the entry, so a boolean beside a number still gets
-  // the checkbox spellings — the hook is consulted once per arm.
+  // the checkbox spellings - the hook is consulted once per arm.
   const schema = S.formData.with(S.to, S.schema({ a: S.union([S.boolean, S.number]) }));
   const d = S.decoder(schema);
   expect(d(form(["a", "on"]))).toEqual({ a: true });
@@ -304,7 +304,7 @@ test("a union arm reads by its own rule, not the field's", () => {
 
 test("a list of booleans is not something a form can send", () => {
   // A checkbox is a whole field, and a group of them submits the *value* of
-  // each checked box — never `"on"` per position. Nothing a browser produces
+  // each checked box - never `"on"` per position. Nothing a browser produces
   // reads as a boolean list, so it is refused rather than given a reading of
   // its own.
   for (const schema of [S.array(S.boolean), S.tuple([S.string, S.boolean])]) {
@@ -348,7 +348,7 @@ test("a repeated key of a union item encodes once per item", () => {
 
 test("a nullable checkbox reads an absent box as null, and spells its false out", () => {
   // Without the first the `null` arm would be unreachable: nothing a form
-  // submits reads as null, so absence is the only thing left to carry it —
+  // submits reads as null, so absence is the only thing left to carry it -
   // which is what makes the second necessary. Omitting `false` the way a
   // browser does would hand it back as `null`.
   const schema = S.formData.with(S.to, S.schema({ a: S.nullable(S.boolean) }));
@@ -371,7 +371,7 @@ test("a checkbox defaulting to true cannot round-trip, because the wire disagree
 });
 
 test("FIXME: encoding a tuple of unions writes into the caller's array", () => {
-  // Not this codec's doing — a union dispatch assigns its result back into the
+  // Not this codec's doing - a union dispatch assigns its result back into the
   // slot it read, and a tuple slot is an index into the input. `S.formData` is
   // just where it shows: the same schema pair does it with no form in sight.
   // Pinned so the fix shows up here. Found by `fuzz:formdata`.
@@ -390,7 +390,7 @@ test("FIXME: encoding a tuple of unions writes into the caller's array", () => {
 });
 
 test("FIXME: a refinement inside S.optional is not checked on encode", () => {
-  // Not this codec's doing — the union encode path trusts its typed input, and
+  // Not this codec's doing - the union encode path trusts its typed input, and
   // a plain object target has the same hole. Pinned so the fix shows up here.
   const schema = S.formData.with(
     S.to,
@@ -408,7 +408,7 @@ test("FIXME: a refinement inside S.optional is not checked on encode", () => {
 test("a repeated key reaching a field declared once is reported, not resolved", () => {
   // Parameter pollution: a client can send a key twice for a field the schema
   // says holds one value. `get` would answer the first and say nothing, and
-  // which one that is depends on submission order — so the pair is handed over
+  // which one that is depends on submission order - so the pair is handed over
   // and the field's own check reports it.
   const schema = S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty) }));
   expect(() => S.decoder(schema)(form(["name", "first"], ["name", "second"]))).toThrow(

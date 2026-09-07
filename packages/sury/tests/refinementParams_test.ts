@@ -8,7 +8,7 @@ import * as S from "sury";
 
 // Anything whose `String()` is not a bare numeric literal. A schema-building
 // API is not usually reachable by an attacker, but a config-driven one can be
-// — `S.string.with(S.minLength, cfg.min)` with `cfg` from a file or a request.
+// - `S.string.with(S.minLength, cfg.min)` with `cfg` from a file or a request.
 const HOSTILE: [string, unknown][] = [
   ["statement injection", "0;globalThis.__SURY_PWNED=true;//"],
   ["template interpolation", "${globalThis.__SURY_PWNED=true}"],
@@ -66,8 +66,8 @@ test("a numeric bound rejects the wrong numeric type", () => {
 });
 
 test("a length rejects values that are not counts", () => {
-  // Each of these compiles to a check nothing can satisfy — `i.length>Infinity`,
-  // `i.length===-1` — so they fail where they are written instead.
+  // Each of these compiles to a check nothing can satisfy - `i.length>Infinity`,
+  // `i.length===-1` - so they fail where they are written instead.
   for (const value of [Infinity, -Infinity, -1, 1.5, -0.5, NaN, 2 ** 53]) {
     expect(() => S.minLength(S.string, value), `minLength(${value})`).toThrow(
       /expects integer >= 0/,
@@ -94,7 +94,7 @@ test("a size is only applied to an instance", () => {
   expect(() => S.maxSize(S.array(S.string) as never, 1)).toThrow(
     "S.maxSize expects instance schema, got string[]",
   );
-  // Every `.size` carrier works, not just the two binary ones — which is what
+  // Every `.size` carrier works, not just the two binary ones - which is what
   // keeps a future S.set/S.map from needing another pair of constructors, and
   // covers a class that assigns `this.size` rather than inheriting a getter.
   expect(S.parser(S.instance(Set).with(S.minSize, 1)).toString()).toContain("i.size>0");

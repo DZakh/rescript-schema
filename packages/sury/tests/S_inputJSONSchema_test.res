@@ -30,7 +30,7 @@ test("JSONSchema of S.json transformed to object with bigint and array of option
   // Was `{}` while an array of optional items had no JSON form at all. Now that
   // None decodes to null the whole shape is describable: bigint by its string
   // form, unknown by the empty schema, the items as number-or-null.
-  // FIXME: the item's `maximum: 1` is dropped — a variant converted through
+  // FIXME: the item's `maximum: 1` is dropped - a variant converted through
   // `.to(json)` reports the target's type without the source's refinements.
   // See specs/codec-json-array-optional-bounded.yaml.
   t->Assert.deepEqual(
@@ -138,7 +138,7 @@ test("JSONSchema of uuidv7 schema", t => {
 })
 
 // `cidrv6` reuses the case-insensitive `ipv6` grammar, and a JSON Schema
-// pattern carries no flags — so it is the one format with neither spelling.
+// pattern carries no flags - so it is the one format with neither spelling.
 test("JSONSchema of cidrv6 schema", t => {
   t->Assert.deepEqual(S.cidrv6->S.inputJSONSchema, %raw(`{"type": "string"}`))
 })
@@ -275,7 +275,7 @@ test("JSONSchema of NaN", t => {
   )
 })
 
-// A schema with no JSON Schema equivalent fails the conversion itself — nothing
+// A schema with no JSON Schema equivalent fails the conversion itself - nothing
 // was parsed, so there is no input to report and no schema a value failed
 // against. That is `InvalidOperation`, where the same message from `S.json`
 // rejecting a *value* stays `InvalidInput`.
@@ -292,7 +292,7 @@ test("JSONSchema of a non-JSON schema is an InvalidOperation, not an InvalidInpu
     Some((S.Path.fromArray(["a"]), `Expected JSON, received bigint`)),
   )
 
-  // The same sentence from `S.json` rejecting a value keeps `InvalidInput` —
+  // The same sentence from `S.json` rejecting a value keeps `InvalidInput` -
   // there a value really did fail a schema.
   t->Assert.deepEqual(
     switch %raw(`1n`)->S.parseOrThrow(~to=S.json) {
@@ -372,7 +372,7 @@ test("JSONSchema of union", t => {
 
 test("JSONSchema of union narrowed by .to: union([string, bigint])->to(string)", t => {
   // string matches the target and bigint doesn't, so the conversion itself is
-  // rejected — S.inputJSONSchema falls back to describing the union's own input.
+  // rejected - S.inputJSONSchema falls back to describing the union's own input.
   let schema = S.union([S.string->S.castToUnknown, S.bigint->S.castToUnknown])->S.to(S.string)
   t->U.assertThrowsMessage(
     () => schema->S.inputJSONSchema->ignore,

@@ -1,4 +1,4 @@
-// `S.recursive` — a schema that refers to itself. The decoder compiles the
+// `S.recursive` - a schema that refers to itself. The decoder compiles the
 // body once and routes every self-reference back through it by `$ref`.
 
 import {
@@ -43,8 +43,8 @@ export const recursiveDecoder: Builder = (input) => {
   // The def's operations live in the same node cache getDecoder uses (see
   // OpNode in parse.ts), stored on `def`; getDecoder stores on its newest-seq
   // argument, so the two sides find each other's work whenever `def` is the
-  // newer of the pair — otherwise the pair just compiles twice. `v === 0`
-  // means this def is mid-compilation — a circular reference — and the NODE
+  // newer of the pair - otherwise the pair just compiles twice. `v === 0`
+  // means this def is mid-compilation - a circular reference - and the NODE
   // is what gets embedded: it exists before the function it will hold, so
   // generated code calls `.v` at runtime and every recompile lands there for
   // free.

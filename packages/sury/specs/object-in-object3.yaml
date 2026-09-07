@@ -27,7 +27,7 @@ operations:
         error: 'Failed at nested.b: Expected number, received "not a number"'
   decode:
     # FIXME: two property reads whose results are discarded, then the input is
-    # returned unchanged — nothing here transforms, so it should be `identity`.
+    # returned unchanged - nothing here transforms, so it should be `identity`.
     expression: i=>{let v0=i["nested"];let v1=v0["inner"];return i}
     examples:
       valid:

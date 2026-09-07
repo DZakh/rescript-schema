@@ -78,7 +78,7 @@ test("Compiled async parse code snapshot", t => {
 test("Compiled serialize code snapshot", t => {
   let schema = S.bool->S.option->S.Option.getOrWith(() => false)
 
-  // The reversed union validates the value like any other typed decode — the
+  // The reversed union validates the value like any other typed decode - the
   // old noop relied on Option_getWithDefault's noopDecoder hack.
   t->U.assertCompiledCode(~schema, ~op=#Encode, `i=>{typeof i==="boolean"||e[0](i);return i}`)
 })

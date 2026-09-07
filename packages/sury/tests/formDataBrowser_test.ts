@@ -6,7 +6,7 @@ import * as S from "sury";
 // SUBMISSION is the entry list headless Chromium 141 built from the form in
 // FORM_HTML below, read back as `[...new FormData(form).entries()]`. It is
 // frozen here because the assertions are about `S.formData`, not about the
-// browser — but every row is reproducible: load FORM_HTML in any engine and
+// browser - but every row is reproducible: load FORM_HTML in any engine and
 // read the entries. Each one is also a step of the HTML Standard's
 // "constructing the entry list" algorithm (§4.10.22.4), noted per row.
 const FORM_HTML = `<form id="f">
@@ -64,7 +64,7 @@ const SUBMISSION: Captured[] = [
   ["tags", "a"],
   ["tags", "b"],
   ["single", "x"],
-  // A file input with nothing chosen still submits — an empty, unnamed file.
+  // A file input with nothing chosen still submits - an empty, unnamed file.
   ["avatar", { file: true, name: "", type: "application/octet-stream" }],
   // The browser fills `_charset_` itself; the schema never declared it.
   ["_charset_", "UTF-8"],
@@ -120,7 +120,7 @@ test("a browser submission decodes field by field", () => {
     name: "Ann",
     // `S.minLength(0)` is how the schema says the empty entry is a value.
     blank: "",
-    // Never trimmed — `S.trim` is the opt-in.
+    // Never trimmed - `S.trim` is the opt-in.
     padded: "  spaced  ",
     bio: "line1\nline2",
     age: 42,
@@ -183,7 +183,7 @@ test("a file input with nothing chosen reads as absent, not as an empty file", (
 
 test("a checkbox with a value attribute is not a boolean", () => {
   // "yes" is a legal checkbox value, and the boolean read does not guess at it
-  // — the schema says what the value is.
+  // - the schema says what the value is.
   expect(() =>
     S.decoder(S.formData.with(S.to, S.schema({ valued: S.boolean })))(submitted()),
   ).toThrow('Failed at valued: Expected boolean, received "yes"');

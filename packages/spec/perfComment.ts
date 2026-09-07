@@ -1,9 +1,9 @@
-// Renders the `spec check --perf=only` report as markdown — the PR comment on
+// Renders the `spec check --perf=only` report as markdown - the PR comment on
 // the `performance` job, the run summary on `performance-drift`.
 //
 // It is a summary; the run's full output is uploaded as an artifact and linked,
 // so a truncated table never hides a result. Parsing the report text (rather
-// than adding a --json mode to the CLI) keeps the CLI at one output format —
+// than adding a --json mode to the CLI) keeps the CLI at one output format -
 // the artifact and this comment are then guaranteed to agree, because one is
 // derived from the other.
 import { readFileSync, writeFileSync } from "node:fs";
@@ -19,7 +19,7 @@ const HEADER = /^performance vs (\S+) \((.+?)\) · (.+)$/;
 
 // `commit` names the head the numbers were taken from. A run posts a NEW
 // comment rather than editing one in place, so a PR accumulates one per push
-// and the reader needs each to say which head it measured — the header's other
+// and the reader needs each to say which head it measured - the header's other
 // sha is the baseline, which doesn't move.
 export const renderComment = (
   report: string,
@@ -34,7 +34,7 @@ export const renderComment = (
     return m ? [{ name: m[1]!, pct: m[2]!, dir: m[3]! }] : [];
   });
   // Matched against the raw line, not `l.trim()`: these patterns are anchored on
-  // the report's two-space indent, and trimming first made them unmatchable —
+  // the report's two-space indent, and trimming first made them unmatchable -
   // `new:` and `could not measure` had silently never reached a comment.
   const footer = lines.filter((l) =>
     /^ {2}(new|could not measure|behavior changed|node )/.test(l) || /advisory only$/.test(l),
@@ -44,7 +44,7 @@ export const renderComment = (
   out.push(
     header
       ? `${commit ? `\`${commit.slice(0, 7)}\` vs ` : ""}\`${header[1]}\` (${header[2]}) · ${header[3]}`
-      : "_report could not be parsed — see the full report below._",
+      : "_report could not be parsed - see the full report below._",
     "",
   );
 

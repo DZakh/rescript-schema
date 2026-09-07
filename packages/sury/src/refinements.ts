@@ -1,4 +1,4 @@
-// Refinements — checks layered onto an existing schema — and the string
+// Refinements - checks layered onto an existing schema - and the string
 // formats, which are the same idea with a canned predicate.
 
 import {
@@ -62,7 +62,7 @@ import {
 
 // Re-exports, not `const object = schemaObject` aliases: an alias makes the
 // public name a variable that merely holds the function, and a bundler honors
-// `@__NO_SIDE_EFFECTS__` only on the declaration that IS the function — so an
+// `@__NO_SIDE_EFFECTS__` only on the declaration that IS the function - so an
 // alias silently drops the annotation, and every `S.object(…)` a consumer
 // never uses stays in their bundle.
 export { schemaObject as object, schemaShape as shape, schemaTuple as tuple } from "./factory";
@@ -87,7 +87,7 @@ export const null_ = (item: Internal): Internal =>
 // checked.
 //
 // One shape for every way a bound can be called wrong: which call, what it
-// wanted, what it got. What it wanted differs by which half is wrong — a bad
+// wanted, what it got. What it wanted differs by which half is wrong - a bad
 // bound value is measured against the schema it is being applied to, a bad
 // schema against the set of schemas the bound accepts, which the word
 // "schema" marks so the two can't be misread for each other.
@@ -98,7 +98,7 @@ const expects = (fnName: string, expected: string, got: string): string =>
 // embedded as `e[n]`, so these asserts are the only thing standing between a
 // caller-supplied value and arbitrary code in a compiled operation. Nothing
 // reaches a template without passing one first. `String()` of a number is
-// always a valid numeric literal — Infinity, -0 and 1e+21 included — and of a
+// always a valid numeric literal - Infinity, -0 and 1e+21 included - and of a
 // bigint always digits, so no escaping is needed once the type holds.
 //
 // A misused schema panics where a bad value raises a SuryError: fromJSONSchema
@@ -121,7 +121,7 @@ const assertNumericBound = (fnName: string, root: Internal, value: unknown): Int
 };
 
 // A length is a count, so a negative, fractional or infinite one describes a
-// schema nothing can satisfy — caught here rather than compiling to a check
+// schema nothing can satisfy - caught here rather than compiling to a check
 // like `i.length>Infinity` that silently rejects everything.
 const assertLengthBound = (fnName: string, root: Internal, value: unknown): Internal => {
   const schema = getOutputSchema(root);
@@ -159,14 +159,14 @@ const assertSizeBound = (fnName: string, root: Internal, value: unknown): Intern
 };
 
 // A bigint prints as bare digits, so the suffix goes back on to keep it a
-// bigint literal — without it the generated comparison silently becomes a mixed
+// bigint literal - without it the generated comparison silently becomes a mixed
 // bigint/number one, and a rendered bound reads as the number it isn't while
 // `received` next to it prints `4n`.
 const lit = (value: number | bigint): string => (typeof value === bigintTag ? `${value}n` : `${value}`);
 
 // A string bounds minLength/maxLength, an array minItems/maxItems, and an
 // instance that measures itself minSize/maxSize. Same generated check every
-// way — only the member it reads differs — so the tag picks the keyword rather
+// way - only the member it reads differs - so the tag picks the keyword rather
 // than there being one function per pair. This is the single place a new
 // sized container has to be taught: the refiner, the rendering and both guards
 // read it.
@@ -180,7 +180,7 @@ const sizeKey = (
       ? upper ? "maxSize" : "minSize"
       : upper ? "maxLength" : "minLength";
 
-// What a sized schema measures itself by. `U` for one that doesn't — a number
+// What a sized schema measures itself by. `U` for one that doesn't - a number
 // bounds its own value.
 const sizeMember = (schema: Internal): string | undefined => {
   const tag = schema.type;
@@ -192,7 +192,7 @@ const sizeMember = (schema: Internal): string | undefined => {
 };
 
 // Bounds wrap the expression they constrain, in ArkType's double-bounded
-// spelling — `0 < number < 10` rather than a clause per side. A string or
+// spelling - `0 < number < 10` rather than a clause per side. A string or
 // array bounds its `.length`, which is named so the comparison can't be read
 // against the value: `string.length >= 3` against a received `"hi"`.
 //
@@ -219,7 +219,7 @@ const withBounds = (schema: Internal, base: string): string => {
   const mo = schema.multipleOf;
   const subject0 = sized ? `${base}${member}` : base;
   if (low === U && high === U) {
-    // Only reachable with a bare divisor — nothing wraps it, so no parens.
+    // Only reachable with a bare divisor - nothing wraps it, so no parens.
     return `${subject0} % ${lit(mo!)}`;
   }
   const subject = mo !== U ? `(${subject0} % ${lit(mo)})` : subject0;
@@ -235,7 +235,7 @@ const withBounds = (schema: Internal, base: string): string => {
 };
 
 // Only the first bound or divisor on a schema captures the rendering it
-// wraps — a later one inherits this override through the copy and must reuse
+// wraps - a later one inherits this override through the copy and must reuse
 // the same base, or the wrapping nests into `1 <= (1 <= number <= 9) <= 9`.
 // `skipOverride` is what stops the base rendering from re-entering this.
 const setBoundExpression = (mut: Internal, schema: Internal): void => {
@@ -247,14 +247,14 @@ const setBoundExpression = (mut: Internal, schema: Internal): void => {
 };
 
 // Whether the stored double is certainly the divisor the caller wrote. Every
-// integer is; `0.0001` is not — it stores as 0.000100000000000000004792…, so
+// integer is; `0.0001` is not - it stores as 0.000100000000000000004792…, so
 // `x % 0.0001 === 0` asks whether x is a multiple of *that* and answers no
 // for 0.0075. This is the whole reason the two checks below differ: `%` is
 // exact in IEEE-754, which makes it the right answer to the wrong question
 // whenever the divisor itself is inexact.
 //
 // A binary fraction (0.5, 1.5) is exact too and would be safe with `%`, but
-// it takes the tolerant path here — same verdicts either way, and one
+// it takes the tolerant path here - same verdicts either way, and one
 // predicate beats a second one that has to be right about representability.
 //
 // It also gates the build-time emptiness check: reasoning about which
@@ -269,7 +269,7 @@ const exactDivisor = (d: number | bigint): boolean =>
 // the size of the divisor. The tolerance is relative because the error in
 // `ratio` grows with its magnitude. Overflow answers itself: 1e308 / 1e-308
 // is Infinity, so the difference is NaN and every comparison against it is
-// false — the rejection the JSON Schema suite asks for.
+// false - the rejection the JSON Schema suite asks for.
 const multipleOfValidator = (d: number) => (value: number): boolean => {
   const ratio = value / d;
   return Math.abs(ratio - Math.round(ratio)) < Number.EPSILON * Math.max(Math.abs(ratio), 1);
@@ -281,7 +281,7 @@ const surrogateRe = /[\uD800-\uDFFF]/;
 // non-JS consumer of a length bound, so the generated check has to as well or
 // the schema and the JSON Schema it emits disagree on astral input.
 // `.length` counts UTF-16 units; the two only differ once a surrogate is
-// present, and the regex scan is what keeps BMP input — nearly all of it — a
+// present, and the regex scan is what keeps BMP input - nearly all of it - a
 // single native pass with no allocation. A lone surrogate counts as one, the
 // way `[...s].length` counts it.
 const B_codePointLength = (s: string): number => {
@@ -301,12 +301,12 @@ const B_codePointLength = (s: string): number => {
 // at codegen time instead of closing over the value each call captured. That
 // is what lets a narrowing call *replace* a check rather than stack a second
 // one after it: `gte(5).gte(10)` compiles to the single `>=10`, and `length(3)`
-// after `maxLength(5)` retracts the `<6` — refinements intersect, ArkType
+// after `maxLength(5)` retracts the `<6` - refinements intersect, ArkType
 // style, rather than append. Reading `input.e` is sound because a refiner is
 // only ever invoked through the schema that owns it (`val.e.refiner(val)`,
 // and the reversed copy carries the same fields), and a bound can never land
 // on a union (assertNumericBound rejects the anyOf tag), so the one context
-// that re-attaches refiners to other schemas — the union compiler — can't
+// that re-attaches refiners to other schemas - the union compiler - can't
 // receive this one.
 const boundsRefiner = (input: Val): Check[] => {
   const s = input.e;
@@ -323,8 +323,8 @@ const boundsRefiner = (input: Val): Check[] => {
     // only where a unit count could answer differently: a BMP-only format
     // (`formatFlag` bit 2) can't, nor can a bound of 0 or 1, since a string
     // has a code point exactly when it has a unit. The unit count stays in
-    // front as the fast path where it already decides — under an upper bound,
-    // or at twice a lower one, since a code point is at most two units — so
+    // front as the fast path where it already decides - under an upper bound,
+    // or at twice a lower one, since a code point is at most two units - so
     // only a value near the bound pays for the count.
     let counter: string | undefined;
     const counted = s.type === stringTag && !((s.formatFlag ?? 0) & 2);
@@ -333,7 +333,7 @@ const boundsRefiner = (input: Val): Check[] => {
         ? `${(counter ??= B_embedPure(input, B_codePointLength))}(${inputVar})`
         : `${inputVar}${member}`;
     // Collapsing to `===` folds both directions into one check with one
-    // message — sound only when both directions would say the same thing.
+    // message - sound only when both directions would say the same thing.
     // Independent minLength(5)/maxLength(5, "custom") calls converge without
     // either superseding the other, and a too-short value must not report
     // "custom": those keep a check per direction, each with its own key.
@@ -389,7 +389,7 @@ const boundsRefiner = (input: Val): Check[] => {
         cond = (inputVar) => `!(${inputVar}%${lit(mo)})`;
       } else if (exactDivisor(mo)) {
         // `===0` and not `!(…)`: `Infinity % 2` and `NaN % 2` are NaN, which
-        // is falsy — truthiness would accept exactly the two values this is
+        // is falsy - truthiness would accept exactly the two values this is
         // the only check standing against.
         cond = (inputVar) => `${inputVar}%${lit(mo)}===0`;
       } else {
@@ -405,17 +405,17 @@ const boundsRefiner = (input: Val): Check[] => {
 // The refiner is installed once, by whichever bound or divisor lands first;
 // every later one only mutates the fields it reads.
 //
-// A divisor and a range can exclude each other while neither is empty alone —
-// no multiple of 10 lies in `0 < number < 5` — and unlike a pair of bounds,
+// A divisor and a range can exclude each other while neither is empty alone -
+// no multiple of 10 lies in `0 < number < 5` - and unlike a pair of bounds,
 // that emptiness is NOT reported at construction. Detecting it means
 // multiples-in-range arithmetic that was tried and backed out: partial (an
 // inexact divisor can't be reasoned about, so fractional divisors got no
-// protection), subtle (two bugs in two rounds — format ranges carry no bits,
+// protection), subtle (two bugs in two rounds - format ranges carry no bits,
 // and the arithmetic false-panicked on inexact divisors), and ~150 gz carried
 // by every bound consumer for a caller bug two comparisons don't catch. The
 // schema still rejects everything with an accurate message, and a JSON
 // Schema document describing the same empty range loads and round-trips
-// verbatim — which `never` wouldn't.
+// verbatim - which `never` wouldn't.
 const updateBounds = (schema: Internal, update: (mut: Internal) => void): Internal =>
   schema.bounds !== U || schema.multipleOf !== U
     ? updateOutput(schema, update)
@@ -425,7 +425,7 @@ const updateBounds = (schema: Internal, update: (mut: Internal) => void): Intern
       });
 
 // A message on a call that doesn't narrow used to vanish silently; it now
-// carries onto the check that survived — the one that actually fires for the
+// carries onto the check that survived - the one that actually fires for the
 // violations the caller described. `key` is U when nothing survives to carry
 // it (a format's own range is enforced by the decoder, not a keyed check).
 const carryMessage = (
@@ -442,7 +442,7 @@ const carryMessage = (
 // A message tracks the bound value it was written with: a narrowing
 // replacement without its own message clears the stale text, or the surviving
 // check would report a bound the caller never described. `replaced` is the
-// opposite form's key — `S.gte` clears `exclusiveMinimum` and vice versa —
+// opposite form's key - `S.gte` clears `exclusiveMinimum` and vice versa -
 // since the field it cleared can no longer produce the check that message
 // belongs to, leaving it behind as a key nothing reads.
 const setBoundMessage = (
@@ -465,13 +465,13 @@ const setBoundMessage = (
 
 // Every comparison below casts the bound to `number`: JS compares a number
 // against a bigint without complaint where TS refuses, and assertNumericBound
-// has already established that the bound matches the schema's numeric type —
+// has already established that the bound matches the schema's numeric type -
 // so the cast is safe and stays at the comparison rather than widening four
 // signatures to `any`.
 //
 // A bound only sticks if it actually narrows what the schema already accepts.
 // The looser one is dropped rather than kept alongside, so a schema can never
-// advertise a bound weaker than the checks it runs — and at most one of
+// advertise a bound weaker than the checks it runs - and at most one of
 // minimum/exclusiveMinimum survives per side, which the JSON Schema emit
 // relies on when deciding whether a format's own range still says anything.
 const narrowsLower = (schema: Internal, value: number | bigint, exclusive: boolean): boolean => {
@@ -498,7 +498,7 @@ const narrowsUpper = (schema: Internal, value: number | bigint, exclusive: boole
 // so it never narrows: every length and every size is already >= 0, and the
 // `i.length>-1` it would otherwise emit is a check no value can fail. Dropping
 // it also keeps the advertised JSON Schema honest, since `minLength: 0` is the
-// keyword's own default. `S.length(0)` is unaffected — it pins both sides and
+// keyword's own default. `S.length(0)` is unaffected - it pins both sides and
 // takes neither path.
 const narrowsSize = (current: number | undefined, value: number, upper: boolean): boolean =>
   upper ? current === U || value < current : value > (current ?? 0);
@@ -507,11 +507,11 @@ const narrowsSize = (current: number | undefined, value: number, upper: boolean)
 // rejects every possible value, which only shows up in production. Reported
 // where it's written instead, as the two expressions that can't both hold.
 // `>5` and `<=5` have no overlap either, so the boundary cases are
-// contradictions too — hence the comparison flipping on whether the incoming
+// contradictions too - hence the comparison flipping on whether the incoming
 // bound is exclusive.
 //
 // Both sides render through inputExpression, so they read in the same syntax the
-// schema does — `string.length == 2 contradicts string.length >= 3`, not a
+// schema does - `string.length == 2 contradicts string.length >= 3`, not a
 // pair of constructor names the caller may not have written.
 const conflict = (incoming: Internal, existing: Internal): void => {
   panic(`${inputExpression(incoming)} contradicts ${inputExpression(existing)}`);
@@ -519,7 +519,7 @@ const conflict = (incoming: Internal, existing: Internal): void => {
 
 // One bound of `schema`, rendered alone: a copy so inputExpression still sees the
 // type and items, with `bounds` set to just this bit so every other bound
-// stays invisible. Only ever called from a failing branch — building a message
+// stays invisible. Only ever called from a failing branch - building a message
 // must not cost an allocation on every bound that turns out to be fine.
 const asBound = (schema: Internal, key: string, bit: number, value: unknown): Internal => {
   const mut = { ...schema, bounds: bit } as unknown as Record<string, unknown>;
@@ -677,7 +677,7 @@ export const multipleOf = (root: Internal, value: number | bigint, maybeMessage?
     }
     divisor = (bound / a) * existing;
     // An LCM past 2^53 rounds, and an inexact divisor validates the wrong
-    // set — refuse rather than silently drift.
+    // set - refuse rather than silently drift.
     if (typeof divisor === numberTag && !Number.isSafeInteger(divisor)) {
       refuse();
     }
@@ -695,7 +695,7 @@ export const minLength = (root: Internal, length: number, maybeMessage?: string)
   assertSize(schema, length, false);
   const key = sizeKey(schema, false);
   if (!narrowsSize(schema[key], length, false)) {
-    // A zero lower bound checks nothing — every length is already >= 0 — but on
+    // A zero lower bound checks nothing - every length is already >= 0 - but on
     // a string it is how a schema states that the empty string is a value it
     // admits, which the text wires read (`decidesBlank` in
     // advanced/formData.ts). Recorded WITHOUT the `bounds` bit, so no check,
@@ -833,7 +833,7 @@ export const trim = (schema: Internal): Internal => {
   const transformer = B_conversion((value: unknown) => (value as string).trim());
   // Trimming does not change what the text *is*: a trimmed base64 payload is
   // still that payload. The marker has to be carried onto the link's target,
-  // because the next link reads the chain tail — left bare, it would see a
+  // because the next link reads the chain tail - left bare, it would see a
   // plain string and pack the base64 text itself as bytes.
   const content = getOutputSchema(schema).content;
   const root = codecTo(schema, string, transformer, transformer);
@@ -854,7 +854,7 @@ export const nullableAsOption = (schema: Internal): Internal => {
 }
 
 // Anchoring is a call rather than a bare `"^" + p + "$"` because esbuild keeps
-// any `+` it finds in the arguments of a call it would otherwise drop — `+` can
+// any `+` it finds in the arguments of a call it would otherwise drop - `+` can
 // reach valueOf, and it does not constant-fold across module bindings to rule
 // that out. Behind a `@__NO_SIDE_EFFECTS__` function the same concatenation
 // shakes out with the format that asked for it.
@@ -874,7 +874,7 @@ const datePattern =
 //
 // A pattern that has to be assembled arrives as source and is compiled here
 // rather than by the caller. esbuild honors `@__PURE__` on `new RegExp` only
-// when the argument is one literal — give it `a + b` and it keeps the call,
+// when the argument is one literal - give it `a + b` and it keeps the call,
 // whether that call sits in a top-level initializer or in an argument list.
 // Compiling inside this callback puts it under the one `@__PURE__` that does
 // hold, on `stringFormat(…)` itself, which is what keeps a format the consumer
@@ -882,7 +882,7 @@ const datePattern =
 // patterns that care about case spell both out.
 // `flag` is `formatFlag` (see base.ts): bit 1 lets jsonString skip escaping
 // for what a pattern accepts, so widening one can emit broken JSON rather than
-// merely admit more strings — run `pnpm --filter=sury fuzz:escfree` after
+// merely admit more strings - run `pnpm --filter=sury fuzz:escfree` after
 // touching either; bit 2 lets a length bound trust `.length`, so it belongs
 // only on a pattern that admits no astral character.
 // @__NO_SIDE_EFFECTS__
@@ -916,13 +916,13 @@ const stringFormat = (
   });
 
 // A format outside the JSON Schema vocabulary has no keyword a consumer could
-// enforce, so it publishes its own regex as `pattern` — that is what makes it
+// enforce, so it publishes its own regex as `pattern` - that is what makes it
 // survive inputJSONSchema/fromJSONSchema as behavior rather than as a name it
 // would lose. No second check is emitted: `pattern` is read as a field by
 // jsonschema.ts and nothing else, so the format's one test still does the work.
 //
 // The regex must mean the same thing with no flags, because `pattern` travels
-// as `.source` and an `i` would be dropped on the way out — leaving an emitted
+// as `.source` and an `i` would be dropped on the way out - leaving an emitted
 // schema that rejects strings this one accepts. Hence a source string compiles
 // flagless here, where `stringFormat` would apply `i`, and every RegExp passed
 // in spells both cases out. `cidrv6` is the one format that can't (it reuses
@@ -942,18 +942,18 @@ const patternFormat = (
 };
 
 // The RFC 3339 time-of-day with its zone, unanchored. Groups: hour, minute,
-// second, offset sign, offset hour, offset minute — what the leap-second check
+// second, offset sign, offset hour, offset minute - what the leap-second check
 // below reads, so a pattern built on this must add no capturing group of its
 // own.
 const timeBody =
   "([01]\\d|2[0-3]):([0-5]\\d):([0-5]\\d|60)(?:\\.\\d+)?(?:[Zz]|([+-])([01]\\d|2[0-3]):([0-5]\\d))";
 
 // RFC 3339 permits second 60 only on a leap-second boundary, which is 23:59:60
-// *in UTC* — so 01:29:60+01:30 is valid and 23:59:60+01:00 is not. The offset
+// *in UTC* - so 01:29:60+01:30 is valid and 23:59:60+01:00 is not. The offset
 // has to be applied before the check, which no regex can do.
 // Capturing groups slow `test` down by a third, so the hot path runs a
 // group-free copy of the pattern, and only a value whose seconds start with a
-// 6 — second 60 is the one such spelling — pays for the capturing `exec`.
+// 6 - second 60 is the one such spelling - pays for the capturing `exec`.
 // `secondsAt` is where the seconds sit in the anchored pattern.
 const leapSecondValidator = (re: RegExp, secondsAt: number) => {
   const fast = new RegExp(re.source.replace(/\((?!\?)/g, "(?:"));
@@ -999,7 +999,7 @@ export const utcDateTime: Internal = /* @__PURE__ */ patternFormat(
 
 // The range as real bound fields, for the reason int32 carries its own. The
 // check accepts 0, which the emitted `minimum: 0` has always advertised and
-// the old `>0` check contradicted — a schema and its description now agree.
+// the old `>0` check contradicted - a schema and its description now agree.
 export const port: Internal = /* @__PURE__ */ initSchema(numberTag, numberDecoder, (s) => {
   s.format = "port";
   s.minimum = 0;
@@ -1020,7 +1020,7 @@ export const email: Internal = /* @__PURE__ */ stringFormat(
   3,
 );
 
-// The loose RFC 4122 shape, which is what the JSON Schema `uuid` format names —
+// The loose RFC 4122 shape, which is what the JSON Schema `uuid` format names -
 // any hex in the version and variant nibbles. `S.uuidv4` / `S.uuidv6` /
 // `S.uuidv7` pin those.
 export const uuid: Internal = /* @__PURE__ */ stringFormat(
@@ -1030,10 +1030,10 @@ export const uuid: Internal = /* @__PURE__ */ stringFormat(
 );
 
 // Only the version and variant nibbles differ, so the three share a source
-// rather than three near-identical literals — which is also what lets them
+// rather than three near-identical literals - which is also what lets them
 // compile flagless for `patternFormat`. Each call needs its own `@__PURE__`:
 // esbuild keeps an argument it cannot prove pure, and keeping the argument
-// keeps the call it sits in — which is what makes an unused format ship.
+// keeps the call it sits in - which is what makes an unused format ship.
 const uuidPattern = (version: string): string =>
   "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-" +
   version +
@@ -1044,7 +1044,7 @@ export const uuidv6: Internal = /* @__PURE__ */ patternFormat("uuidv6", /* @__PU
 export const uuidv7: Internal = /* @__PURE__ */ patternFormat("uuidv7", /* @__PURE__ */ uuidPattern("7"), 3);
 
 // A cuid is `c` followed by base36, which the previous `[^\s-]` accepted far
-// more than: `c!!!!!!!!` passed. cuid2 drops the prefix and the fixed length —
+// more than: `c!!!!!!!!` passed. cuid2 drops the prefix and the fixed length -
 // it is any base36 string starting with a letter, so it is the weakest format
 // here and a length bound is usually worth composing onto it.
 export const cuid: Internal = /* @__PURE__ */ patternFormat("cuid", /^[cC][0-9a-z]{6,}$/, 3);
@@ -1107,7 +1107,7 @@ const atobToBytes = (text: string): Uint8Array => {
 //
 // No `try` around `atob`: every route here validates against the format's
 // pattern first, which is the whole reason the format carries one. `noValidation`
-// voids that the way it voids `formatFlag`'s proof — a caller who asserts a
+// voids that the way it voids `formatFlag`'s proof - a caller who asserts a
 // value is base64 and is wrong gets the platform's own exception.
 const stdCodec = /* @__PURE__ */ (() => {
   const n = Uint8Array as unknown as NativeBase64;
@@ -1165,7 +1165,7 @@ const urlCodec = /* @__PURE__ */ (() => {
 // `bc` lives on the format singleton. A trim (or other string) link copies
 // `content` but not `bc`, so recode has to see through that to the alphabet
 // the text still is. A bytes carrier also has `content.bc`, but its value is
-// bytes — only a string-tagged source is text we can recode.
+// bytes - only a string-tagged source is text we can recode.
 const codecOf = (s: Internal) =>
   s.bc ?? (s.type === stringTag ? s.content?.bc : U);
 
@@ -1178,7 +1178,7 @@ const recodeText =
     fromBytes(toBytes(text));
 
 // Text to UTF-8 bytes. Node's `TextEncoder.encode` allocates a fresh
-// ArrayBuffer per call — ~0.9µs fixed, on v22 and v24 alike — where
+// ArrayBuffer per call - ~0.9µs fixed, on v22 and v24 alike - where
 // `Buffer.from` serves small strings from its pool in ~80ns and is 5x faster
 // at 4KB. Bun has Buffer too but there the ratio is the reverse, so it keeps
 // the encoder. The view is what makes the pool pay off: copying into a fresh
@@ -1206,7 +1206,7 @@ const formatToUtf8 = (toBytes: (text: string) => Uint8Array) => {
 };
 
 // A length check plus one flat scan, rather than the canonical
-// `(?:[A-Za-z0-9+/]{4})*(?:…==|…=)?` — the four-at-a-time group backtracks per
+// `(?:[A-Za-z0-9+/]{4})*(?:…==|…=)?` - the four-at-a-time group backtracks per
 // quantum and costs about twice as much on a payload-sized string, which is
 // the only size that matters here. The two accept exactly the same strings.
 const stdTest = /^[A-Za-z0-9+/]*={0,2}$/;
@@ -1226,7 +1226,7 @@ const bytesContent = (
   return schema;
 };
 
-// `S.base64` / `S.base64url` — bytes stored as text. `content` points at the
+// `S.base64` / `S.base64url` - bytes stored as text. `content` points at the
 // schema itself: this IS how bytes sit in a document. The two alphabets share
 // a payload kind via `bc`, so a link to another bytes carrier is a
 // plain transfer and a link to a JSON document is not (CONTENT_CODEC_SPEC.md).
@@ -1321,7 +1321,7 @@ export const bytesTarget = (
 const ipv4Pattern =
   "(?:(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)";
 
-// RFC 3986 IPv6address, unanchored — every legal position of the `::` run,
+// RFC 3986 IPv6address, unanchored - every legal position of the `::` run,
 // with the trailing group optionally spelled as an embedded IPv4 address.
 // `ipv6` and `uriPattern`'s IP-literal both build on it: two hand-written
 // copies disagreed on leading-zero octets, and nothing correlated them.
@@ -1332,8 +1332,8 @@ const ipv4Pattern =
 const ipv6Pattern = (): string =>
   "(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|" + ipv4Pattern + ")|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)";
 
-// RFC 3986 Appendix A. `uri` and `uri-reference` differ in exactly one place —
-// whether the scheme is required — so one source builds both, and the two `iri*`
+// RFC 3986 Appendix A. `uri` and `uri-reference` differ in exactly one place -
+// whether the scheme is required - so one source builds both, and the two `iri*`
 // schemas reuse it: RFC 3987 §3.1 defines an IRI as the URI you get by
 // percent-encoding every non-ASCII character, which is all `uriEscapeNonAscii`
 // does before the test. The hier-part is optional on both sides because
@@ -1346,7 +1346,7 @@ const uriPattern = (schemeOptional: string, scheme?: string): string =>
 // one half at a time and `encodeURIComponent` throws URIError on the lone half,
 // so every emoji or other non-BMP character would crash instead of validating.
 // A genuinely unpaired surrogate still throws and is reported as "not an IRI",
-// because that is what it is — it cannot appear in one.
+// because that is what it is - it cannot appear in one.
 const uriEscapeNonAscii = (value: string): string | undefined => {
   try {
     return value.replace(/[^\x00-\x7F]/gu, encodeURIComponent);
@@ -1371,7 +1371,7 @@ export const isoTime: Internal = /* @__PURE__ */ stringFormat(
 );
 
 // RFC 3339 Appendix A nests the components rather than making each one
-// independently optional, so P1Y2D and PT1H2S are invalid — a unit may only
+// independently optional, so P1Y2D and PT1H2S are invalid - a unit may only
 // be followed by the next smaller one. Fractional seconds are not in the ABNF.
 export const duration: Internal = /* @__PURE__ */ stringFormat(
   "duration",
@@ -1381,7 +1381,7 @@ export const duration: Internal = /* @__PURE__ */ stringFormat(
 
 // RFC 1123: 253 chars overall, labels of 1-63 alphanumerics-or-hyphen that
 // may not start or end with a hyphen. An `xn--` label is accepted on shape
-// alone — rejecting one whose Punycode decodes to a character IDNA2008
+// alone - rejecting one whose Punycode decodes to a character IDNA2008
 // disallows would mean shipping the Unicode derived-property tables.
 export const hostname: Internal = /* @__PURE__ */ stringFormat(
   "hostname",
@@ -1391,7 +1391,7 @@ export const hostname: Internal = /* @__PURE__ */ stringFormat(
 
 // Same label shape as `hostname` over the four Unicode label separators, with
 // the character repertoire left open. The IDNA2008 property, bidi and
-// contextual rules are not applied — see the note on `hostname`.
+// contextual rules are not applied - see the note on `hostname`.
 export const idnHostname: Internal = /* @__PURE__ */ stringFormat(
   "idn-hostname",
   /^(?=.{1,253}$)[^\s.\-。．｡](?:[^\s.。．｡]{0,61}[^\s.\-。．｡])?(?:[.。．｡][^\s.\-。．｡](?:[^\s.。．｡]{0,61}[^\s.\-。．｡])?)*$/u,
@@ -1412,7 +1412,7 @@ export const ipv6: Internal = /* @__PURE__ */ stringFormat(
 // The string form of a URI. `S.url` (advanced/url.ts) parses the same syntax
 // into a `URL` instance, but not the same language: RFC 3986 is stricter than
 // the WHATWG URL parser behind `new URL`, which silently percent-encodes
-// characters this rejects — so a value can be a legal URL and not a legal URI.
+// characters this rejects - so a value can be a legal URL and not a legal URI.
 export const uri: Internal = /* @__PURE__ */ stringFormat("uri", /* @__PURE__ */ uriPattern(""), 3);
 
 export const uriReference: Internal = /* @__PURE__ */ stringFormat(
@@ -1459,7 +1459,7 @@ export const iriReference: Internal = /* @__PURE__ */ stringFormat(
 );
 
 // RFC 6531 puts almost no constraint on either side beyond the length limits,
-// and the local part may be quoted — so this checks shape, not repertoire.
+// and the local part may be quoted - so this checks shape, not repertoire.
 export const idnEmail: Internal = /* @__PURE__ */ stringFormat(
   "idn-email",
   /^[^\s@]{1,64}@[^\s@]{1,255}$/u,
@@ -1480,7 +1480,7 @@ export const relativeJsonPointer: Internal = /* @__PURE__ */ stringFormat(
 // constraint over `uri`, which is the format jsonschema.ts emits in place of
 // this name: the two keywords together are exactly this schema, where the
 // format alone would widen back to any scheme on the way in. Spelled out per
-// character because a published pattern loses its flags — see `patternFormat`.
+// character because a published pattern loses its flags - see `patternFormat`.
 //
 // Not the same language as Zod's `httpUrl` or as `S.url`, both of which run the
 // WHATWG parser: this is RFC 3986, the stricter grammar `S.uri` accepts.
@@ -1503,7 +1503,7 @@ export const ksuid: Internal = /* @__PURE__ */ patternFormat("ksuid", /^[A-Za-z0
 export const xid: Internal = /* @__PURE__ */ patternFormat("xid", /^[0-9a-vA-V]{20}$/, 3);
 
 // Length is a generator setting, not part of the alphabet, so this checks the
-// alphabet and leaves the count to `S.length` — `S.nanoid.with(S.length, 21)`
+// alphabet and leaves the count to `S.length` - `S.nanoid.with(S.length, 21)`
 // for the default generator. Both halves ride into the emitted JSON Schema.
 export const nanoid: Internal = /* @__PURE__ */ patternFormat("nanoid", /^[A-Za-z0-9_-]+$/, 3);
 
@@ -1529,7 +1529,7 @@ export const cidrv4: Internal = /* @__PURE__ */ patternFormat(
 );
 
 // The lone format with no published `pattern`: `ipv6Pattern` writes hex as
-// `[0-9a-f]` and leans on the `i` flag, which a published pattern would drop —
+// `[0-9a-f]` and leans on the `i` flag, which a published pattern would drop -
 // emitting a schema that rejects `FE80::/10`. Spelling the class out both ways
 // would grow the pattern for every `S.ipv6` and `S.uri` user to serve this one
 // export, so it emits a bare string instead (see `jsonSchemaFormat`).

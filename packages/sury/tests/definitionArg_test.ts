@@ -3,7 +3,7 @@ import * as S from "sury";
 
 // Converting a definition consumes it: each field is replaced in place with
 // the schema it describes, and the object itself becomes the schema's
-// `properties`. Building twice from one definition still has to work — the
+// `properties`. Building twice from one definition still has to work - the
 // second pass sees schemas where the first saw raw values.
 test("one definition builds two working schemas", () => {
   const definition = { tag: "a", n: S.number };

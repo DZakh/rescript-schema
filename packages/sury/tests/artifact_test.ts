@@ -1,6 +1,6 @@
 // Guards the shape of the published package. `pnpm build` assembles ./artifacts
 // and publishing happens from there, so the directory listing below is the
-// deliverable — anything that appears in it without appearing here is something
+// deliverable - anything that appears in it without appearing here is something
 // a consumer would download by accident.
 
 import { execFileSync } from "node:child_process";
@@ -79,11 +79,11 @@ const prose = (markdown: string): string => {
 const RELATIVE_LINK = /]\((?!\w+:)([^)#\s]+)[^)]*\)/g;
 
 // `pnpm test` packs first, so artifacts/ is there for the normal run. The skip
-// covers a bare `vitest run` — but in CI a missing artifacts/ means the build
+// covers a bare `vitest run` - but in CI a missing artifacts/ means the build
 // step was dropped or reordered, and a silent skip there would retire this
 // whole guard without anyone noticing.
 if (process.env.CI && !existsSync(artifactsPath)) {
-  throw new Error("artifacts/ is missing in CI — run `pnpm build` before the tests");
+  throw new Error("artifacts/ is missing in CI - run `pnpm build` before the tests");
 }
 const describeArtifact = existsSync(artifactsPath) ? describe : describe.skip;
 
@@ -102,7 +102,7 @@ const DECLARATION =
   /^export\s+(?:declare\s+)?(?:abstract\s+)?(?:type|interface|class|const|let|var|function|namespace|enum)\s+([A-Za-z_$][\w$]*)/gm;
 const REEXPORT = /^export\s+\*\s+from\s+["'](\.[^"']+)["']/gm;
 
-// Every type name the entry publishes, following `export * from` — a name is no
+// Every type name the entry publishes, following `export * from` - a name is no
 // less public for being declared in a module the entry only re-exports, and
 // scanning index.d.ts alone would quietly stop checking every type that moves
 // out of it. Paths are the TS convention of importing a `.js` that resolves to
@@ -144,7 +144,7 @@ describeArtifact("artifact", () => {
 
   // A bare `Blob`/`File` in index.d.ts once made the whole package fail to
   // typecheck for a consumer whose tsconfig has neither lib.dom nor
-  // @types/node — including consumers who never touch those schemas. The
+  // @types/node - including consumers who never touch those schemas. The
   // failure is a property of the consumer's compiler options, so no spec can
   // express it; this compiles a minimal consumer with the globals withheld.
   test("declarations compile without lib.dom or @types/node", () => {
@@ -193,7 +193,7 @@ describeArtifact("artifact", () => {
     for (const file of PUBLISHED_FILES.filter((f) => f.endsWith(".md"))) {
       for (const [, target] of prose(read(file)).matchAll(RELATIVE_LINK)) {
         const resolved = path.resolve(path.dirname(path.join(artifactsPath, file)), target!);
-        // A directory "resolves" too, but no doc means to link one — npm and
+        // A directory "resolves" too, but no doc means to link one - npm and
         // GitHub render nothing useful for it.
         if (!existsSync(resolved) || !statSync(resolved).isFile()) {
           dangling.push(`${file} -> ${target}`);
@@ -216,7 +216,7 @@ describeArtifact("artifact", () => {
   });
 
   // Removed API lives on in prose long after the code is gone. The ReScript
-  // reference is checked by eye — its `S.` names are a different module.
+  // reference is checked by eye - its `S.` names are a different module.
   // Unlike the link checks this scans the raw markdown, code fences included:
   // the samples are exactly where stale API names live.
   test("the JS docs name only API that exists", () => {
@@ -249,7 +249,7 @@ describeArtifact("artifact", () => {
     expect(pkg.scripts).toBeUndefined();
     expect(pkg.devDependencies).toBeUndefined();
     // TypeScript only honors "types" when it comes first in its condition, and
-    // each entry format needs declarations of its own flavor — the package is
+    // each entry format needs declarations of its own flavor - the package is
     // commonjs, so index.d.ts typing the ESM entry would misreport its format.
     expect(pkg.exports["."]).toEqual({
       import: { types: "./index.d.mts", default: "./index.mjs" },
@@ -263,7 +263,7 @@ describeArtifact("artifact", () => {
 
   // artifacts/ is gitignored, so JSR's default is to publish nothing and the
   // exclude list is all `!` re-includes. package.json rides along (`!package.json`),
-  // so every file its fields point at has to ride along too — npm's file list
+  // so every file its fields point at has to ride along too - npm's file list
   // (pinned above) says nothing about JSR's.
   test("JSR includes every file package.json points at", () => {
     const included = readJson("jsr.json")

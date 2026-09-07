@@ -1,6 +1,6 @@
 open Vitest
 
-// Custom is gone — paths that used to produce Custom now produce
+// Custom is gone - paths that used to produce Custom now produce
 // InvalidInput with the user-provided reason and a populated
 // expected/received pair derived from the failing schema position.
 
@@ -51,7 +51,7 @@ test("errorMessage.minLength override produces InvalidInput with custom reason",
       error,
       ~reason="too short",
       // Both sides of a bound failure carry the same schema, so the bound
-      // renders on each — the user-facing message here is the custom reason.
+      // renders on each - the user-facing message here is the custom reason.
       ~expected="string.length >= 3",
       ~received="string.length >= 3",
     )

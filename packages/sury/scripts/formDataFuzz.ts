@@ -4,8 +4,8 @@
 //   pnpm --filter=sury fuzz:formdata --show-known
 //
 // The union fuzzer differs against a reference implementation. This one has
-// none — a form submission is whatever a browser sends, and nothing here can
-// re-derive that — so it checks the three properties the codec claims for
+// none - a form submission is whatever a browser sends, and nothing here can
+// re-derive that - so it checks the three properties the codec claims for
 // itself, over every wrapper crossed with every leaf:
 //
 //   symmetry     a field works in both directions or is rejected in both, with
@@ -18,11 +18,11 @@
 //   wire         every entry list a client could send is either rejected with
 //                a Sury error or read as a value the schema's own output type
 //                accepts. This is the half a round-trip can't reach: a repeated
-//                key, a file where text belongs, a blank entry — none of them
+//                key, a file where text belongs, a blank entry - none of them
 //                is something an encode would ever produce.
 //
 // Each has a list of the cases known not to hold, keyed by what the run prints,
-// with the reason written out — a blank entry and an absent one are the same
+// with the reason written out - a blank entry and an absent one are the same
 // submission, so some pairs genuinely cannot survive the wire. The run fails on
 // anything not listed, and on anything listed that has started to hold. A key
 // may name `*` for the wrapper or for the leaf.
@@ -168,7 +168,7 @@ const KNOWN: Record<string, string> = {
 // Where an encode writes into the value it was handed.
 const MUTATES: Record<string, string> = {
   "tuple/union-checkbox":
-    "a union dispatch assigns its result back into the slot it read, and a tuple slot is an index into the caller's array. Not this codec's doing — `S.schema([union]).with(S.to, S.schema([S.string]))` does it with no form in sight (see IDEAS)",
+    "a union dispatch assigns its result back into the slot it read, and a tuple slot is an index into the caller's array. Not this codec's doing - `S.schema([union]).with(S.to, S.schema([S.string]))` does it with no form in sight (see IDEAS)",
 };
 
 // The key that covers a case: its own, or one naming `*` for the wrapper or
@@ -187,7 +187,7 @@ const keyFor = (
 };
 
 // Blob identity is not object identity: `append` renames a bare Blob to "blob"
-// and reads it back as a File, so bytes — and a File's name — are what must
+// and reads it back as a File, so bytes - and a File's name - are what must
 // survive.
 const same = (a: unknown, b: unknown): boolean => {
   if (a instanceof Blob && b instanceof Blob) {
@@ -292,16 +292,16 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
       ["encode", encode],
     ] as const) {
       if (result.crash) {
-        findings.push(`${id}: ${direction} compile crashed — ${result.crash}`);
+        findings.push(`${id}: ${direction} compile crashed - ${result.crash}`);
       }
     }
     if (!decode.rejected !== !encode.rejected) {
       const shape = decode.rejected ? "encodes but does not decode" : "decodes but does not encode";
       if (!excused(ONE_WAY, wrapperName, leafName)) {
-        findings.push(`${id}: ${shape} — ${decode.rejected ?? encode.rejected}`);
+        findings.push(`${id}: ${shape} - ${decode.rejected ?? encode.rejected}`);
       }
     } else if (keyFor(ONE_WAY, wrapperName, leafName) !== undefined) {
-      findings.push(`${id}: listed in ONE_WAY but works in both directions — delete the entry`);
+      findings.push(`${id}: listed in ONE_WAY but works in both directions - delete the entry`);
     }
     if (decode.rejected || encode.rejected || decode.crash || encode.crash) {
       rejected += 1;
@@ -318,7 +318,7 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
       } catch (error) {
         if (!(error instanceof S.Error)) {
           findings.push(
-            `${id} <- ${wireText(entries)}: decode threw ${(error as Error).constructor.name} — ${(error as Error).message.split("\n")[0]}`,
+            `${id} <- ${wireText(entries)}: decode threw ${(error as Error).constructor.name} - ${(error as Error).message.split("\n")[0]}`,
           );
         }
         continue;
@@ -344,7 +344,7 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
         ).a;
       } catch (error) {
         if (!excused(KNOWN, wrapperName, leafName, printed)) {
-          findings.push(`${key}: round-trip threw — ${(error as Error).message.split("\n")[0]}`);
+          findings.push(`${key}: round-trip threw - ${(error as Error).message.split("\n")[0]}`);
         }
         continue;
       }
@@ -356,21 +356,21 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
       }
       if (same(before, back)) {
         if (keyFor(KNOWN, wrapperName, leafName, printed) !== undefined) {
-          findings.push(`${key}: listed in KNOWN but round-trips — delete the entry`);
+          findings.push(`${key}: listed in KNOWN but round-trips - delete the entry`);
         }
       } else if (!excused(KNOWN, wrapperName, leafName, printed)) {
         findings.push(`${key}: read back as ${show(back)}`);
       }
     }
     if (!mutated && keyFor(MUTATES, wrapperName, leafName) !== undefined) {
-      findings.push(`${id}: listed in MUTATES but leaves its input alone — delete the entry`);
+      findings.push(`${id}: listed in MUTATES but leaves its input alone - delete the entry`);
     }
   }
 }
 
 // Every field that works, in one schema. A field on its own can't show a name
 // the compiler hands out twice, a declaration hoisted after the code that reads
-// it, or a read that answers another field's entry — all of which have happened
+// it, or a read that answers another field's entry - all of which have happened
 // here, and none of which the cross above can see.
 const together: Record<string, unknown> = {};
 const wire: [string, unknown][] = [];
@@ -398,10 +398,10 @@ for (const [direction, build] of [
 ] as const) {
   const result = compile(build);
   if (result.crash) {
-    findings.push(`all ${Object.keys(together).length} fields in one schema: ${direction} — ${result.crash}`);
+    findings.push(`all ${Object.keys(together).length} fields in one schema: ${direction} - ${result.crash}`);
   } else if (result.rejected) {
     findings.push(
-      `all ${Object.keys(together).length} fields in one schema: ${direction} rejected it — ${result.rejected}`,
+      `all ${Object.keys(together).length} fields in one schema: ${direction} rejected it - ${result.rejected}`,
     );
   }
 }
@@ -418,7 +418,7 @@ if (combinedDecode) {
     } catch (error) {
       if (!(error instanceof S.Error)) {
         findings.push(
-          `all fields in one schema <- ${label}: decode threw ${(error as Error).constructor.name} — ${(error as Error).message.split("\n")[0]}`,
+          `all fields in one schema <- ${label}: decode threw ${(error as Error).constructor.name} - ${(error as Error).message.split("\n")[0]}`,
         );
       }
     }
@@ -432,7 +432,7 @@ for (const [name, list] of [
 ] as const) {
   for (const key of Object.keys(list)) {
     if (!used.has(key)) {
-      findings.push(`${key}: listed in ${name} but no such case ran — the catalog moved under it`);
+      findings.push(`${key}: listed in ${name} but no such case ran - the catalog moved under it`);
     }
   }
 }

@@ -89,7 +89,7 @@ test("the literal string \"undefined\" decodes to None (string sentinel)", t => 
   let schema = makeSchema()
 
   // Present-value coercion routes through the option's string arm, so the literal
-  // string "undefined" maps to None as well — the same sentinel as above.
+  // string "undefined" maps to None as well - the same sentinel as above.
   t->Assert.deepEqual(
     %raw(`{"foo":"a","bar":"123","zoo":"undefined"}`)->S.parseOrThrow(~to=schema),
     {"foo": "a", "bar": 123n, "zoo": None},

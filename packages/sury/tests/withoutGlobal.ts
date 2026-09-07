@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 // `S.blob`, `S.file` and `S.formData` bind their class at import, so the
 // runtime-missing case can only be observed in a process that never had the
-// global — which is why those are tests and not specs. Booting Node and
+// global - which is why those are tests and not specs. Booting Node and
 // importing the bundle is ~60ms, so `routes` runs every route in one child
 // rather than one child each.
 const run = (name: string, body: string): string =>

@@ -3,7 +3,7 @@
 //
 // Unlike format.ts (which runs on published sury), this half imports the
 // in-development sury SOURCE (`../sury/index.mjs`), because goldens must reflect
-// the code under test — that's how `spec check` catches codegen changes.
+// the code under test - that's how `spec check` catches codegen changes.
 //
 // There is no code-generation step: packages/sury/tests/spec_test.ts loops
 // over listSpecFiles()/readSpec() at run time and calls straight into this
@@ -92,7 +92,7 @@ const OP_BUILDER: Record<OpName, (schema: any) => (input: any) => any> = {
 // A schema carrying an async transform or refine compiles only through these:
 // the sync builders reject it at operation creation ("Encountered unexpected
 // async transform or refine"), and they wrap a sync direction in
-// `Promise.resolve(...)`, so which builder an op uses is part of its codegen —
+// `Promise.resolve(...)`, so which builder an op uses is part of its codegen -
 // hence a declared `isAsync`, checked against the schema, rather than a guess.
 const ASYNC_OP_BUILDER: Record<OpName, (schema: any) => (input: any) => Promise<any>> = {
   parse: S.asyncParser,
@@ -104,7 +104,7 @@ const SKIP_REASON_SET = new Set<string>(SKIP_REASONS);
 export const isValidSkipReason = (r: unknown): boolean =>
   typeof r === "string" && (SKIP_REASON_SET.has(r) || /^todo\(#.+\)$/.test(r));
 
-// `path` is relative to the spec root (e.g. `ts.instantiations`) — the reported
+// `path` is relative to the spec root (e.g. `ts.instantiations`) - the reported
 // error already sits under a `✗ <id>` header, so prefixing the id here would
 // print it twice.
 export const lintSkips = (obj: unknown, path: string, out: string[]): void => {
@@ -122,7 +122,7 @@ export const lintSkips = (obj: unknown, path: string, out: string[]): void => {
 // emits are `let a,b=…`, `for(let i=…`, `for(let k in o)` and `catch(x)`, and
 // each one names its bindings up to the first `;`, `)` or `in`/`of` at depth 0.
 const boundNames = (code: string): Set<string> => {
-  // `i` is the operation's argument and `e` its embed array — the only two
+  // `i` is the operation's argument and `e` its embed array - the only two
   // free names generated code is allowed to read.
   const out = new Set(["i", "e"]);
   const heads = /\b(?:let|const|var)\s+|\bcatch\(/g;
@@ -174,13 +174,13 @@ export const undeclaredAssignments = (spec: Spec, out: string[]): void => {
     if (leaked.size)
       out.push(
         `operations.${opName}: assigns ${[...leaked].join(", ")} without declaring ` +
-          "it — generated code runs in sloppy mode, so that lands on globalThis",
+          "it - generated code runs in sloppy mode, so that lands on globalThis",
       );
   }
 };
 
 // A full op block is chosen over `identity`/`eq-to-parse` precisely because it
-// has real codegen — and nothing ever runs that codegen until an example does,
+// has real codegen - and nothing ever runs that codegen until an example does,
 // so an empty map snapshots an expression no test executes.
 export const lintExamples = (spec: Spec, out: string[]): void => {
   const ops = spec.operations as Partial<Record<OpName, Operation>> | undefined;
@@ -189,7 +189,7 @@ export const lintExamples = (spec: Spec, out: string[]): void => {
     const op = ops[opName];
     if (op == null) {
       out.push(
-        `operations.${opName}: missing — a spec must declare parse, decode, and encode ` +
+        `operations.${opName}: missing - a spec must declare parse, decode, and encode ` +
           "(run `pnpm spec new` to scaffold them, or add the block)",
       );
       continue;
@@ -197,14 +197,14 @@ export const lintExamples = (spec: Spec, out: string[]): void => {
     if (typeof op === "string" || isCreationError(op)) continue;
     if (isSkip(op)) {
       out.push(
-        `operations.${opName}: _skip is not valid on an operation — use identity, eq-to-parse, ` +
+        `operations.${opName}: _skip is not valid on an operation - use identity, eq-to-parse, ` +
           "a full block with examples, or a creationError",
       );
       continue;
     }
     if (op.examples && Object.keys(op.examples).length) continue;
     out.push(
-      `operations.${opName}: no examples — a compiled op block must run at least one input ` +
+      `operations.${opName}: no examples - a compiled op block must run at least one input ` +
         "(add a named entry with just `input`, then `--write` fills the result)",
     );
   }
@@ -215,7 +215,7 @@ export const specId = (file: string): string =>
 
 const VALID_ID_RE = /^[a-zA-Z0-9-]+$/;
 
-// listSpecFiles below silently ignores anything that isn't *.yaml — this
+// listSpecFiles below silently ignores anything that isn't *.yaml - this
 // walks the same directory to surface exactly what that filter would
 // otherwise hide: a stray non-spec file, or a spec whose id doesn't match the
 // letters/digits/-only convention (see the `spec` skill). `names` is
@@ -236,7 +236,7 @@ export const lintSpecsDir = (names: string[] = readdirSync(SPECS_DIR)): string[]
       errs.push(`specs dir: invalid spec id ${JSON.stringify(id)} (only letters, digits, and - allowed)`);
     else if (id === "codec" || /^[a-z0-9]+-codec$/.test(id))
       errs.push(
-        `specs dir: ${JSON.stringify(id)} names a codec spec backwards — use codec-<from>-<to>, not <from>-codec`,
+        `specs dir: ${JSON.stringify(id)} names a codec spec backwards - use codec-<from>-<to>, not <from>-codec`,
       );
   }
   return errs;
@@ -253,10 +253,10 @@ export const parseSpec = (raw: string): Spec => parseYaml(raw) as Spec;
 export const readSpec = (file: string): Spec => parseSpec(readFileSync(file, "utf8"));
 
 // transpileModule (syntax-only, no type info) strips TS-only syntax like
-// `as const` so aliases can use it — `new Function` only ever sees plain JS.
+// `as const` so aliases can use it - `new Function` only ever sees plain JS.
 // The source is parenthesized before stripping (not after) so a bare object
 // literal parses as an expression, not a block statement with a labeled
-// statement inside — and the trailing `;\n` transpileModule always emits
+// statement inside - and the trailing `;\n` transpileModule always emits
 // comes off since it's re-wrapped in `return … ;` below.
 export const stripTypes = (tsSource: string): string =>
   ts.transpileModule(`(${tsSource})`, {
@@ -267,7 +267,7 @@ export const evalSchema = (tsSource: string): any =>
   new Function("S", `return ${stripTypes(tsSource)};`)(S);
 
 // A scenario's `prepare` is statements, not an expression, so it goes through
-// transpileModule directly — stripTypes' parenthesization exists only to keep
+// transpileModule directly - stripTypes' parenthesization exists only to keep
 // a bare object literal from parsing as a block, which statements must not get.
 const stripStatements = (tsSource: string): string =>
   ts.transpileModule(tsSource, {
@@ -279,7 +279,7 @@ export const scenarioSource = (scenario: Scenario): ScenarioSource => ({
   runSrc: stripTypes(scenario.run),
 });
 
-// Sury compiles a pass-through operation to this shared function — the ONLY
+// Sury compiles a pass-through operation to this shared function - the ONLY
 // signal identity detection has. If this name is ever changed in Sury's
 // source, every `identity`-marked operation starts failing loudly (across
 // every spec, in `identityViolations` below) rather than silently going stale.
@@ -300,10 +300,10 @@ export const identityViolations = (schema: any, spec: Spec): string[] => {
     // Rejected at operation creation: no compiled form, so the shorthand
     // invariants don't apply. recomputeGoldens records/refreshes the
     // `creationError` message, and the staleness diff carries any shape
-    // transition (expression↔creationError) — same as jsonSchema's
+    // transition (expression↔creationError) - same as jsonSchema's
     // success↔error string flips, which aren't gated here either.
     if (!("fn" in built)) continue;
-    // Was a `{creationError}` block but now compiles — likewise left to
+    // Was a `{creationError}` block but now compiles - likewise left to
     // recompute + staleness, not flagged as a shorthand violation.
     if (isCreationError(op)) continue;
     const fn = built.fn;
@@ -312,22 +312,22 @@ export const identityViolations = (schema: any, spec: Spec): string[] => {
     if (op === "identity") {
       if (!noop)
         out.push(
-          `operations.${opName}: marked \`identity\` but does not compile to identity — use a full op block with examples`,
+          `operations.${opName}: marked \`identity\` but does not compile to identity - use a full op block with examples`,
         );
     } else if (noop) {
       out.push(
         op === "eq-to-parse"
-          ? `operations.${opName}: compiles to identity — use \`identity\` instead of \`eq-to-parse\``
-          : `operations.${opName}: compiles to identity — use \`identity\` instead of an expression + examples`,
+          ? `operations.${opName}: compiles to identity - use \`identity\` instead of \`eq-to-parse\``
+          : `operations.${opName}: compiles to identity - use \`identity\` instead of an expression + examples`,
       );
     } else if (op === "eq-to-parse") {
       if (!matchesParse)
         out.push(
-          `operations.${opName}: marked \`eq-to-parse\` but does not compile to the same code as parse — use a full op block with examples`,
+          `operations.${opName}: marked \`eq-to-parse\` but does not compile to the same code as parse - use a full op block with examples`,
         );
     } else if (matchesParse) {
       out.push(
-        `operations.${opName}: compiles to the same code as parse — use \`eq-to-parse\` instead of an expression + examples`,
+        `operations.${opName}: compiles to the same code as parse - use \`eq-to-parse\` instead of an expression + examples`,
       );
     }
   }
@@ -335,7 +335,7 @@ export const identityViolations = (schema: any, spec: Spec): string[] => {
 };
 
 // The `isAsync` marker checked both ways, like identityViolations: an async
-// direction must declare it (the operation returns a Promise — a different API
+// direction must declare it (the operation returns a Promise - a different API
 // for every consumer, and different codegen), and a declared one must hold.
 // Only full op blocks carry the marker: `identity` can't be async (an async op
 // never compiles to Sury's noop, so identityViolations already reports it),
@@ -353,12 +353,12 @@ export const asyncViolations = (schema: any, spec: Spec): string[] => {
     const isAsync = built.isAsync;
     if (isAsync && op.isAsync !== true)
       out.push(
-        `operations.${opName}: is async (the schema has an async transform or refine) — add \`isAsync: true\`, ` +
+        `operations.${opName}: is async (the schema has an async transform or refine) - add \`isAsync: true\`, ` +
           "which builds it with S.asyncParser/asyncDecoder/asyncEncoder and awaits every example",
       );
     else if (!isAsync && op.isAsync === true)
       out.push(
-        `operations.${opName}: marked \`isAsync: true\` but the operation is synchronous — remove the marker ` +
+        `operations.${opName}: marked \`isAsync: true\` but the operation is synchronous - remove the marker ` +
           "(the async builders would only wrap the result in `Promise.resolve`)",
       );
   }
@@ -366,15 +366,15 @@ export const asyncViolations = (schema: any, spec: Spec): string[] => {
 };
 
 // JSON Schema has no representation for bigint or symbol, so the conversion
-// throws for any schema containing one (at any nesting depth) — a real "this
+// throws for any schema containing one (at any nesting depth) - a real "this
 // concept doesn't apply" case, not a bug to work around. Recorded per
 // direction (rather than skipping the whole dimension) since the two
-// directions can differ — e.g. a `.to` transform might make only one side
+// directions can differ - e.g. a `.to` transform might make only one side
 // representable. Shared by `scaffoldJsonSchema` (spec new) and
 // `recomputeGoldens` (spec check/--write) so both degrade the same way.
 // Always a string (source text, same formatting as example values) so the
 // success case (the schema itself) and the failure case (the thrown message)
-// are one uniform, one-line field — not a structural union at the YAML level.
+// are one uniform, one-line field - not a structural union at the YAML level.
 const toJsonSchemaOrError = (
   fn: () => unknown,
 ): { ok: true; source: string } | { ok: false; error: string } => {
@@ -503,17 +503,17 @@ export const scaffoldJsonSchema = (
 };
 
 // Compile an operation, capturing any creation-time throw as the golden instead
-// of letting it abort — the operation analogue of toJsonSchemaOrError. The
+// of letting it abort - the operation analogue of toJsonSchemaOrError. The
 // message is prefixed with the error class (`SuryError:` for an intended
 // unsupported/ambiguous conversion, `TypeError:` etc. for an internal fault),
-// so a bug stays visibly distinct in the golden — and flips back to compiled
-// code once a fix turns the crash into a real operation — rather than silently
+// so a bug stays visibly distinct in the golden - and flips back to compiled
+// code once a fix turns the crash into a real operation - rather than silently
 // masquerading as a normal rejection.
 type BuiltOp = { fn: (input: any) => any; isAsync: boolean } | { creationError: string };
 const describeThrow = (e: unknown): string =>
   `${(e as Error).constructor.name}: ${(e as Error).message}`;
-// Sury has no `isAsync` probe — a schema's combinations are open-ended, so no
-// static answer covers them — and the sync builder rejecting is what tells a
+// Sury has no `isAsync` probe - a schema's combinations are open-ended, so no
+// static answer covers them - and the sync builder rejecting is what tells a
 // caller to switch. The harness does the same, per direction, which matters
 // when only one direction is async. Retry on the error's `code`, not its
 // wording: a non-async `invalid_operation` fails the async attempt too and is
@@ -560,7 +560,7 @@ const opForm = (opName: OpName, built: BuiltOp, parseBuilt: BuiltOp): Operation 
 };
 
 // Can throw if `schema` isn't actually a usable schema (e.g. `--ts` evaluated
-// to `undefined` from a typo like `S.strng`) — callers decide how to report that.
+// to `undefined` from a typo like `S.strng`) - callers decide how to report that.
 export const scaffoldOperations = (schema: any): Spec["operations"] => {
   const parseBuilt = buildOp("parse", schema);
   return Object.fromEntries(
@@ -579,7 +579,7 @@ const order = <T extends Record<string, unknown>>(obj: T, keys: string[]): T => 
 };
 
 // Reformats `input`/`output` to canonical source-text form (see valueToCode)
-// by round-tripping each through eval — independent of recomputeGoldens, so
+// by round-tripping each through eval - independent of recomputeGoldens, so
 // `spec format` can normalize formatting without executing the schema at all.
 // Left as-is if it no longer evaluates; that's a deeper problem the freshness
 // check surfaces, not a formatting one.
@@ -591,7 +591,7 @@ const reformatIfEvaluable = (text: string): string => {
   }
 };
 
-// Individual named examples are never `_skip` — only the enclosing operation
+// Individual named examples are never `_skip` - only the enclosing operation
 // block is (the format schema has no `orSkip` on the examples map's values).
 const canonExample = (ex: Example): Example => {
   const o = order(ex, ["input", "output", "error"]) as Example;
@@ -705,7 +705,7 @@ const applyComments = (doc: Document, comments: SpecComments): void => {
 
 // A spec is machine-checked documentation: every claim about the schema is a
 // dimension the harness executes, so prose the checker can't see is a claim
-// nothing enforces. The one exception is `FIXME:` — a marker for behavior the
+// nothing enforces. The one exception is `FIXME:` - a marker for behavior the
 // goldens currently snapshot but shouldn't.
 const FIXME = "FIXME:";
 
@@ -720,7 +720,7 @@ export const lintComments = (comments: SpecComments, out: string[]): void => {
         const first = comment.split("\n")[0]!.trim();
         if (first.startsWith(FIXME)) continue;
         out.push(
-          `${path ? `${path}: ` : ""}comment ${JSON.stringify(first)} is not allowed — prefix it with ` +
+          `${path ? `${path}: ` : ""}comment ${JSON.stringify(first)} is not allowed - prefix it with ` +
             `\`${FIXME}\` if it flags broken behavior to address, or move it to Spec Harness Suggestions ` +
             `in CONTRIBUTING.md if the spec format can't express it`,
         );
@@ -750,7 +750,7 @@ export const serialize = (obj: Spec, comments: SpecComments = NO_COMMENTS): stri
 
 // ---- golden recomputation --------------------------------------------------
 
-// An object key needs quotes only when it isn't a valid identifier — matches
+// An object key needs quotes only when it isn't a valid identifier - matches
 // how a human would hand-write the same literal. `__proto__` must be computed
 // (`["__proto__"]`): both the bare and the quoted form are prototype-setter
 // syntax in an object literal, so either would read back as a different value
@@ -767,12 +767,12 @@ const keyToCode = (k: string): string =>
 // bare (or nested) bigint, and silently mangles Date (→ a plain string, not a
 // Date)/Map/Set (→ "{}", dropping every entry). `Object.is` catches -0, which
 // `String(-0)` prints as "0". Only a *registry* symbol (`Symbol.for(key)`)
-// round-trips through source text — a bare `Symbol()` is unique per call, so
+// round-trips through source text - a bare `Symbol()` is unique per call, so
 // no source expression can reproduce it.
 //
 // Anything the emitted source would NOT evaluate back to (structurally) must
 // throw rather than emit: a cyclic value would recurse forever, and a class
-// instance would silently flatten to a plain-object literal — each of those
+// instance would silently flatten to a plain-object literal - each of those
 // would record a golden that looks fine but doesn't equal the real output.
 // A binary container's bytes are only readable asynchronously, so they are
 // collected in one pass before rendering and handed to `valueToCode` through
@@ -874,7 +874,7 @@ const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet(), bytes: B
         throw new Error(
           `cannot represent a ${(v as object).constructor?.name ?? "unknown-class"} instance as spec source code`,
         );
-      // Symbol keys ride along as computed keys — only registry symbols, for the
+      // Symbol keys ride along as computed keys - only registry symbols, for the
       // same reason as symbol values above. Object.entries would drop them.
       const parts = Object.entries(v).map(([k, val]) => `${keyToCode(k)}: ${valueToCode(val, seen, bytes)}`);
       for (const sym of Object.getOwnPropertySymbols(v)) {
@@ -920,7 +920,7 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
   // the side(s) that diverge from ts; the harness owns those, so fill from the
   // live Zod schema. An omitted side matches ts and isn't recorded (checkVs
   // verifies the match). A schema that doesn't typecheck throws here and
-  // surfaces via checkSpec's "goldens could not be computed" — same as any
+  // surfaces via checkSpec's "goldens could not be computed" - same as any
   // other uncomputable golden.
   if (isZodOverwrite(next.vs.zod)) {
     const zi = await deriveVsTypeInfo(ZOD_IMPORT, next.vs.zod.schema);
@@ -946,7 +946,7 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
     if (op == null) continue;
     const built = opName === "parse" ? parseBuilt : buildOp(opName, schema);
     if ("creationError" in built) {
-      // Rejected at creation — take the canonical creationError form (a block,
+      // Rejected at creation - take the canonical creationError form (a block,
       // or `eq-to-parse` on a co-failing direction). Any recorded
       // expression/examples are dropped (they can't run).
       ops[opName] = opForm(opName, built, parseBuilt);
@@ -958,7 +958,7 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
     if (typeof op === "string") continue;
     const fn = built.fn;
     if (isCreationError(op)) {
-      // Was rejected, now compiles — rewrite to the canonical block/shorthand.
+      // Was rejected, now compiles - rewrite to the canonical block/shorthand.
       // Examples are author-owned and can't be invented, so start empty.
       ops[opName] = opForm(opName, built, parseBuilt);
       continue;
@@ -970,7 +970,7 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
         // `await` on a sync operation's result is a no-op, so both kinds run
         // through one path. An async operation can still throw synchronously
         // (the top-level type check runs before the first await), which the
-        // same catch handles — a rejection and a synchronous throw are one
+        // same catch handles - a rejection and a synchronous throw are one
         // outcome to the author.
         const out = await fn(value);
         // Binary containers only yield their bytes asynchronously, so they are
@@ -980,7 +980,7 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
         // An operation that hands its input straight back records the input's
         // own source rather than a re-derived spelling of the same value. It
         // reads better, and it's the only way a value the serializer can't
-        // reproduce gets a passing example at all — a Blob or a File only
+        // reproduce gets a passing example at all - a Blob or a File only
         // yields its bytes asynchronously, so `new File(["ab"], "a.txt")`
         // could be *run* but never written down as a result.
         op.examples[name] = clean({
@@ -1012,17 +1012,17 @@ const jsonSchemaTypePresenceViolations = (spec: Spec, expected: Spec): string[] 
         evalSchema(expected.jsonSchema[side]);
         errs.push(
           `jsonSchema.${field}: S.fromJSONSchema(jsonSchema.${side}) matches ts.${side} ` +
-            `${JSON.stringify(schemaType)} — omit \`${field}\`.`,
+            `${JSON.stringify(schemaType)} - omit \`${field}\`.`,
         );
       } catch {
         errs.push(
-          `jsonSchema.${field}: jsonSchema.${side} failed to create, so there is no round-trip type to record — omit \`${field}\`.`,
+          `jsonSchema.${field}: jsonSchema.${side} failed to create, so there is no round-trip type to record - omit \`${field}\`.`,
         );
       }
     } else if (currentType === undefined && expectedType !== undefined)
       errs.push(
         `jsonSchema.${field}: omitted, but S.fromJSONSchema(jsonSchema.${side}) infers ` +
-          `${JSON.stringify(expectedType)} !== ts.${side} ${JSON.stringify(schemaType)} — add \`${field}\`.`,
+          `${JSON.stringify(expectedType)} !== ts.${side} ${JSON.stringify(schemaType)} - add \`${field}\`.`,
       );
   }
   return errs;
@@ -1031,8 +1031,8 @@ const jsonSchemaTypePresenceViolations = (spec: Spec, expected: Spec): string[] 
 // `ts.schema` can evaluate without throwing to a value that still isn't a
 // usable Sury schema (e.g. `ts.schema: "42"` evaluates to the number 42).
 // Every Sury schema carries a Standard Schema `~standard` prop whose `vendor`
-// is `"sury"` (Sury's own internals use this exact check — see `assert` in
-// the sury entry) — a reliable, non-throwing alternative to probing with a builder.
+// is `"sury"` (Sury's own internals use this exact check - see `assert` in
+// the sury entry) - a reliable, non-throwing alternative to probing with a builder.
 const isUsableSchema = (schema: unknown): boolean =>
   (schema as { ["~standard"]?: { vendor?: string } } | null | undefined)?.["~standard"]?.vendor === "sury";
 
@@ -1041,7 +1041,7 @@ const identity = (s: string): string => s;
 // A plain (no ANSI color, since this also renders inside inline test
 // snapshots and CI logs) git-style unified diff between two spec texts, so
 // "not canonical"/"goldens stale" show exactly what differs instead of just
-// asserting that something does. `a` is the current text, `b` the target —
+// asserting that something does. `a` is the current text, `b` the target -
 // `-`/`+` read as the edit needed to fix `a`.
 const diffText = (a: string, b: string): string =>
   diffLinesUnified(a.split("\n"), b.split("\n"), {
@@ -1059,7 +1059,7 @@ const diffText = (a: string, b: string): string =>
   });
 
 // Confirms each `ts.aliases` entry evaluates to a schema equivalent to
-// `ts.schema` — same ts.input/ts.output, jsonSchema, and operations —
+// `ts.schema` - same ts.input/ts.output, jsonSchema, and operations -
 // without giving an alias its own goldens to maintain. Compared directly
 // against the (already-validated) `spec`'s recorded values rather than
 // against each other, so a drifting alias is reported against the one
@@ -1082,7 +1082,7 @@ export const checkAliases = async (spec: Spec): Promise<string[]> => {
       continue;
     }
 
-    // Isolated per alias — a throw here (e.g. deriveTypeInfo failing to
+    // Isolated per alias - a throw here (e.g. deriveTypeInfo failing to
     // resolve the alias's type) must not abort the remaining aliases or
     // surface as the outer, label-less "goldens could not be computed".
     try {
@@ -1133,7 +1133,7 @@ export const checkAliases = async (spec: Spec): Promise<string[]> => {
         }
         if (!("fn" in built)) {
           // Valid when the schema's op is the co-failure `eq-to-parse` and the
-          // alias's parse is rejected with the same message — both fail at
+          // alias's parse is rejected with the same message - both fail at
           // creation the same way. Otherwise the alias diverges from a
           // compiling schema op.
           if (
@@ -1179,8 +1179,8 @@ export const checkAliases = async (spec: Spec): Promise<string[]> => {
 };
 
 // Cross-checks a spec's `vs` equivalent against its recorded inferred types,
-// live like checkAliases (no golden of its own). Strict string equality —
-// both sides printed with the same InTypeAlias formatting — so the author
+// live like checkAliases (no golden of its own). Strict string equality -
+// both sides printed with the same InTypeAlias formatting - so the author
 // writes the `vs` source to match Sury's ordering where it differs (e.g.
 // union member order).
 export const checkVs = async (spec: Spec): Promise<string[]> => {
@@ -1200,13 +1200,13 @@ export const checkVs = async (spec: Spec): Promise<string[]> => {
   if (isZodOverwrite(vs.zod)) {
     // The overwrite form records a divergence, per side. A present side must
     // actually differ from ts; an omitted side means "no divergence" and must
-    // actually match. If both sides are omitted, nothing diverges — the bare
+    // actually match. If both sides are omitted, nothing diverges - the bare
     // string form (which asserts both equalities) is the right tool.
     const hasInput = vs.zod.input !== undefined;
     const hasOutput = vs.zod.output !== undefined;
     if (!hasInput && !hasOutput) {
       errs.push(
-        "vs.zod: overwrite form records no divergence (input and output both omitted) — " +
+        "vs.zod: overwrite form records no divergence (input and output both omitted) - " +
           `use the bare \`zod: ${JSON.stringify(vs.zod.schema)}\` string form instead.`,
       );
       return errs;
@@ -1215,22 +1215,22 @@ export const checkVs = async (spec: Spec): Promise<string[]> => {
       if (!hasInput && info.input !== spec.ts.input)
         errs.push(
           `vs.zod: input omitted (no divergence) but Zod infers ${JSON.stringify(info.input)} !== ts.input ` +
-            `${JSON.stringify(spec.ts.input)} — add \`input\` to record the divergent type.`,
+            `${JSON.stringify(spec.ts.input)} - add \`input\` to record the divergent type.`,
         );
       else if (hasInput && info.input === spec.ts.input)
         errs.push(
-          `vs.zod.input equals ts.input ${JSON.stringify(spec.ts.input)} — it matches Sury, so omit \`input\`.`,
+          `vs.zod.input equals ts.input ${JSON.stringify(spec.ts.input)} - it matches Sury, so omit \`input\`.`,
         );
     }
     if (!isSkip(spec.ts.output)) {
       if (!hasOutput && info.output !== spec.ts.output)
         errs.push(
           `vs.zod: output omitted (no divergence) but Zod infers ${JSON.stringify(info.output)} !== ts.output ` +
-            `${JSON.stringify(spec.ts.output)} — add \`output\` to record the divergent type.`,
+            `${JSON.stringify(spec.ts.output)} - add \`output\` to record the divergent type.`,
         );
       else if (hasOutput && info.output === spec.ts.output)
         errs.push(
-          `vs.zod.output equals ts.output ${JSON.stringify(spec.ts.output)} — it matches Sury, so omit \`output\`.`,
+          `vs.zod.output equals ts.output ${JSON.stringify(spec.ts.output)} - it matches Sury, so omit \`output\`.`,
         );
     }
     return errs;
@@ -1243,14 +1243,14 @@ export const checkVs = async (spec: Spec): Promise<string[]> => {
   return errs;
 };
 
-// Never mutates a file or exits the process, so it's directly testable —
+// Never mutates a file or exits the process, so it's directly testable -
 // cli.ts's cmdCheck and tests/spec_errors_test.ts both call this same
 // function, so there's exactly one implementation of "what's wrong with this
 // spec, and what should the author do about it."
 //
 // `knownFresh`, when passed, is the already-serialized result of a
 // recomputeGoldens call the caller just performed (cli.ts's `--write` path,
-// right after writing) — skips redoing that same esbuild+TS-introspection
+// right after writing) - skips redoing that same esbuild+TS-introspection
 // work a second time purely to re-derive what the caller already has.
 export const checkSpec = async (
   id: string,
@@ -1269,7 +1269,7 @@ export const checkSpec = async (
   undeclaredAssignments(spec, errs);
 
   // Collected before the canonical form is built (rather than dropped) so a
-  // disallowed comment is reported as itself, not as a "not canonical" diff —
+  // disallowed comment is reported as itself, not as a "not canonical" diff -
   // and so `--write` never silently deletes one.
   const comments = collectComments(raw);
   lintComments(comments, errs);
@@ -1277,7 +1277,7 @@ export const checkSpec = async (
   const canon = serialize(spec, comments);
   if (raw !== canon)
     errs.push(
-      `not canonical — run \`pnpm spec format ${id}\` (or \`pnpm spec check ${id} --write\`, which also refreshes goldens):\n${diffText(raw, canon)}`,
+      `not canonical - run \`pnpm spec format ${id}\` (or \`pnpm spec check ${id} --write\`, which also refreshes goldens):\n${diffText(raw, canon)}`,
     );
 
   let schema: any;
@@ -1296,7 +1296,7 @@ export const checkSpec = async (
       for (const violation of violations) errs.push(violation);
       // Not part of `violations`: a wrong `isAsync` doesn't block `--write`
       // (which builder a direction uses is derived from the schema, so the
-      // recomputed goldens are right either way) — only the marker needs the
+      // recomputed goldens are right either way) - only the marker needs the
       // author's hand.
       errs.push(...asyncViolations(schema, spec));
       const recomputed = knownFresh === undefined ? await recomputeGoldens(spec) : undefined;
@@ -1305,8 +1305,8 @@ export const checkSpec = async (
       if (fresh !== canon)
         errs.push(
           (violations.length
-            ? `goldens stale — resolve the identity mismatch above first, then \`pnpm spec check ${id} --write\` can fix it (also formats canonically; use \`pnpm spec format\` for a formatting-only fix)`
-            : `goldens stale — run \`pnpm spec check ${id} --write\` (also formats canonically; use \`pnpm spec format\` for a formatting-only fix)`) +
+            ? `goldens stale - resolve the identity mismatch above first, then \`pnpm spec check ${id} --write\` can fix it (also formats canonically; use \`pnpm spec format\` for a formatting-only fix)`
+            : `goldens stale - run \`pnpm spec check ${id} --write\` (also formats canonically; use \`pnpm spec format\` for a formatting-only fix)`) +
             `:\n${diffText(canon, fresh)}`,
         );
       errs.push(...(await checkAliases(spec)));
@@ -1324,7 +1324,7 @@ export const checkSpec = async (
 // like any other drift.
 const BUNDLE_SIZE_HEADER = [
   "# Minified+gzipped bytes per public export of index.mjs, plus `total` for the whole entry.",
-  "# Generated by `pnpm spec check --write` — every row is measured, so never hand-write one.",
+  "# Generated by `pnpm spec check --write` - every row is measured, so never hand-write one.",
 ].join("\n");
 
 const serializeBundleSize = (obj: BundleSize): string =>
@@ -1334,7 +1334,7 @@ const readBundleSizeRaw = (): string =>
   existsSync(BUNDLE_SIZE_PATH) ? readFileSync(BUNDLE_SIZE_PATH, "utf8") : "";
 
 // Every row is derived, so the check is just "does the file equal what the live
-// entry measures" — no author-owned part to preserve. `fresh` comes back with
+// entry measures" - no author-owned part to preserve. `fresh` comes back with
 // the errors so `--write` writes exactly what was compared instead of running
 // the measurement a second time; it's absent when the measurement itself
 // failed, which is what tells `--write` there's nothing safe to write.
@@ -1355,7 +1355,7 @@ export const checkBundleSize = async (
     return { errs: [`could not be measured: ${(e as Error).message}`] };
   }
 
-  if (!raw) return { errs: ["missing — run `pnpm spec check --write`"], fresh, after };
+  if (!raw) return { errs: ["missing - run `pnpm spec check --write`"], fresh, after };
 
   // Reported alongside (not instead of) the staleness diff below: for a
   // hand-mangled file, a pointed "expected number at exports.string" is the
@@ -1369,7 +1369,7 @@ export const checkBundleSize = async (
     errs.push(`is not valid YAML: ${(e as Error).message}`);
   }
 
-  if (raw !== fresh) errs.push(`stale — run \`pnpm spec check --write\`:\n${diffText(raw, fresh)}`);
+  if (raw !== fresh) errs.push(`stale - run \`pnpm spec check --write\`:\n${diffText(raw, fresh)}`);
 
   return { errs, fresh, before, after };
 };

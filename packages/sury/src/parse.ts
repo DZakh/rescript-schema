@@ -77,7 +77,7 @@ export const parse = (input: Val): Val => {
       loopInput.f & 1 // valFlagAsync
       // FIXME: is the `valFlagAsync` check alone sufficient here, or was
       // there originally a second condition (dropped during the ReScript
-      // port) that this branch also needs? Unconfirmed — see PR discussion.
+      // port) that this branch also needs? Unconfirmed - see PR discussion.
     ) {
       const operationInputVar = loopInput.v();
       const operationInput = B_scope(loopInput);
@@ -184,7 +184,7 @@ const reverseSwap = (mut: Record<string, unknown>, a: string, b: string): void =
 }
 
 // Null prototype: the keys are user-controlled property names, and assigning
-// `__proto__` on a plain `{}` reparents the object instead of adding a key —
+// `__proto__` on a plain `{}` reparents the object instead of adding a key -
 // which reparented the reversed property dict onto the property's own schema and
 // dropped the key, so `outputExpression` rendered schema internals.
 const reverseDict = (dict: Record<string, Internal>): Record<string, Internal> => {
@@ -195,12 +195,12 @@ const reverseDict = (dict: Record<string, Internal>): Record<string, Internal> =
   return reversed;
 }
 
-// The general `reversed` getter: every schema can answer its reverse — the
+// The general `reversed` getter: every schema can answer its reverse - the
 // self-reverse prototype shadows this with `this`, and a first read here
 // computes, then caches both directions as own non-enumerable properties
 // (own beats the getter on every later read). Free bundle-wise: `toString`
 // above already makes `reverse` unshakeable. Reading `r` therefore has side
-// effects — a debugger that expands prototype getters computes the reverse
+// effects - a debugger that expands prototype getters computes the reverse
 // and writes the cache; harmless, but not inert.
 Object.defineProperty(schemaPrototype, reversedKey, {
   get(this: Internal): Internal {
@@ -247,7 +247,7 @@ Object.defineProperty(schemaPrototype, reversedKey, {
     }
 
     // defineProperty (slower, once per schema) keeps the cache non-enumerable:
-    // enumerability is load-bearing, not cosmetic — copySchema's Object.assign,
+    // enumerability is load-bearing, not cosmetic - copySchema's Object.assign,
     // optionFactory-style spreads, and unionIsTransparent's field count all walk
     // enumerable fields and must not see it.
     const r = reversedHead!;
@@ -270,18 +270,18 @@ export const outputExpression = (schema: Internal): string =>
 
 // THE compiled-operation cache: a linked list of nodes on the cache target
 // (the newest-seq schema argument) under `memoKey`, newest node first, matched
-// by identity-comparing the schema arguments and the resolved flag — no string
+// by identity-comparing the schema arguments and the resolved flag - no string
 // keys, since a key assembled per call is never interned and re-hashes on
 // every lookup. Non-enumerable so copySchema's Object.assign can't carry it
 // onto a derived schema. Nothing evicts: a `S.global` flag change strands the
 // old flag's nodes, and each node pins its argument schemas for the target's
-// lifetime — both bounded by the number of distinct (args, flag) operations
+// lifetime - both bounded by the number of distinct (args, flag) operations
 // ever asked of the schema.
 //
 // recursiveDecoder (advanced/recursive.ts) shares this storage; its lookup
 // triple (inputSchema, def, flag) is a two-schema node stored on `def`. That
 // is why `v` admits 0: a def mid-compilation holds the sentinel so inner
-// circular references embed the NODE and call `.v` at runtime — the node
+// circular references embed the NODE and call `.v` at runtime - the node
 // exists before the function it will hold, and a recompile under corrected
 // assumptions overwrites `v` in place. getDecoder never observes the sentinel:
 // a def is only mid-compilation inside a synchronous recursiveDecoder pass,
@@ -328,7 +328,7 @@ export const removeOpNode = (schema: Internal, node: OpNode): void => {
   }
 };
 
-// recursiveDecoder's lookup — always exactly two schemas. getDecoder keeps
+// recursiveDecoder's lookup - always exactly two schemas. getDecoder keeps
 // its own inline walk: passing its `arguments` alias out would force the
 // allocation this cache exists to avoid.
 export const findOpNode = (
@@ -348,7 +348,7 @@ export const findOpNode = (
 
 // A plain (non-arrow, to keep `arguments`) function so call sites can pass
 // getDecoder(s1, s2[, s3][, flag]) with any number of schemas plus an
-// optional trailing flag — the body reads `arguments` directly; the declared
+// optional trailing flag - the body reads `arguments` directly; the declared
 // rest param (unused, hence `_`) exists only to make that call shape typecheck.
 // @__NO_SIDE_EFFECTS__
 export function getDecoder(..._args: unknown[]): (from: unknown) => unknown {
@@ -395,7 +395,7 @@ export function getDecoder(..._args: unknown[]): (from: unknown) => unknown {
       // Only this direction: an operation compiles the chain the way it runs
       // it, so the encode side is a chain of its own, built from the reversed
       // schemas. Reported as a missing decoder rather than with the slot
-      // spelling `codecTo` offers — this form has nowhere to write one, and a
+      // spelling `codecTo` offers - this form has nowhere to write one, and a
       // custom coder is what answers it.
       if (
         B_contentDiffers(B_contentNode(mut).content, B_contentNode(to).content) &&
@@ -447,11 +447,11 @@ export const instanceDecoder: Builder = (input: Val) => {
 
 // On a runtime that has no such global there is no schema to be had, so `class`
 // reports that instead of sitting there as `undefined` for its readers to
-// dereference. Every route into the schema goes through `class` — the decoder's
+// dereference. Every route into the schema goes through `class` - the decoder's
 // `instanceof`, the rendering and the JSON Schema emit via `.name`, and
-// `copySchema`'s `Object.assign` for `.with(…)` and `reverse` — so all of them
+// `copySchema`'s `Object.assign` for `.with(…)` and `reverse` - so all of them
 // answer with this one sentence rather than a TypeError, or worse, a schema
-// that builds and fails later — converting a schema that only decodes to one
+// that builds and fails later - converting a schema that only decodes to one
 // included, since the encode-reverse copies the target to get there.
 //
 // Enumerable, so the `Object.assign` copy is one of the routes it covers.
@@ -472,12 +472,12 @@ export const instance = (class_: unknown): Internal => {
 }
 
 // Type-narrow condition for a union variant, built from the shared atoms with no
-// per-type factory reference — so unused type decoders tree-shake.
+// per-type factory reference - so unused type decoders tree-shake.
 //
 // Cross-module contract: a decoder's own type narrow must be exactly what this
 // returns for its tag. A union group's shared narrow stands in for its members'
-// type checks, so a decoder that narrowed more loosely — an object mode dropping
-// `!Array.isArray` because it rebuilds the value anyway — would widen what the
+// type checks, so a decoder that narrowed more loosely - an object mode dropping
+// `!Array.isArray` because it rebuilds the value anyway - would widen what the
 // case accepts past what its acceptance mask claims, and arrays would dispatch
 // to an object member.
 export const typeCheckCond = (input: Val, schema: Internal, inputVar: string): string => {

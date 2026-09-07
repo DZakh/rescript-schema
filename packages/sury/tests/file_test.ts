@@ -3,7 +3,7 @@ import * as S from "sury";
 import { withoutGlobal } from "./withoutGlobal";
 
 test("every route into a schema the runtime can't support says so", () => {
-  // `class` is the one thing all of them read — the decoder's `instanceof`,
+  // `class` is the one thing all of them read - the decoder's `instanceof`,
   // the rendering and the JSON Schema emit via `.name`, and `copySchema`'s
   // `Object.assign` for `.with(…)` and `reverse`. Left undefined it produced a
   // TypeError naming neither the schema nor the reason; a schema that built
@@ -26,9 +26,9 @@ test("every route into a schema the runtime can't support says so", () => {
     );
   }
   // `reverse` of a self-reversing schema is that schema, so it copies nothing
-  // and reads nothing — the report comes when the result is used, above.
+  // and reads nothing - the report comes when the result is used, above.
   expect(withoutGlobal("File", `console.log(S.reverse(S.file) === S.file)`)).toBe("true");
-  // Inspecting one is not using it — util.inspect reports the accessor rather
+  // Inspecting one is not using it - util.inspect reports the accessor rather
   // than invoking it, so a `console.log` of a schema never explodes.
   expect(
     withoutGlobal("File", `console.log((await import("node:util")).default.inspect(S.file).length > 0)`)

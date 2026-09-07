@@ -158,18 +158,18 @@ and stmt = {label: string, body: expr}
 
 A few things to know about mutually recursive groups:
 
-- Every member referenced from another `@schema` member needs `@schema` too —
+- Every member referenced from another `@schema` member needs `@schema` too -
   or a hand-written `<name>Schema` binding earlier in scope.
 - Inside the group, an identifier like `nodeSchema` (for example in an
   `@s.matches` payload) refers to the schema being defined, shadowing any
   earlier binding with the same name.
 
-Recursive types with type parameters are not supported yet — write those by hand
+Recursive types with type parameters are not supported yet - write those by hand
 with `S.recursive`.
 
 ### Format types
 
-Write a format as the field's type and you get its schema — no `@s.matches`:
+Write a format as the field's type and you get its schema - no `@s.matches`:
 
 ```rescript
 @schema
@@ -360,7 +360,7 @@ type t = @s.with(S.trim) string
 let schema = S.string->S.trim
 ```
 
-Use `_` to pass extra arguments, and repeat the attribute to chain transforms — they apply in order:
+Use `_` to pass extra arguments, and repeat the attribute to chain transforms - they apply in order:
 
 ```rescript
 @schema
@@ -370,9 +370,9 @@ type t = @s.with(S.trim) @s.with(S.minLength(_, 5)) string
 let schema = S.string->S.trim->S.minLength(5)
 ```
 
-The transform must return a schema of the same type — changing it (e.g. with `S.to`) is a compile-time error.
+The transform must return a schema of the same type - changing it (e.g. with `S.to`) is a compile-time error.
 
-Ordering matters against `@s.default` too — the transform wraps whatever the attributes to its left produced. Written after the default it lands outside of it, written before it lands inside:
+Ordering matters against `@s.default` too - the transform wraps whatever the attributes to its left produced. Written after the default it lands outside of it, written before it lands inside:
 
 ```rescript
 @schema

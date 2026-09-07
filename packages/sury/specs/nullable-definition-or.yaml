@@ -12,7 +12,7 @@ jsonSchema:
 vs:
   zod:
     schema: "z.object({ a: z.boolean() }).nullable().default({ a: false })"
-    divergence: Zod's `.default()` fills in for `undefined`, Sury's `or` fills in for the absent case the schema names — here `null`. So Zod additionally accepts `undefined` on the input side, and keeps `null` on the output side because `.default()` never replaces it.
+    divergence: Zod's `.default()` fills in for `undefined`, Sury's `or` fills in for the absent case the schema names - here `null`. So Zod additionally accepts `undefined` on the input side, and keeps `null` on the output side because `.default()` never replaces it.
     input: "{ a: boolean; } | null | undefined"
     output: "{ a: boolean; } | null"
 operations:

@@ -11,14 +11,14 @@ function wrapperSchema(_aSchema) {
   }));
 }
 
-Vitest$1.test("Parametrized record with single type param — int", t => {
+Vitest$1.test("Parametrized record with single type param - int", t => {
   let schema = wrapperSchema(Sury.int32);
   Vitest.Assert.deepEqual(t, S.parseOrThrow({"value": 42}, schema), {
     value: 42
   }, undefined);
 });
 
-Vitest$1.test("Parametrized record with single type param — string", t => {
+Vitest$1.test("Parametrized record with single type param - string", t => {
   let schema = wrapperSchema(Sury.string);
   Vitest.Assert.deepEqual(t, S.parseOrThrow({"value": "hello"}, schema), {
     value: "hello"

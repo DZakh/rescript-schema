@@ -1,5 +1,5 @@
 // Tests for the spec harness (packages/spec). There is no code-generation
-// step — this file IS the test: it dynamically loops over every spec at
+// step - this file IS the test: it dynamically loops over every spec at
 // run time and calls straight into the harness, so example execution and
 // jsonSchema/instantiations drift are exercised (and covered) by this real
 // Vitest run, same as any hand-written test.
@@ -54,7 +54,7 @@ test("scenarios.schema.json is fresh (run `pnpm spec schema`)", () => {
   expect(readFileSync(SCENARIOS_SCHEMA_PATH, "utf8")).toBe(scenariosSchemaJson());
 });
 
-// Scenarios have no goldens, so nothing else would ever execute them — a
+// Scenarios have no goldens, so nothing else would ever execute them - a
 // broken one would only show up in a perf run, as an indistinguishable "new".
 test("scenarios.yaml is valid and every scenario runs (run `pnpm spec check`)", () => {
   const errs = checkScenarios();
@@ -113,8 +113,8 @@ test("lintSpecsDir rejects a non-yaml file and a dotted/invalid id", () => {
   expect(errs).toEqual([
     `specs dir: unexpected file "notes.txt" (only *.yaml and spec.schema.json/bundleSize.yaml/scenarios.yaml/scenarios.schema.json allowed)`,
     `specs dir: invalid spec id "bad.dotted" (only letters, digits, and - allowed)`,
-    `specs dir: "url-codec" names a codec spec backwards — use codec-<from>-<to>, not <from>-codec`,
-    `specs dir: "codec" names a codec spec backwards — use codec-<from>-<to>, not <from>-codec`,
+    `specs dir: "url-codec" names a codec spec backwards - use codec-<from>-<to>, not <from>-codec`,
+    `specs dir: "codec" names a codec spec backwards - use codec-<from>-<to>, not <from>-codec`,
   ]);
 });
 
@@ -214,7 +214,7 @@ test("summarize renders creation-error flips and message drift", () => {
     ),
   ).toMatchInlineSnapshot(`
     "bundleSize:
-      first recorded — 0 exports, total 20000
+      first recorded - 0 exports, total 20000
     behavior changed:
       string.parse  compiled → creationError SuryError: Can't decode string to number
       codec-bool-number-unsupported.parse.creationError  SuryError: Can't decode boolean to number. Use S.to to define a custom decoder → SuryError: some new wording"
@@ -240,7 +240,7 @@ describe.each(specs)("spec: $id", ({ file }) => {
     expect(errs, errs.join("\n")).toEqual([]);
   });
 
-  // Only checkSpec (the pnpm spec check gate) runs these two — nothing else
+  // Only checkSpec (the pnpm spec check gate) runs these two - nothing else
   // in `pnpm test`/CI did, so a spec's identity marker or _skip reason could
   // drift with no test ever catching it. Same checks `spec check` makes,
   // just run here too so they're part of the coverage CI actually gates on.
@@ -277,7 +277,7 @@ describe.each(specs)("spec: $id", ({ file }) => {
     expect(serialize(await recomputeGoldens(spec))).toBe(serialize(spec));
   });
 
-  // Only checkSpec runs this too — same reasoning as the identity-invariant
+  // Only checkSpec runs this too - same reasoning as the identity-invariant
   // test above: a drifting `ts.aliases` entry should fail `pnpm test`, not
   // just the occasional manual `pnpm spec check`.
   test("aliases (if any) are equivalent to the schema (run `pnpm spec check`)", async () => {
@@ -287,7 +287,7 @@ describe.each(specs)("spec: $id", ({ file }) => {
 });
 
 test("the format is defined as a Sury schema (closed world)", () => {
-  // Unknown keys are rejected — the closed-world guarantee (via published sury).
+  // Unknown keys are rejected - the closed-world guarantee (via published sury).
   expect(validate({}).ok).toBe(false);
   const ok = readSpec(listSpecFiles()[0]!);
   const bad = validate({ ...ok, bogus: 1 });

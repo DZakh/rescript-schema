@@ -47,7 +47,7 @@ test("S.to returns the schema itself when the target is the same instance", (t) 
   t.expect(S.parser(schema.with(S.to, schema))("hello")).toBe(5);
 
   // Without the shortcut this appends a second copy of the chain, so the
-  // decoder runs twice over its own output — silently wrong, not an error.
+  // decoder runs twice over its own output - silently wrong, not an error.
   t.expect(S.parser(S.to(schema, make()))("hello")).toBe(1);
 
   // Custom coders still mean a real conversion step, same instance or not.
@@ -340,7 +340,7 @@ test("Custom codecs type their coders against the junction, and stay assignable"
       expectTypeOf(value).toEqualTypeOf<string>();
       return value.length;
     },
-    // `encode` receives the target's *input*, not its output — the coder sits
+    // `encode` receives the target's *input*, not its output - the coder sits
     // at the junction, so its result runs through the target's own pipeline.
     encode: (value) => {
       expectTypeOf(value).toEqualTypeOf<number>();
@@ -786,7 +786,7 @@ test("Compiled operations stay per-operation and per-global-config", (t) => {
 });
 
 // A conversion rejected at operation creation fails for every input, so it
-// isn't a fact about the value being validated — it's a bug in the schema, and
+// isn't a fact about the value being validated - it's a bug in the schema, and
 // `issues` is the channel a consumer renders to the person filling in the
 // form. It throws to the developer instead, and keeps throwing: `validate`
 // holds its decoder across calls, and a compile that never produced one must
@@ -827,7 +827,7 @@ test("~standard.validate returns a promise for a schema with an async codec", as
     });
   }
 
-  // A sync schema keeps answering synchronously — a consumer that can't
+  // A sync schema keeps answering synchronously - a consumer that can't
   // await must not start getting promises.
   t.expect(S.string["~standard"].validate("a")).toEqual({ value: "a" });
 
@@ -863,7 +863,7 @@ test("A conversion rejected at operation creation throws from S.inputValidator, 
   t.expect(isValid(null)).toBe(false);
   t.expect(isValid(undefined)).toBe(false);
 
-  // Only a Sury validation failure becomes `false` — a user refinement that
+  // Only a Sury validation failure becomes `false` - a user refinement that
   // throws something else still propagates.
   const boom = S.string.with(S.refine, () => {
     throw new RangeError("boom");
@@ -1151,7 +1151,7 @@ test("Assert throws a Sury error for null/undefined data in both arg orders", (t
   t.expect(() => S.assertInput(schema, null)).toThrow(S.Error);
   t.expect(() => S.assertInput(schema, undefined)).toThrow(S.Error);
 
-  // (data, schema) — nullish data must throw a Sury error, not a TypeError
+  // (data, schema) - nullish data must throw a Sury error, not a TypeError
   t.expect(() => S.assertInput(null, schema)).toThrow(S.Error);
   t.expect(() => S.assertInput(undefined, schema)).toThrow(S.Error);
 });
@@ -1174,7 +1174,7 @@ test("Successfully parses recursive object", (t) => {
     children: Node[];
   };
 
-  // The one-arg form relies on `TOutput = TInput` — keep it compiling for
+  // The one-arg form relies on `TOutput = TInput` - keep it compiling for
   // identity recursion even if the signature changes.
   let nodeSchema = S.recursive<Node>("Node", (nodeSchema) =>
     S.schema({
@@ -1496,7 +1496,7 @@ test("fromJSONSchema: an inline schema infers the type it describes", (t) => {
   });
 
   // Local $ref pointers resolve, including recursive ones. The runtime still
-  // parses a $ref as plain JSON — the static type leads it here.
+  // parses a $ref as plain JSON - the static type leads it here.
   const treeSchema = S.fromJSONSchema({
     $ref: "#/$defs/node",
     $defs: {
@@ -1720,7 +1720,7 @@ test("fromJSONSchema: $ref siblings follow the declared dialect", (t) => {
     "Should pass at least one schema according to the anyOf property."
   );
   // The `$ref` resolved to a finite shape and inlined, so it left no `$defs`
-  // entry behind — and the rendering doesn't depend on whether options were
+  // entry behind - and the rendering doesn't depend on whether options were
   // passed, only on the dialect they name.
   const legacyRendering = {
     type: "string",
@@ -1829,10 +1829,10 @@ test("inputJSONSchema: the target picks the dialect of the result", (t) => {
   t.expect(S.parser(S.fromJSONSchema(draft2020))(["a", 1])).toEqual(["a", 1]);
   t.expect(S.parser(S.fromJSONSchema(openapi))(null)).toBe(null);
 
-  // Every dialect stays assignable to the wide type — the invariant that keeps
+  // Every dialect stays assignable to the wide type - the invariant that keeps
   // `extendJSONSchema(schema, inputJSONSchema(other, { target }))` compiling. This
   // breaks when a shared keyword is typed incompatibly across the two (extra
-  // dialect-only keywords slip through structurally — parity there is on the
+  // dialect-only keywords slip through structurally - parity there is on the
   // comment in src/types/jsonschema.d.ts).
   expectTypeOf<S.JSONSchema7>().toExtend<S.JSONSchema>();
   expectTypeOf<S.JSONSchema2020>().toExtend<S.JSONSchema>();
@@ -1889,7 +1889,7 @@ test("fromJSONSchema: composition keywords constrain in addition to the base sha
   t.expect(parse(input)).toEqual({ bar: 2 });
   // Fails the base shape.
   t.expect(S.safe(() => parse({ bar: "no", foo: "x" })).error).toBeDefined();
-  // Fails only the allOf branch — the base shape alone used to win.
+  // Fails only the allOf branch - the base shape alone used to win.
   t.expect(S.safe(() => parse({ bar: 2 })).error).toBeDefined();
 });
 
@@ -1916,8 +1916,8 @@ test("fromJSONSchema: oneOf counts matches, `not` and if/then/else layer on", (t
 });
 
 test("fromJSONSchema: an unmodelled assertion keyword fails at creation", (t) => {
-  // Ignoring it would widen the schema — the validator would accept data the
-  // author wrote the keyword to reject — so this must not silently succeed.
+  // Ignoring it would widen the schema - the validator would accept data the
+  // author wrote the keyword to reject - so this must not silently succeed.
   const result = S.safe(() => S.fromJSONSchema({ unevaluatedProperties: false }));
   t.expect(result.error?.message).toContain("Unsupported JSON Schema keyword: unevaluatedProperties");
 
@@ -2213,7 +2213,7 @@ test("pathToText renders a path the way error messages do", (t) => {
 
 test("A contradictory bound pair is rejected where it's written", (t) => {
   // The schema would compile and then reject every possible value, which only
-  // surfaces in production — so it fails at construction instead. Both sides
+  // surfaces in production - so it fails at construction instead. Both sides
   // render through inputExpression, so the message is in the same syntax the
   // schema is, not the constructor names the caller happened to use.
   t.expect(() => S.number.with(S.gte, 5).with(S.lte, 1)).toThrow(
@@ -2248,7 +2248,7 @@ test("A contradictory bound pair is rejected where it's written", (t) => {
     `[Sury] port <= -1 contradicts port >= 0`,
   );
   // Combining divisors stores their LCM; an LCM past 2^53 rounds and would
-  // validate the wrong set, and fractional divisors have no float LCM — both
+  // validate the wrong set, and fractional divisors have no float LCM - both
   // refuse rather than silently drift.
   t.expect(() =>
     S.integer.with(S.multipleOf, 67108859).with(S.multipleOf, 134217689).with(S.multipleOf, 2097143)
@@ -2308,7 +2308,7 @@ test("A superseded bound takes its message with it", (t) => {
 });
 
 test("An unsatisfiable JSON Schema document loads as never", (t) => {
-  // Legal JSON Schema — it just describes a type nothing inhabits — so it has
+  // Legal JSON Schema - it just describes a type nothing inhabits - so it has
   // to load rather than fail the way the hand-written equivalent does.
   for (const definition of [
     { type: "number", minimum: 5, maximum: 1 },
@@ -2414,7 +2414,7 @@ test("Error messages render through inputExpression, not toString", (t) => {
 });
 
 // Rendering the received value used to walk objects and arrays without a
-// limit, so a cyclic input overflowed the stack inside the error formatter — a
+// limit, so a cyclic input overflowed the stack inside the error formatter - a
 // validation failure surfaced as a RangeError instead of a SuryError. One level
 // of expansion keeps that fixed: the cycle is reached at depth 1 and named.
 test("A cyclic input is reported, not a stack overflow", (t) => {
@@ -2440,7 +2440,7 @@ test("A received value is expanded one level", (t) => {
   };
   const received = (value: unknown) => reasonFor(value).replace("Expected string, received ", "");
 
-  // Primitives keep their value — `received 42` beats `received number` — and
+  // Primitives keep their value - `received 42` beats `received number` - and
   // bigint keeps its suffix so it stays distinguishable from a number.
   t.expect(received(42)).toBe("42");
   t.expect(received(10n)).toBe("10n");
@@ -2463,7 +2463,7 @@ test("A received value is expanded one level", (t) => {
   t.expect(received([[1, 2], { a: 1 }])).toBe("[Array(2), object]");
 
   // Anything without a useful constructor name is lowercase `object`, the same
-  // way a primitive is named by its type — a plain object, a null prototype and
+  // way a primitive is named by its type - a plain object, a null prototype and
   // an anonymous class all read alike, and none of them read as `Object`.
   t.expect(received({ a: Object.create(null) })).toBe("{ a: object; }");
   t.expect(received({ a: new (class {})() })).toBe("{ a: object; }");
@@ -2476,7 +2476,7 @@ test("A received value is expanded one level", (t) => {
 });
 
 // There is no `nan` case in inputExpression: the sole nan schema always carries
-// `const: NaN`, so the `const` branch renders it — via stringify, to the same
+// `const: NaN`, so the `const` branch renders it - via stringify, to the same
 // string. Pinned here because removing that branch is only safe while this holds.
 test("A nan schema renders as NaN without a dedicated branch", (t) => {
   t.expect(S.inputExpression(S.schema(NaN))).toBe("NaN");
@@ -2487,7 +2487,7 @@ test("A nan schema renders as NaN without a dedicated branch", (t) => {
 // specs/array-empty, specs/string-empty pin the direct cases). Pinned here are
 // the fallbacks a spec can't express: a non-literal bound narrows nothing, and
 // past 64 the tuple spelling bails to the unbounded type instead of hitting
-// TS's recursion ceiling — both must stay `string[]`, not become errors.
+// TS's recursion ceiling - both must stay `string[]`, not become errors.
 test("Array length type pinning falls back to the unbounded type", () => {
   expectSchemaType(S.array(S.string).with(S.length, 2)).toBe<[string, string]>();
   expectSchemaType(S.length(S.array(S.boolean), 3)).toBe<[boolean, boolean, boolean]>();
@@ -2527,7 +2527,7 @@ test("Array length type pinning falls back to the unbounded type", () => {
 
 // A lower bound fixes a head and leaves the tail open. specs/array-nonEmpty and
 // specs/array-minLength pin the direct cases; what needs pinning here is that it
-// only has something to say while the tail *is* open — every no-op the runtime
+// only has something to say while the tail *is* open - every no-op the runtime
 // makes of a redundant bound the type has to make too, or the two disagree about
 // a schema that compiled fine.
 test("A lower bound only widens an array whose length is still open", () => {
@@ -2547,14 +2547,14 @@ test("A lower bound only widens an array whose length is still open", () => {
   expectSchemaType(S.array(S.string).with(S.minLength, 100)).toBe<string[]>();
 
   // TypeScript counts tuple elements, not characters, so a string keeps its type
-  // under every lower bound — only the exact bound reaches `""`, the one
+  // under every lower bound - only the exact bound reaches `""`, the one
   // length with a literal to name it.
   expectSchemaType(S.string.with(S.nonEmpty)).toBe<string>();
   expectSchemaType(S.string.with(S.minLength, 3)).toBe<string>();
 });
 
 // The bound binds the array, and a codec's input is a different value reachable
-// from it — pinning the array's arity says nothing about the string it decodes
+// from it - pinning the array's arity says nothing about the string it decodes
 // from, which is why the input side is rewritten only when it is the same type.
 test("A length bound leaves the other side of a codec alone", () => {
   const csv = S.string.with(S.to, S.array(S.string), {

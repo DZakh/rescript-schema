@@ -1,6 +1,6 @@
 open Vitest
 
-// https://github.com/DZakh/sury/issues/311 — encoding a nested optional
+// https://github.com/DZakh/sury/issues/311 - encoding a nested optional
 // (or nullable-as-option) field to JSON failed with "Expected undefined |
 // JSON, received ..." because an object field typed as a union with an
 // undefined variant was checked against generic JSON instead of having

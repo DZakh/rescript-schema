@@ -1,9 +1,9 @@
 #!/usr/bin/env tsx
-// `compliance` — runs the official JSON-Schema-Test-Suite through
+// `compliance` - runs the official JSON-Schema-Test-Suite through
 // `S.fromJSONSchema` and holds the score to a committed golden.
 //
 // The contract mirrors packages/spec: goldens are generated, never hand-edited,
-// and `check` fails on ANY drift — including tests that started passing. A fix
+// and `check` fails on ANY drift - including tests that started passing. A fix
 // that improves the score is supposed to show up as a golden diff in the same
 // PR, which is what makes coverage change reviewable.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -22,7 +22,7 @@ import {
 import { ensureSuite, PKG_DIR, SUITE_COMMIT } from "./suite";
 
 if (fileURLToPath(import.meta.url) !== process.argv[1])
-  throw new Error("cli.ts is a script, not a library — import from runner.ts instead");
+  throw new Error("cli.ts is a script, not a library - import from runner.ts instead");
 
 const red = (s: string): string => (process.stderr.isTTY ? `\x1b[31m${s}\x1b[0m` : s);
 const green = (s: string): string => (process.stdout.isTTY ? `\x1b[32m${s}\x1b[0m` : s);
@@ -31,7 +31,7 @@ const dim = (s: string): string => (process.stdout.isTTY ? `\x1b[2m${s}\x1b[0m` 
 const GOLDENS_DIR = join(PKG_DIR, "goldens");
 const goldenPath = (dialect: Dialect): string => join(GOLDENS_DIR, `${dialect}.json`);
 
-const HELP = `compliance — Sury vs. the official JSON-Schema-Test-Suite
+const HELP = `compliance - Sury vs. the official JSON-Schema-Test-Suite
 
 Usage: pnpm compliance [command] [options]
 
@@ -177,7 +177,7 @@ for (const dialect of targets) {
   if (golden === null) {
     drifted = true;
     console.error(red(`✗ ${dialect}`));
-    console.error(`    no golden recorded — run \`pnpm compliance --update\``);
+    console.error(`    no golden recorded - run \`pnpm compliance --update\``);
     continue;
   }
 
@@ -245,6 +245,6 @@ for (const dialect of targets) {
 }
 
 if (drifted) {
-  console.error(red("\ncompliance goldens are out of date — run `pnpm compliance --update`"));
+  console.error(red("\ncompliance goldens are out of date - run `pnpm compliance --update`"));
   process.exit(1);
 }

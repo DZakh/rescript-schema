@@ -81,7 +81,7 @@ npm install sury
 
 ## Basic usage
 
-The main building block of **Sury** is a schema — a type definition that exists at runtime.
+The main building block of **Sury** is a schema - a type definition that exists at runtime.
 
 ```ts
 import * as S from "sury"; // 7.9 kB (min + gzip) for this schema, tree-shaken
@@ -108,7 +108,7 @@ S.parser(playerSchema)({ username: "billie", xp: "not a number" });
 // => throws S.Error: Failed at xp: Expected number, received "not a number"
 ```
 
-Use `S.safe` / `S.safeAsync` if you'd rather have a result than an exception — see [Error handling](#error-handling).
+Use `S.safe` / `S.safeAsync` if you'd rather have a result than an exception - see [Error handling](#error-handling).
 
 > 🧠 Besides `parser` there are operations to transform without validation, assert without allocating an output, and encode back to the input format. See [Functions on schema](#functions-on-schema).
 
@@ -126,7 +126,7 @@ const playerSchema = S.schema({
 type Player = S.Infer<typeof playerSchema>;
 ```
 
-The type parameters read in the direction data flows: `S.Schema<TInput, TOutput>` — the encoded type the schema accepts, then the decoded type it produces. `TOutput` defaults to `TInput`, so an identity schema is just `S.Schema<string>`.
+The type parameters read in the direction data flows: `S.Schema<TInput, TOutput>` - the encoded type the schema accepts, then the decoded type it produces. `TOutput` defaults to `TInput`, so an identity schema is just `S.Schema<string>`.
 
 To annotate "any schema producing `T`, whatever it accepts", leave the input as `unknown`:
 
@@ -144,7 +144,7 @@ S.encoder(playerSchema)({ username: "billie", xp: 100 });
 // => returns { username: "billie", xp: 100 }
 ```
 
-That's uneventful without transformations. Add some — [`to`](#to) for coercion, [`shape`](#shape) for restructuring — and the reverse direction comes with them:
+That's uneventful without transformations. Add some - [`to`](#to) for coercion, [`shape`](#shape) for restructuring - and the reverse direction comes with them:
 
 ```ts
 const userSchema = S.schema({
@@ -193,7 +193,7 @@ S.inputJSONSchema(documented);
 // }
 ```
 
-`S.outputJSONSchema` describes the other side — what the schema produces, and what `S.encoder` accepts:
+`S.outputJSONSchema` describes the other side - what the schema produces, and what `S.encoder` accepts:
 
 ```ts
 const apiUser = S.schema({
@@ -209,9 +209,9 @@ S.outputJSONSchema(apiUser);
 // }
 ```
 
-A type JSON has no way to describe — a `bigint`, a `symbol`, a `Date` — throws on the side it appears, whichever direction that is.
+A type JSON has no way to describe - a `bigint`, a `symbol`, a `Date` - throws on the side it appears, whichever direction that is.
 
-The `target` decides the type of the result — `S.JSONSchema7`, `S.JSONSchema2020`, or `S.OpenAPISchema30` — so `prefixItems` is there to reach for on a draft-2020-12 result and `nullable` on an OpenAPI one, and neither is on a draft-07 one.
+The `target` decides the type of the result - `S.JSONSchema7`, `S.JSONSchema2020`, or `S.OpenAPISchema30` - so `prefixItems` is there to reach for on a draft-2020-12 result and `nullable` on an OpenAPI one, and neither is on a draft-07 one.
 
 `S.fromJSONSchema` converts in the other direction:
 
@@ -261,11 +261,11 @@ S.assertInput(comment, { text: "hi", replies: [{ text: 1 }] });
 
 `$defs` and `definitions` pointers are named in the type; one on any other path (`#/components/schemas/Pet`) is validated the same, but typed as `S.JSON`.
 
-A `$ref` leading outside the document — a URL, a `urn:`, an `$anchor`, a `$id` base — throws instead of silently accepting anything, so bundle first.
+A `$ref` leading outside the document - a URL, a `urn:`, an `$anchor`, a `$id` base - throws instead of silently accepting anything, so bundle first.
 
-To also have TypeScript check the schema document itself, annotate it with `satisfies S.JSONSchema` — that catches a misspelled keyword while leaving `x-` vendor extensions open. The annotation widens literals (e.g. `required`, `enum`), so the inferred type gets wider too — every property becomes optional.
+To also have TypeScript check the schema document itself, annotate it with `satisfies S.JSONSchema` - that catches a misspelled keyword while leaving `x-` vendor extensions open. The annotation widens literals (e.g. `required`, `enum`), so the inferred type gets wider too - every property becomes optional.
 
-A schema read from a file or an API needs no cast: a non-literal argument — `unknown`, `S.JSON`, or one of the dialect types — falls back to `S.Schema<S.JSON, S.JSON>`, so pair it with `S.to` when you need a narrower type.
+A schema read from a file or an API needs no cast: a non-literal argument - `unknown`, `S.JSON`, or one of the dialect types - falls back to `S.Schema<S.JSON, S.JSON>`, so pair it with `S.to` when you need a narrower type.
 
 > 🧠 **Sury**'s internal representation is itself JSON Schema-shaped, so a schema is readable as-is: `S.schema("Hello world!")` logs `{ type: "string", const: "Hello world!", ... }`.
 
@@ -341,7 +341,7 @@ S.record(S.number); // { [k: string]: number }
 S.schema([S.string, S.number]);
 S.tuple([S.string, S.number]); // alias for S.schema
 
-// Anywhere a schema is accepted, a raw definition works too — it's
+// Anywhere a schema is accepted, a raw definition works too - it's
 // passed through S.schema for you
 S.array({ id: S.string }); // { id: string }[]
 S.record({ n: S.number }); // { [k: string]: { n: number } }
@@ -369,7 +369,7 @@ S.any; // alias for S.unknown, typed as S.Schema<any, any>
 S.never;
 ```
 
-> 🧠 `S.schema` turns any definition into a schema — `S.literal`, `S.object` and `S.tuple` are aliases for it. Only `S.object` and `S.tuple` also take a definer function, for [advanced object](#advanced-object-schema) and [advanced tuple](#advanced-tuple-schema) schemas.
+> 🧠 `S.schema` turns any definition into a schema - `S.literal`, `S.object` and `S.tuple` are aliases for it. Only `S.object` and `S.tuple` also take a definer function, for [advanced object](#advanced-object-schema) and [advanced tuple](#advanced-tuple-schema) schemas.
 
 ### Advanced schemas
 
@@ -390,7 +390,7 @@ S.jsonString.with(S.to, S.number);
 // Encodes number to JSON string
 S.number.with(S.to, S.jsonString);
 // Encoding to S.jsonString builds an optimized JSON string encoder instead of
-// calling JSON.stringify — usually 1.3-2x faster.
+// calling JSON.stringify - usually 1.3-2x faster.
 
 // Asserts that the input is a Date instance and not Invalid Date
 S.date;
@@ -426,9 +426,9 @@ S.string.with(S.trim); // trim whitespaces
 
 Length bounds count Unicode code points, the unit JSON Schema's `minLength`/`maxLength` and most non-JS consumers use, so `"😀"` has length 1 even though its `.length` in JS is 2.
 
-For format-specific validation, use the standalone schemas — see [String formats](#string-formats) below.
+For format-specific validation, use the standalone schemas - see [String formats](#string-formats) below.
 
-> For RFC 3339 datetime strings use the dedicated standalone `S.isoDateTime` schema, or `S.utcDateTime` when only `Z` is acceptable — see [ISO datetimes](#iso-datetimes) below.
+> For RFC 3339 datetime strings use the dedicated standalone `S.isoDateTime` schema, or `S.utcDateTime` when only `Z` is acceptable - see [ISO datetimes](#iso-datetimes) below.
 
 > ⚠️ Validating email addresses is nearly impossible with just code. Different clients and servers accept different things and many diverge from the various specs defining "valid" emails. The ONLY real way to validate an email address is to send a verification email to it and check that the user got it. With that in mind, Sury picks a relatively simple regex that does not cover all cases.
 
@@ -447,9 +447,9 @@ The JSON Schema string format vocabulary, as standalone schemas:
 S.email; // Email address
 S.idnEmail; // Internationalized email address
 S.uuid; // UUID, any version
-S.uuidv4; // UUIDv4 — random
-S.uuidv6; // UUIDv6 — reordered time
-S.uuidv7; // UUIDv7 — Unix time, sorts by creation
+S.uuidv4; // UUIDv4 - random
+S.uuidv6; // UUIDv6 - reordered time
+S.uuidv7; // UUIDv7 - Unix time, sorts by creation
 S.cuid; // CUID
 S.cuid2; // CUID2
 S.ulid; // ULID
@@ -461,11 +461,11 @@ S.mac; // MAC address, EUI-48 or EUI-64
 S.hex; // Hexadecimal digits
 S.cidrv4; // IPv4 CIDR block
 S.cidrv6; // IPv6 CIDR block
-S.uri; // URI — a scheme is required
+S.uri; // URI - a scheme is required
 S.httpUrl; // URI with the scheme pinned to http or https
 S.uriReference; // URI or relative reference
 S.uriTemplate; // URI Template
-S.iri; // IRI — a URI with Unicode allowed
+S.iri; // IRI - a URI with Unicode allowed
 S.iriReference; // IRI or relative reference
 S.hostname; // Host name
 S.idnHostname; // Internationalized host name
@@ -494,7 +494,7 @@ S.inputJSONSchema(S.httpUrl); // { type: "string", format: "uri", pattern: "^[hH
 ```
 
 `S.base64` and `S.base64url` emit `contentEncoding` instead. See
-[Content](#content). `S.cidrv6` is the one format with neither spelling — its
+[Content](#content). `S.cidrv6` is the one format with neither spelling - its
 address grammar is case-insensitive and a JSON Schema `pattern` carries no
 flags, so it emits a plain `string` and widens on the way back in.
 
@@ -511,9 +511,9 @@ S.hex.with(S.length, 64); // a SHA-256 digest
 spec, so a well-formed value passes even when it isn't one you want to accept:
 
 ```ts
-S.assertInput(S.uri, "javascript:alert(1)"); // passes — a valid URI
-S.assertInput(S.hostname, "169.254.169.254"); // passes — a valid host name
-S.assertInput(S.uriReference, "//evil.com"); // passes — a valid reference
+S.assertInput(S.uri, "javascript:alert(1)"); // passes - a valid URI
+S.assertInput(S.hostname, "169.254.169.254"); // passes - a valid host name
+S.assertInput(S.uriReference, "//evil.com"); // passes - a valid reference
 ```
 
 When you want a security decision rather than a syntax check, compose one. The
@@ -527,13 +527,13 @@ const httpsOnly = S.uri.with(S.pattern, /^https:\/\//);
 Three worth knowing before you pick one:
 
 - **`S.url` is not `S.uri`.** `S.url` is an instance of the JS `URL` class, the
-  way `S.date` is a `Date` — use it when you want the parsed object and its
+  way `S.date` is a `Date` - use it when you want the parsed object and its
   `.host` / `.pathname`. `S.uri` validates a string and leaves it a string.
 - **`S.uriReference` is usually the one you want for a link field.** `S.uri`
   requires a scheme, so it rejects `/dashboard`.
 - **`S.httpUrl` is `S.uri` with the scheme pinned** to `http` or `https`, in one
   check. It still rejects `javascript:` and `data:`, but it is not a safety
-  check either — `https://169.254.169.254/` passes.
+  check either - `https://169.254.169.254/` passes.
 
 To make the *type* record that a value was validated, [brand it](#brand).
 
@@ -711,7 +711,7 @@ const meSchema = S.schema({
 });
 ```
 
-Literal fields keep their narrow type — `kind` above is `"human"`, not `string` — which is what makes discriminated unions work.
+Literal fields keep their narrow type - `kind` above is `"human"`, not `string` - which is what makes discriminated unions work.
 
 ### Advanced object schema
 
@@ -916,7 +916,7 @@ An union represents a logical OR relationship. You can apply this concept to you
 
 The schema function `union` creates an OR relationship between any number of schemas that you pass as the first argument in the form of an array. On validation, the schema returns the result of the first schema that was successfully validated.
 
-> 🧠 Members are matched in the order they are passed to `S.union` — the first one that fits the value wins.
+> 🧠 Members are matched in the order they are passed to `S.union` - the first one that fits the value wins.
 
 It's also available as `S.anyOf`, matching the JSON Schema keyword it maps to.
 
@@ -967,18 +967,18 @@ first one that accepts the value wins:
 ```ts
 const schema = S.json.with(S.to, S.union([S.bigint, S.string]));
 
-S.parser(schema)("123"); // 123n — the bigint member comes first
-S.parser(schema)("abc"); // "abc" — not a valid bigint, so the string member takes it
-S.parser(schema)(true); // throws — no member accepts a boolean
+S.parser(schema)("123"); // 123n - the bigint member comes first
+S.parser(schema)("abc"); // "abc" - not a valid bigint, so the string member takes it
+S.parser(schema)(true); // throws - no member accepts a boolean
 ```
 
 Notice that `true` wasn't converted to `"true"`, even though boolean → string
 is a supported conversion. A value is only converted into a member type the
 source can't produce itself: JSON has no bigints, so strings are offered to
-`S.bigint` — but JSON already has strings, so the `S.string` member only
+`S.bigint` - but JSON already has strings, so the `S.string` member only
 accepts actual strings.
 
-**Union → single type.** The mirror image — each member converts to the target
+**Union → single type.** The mirror image - each member converts to the target
 the same way it would with a direct `S.to`:
 
 ```ts
@@ -989,7 +989,7 @@ S.parser(schema)(true); // "true"
 ```
 
 **Union → union.** Values pass through to the member of the same type on the
-other side — nothing is converted, so every member needs a counterpart. The one
+other side - nothing is converted, so every member needs a counterpart. The one
 exception: an `undefined` member without a counterpart may pair with a `null`
 member on the other side, and vice versa:
 
@@ -1005,23 +1005,23 @@ Good to know:
   member, and `S.json` won't match `S.string`.
 - Nested unions are treated as one flat union: `S.union([S.string,
   S.union([S.number, S.boolean])])` has three members.
-- When a value fails a member — wrong type, failed refinement, or an error
-  thrown inside it — the next member gets a try. Only when all members fail
+- When a value fails a member - wrong type, failed refinement, or an error
+  thrown inside it - the next member gets a try. Only when all members fail
   does the union throw, listing each member's reason.
 
 #### When a conversion is rejected
 
 Some conversions have more than one reasonable meaning, and some have none.
 Rather than guess, Sury rejects those with an `Invalid operation` error right
-at the `S.parser` / `S.encoder` call — not later, on each value — and the
+at the `S.parser` / `S.encoder` call - not later, on each value - and the
 error suggests a rewrite that says what you mean.
 
-**Ambiguous.** Given `"123"` — should it stay a string, or become a number?
+**Ambiguous.** Given `"123"` - should it stay a string, or become a number?
 Both readings are sensible, so Sury makes you pick:
 
 ```ts
 S.string.with(S.to, S.union([S.number, S.string]));
-// Invalid operation: can't convert string to number | string — string has the same
+// Invalid operation: can't convert string to number | string - string has the same
 // type as the source and the others don't.
 
 // Convert to a number when possible, keep the string otherwise:
@@ -1149,7 +1149,7 @@ S.instance(Set).with(S.minSize, 1); // Expected Set.size >= 1
 ## File
 
 `S.file` validates a `File`. A `File` is a `Blob`, so it also satisfies
-`S.blob` — not the other way round.
+`S.blob` - not the other way round.
 
 ```ts
 S.parser(S.file)(new File(["hi"], "a.txt")); // passes
@@ -1163,8 +1163,8 @@ It takes the same size bounds as [`S.blob`](#blob):
 S.file.with(S.minSize, 2).with(S.maxSize, 10); // Expected 2 <= File.size <= 10
 ```
 
-`S.Blob` and `S.File` are exported as types, for projects whose TypeScript
-config has neither `lib.dom` nor `@types/node` and so has no `Blob`/`File` of
+`S.Blob`, `S.File` and `S.FormData` are exported as types, for projects whose
+TypeScript config has neither `lib.dom` nor `@types/node` and so has none of
 its own:
 
 ```ts
@@ -1193,15 +1193,19 @@ S.encoder(signup)(user);
 // => a FormData, ready for fetch(url, { body })
 ```
 
-A field reads its entry as text through the same coercions
-[`S.record(S.string)`](#records) gets; `S.file` and `S.blob` take the entry as
-it is, and `S.array` reads every entry of the key — `S.array(S.file)` included,
-for a multi-file input. A `S.tuple` is the fixed-length version of the same
-read, so `S.tuple([S.string, S.number])` takes two entries of that key and
-reports a form that sent a different number of them.
+Text coercions are the ones [`S.record(S.string)`](#records) gets:
+
+```ts
+S.schema({
+  age: S.number, // "42" -> 42
+  avatar: S.file, // the entry as it is, and so is S.blob
+  photos: S.array(S.file), // every "photos" entry, for a multi-file input
+  point: S.tuple([S.number, S.number]), // exactly two, or the count is reported
+});
+```
 
 A key the schema declares once but the form sent twice is reported rather than
-resolved — `get` would answer the first and say nothing, and which one that is
+resolved - `get` would answer the first and say nothing, and which one that is
 depends on submission order:
 
 ```ts
@@ -1225,7 +1229,7 @@ S.schema({
 });
 ```
 
-Encoding omits an unchecked box, exactly as a browser does — unless the field
+Encoding omits an unchecked box, exactly as a browser does - unless the field
 has a third state, since absent and unchecked are the same wire:
 `S.optional(S.boolean)` and `S.nullable(S.boolean)` write their `false` out to
 keep it apart. `S.optional(S.boolean, true)` still cannot round-trip: its
@@ -1264,7 +1268,7 @@ S.schema({
 });
 ```
 
-Only a required, non-nullable string has to choose — every other target answers
+Only a required, non-nullable string has to choose - every other target answers
 for itself, `S.minLength(0)` being the way to say "the empty string is a value"
 without adding a check. It says that inside a wrapper too:
 `S.optional(S.string.with(S.minLength, 0))` reads `""` as `""` and only a
@@ -1276,7 +1280,7 @@ missing key as absent, which is the one spelling that tells the two apart.
 declared, so "no entries but these" is not something a form can promise.
 Objects strip by default; keep it that way.
 
-Nested objects have no wire form here — send them as a
+Nested objects have no wire form here - send them as a
 [`S.jsonString`](#advanced-schemas) field:
 
 ```ts
@@ -1290,10 +1294,6 @@ rejected rather than silently closing the gaps.
 A file input with nothing chosen still submits an empty, unnamed `File`; that
 sentinel reads as absent, so a required `S.file` reports a missing file and
 `S.nullable(S.file)` reads `null`.
-
-Both directions are sync — nothing reads a file's bytes. `S.FormData` is
-exported as a type for projects with neither `lib.dom` nor `@types/node`, like
-[`S.File`](#file).
 
 ## Content
 
@@ -1394,7 +1394,7 @@ S.inputJSONSchema(documentedStringSchema);
 
 Add a type-only symbol to an existing type so that only values produced by validation satisfy it.
 
-Use `S.brand` to attach a nominal brand to a schema's output. This is a TypeScript-only marker: it does not change runtime behavior. Combine it with `S.refine` (or any validation) so only validated values can acquire the brand — parsing mints one from unknown data, and [`S.outputConstructor`](#constructing-entities) from a plain value you already hold.
+Use `S.brand` to attach a nominal brand to a schema's output. This is a TypeScript-only marker: it does not change runtime behavior. Combine it with `S.refine` (or any validation) so only validated values can acquire the brand - parsing mints one from unknown data, and [`S.outputConstructor`](#constructing-entities) from a plain value you already hold.
 
 ```ts
 // Brand a string as a UserId
@@ -1484,7 +1484,7 @@ const nodeSchema = S.recursive<Node>("Node", (nodeSchema) =>
 );
 ```
 
-One type parameter is enough when the schema doesn't transform — `S.recursive<Node>` is `S.Schema<Node, Node>`. When the recursive schema transforms its input, pass both sides in `S.Schema<TInput, TOutput>` order:
+One type parameter is enough when the schema doesn't transform - `S.recursive<Node>` is `S.Schema<Node, Node>`. When the recursive schema transforms its input, pass both sides in `S.Schema<TInput, TOutput>` order:
 
 ```ts
 type Row = { title: string; children: Row[] };
@@ -1504,7 +1504,7 @@ const rowSchema = S.recursive<unknown, Row>("Row", (rowSchema) =>
 
 ## Refinements
 
-**Sury** lets you provide custom validation logic via refinements. Refinements let you define checks that are not expressible in the type system alone — for example, checking that a number is positive or that a string is a valid URL.
+**Sury** lets you provide custom validation logic via refinements. Refinements let you define checks that are not expressible in the type system alone - for example, checking that a number is positive or that a string is a valid URL.
 
 ```ts
 const positiveNumberSchema = S.number.with(S.refine, (value) => value > 0);
@@ -1616,8 +1616,8 @@ Every operation that looks at one side of a schema says which side in its name. 
 
 Conversion targets are schemas, not dedicated functions: `S.json`, `S.jsonString`, `S.unknown`, `S.date`, and `S.uint8Array` are ordinary schemas usable at any position in a chain.
 
-- **`S.decoder(from, ...intermediate, to)`** — compile a forward pipeline from one schema to another.
-- **`S.encoder(from, ...intermediate, to)`** — the same, starting from the reverse of `from`. Only the first schema is reversed: `S.encoder(a, b)` is `S.decoder(S.reverse(a), b)`.
+- **`S.decoder(from, ...intermediate, to)`** - compile a forward pipeline from one schema to another.
+- **`S.encoder(from, ...intermediate, to)`** - the same, starting from the reverse of `from`. Only the first schema is reversed: `S.encoder(a, b)` is `S.decoder(S.reverse(a), b)`.
 
 Each call fuses the whole chain into a single function generated via `new Function`.
 
@@ -1650,32 +1650,32 @@ const apiUser = S.schema({
 });
 ```
 
-`S.to` is the same compiler as `S.decoder` / `S.encoder`, applied at a single point in a larger schema. The whole tree — top-level operation plus every nested `S.to` — folds into one generated function.
+`S.to` is the same compiler as `S.decoder` / `S.encoder`, applied at a single point in a larger schema. The whole tree - top-level operation plus every nested `S.to` - folds into one generated function.
 
 > 🧠 `S.parser` and `S.assertInput` are `S.decoder` with `S.unknown` on the input side. Asserting skips building the output, which is why it's 2–3× faster than parsing.
 
 ### Built-in operations
 
-Every compiled operation takes the schema and returns a function: `(schema) => (data) => ...`. The asserts are the one exception — TypeScript can only narrow through a direct call.
+Every compiled operation takes the schema and returns a function: `(schema) => (data) => ...`. The asserts are the one exception - TypeScript can only narrow through a direct call.
 
-**Parse** — validate unknown data and transform it to the output type:
+**Parse** - validate unknown data and transform it to the output type:
 
 - `S.parser(schema)`: `(data: unknown) => TOutput`
 - `S.asyncParser(schema)`: `(data: unknown) => Promise<TOutput>`
 
-**Decode** — transform a value the input type already describes. Type validations are skipped; refinements and transforms still run:
+**Decode** - transform a value the input type already describes. Type validations are skipped; refinements and transforms still run:
 
 - `S.decoder(schema)`: `(data: TInput) => TOutput`
 - `S.asyncDecoder(schema)`: `(data: TInput) => Promise<TOutput>`
 
 `S.noValidation(schema, true)` turns type validations off for a schema even under a parse. The value is trusted as it stands, including what it renders to: a `Date` under `S.jsonString` is spliced straight from `toISOString()` with no escaping, so a value that isn't a real `Date` there produces whatever text its method returns.
 
-**Encode** — the reverse direction, exactly `S.decoder` applied to `S.reverse(schema)`:
+**Encode** - the reverse direction, exactly `S.decoder` applied to `S.reverse(schema)`:
 
 - `S.encoder(schema)`: `(data: TOutput) => TInput`
 - `S.asyncEncoder(schema)`: `(data: TOutput) => Promise<TInput>`
 
-**Validate** — a compiled TypeScript type guard that answers instead of throwing:
+**Validate** - a compiled TypeScript type guard that answers instead of throwing:
 
 - `S.inputValidator(schema)`: `(data: unknown) => data is TInput`
 - `S.outputValidator(schema)`: `(data: unknown) => data is TOutput`
@@ -1686,12 +1686,12 @@ const isUser = S.inputValidator(userSchema);
 const users = records.filter(isUser);
 ```
 
-**Assert** — validate without building an output, which makes it 2–3× faster than parsing:
+**Assert** - validate without building an output, which makes it 2–3× faster than parsing:
 
 - `S.assertInput(schema, data)`: `asserts data is TInput`
 - `S.assertOutput(schema, data)`: `asserts data is TOutput`
 
-Both accept `(schema, data)` and `(data, schema)`, so there's no order to memorize — especially handy for AI assistants:
+Both accept `(schema, data)` and `(data, schema)`, so there's no order to memorize - especially handy for AI assistants:
 
 ```ts
 S.assertInput(data, S.string);
@@ -1700,7 +1700,7 @@ S.assertInput(S.string, data); // equivalent
 
 ### Constructing entities
 
-When you already hold a value of the schema's type — one you built in code rather than received from the wire — a constructor validates it and hands it straight back, so the value keeps its identity instead of becoming a decoded clone:
+When you already hold a value of the schema's type - one you built in code rather than received from the wire - a constructor validates it and hands it straight back, so the value keeps its identity instead of becoming a decoded clone:
 
 ```ts
 const userSchema = S.schema({ id: S.string, email: S.email });
@@ -1720,7 +1720,7 @@ makeUser({ id: "1", email: "not-an-address" });
 | S.inputConstructor        | `(Schema<TInput, TOutput>) => (TInput) => TInput`                 | Validates a value of the schema's input type    |
 | S.asyncInputConstructor   | `(Schema<TInput, TOutput>) => (TInput) => Promise<TInput>`        | The same for a schema with async transformations |
 
-Every check the schema carries runs — types, refinements, and the conversion itself — so an entity the schema has no way to encode is rejected at construction rather than at the point it's sent:
+Every check the schema carries runs - types, refinements, and the conversion itself - so an entity the schema has no way to encode is rejected at construction rather than at the point it's sent:
 
 ```ts
 const eventSchema = S.schema({
@@ -1855,7 +1855,7 @@ S.encoder(csv)(["a", "b"]); //? "a,b"
 ```
 
 > 🧠 `S.any` accepts anything, so it's the escape hatch for a value no schema
-> can describe. It checks nothing about what the coder returns — reach for it
+> can describe. It checks nothing about what the coder returns - reach for it
 > last, not first.
 
 Passing a single function is a decode-only shorthand. Encoding such a schema
@@ -1920,7 +1920,7 @@ S.pathToText(["my key"]);
 // '["my key"]'
 ```
 
-Renders an error's `path` array the way `error.message` shows it — dots for identifier-safe keys, brackets for indices and anything else. Useful when building your own messages from `error.path` or a Standard Schema issue's `path`.
+Renders an error's `path` array the way `error.message` shows it - dots for identifier-safe keys, brackets for indices and anything else. Useful when building your own messages from `error.path` or a Standard Schema issue's `path`.
 
 ### **`toString`**
 
@@ -1935,9 +1935,9 @@ String(S.schema({ id: S.string, age: S.number }));
 // "Schema<{ id: string; age: number; }>"
 ```
 
-Both sides at once, in the order the type declares them — `Schema<TInput, TOutput>` — with the second parameter dropped when the two sides match.
+Both sides at once, in the order the type declares them - `Schema<TInput, TOutput>` - with the second parameter dropped when the two sides match.
 
-`console.log(schema)` deliberately still shows the internal schema shape, which is usually what you want when you're inspecting one. Ask for the expression explicitly when you want it — `` console.log(`${schema}`) `` or `console.log("%s", schema)`.
+`console.log(schema)` deliberately still shows the internal schema shape, which is usually what you want when you're inspecting one. Ask for the expression explicitly when you want it - `` console.log(`${schema}`) `` or `console.log("%s", schema)`.
 
 The output side is derived through [`reverse`](#reverse), so nested transforms are reported correctly:
 

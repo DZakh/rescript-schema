@@ -51,7 +51,7 @@ export type StandardProps = {
 };
 
 // The Standard JSON Schema converter, installed by enableStandardJSONSchema
-// (jsonschema.ts). A plain mutable module binding — the indirection is NOT a
+// (jsonschema.ts). A plain mutable module binding - the indirection is NOT a
 // forward-reference workaround but the tree-shaking gate: the `~standard`
 // prototype getter below is always retained, so it must not statically
 // reference the converter or every parser-only bundle would ship the whole
@@ -83,12 +83,12 @@ export const getStandardJSONSchema = (
 }
 
 // Mirrors the declared `Schema<TInput, TOutput>`, so a logged schema reads the
-// way its type does — input first, as the type parameters are ordered.
+// way its type does - input first, as the type parameters are ordered.
 // Collapsed to one parameter when the sides match, because the point is a
 // readable log line, not a literal type.
 //
 // A prototype method can never be tree-shaken, so this puts `reverse` in every
-// consumer's bundle whether or not they ever print a schema — an accepted cost,
+// consumer's bundle whether or not they ever print a schema - an accepted cost,
 // recorded across bundleSize.yaml. Walking the `.to` chain instead would be
 // cheaper and wrong: the output of `{ a: string -> int32 }` is `{ a: int32; }`,
 // which only a recursive reversal produces.
@@ -116,12 +116,12 @@ const toStandardIssues = (exn: unknown): StandardResult => {
   };
 };
 
-// A lazy prototype getter (not an eager per-schema property — that would put
+// A lazy prototype getter (not an eager per-schema property - that would put
 // 2 allocations + 4 closures on the baseSchema hot path for a feature most
 // schemas never use), cached on first access: Standard Schema consumers read
 // `schema["~standard"].validate` per validation call, so an uncached getter
 // re-allocates the whole props object per request. The cache is written as a
-// NON-enumerable own property (valueOptions descriptor) on purpose —
+// NON-enumerable own property (valueOptions descriptor) on purpose -
 // copySchema's Object.assign copies enumerable own props, and the cached
 // object closes over THIS schema, so an enumerable cache would leak onto
 // derived schemas and validate against the wrong one; non-enumerable means
@@ -142,7 +142,7 @@ Object.defineProperty(schemaPrototype, "~standard", {
       vendor,
       validate: (input: unknown): StandardResult | Promise<StandardResult> => {
         // Outside the try: a conversion rejected at operation creation fails
-        // for every input — a schema bug for the developer, not an `issues`
+        // for every input - a schema bug for the developer, not an `issues`
         // entry for whoever is filling in the form. It throws on every call,
         // since `decoderFlag` commits only once there is a decoder.
         if (decoderFlag !== globalConfig.f) {
@@ -160,7 +160,7 @@ Object.defineProperty(schemaPrototype, "~standard", {
           decoderFlag = globalConfig.f;
         }
         // An async operation's type checks ahead of the first await throw
-        // synchronously, like `safeAsync`'s callee — folded into the promise
+        // synchronously, like `safeAsync`'s callee - folded into the promise
         // so the consumer sees one shape.
         try {
           const value = decoder(input);

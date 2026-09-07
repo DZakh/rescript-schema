@@ -30,7 +30,7 @@ jobs:
       # The *.res.mjs beside each *.res are compiled output, checked in because
       # they ship in the published package. Every job that needs them rebuilds
       # them first, so a commit that forgot to regenerate passes the whole suite
-      # while the file in git says something else — the drift is only ever read
+      # while the file in git says something else - the drift is only ever read
       # by a consumer installing from npm. The build above just regenerated
       # them; anything that moved was stale in the commit.
       - name: Compiled ReScript matches its source
@@ -38,7 +38,7 @@ jobs:
         working-directory: packages/sury
 
       # `coverage` below typechecks only what vitest is pointed at
-      # (tests/**/*_test.ts). This covers src/ and scripts/ too — the fuzzers
+      # (tests/**/*_test.ts). This covers src/ and scripts/ too - the fuzzers
       # live in scripts/ and reach the library through its public entry, so
       # without this a renamed export leaves them calling a name that no longer
       # exists and nothing says so until someone runs them by hand.
@@ -49,7 +49,7 @@ jobs:
         working-directory: packages/sury
 
       # Guards the `escapeFree` flag, which switches jsonString to splicing a
-      # value between bare quotes with no escaping — so a format flagged wrongly
+      # value between bare quotes with no escaping - so a format flagged wrongly
       # emits syntactically broken JSON. That claim is a property of each
       # format's regex, and nothing else in the suite checks it. Roughly 90s.
       - run: pnpm fuzz:escfree
@@ -102,7 +102,7 @@ jobs:
 
       # Fetches the pinned upstream revision (see suite-ref.json) and fails if
       # the score drifts from packages/json-schema-test-suite/goldens/ in
-      # either direction — a fix that improves coverage is expected to land the
+      # either direction - a fix that improves coverage is expected to land the
       # regenerated golden alongside it.
       - name: Restore suite checkout
         uses: actions/cache@v4
@@ -137,7 +137,7 @@ jobs:
       - run: pnpm install
 
       # Every spec measured against the same library built from the PR's base
-      # branch — schema creation, creation+compilation, and each example. Both
+      # branch - schema creation, creation+compilation, and each example. Both
       # versions run interleaved in one process, so a shared runner's noise hits
       # them equally and cancels in the ratio. Advisory: a regression never
       # fails the job (a failed *measurement* still does).
@@ -156,7 +156,7 @@ jobs:
         run: npx tsx packages/spec/perfComment.ts spec-perf.txt spec-perf-comment.md
         env:
           ARTIFACT_URL: ${{ steps.spec-perf-artifact.outputs.artifact-url }}
-          # The PR's head, not GITHUB_SHA — on a pull_request event that's the
+          # The PR's head, not GITHUB_SHA - on a pull_request event that's the
           # ephemeral merge commit, which names nothing a reader can go look at.
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
 
@@ -182,7 +182,7 @@ jobs:
 
   # The `performance` job above only ever compares a PR against its own base, so
   # a change small enough to sit under the noise floor leaves no trace anywhere
-  # — and twenty of them in a row still leave none. This measures main against
+  # - and twenty of them in a row still leave none. This measures main against
   # the last release instead, where that same drift has had time to add up to
   # something the floor can see. Reported to the run summary, not gated: the
   # answer to a real drift is a fix, not a red main.
@@ -339,7 +339,7 @@ jobs:
 
       # Same guard as the sury job, for the ppx-generated output. This one is
       # never published, but it is the only readable record of what the ppx
-      # emits, and the step above regenerates it before asserting on it — so a
+      # emits, and the step above regenerates it before asserting on it - so a
       # stale commit here is invisible in every other signal.
       - name: Compiled ReScript matches its source
         run: ../../scripts/assert-no-drift.sh '*.res.mjs'

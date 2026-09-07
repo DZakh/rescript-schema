@@ -164,7 +164,7 @@ test("Successfully round-trips date through JSON", t => {
 
 // Regression guard: encoding a `@s.nullable option<Timestamp.t>` field (ppx-expanded
 // to `S.nullableAsOption(Timestamp.schema)`) used to throw `received invalid Date`
-// instead of serializing the Date back to a string. Parsing was never affected — only
+// instead of serializing the Date back to a string. Parsing was never affected - only
 // the reverse, where the union variant's type-check narrow dropped the member's encoder.
 
 module Timestamp = {
@@ -261,7 +261,7 @@ test("Encodes a nullable optional Timestamp whose input is string | number (issu
   // `Expected string | number, received Date`.
   //
   // There is no built-in number -> Date decoder, so the numeric member has to
-  // say how it converts (or that it can't) — the conversion is rejected where
+  // say how it converts (or that it can't) - the conversion is rejected where
   // it's written otherwise.
   let timestamp = S.union([S.string->S.castToUnknown, S.float->S.castToUnknown])->S.to(S.date)
   t->U.assertThrowsMessage(

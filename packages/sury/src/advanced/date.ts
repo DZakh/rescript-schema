@@ -1,4 +1,4 @@
-// `S.date` — an ISO string on the JSON side, a `Date` on ours.
+// `S.date` - an ISO string on the JSON side, a `Date` on ours.
 
 import {
   initSchema,
@@ -37,7 +37,7 @@ export const invalidDateRefine = (input: Val): Val => {
 // The `toISOString()` result, described once. It outlives the encoder call: it
 // becomes the enclosing object's property schema and is reached later as another
 // operation's target, so it needs a real decoder (#369) and a stable identity
-// for the seq-keyed operation cache — a fresh copy per compilation was both the
+// for the seq-keyed operation cache - a fresh copy per compilation was both the
 // bug and a cache miss.
 const dateTimeString: Internal = /* @__PURE__ */ initSchema(
   stringTag,
@@ -73,7 +73,7 @@ export const date: Internal = /* @__PURE__ */ initSchema(
       const toTagFlag = tagFlags[target.type]!;
       if ((toTagFlag & 2)) {
         // `toISOString()` throws a bare RangeError on an invalid Date, which
-        // carries no path and never matches `S.Raised` — so the throw is
+        // carries no path and never matches `S.Raised` - so the throw is
         // caught and reported against the Date node (`input.s`), which names
         // `Date` in the error. A try/catch costs a valid Date nothing, where a
         // `getTime()` check would run on every encode.

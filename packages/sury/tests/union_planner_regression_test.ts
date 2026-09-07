@@ -123,8 +123,8 @@ test("factory normalization preserves duplicate effects and nested metadata", (t
   );
 });
 
-// Whatever a custom coder throws is that conversion failing — a coder hit by
-// a value it was never written for throws a TypeError (#347) — so it hands
+// Whatever a custom coder throws is that conversion failing - a coder hit by
+// a value it was never written for throws a TypeError (#347) - so it hands
 // the value to the next case. A refiner's foreign error still escapes (see
 // the nested-union test below).
 test("custom decoder errors, foreign or Sury, fall through to the next case", (t) => {

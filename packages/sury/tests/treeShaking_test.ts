@@ -2,7 +2,7 @@
 //
 // They are what lets a consumer's bundler drop schemas it never uses: without
 // one, `export const adminSchema = S.schema({…})` in a shared module is an
-// unanalyzable call, so it — and every part of Sury it reaches — survives into
+// unanalyzable call, so it - and every part of Sury it reaches - survives into
 // a page that only imports `userSchema`.
 //
 // bundleSize.yaml can't catch a lost annotation: it measures with esbuild,
@@ -18,10 +18,10 @@ const source = readFileSync(new URL("../index.mjs", import.meta.url), "utf8");
 // Exports whose whole point is the effect, so a bundler must never drop a call
 // to them even when the result is unused.
 const EFFECTFUL: Record<string, string> = {
-  assertInput: "throws on invalid input — the call IS the assertion",
-  assertOutput: "throws on invalid input — the call IS the assertion",
-  asyncAssertInput: "rejects on invalid input — the call IS the assertion",
-  asyncAssertOutput: "rejects on invalid input — the call IS the assertion",
+  assertInput: "throws on invalid input - the call IS the assertion",
+  assertOutput: "throws on invalid input - the call IS the assertion",
+  asyncAssertInput: "rejects on invalid input - the call IS the assertion",
+  asyncAssertOutput: "rejects on invalid input - the call IS the assertion",
   safe: "runs the callback it's given",
   safeAsync: "runs the callback it's given",
   global: "mutates the global config",

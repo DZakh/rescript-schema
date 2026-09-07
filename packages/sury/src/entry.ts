@@ -169,7 +169,7 @@ export {
 } from "./operations";
 export { array, dict as record } from "./composites";
 export { schemaObject as object, schemaShape as shape, schemaTuple as tuple } from "./factory";
-// `nullish` accepts null | undefined (the 3-member union) — distinct from
+// `nullish` accepts null | undefined (the 3-member union) - distinct from
 // `nullable` below, which handles null only.
 export { nullable as nullish } from "./refinements";
 export {
@@ -210,7 +210,7 @@ export { outputExpression } from "./parse";
 // ── Public JS/TS API implemented here (argument-shape adapters) ──────────────
 
 // Spreading the own rest param straight through (`getDecoder(unknown,
-// ...args)`) is a shape engines already optimize — an arity fast path here
+// ...args)`) is a shape engines already optimize - an arity fast path here
 // measured nothing, so these stay generic.
 // @__NO_SIDE_EFFECTS__
 export const parser = (...args: unknown[]) => getDecoder(unknown, ...args);
@@ -275,7 +275,7 @@ const validatorRun = (operation: (data: unknown) => unknown, data: unknown): boo
 const validator = (schema: Internal): ((data: unknown) => boolean) => {
   // Compiled outside the returned closure: a conversion rejected at operation
   // creation means the schema can't check any value, so creating the validator
-  // throws rather than every answer reading as `false` — the same split
+  // throws rather than every answer reading as `false` - the same split
   // `~standard.validate` makes.
   const operation = getDecoder(unknown, schema, assertResult) as (data: unknown) => unknown;
   return (data) => validatorRun(operation, data);
@@ -287,8 +287,8 @@ export const inputValidator = (schema: Internal) => validator(schema);
 // @__NO_SIDE_EFFECTS__
 export const outputValidator = (schema: Internal) => validator(reverse(schema));
 
-// The compiled operation is `assert`'s: the value runs the whole pipeline —
-// type checks, conversion, refinements — and the result is dropped, so what
+// The compiled operation is `assert`'s: the value runs the whole pipeline -
+// type checks, conversion, refinements - and the result is dropped, so what
 // comes back is the value handed in rather than a decoded clone of it.
 const construct = (schema: Internal): ((data: unknown) => unknown) => {
   const operation = getDecoder(unknown, schema, assertResult) as (data: unknown) => unknown;
@@ -339,7 +339,7 @@ const ambiguousEncode: Builder = (input: Val) =>
 // they got wrong rather than the pair. `"pack"`/`"unpack"` are the odd pair out:
 // they are not coders but a choice between a content link's two readings
 // (CONTENT_CODEC_SPEC.md rule 1), so they resolve to a boolean that rides the
-// link itself — `true` opens the direction's own source, `false` stores it.
+// link itself - `true` opens the direction's own source, `false` stores it.
 const conversionBuilder = (
   name: string,
   slot: unknown,
@@ -368,7 +368,7 @@ const conversionBuilder = (
 // @__NO_SIDE_EFFECTS__
 export const to = (schema: Internal, target: Internal, custom?: unknown) => {
   // A misspelled export arrives as `undefined`, which used to link to nothing
-  // and hand back the source unchanged — the conversion silently absent.
+  // and hand back the source unchanged - the conversion silently absent.
   if (!target) {
     return panic(`Expected a schema to convert to`);
   }
@@ -396,7 +396,7 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
       return panic(`Expected {decode, encode}. Use "auto" for the built-in conversion`);
     }
     // `S.any` is this very `unknown` schema under a second name, and its
-    // ReScript type is `t<'any>` — a variable that unifies with whatever the
+    // ReScript type is `t<'any>` - a variable that unifies with whatever the
     // coder returns, so the seam against it carries nothing to trust. Same
     // carve-out B_conversion makes for a literal target, one level up: the
     // untrustworthy side can be either end of the pair, and only `to` sees
@@ -405,8 +405,8 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
     decode = conversionBuilder("decode", decodeSlot, !outputSeam);
     encode = conversionBuilder("encode", encodeSlot, !outputSeam);
     // Each reading names what its direction does to its own source, so the two
-    // directions can't both open (or both store) — there would be no side of
-    // the link left holding the payload — and a reading opposite the built-in
+    // directions can't both open (or both store) - there would be no side of
+    // the link left holding the payload - and a reading opposite the built-in
     // conversion leaves that side still asking the question the reading just
     // answered. A coder opposite one is fine: it answers for itself.
   }
@@ -427,7 +427,7 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
   }
   // Chaining a schema to itself would append a second copy of its own chain,
   // re-decoding the value it just produced. Resolving the slots first is what
-  // makes the all-"auto" spelling behave exactly like the coder-less one — and
+  // makes the all-"auto" spelling behave exactly like the coder-less one - and
   // a reading is the same: there is nothing to pick between when both sides are
   // the same schema.
   if (schema === target && typeof decode !== functionTag && typeof encode !== functionTag) {
@@ -438,7 +438,7 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
   // junction seam feeds the target's chain instead, so it stays legal, as do
   // the slots that place no coder.
   // A reading is exempt with `B_neverSlot`: neither places a coder, so neither
-  // claims the target's result — the very case a reading exists for is a target
+  // claims the target's result - the very case a reading exists for is a target
   // that converts on its own.
   if (
     outputSeam &&
@@ -510,7 +510,7 @@ const isMergeable = (s: Internal): boolean =>
 // @__NO_SIDE_EFFECTS__
 export const merge = (s1: Internal, s2: Internal): Internal => {
   if (!isMergeable(s1) || !isMergeable(s2)) {
-    // Recomputed, not cached — this path throws, and the temp measured larger.
+    // Recomputed, not cached - this path throws, and the temp measured larger.
     const bad = isMergeable(s1) ? s2 : s1;
     // TODO: Can theoretically support the transformed case
     return panic(`Can't merge ${bad.to ? "transformed " : ""}${inputExpression(bad)}`);
@@ -526,7 +526,7 @@ export const merge = (s1: Internal, s2: Internal): Internal => {
   return mut;
 };
 
-// PORT-NOTE: kept the source's `global` name — legal as a module-scoped
+// PORT-NOTE: kept the source's `global` name - legal as a module-scoped
 // export even though Node types declare a `global` var.
 export const global = (override: GlobalConfigOverride): void => {
   globalConfig.a =

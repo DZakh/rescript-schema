@@ -2,7 +2,7 @@
 //
 // An escape-free-flagged format is spliced between bare quotes with no escaping, so a
 // value it accepts carrying `"`, `\`, a control char or a lone surrogate would
-// make the encoder emit syntactically broken JSON — a much louder bug than the
+// make the encoder emit syntactically broken JSON - a much louder bug than the
 // over-escaping it replaces. The guarantee is a property of the format's
 // pattern, which sits right next to the flag in refinements.ts but can still
 // be widened without re-checking it. This is what keeps the two in sync.
@@ -81,7 +81,7 @@ const SEEDS: Record<string, string[]> = {
 };
 
 // `S.Schema` is a union over the `type` variants, so the string arm's `format`
-// is only reachable once narrowed — which the filter below does at runtime.
+// is only reachable once narrowed - which the filter below does at runtime.
 type StringSchema = S.Schema<string, string> & {
   type: "string";
   format: S.StringFormat;
@@ -112,7 +112,7 @@ const stringFormatSchemas = Object.entries(S as Record<string, unknown>).filter(
 const validators = new Map<StringSchema, (value: string) => boolean>();
 
 // No try/catch. A validator that fails to compile, or an API that stopped
-// existing, is a broken harness — it has to crash with a stack trace rather
+// existing, is a broken harness - it has to crash with a stack trace rather
 // than read as "this format rejected the value". Swallowing that is how a
 // rename left every format silently unfuzzed for nine commits.
 const accepts = (schema: StringSchema, value: string): boolean => {
@@ -143,7 +143,7 @@ for (const [name, schema] of stringFormatSchemas) {
       : S.encoder(schema, S.jsonString),
   );
   if (!emitted.includes(`"\\""+`)) {
-    rows.push([name, format, "escape helper", "—"]);
+    rows.push([name, format, "escape helper", "-"]);
     continue;
   }
 
@@ -152,10 +152,10 @@ for (const [name, schema] of stringFormatSchemas) {
   const seeds = (SEEDS[format] ?? []).filter((v) => accepts(schema, v));
   if (!seeds.length) {
     failures.push(
-      `${name} (${format}): raw-spliced but this script has no valid seed for it — ` +
+      `${name} (${format}): raw-spliced but this script has no valid seed for it - ` +
         `add seeds here, or clear its formatFlag bit 1 in refinements.ts`,
     );
-    rows.push([name, format, "RAW SPLICE", "NO SEED — unfuzzed"]);
+    rows.push([name, format, "RAW SPLICE", "NO SEED - unfuzzed"]);
     continue;
   }
 
@@ -203,7 +203,7 @@ for (const [name, schema] of stringFormatSchemas) {
 for (const format of Object.keys(SEEDS)) {
   if (!rawSpliced.has(format)) {
     failures.push(
-      `${format}: seeds for a format that is not raw-spliced — drop them, or ` +
+      `${format}: seeds for a format that is not raw-spliced - drop them, or ` +
         `restore formatFlag bit 1 in refinements.ts`,
     );
   }
@@ -217,4 +217,4 @@ if (failures.length) {
   for (const f of failures) console.error(`  ${f}`);
   process.exit(1);
 }
-console.log(`\nok — every raw-spliced format is escape-free (seed ${seed}, ${cases} random cases)`);
+console.log(`\nok - every raw-spliced format is escape-free (seed ${seed}, ${cases} random cases)`);

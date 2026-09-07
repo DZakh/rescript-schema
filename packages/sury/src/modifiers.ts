@@ -1,4 +1,4 @@
-// Modifiers: everything that takes a schema and returns a changed schema —
+// Modifiers: everything that takes a schema and returns a changed schema -
 // refinements' machinery, transforms, metadata, object modes and defaults.
 // Distinct from `operations.ts`, which compiles a schema into a callable.
 
@@ -221,7 +221,7 @@ export const refine = (
 
 // `refine`, but on the schema's Input rather than its assembled Output. A JSON
 // Schema composition keyword (`allOf`, `not`, …) asserts about the data as
-// given, and an object schema strips unknown keys on the way out — an output
+// given, and an object schema strips unknown keys on the way out - an output
 // refiner would judge `{a}` where the document said `{a, b}`.
 export const refineInput = (
   schema: Internal,
@@ -265,7 +265,7 @@ export const getMutErrorMessage = (mut: Internal): SchemaErrorMessage => {
 // shorthand) are resolved by the caller into Builders; a boolean is a content
 // reading (`true` opens the direction's own source) and rides the schema that
 // direction converts into, which is what makes reversal swap those too. `U`
-// means no slot, i.e. the built-in conversion — or, where `B_contentDiffers`
+// means no slot, i.e. the built-in conversion - or, where `B_contentDiffers`
 // says the pair has two readings, the rejection built below.
 export const codecTo = (
   schema: Internal,
@@ -275,7 +275,7 @@ export const codecTo = (
 ): Internal => {
   const root: Internal = updateOutput(schema, (mut) => {
     // The slot spelling is worth naming here, where the caller has somewhere to
-    // write one — but only for a pair where writing one resolves it. A union
+    // write one - but only for a pair where writing one resolves it. A union
     // arm's payload and a reading on the union both stop short of the dispatch,
     // and `S.json` has no opened form of its own, so those say what every
     // undecodable pair says instead.
@@ -328,7 +328,7 @@ export const codecTo = (
     }
     if (typeof encode === "boolean") {
       // `opensBack`, not `opens`: this node is the *source* of the link, and it
-      // may later be some other link's target — where `opens` would then be
+      // may later be some other link's target - where `opens` would then be
       // read as that link's decode reading. `reverse` moves it across.
       mut.opensBack = encode;
     }
@@ -337,7 +337,7 @@ export const codecTo = (
   // custom slot can change both, so let the next compile re-derive them.
   // Slotless links keep the fast path: a built-in conversion can turn async now
   // that a container reads its payload, but only where the source itself is
-  // already one, and the cache is read off the link's own head — nothing that
+  // already one, and the cache is read off the link's own head - nothing that
   // reaches here carries a value for either.
   if (decode !== U || encode !== U) {
     delete root.isAsync;
@@ -347,17 +347,17 @@ export const codecTo = (
 };
 
 // Not initSchema: that would stamp the self-reverse marker, and this codec's
-// reverse (unit -> null) must stay lazily derived — copySchema drops
+// reverse (unit -> null) must stay lazily derived - copySchema drops
 // nullLiteral's non-enumerable `r` on purpose.
 export const nullAsUnit: Internal = /* @__PURE__ */ (() => {
-  // PORT-NOTE: local `s` renamed to `schema` — `s` is the module-level error
+  // PORT-NOTE: local `s` renamed to `schema` - `s` is the module-level error
   // identity symbol in this file.
   const schema = copySchema(nullLiteral);
   schema.to = unit;
   return schema;
 })();
 
-// A default is either an eager value or a lazily-called callback — used only
+// A default is either an eager value or a lazily-called callback - used only
 // within this module, never exposed to callers.
 export type OptionDefault =
   | { type: "value"; value: unknown }
@@ -461,7 +461,7 @@ export const Option_getOrWith = (schema: Internal, defaultCb: () => unknown): In
 // PORT-NOTE: `Object.s` (the object ctx record) → `ObjectCtx`; field names are
 // the runtime names from `@as` (`f` for `field`, others unchanged).
 export type ObjectCtx = {
-  // @as("f") — field
+  // @as("f") - field
   f: (location: string, schema: Internal) => unknown;
   fieldOr: (location: string, schema: Internal, or: unknown) => unknown;
   tag: (location: string, value: unknown) => void;
@@ -480,7 +480,7 @@ export const Object_setAdditionalItems = (
     currentAdditionalItems !== additionalItems &&
     typeof currentAdditionalItems !== objectTag;
   // A deep pass still has to descend through a level that already carries the
-  // mode — a tuple is strict from the start, and its object items are not.
+  // mode - a tuple is strict from the start, and its object items are not.
   // When nothing changes anywhere in the subtree, return the same object:
   // a repeated call stays identity-stable, so the operation cache (keyed on
   // the schema object) keeps hitting.

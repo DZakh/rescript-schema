@@ -1,4 +1,4 @@
-// `S.formData` — a form submission as a browser or `Request.formData()` hands
+// `S.formData` - a form submission as a browser or `Request.formData()` hands
 // it over, and the body a `fetch` call sends. An entry is a string or a
 // `File`, so an object schema reads its fields through the string coercions
 // the env pattern already compiles (`"42"` -> 42), a file field takes the entry
@@ -8,7 +8,7 @@
 // Not on the content axis (CONTENT_CODEC_SPEC.md): a form has no JSON document
 // form and no format opens into one, so a link to it never has two readings,
 // and a `FormData` in a JSON position has no document, the way `S.blob` has
-// none. Bracket notation (`user[name]`) is deliberately out — a nested value
+// none. Bracket notation (`user[name]`) is deliberately out - a nested value
 // travels as a `S.jsonString.with(S.to, …)` field.
 
 import {
@@ -105,12 +105,12 @@ const presentArm = (schema: Internal): Internal => {
   return mut;
 };
 
-// A boolean field can only be a checkbox — nothing else a browser sends is one
-// — so it reads the way a checkbox submits: absent is unchecked, and a present
+// A boolean field can only be a checkbox - nothing else a browser sends is one
+// - so it reads the way a checkbox submits: absent is unchecked, and a present
 // entry is `"on"`, or the `"true"`/`"false"` a hidden input carries. True of a
 // boolean however it is wrapped: `S.optional(S.boolean, false)` is the natural
 // spelling of "checkbox, default unchecked", and its entry is still `"on"`.
-// A boolean literal is one too — `S.schema(true)` is the terms-and-conditions
+// A boolean literal is one too - `S.schema(true)` is the terms-and-conditions
 // box, which submits `"on"` like any other and must be checked.
 const isCheckbox = (schema: Internal): boolean =>
   schema.type === anyOfTag
@@ -121,11 +121,11 @@ const isCheckbox = (schema: Internal): boolean =>
     : (tagFlags[schema.type]! & 8) !== 0;
 
 // Whether the schema states what a blank entry means. A form always submits a
-// text input, so `""` is what a user leaving one alone sends — and a bare
+// text input, so `""` is what a user leaving one alone sends - and a bare
 // `S.string` is silent about whether that is a value or a missing field. These
 // are the ways a schema answers: a lower length bound (`S.nonEmpty` rejects it,
-// `S.minLength(0)` admits it), a literal, a named format — 30 of the 36 reject
-// `""` and the rest, like `S.jsonPointer`, admit it deliberately — a pattern
+// `S.minLength(0)` admits it), a literal, a named format - 30 of the 36 reject
+// `""` and the rest, like `S.jsonPointer`, admit it deliberately - a pattern
 // that rejects it, or a conversion whose far end decides (`S.to(S.date)`).
 const decidesBlank = (schema: Internal): boolean =>
   schema.minLength !== U ||
@@ -140,8 +140,8 @@ const isNullable = (schema: Internal): boolean =>
   schema.type === nullTag || (schema.type === anyOfTag && !!schema.has![nullTag]);
 
 // Whether the schema says what "no entry" means. It is the one question both
-// directions ask of a field — the decode has somewhere to put a missing key,
-// and the encode has a value it must not write — and the one that makes an
+// directions ask of a field - the decode has somewhere to put a missing key,
+// and the encode has a value it must not write - and the one that makes an
 // item unfit for a list, where every position is an entry.
 const isAbsent = (schema: Internal): boolean => isOptional(schema) || isNullable(schema);
 
@@ -169,11 +169,11 @@ const beforeTo = (schema: Internal): Internal => {
 // The entry list as a lookup, in one pass. A key that repeats holds an array,
 // which is what lets a field declared as one value report the two it got
 // (`Expected string, received ["a", "b"]`) instead of silently taking the
-// first — `get` answers the first and says nothing. A `Map`, not an object:
+// first - `get` answers the first and says nothing. A `Map`, not an object:
 // the keys are whatever the client sent, and `__proto__` is one of them.
 //
 // Measured against `get` per field on node 22: 0.30µs vs 0.22µs at 3 fields,
-// level at 15, and 1.5x faster at 30 — `get` and `getAll` each scan the whole
+// level at 15, and 1.5x faster at 30 - `get` and `getAll` each scan the whole
 // list, so per-field reads go quadratic while this stays linear.
 //
 // A `Object.create(null)` lookup was measured too, and is faster only for a
@@ -203,7 +203,7 @@ const asList = (value: unknown): unknown[] =>
 const asOptionalList = (value: unknown): unknown[] | undefined =>
   value === U ? U : Array.isArray(value) ? value : [value];
 
-// One entry of the list — a string or a `File` — as a schema, so the rules for
+// One entry of the list - a string or a `File` - as a schema, so the rules for
 // reading one live on it rather than in a per-field inspection. `parse`
 // consults a source's encoder hook once per arm of a union target, so a
 // `S.union([S.boolean, S.number])` field gets the checkbox reading on its
@@ -231,13 +231,13 @@ formDataField.encoder = (input: Val, target: Internal): Val => {
   }
   if (flag & (64 | 128)) {
     // An entry is one value, so no structure fits in it. Reported from here,
-    // where the pair still names the form field — the text stage below would
+    // where the pair still names the form field - the text stage below would
     // otherwise report a `string` the schema never mentioned.
     return B_unsupportedDecode(input, formDataField, target);
   }
   // A blob takes the entry as it is, and `undefined`/`null` are the sentinels a
   // union carries for an absent one. A string-tagged target checks the entry
-  // itself, and reads it as its own document where it is a format — a `string`
+  // itself, and reads it as its own document where it is a format - a `string`
   // stage in front would escape it into a JSON string value instead. In all
   // three `unknown` is the source that leaves the target's own check the one
   // that runs.
@@ -253,7 +253,7 @@ const asText = (input: Val, target: Internal): Val =>
 
 // A repeated key is how a form carries an array, and `getAll` is its read.
 // A repeated key is positional, so every array-tagged target reads the same
-// way — a tuple is the fixed-length case, and its own checks report a list of
+// way - a tuple is the fixed-length case, and its own checks report a list of
 // the wrong length.
 const isList = (schema: Internal): boolean => schema.type === arrayTag;
 
@@ -294,12 +294,12 @@ const assertListItems = (val: Val, schema: Internal): void => {
 
 // Every field decision, taken once off the target: `present` is what a supplied
 // entry converts to, and the rest say how the entry is read. They are read
-// together because they interact — a `S.array(S.file)` is a list whose *item*
+// together because they interact - a `S.array(S.file)` is a list whose *item*
 // takes the entry, which is not the same question as the field taking one.
 type Field = {
   optional: boolean;
   // A `null` arm makes a blank entry `null`, the way an `undefined` one makes
-  // it absent — both are a schema saying what an empty input means, so both
+  // it absent - both are a schema saying what an empty input means, so both
   // answer the blank question and neither is ambiguous.
   nullable: boolean;
   list: boolean;
@@ -352,7 +352,7 @@ const armCode = (item: Val, source: Internal, target: Internal): string => {
 
 // What a blank entry becomes. A `null` arm makes it `null`; an `undefined` one
 // leaves the var alone, which is already absent, and runs that arm's own chain
-// — where `S.optional(x, default)` keeps its default. A field with both takes
+// - where `S.optional(x, default)` keeps its default. A field with both takes
 // the optional reading, since absence is the weaker claim.
 const absentCode = (item: Val, field: Field, schema: Internal): string => {
   if (!field.optional) {
@@ -382,13 +382,13 @@ const readOptional = (item: Val, field: Field, schema: Internal): Val =>
 
 // One entry read as a checkbox: `"on"` is what a checked box with no `value`
 // attribute submits, the rest are the hidden-input spellings, and match what
-// VineJS accepts. Anything falsy — absent, `null`, the `""` of a box carrying
-// an empty value — is an unchecked box, so a required boolean needs no absent
+// VineJS accepts. Anything falsy - absent, `null`, the `""` of a box carrying
+// an empty value - is an unchecked box, so a required boolean needs no absent
 // reading of its own. A checkbox carrying any other `value` is not a boolean:
 // the schema names that value instead of the codec guessing at it.
 //
-// The result is a `bool`, not the target: whatever more the target asks — the
-// `true` of a box that must be ticked — is its own decoder's to check, against
+// The result is a `bool`, not the target: whatever more the target asks - the
+// `true` of a box that must be ticked - is its own decoder's to check, against
 // the boolean this produced rather than against the text a browser sent.
 const readCheckbox = (input: Val, target: Internal): Val => {
   const v = input.i;
@@ -407,25 +407,25 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
   const schema = val.s;
   const tagFlag = tagFlags[schema.type]!;
   // Neither `null` nor `undefined` is something a form can carry, so a field
-  // declared as one is simply never written — which is what its own decode
+  // declared as one is simply never written - which is what its own decode
   // reads back from an absent entry.
   if (tagFlag & (16 | 32)) {
     return "";
   }
   // Only a field is a checkbox. A repeated key is a list, and a list of
-  // booleans is positional — dropping the false ones would lose the indices
+  // booleans is positional - dropping the false ones would lose the indices
   // the decoder reads back. (A checkbox *group* submits the values of the
   // checked boxes, which is `S.array(S.string)`.)
   if (!inList && isCheckbox(schema)) {
-    // A literal settles the entry at compile time — `S.schema(true)` always
-    // submits, `S.schema(false)` never does — so neither needs a guard.
+    // A literal settles the entry at compile time - `S.schema(true)` always
+    // submits, `S.schema(false)` never does - so neither needs a guard.
     if (schema.const !== U) {
       return schema.const ? `${fdVar}.append(${keyText},"on");` : "";
     }
     // An unchecked box sends nothing, which is the whole of what the entry
     // list says about `false`, so that is what is written. A tri-state is the
-    // one case the platform cannot express — absent and unchecked are the same
-    // wire — so there `false` is spelled out to keep the third value apart, or
+    // one case the platform cannot express - absent and unchecked are the same
+    // wire - so there `false` is spelled out to keep the third value apart, or
     // it would read back as the third one.
     // `S.optional(S.boolean, true)` therefore cannot round-trip: its `false`
     // omits, and an absent entry is its default. That default contradicts the
@@ -439,7 +439,7 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     const slots = schema.items!;
     if (slots.length) {
       // A tuple's slots each have their own schema, so there is no one item a
-      // loop could convert — one append per slot, in order.
+      // loop could convert - one append per slot, in order.
       let code = "";
       for (let idx = 0; idx < slots.length; idx++) {
         const slot = valGet(val, `${idx}`);
@@ -460,7 +460,7 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     // the merge first, so a var this materializes on the item afterwards would
     // have its `let` dropped and the loop body would read an undeclared name.
     // On a scope of the item, not the item: the conversion merges its own
-    // chain, and `B_mergeWithPathPrepend` below merges the item — the same val
+    // chain, and `B_mergeWithPathPrepend` below merges the item - the same val
     // in both would emit a union's dispatch `let` twice.
     const appendCode = appendValue(B_scope(itemVal), fdVar, keyText, true);
     const itemCode = B_mergeWithPathPrepend(
@@ -474,7 +474,7 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
   }
   if (isAbsent(schema)) {
     // Neither absent nor null is an entry, so the whole append sits behind one
-    // loose guard — `!= null` is both sentinels and shorter than testing them
+    // loose guard - `!= null` is both sentinels and shorter than testing them
     // apart.
     // Compiled on a chain detached from the field val, the way json.ts's
     // guardedJsonPiece does, so the conversion's own code lands inside it.
@@ -498,7 +498,7 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
 };
 
 // `S.strict` means "no entries but these", which a form submission cannot
-// honour: a browser appends entries of its own that no schema declared —
+// honour: a browser appends entries of its own that no schema declared -
 // `_charset_` for a hidden input of that name, one per `dirname` attribute,
 // and an image button's `name.x`/`name.y`. Rejected where the pair is written
 // rather than silently read as `S.strip`.
@@ -548,7 +548,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     // Three reads, one per shape the wire has, each answering `undefined` for
     // "no entry" where the field has an absent reading to hand it to. A
     // required field is handed the entry as it stands and the target answers
-    // for itself — `""` is a value to `S.string`, an unchecked box to
+    // for itself - `""` is a value to `S.string`, an unchecked box to
     // `S.boolean`, and a failure to `S.nonEmpty` and `S.number`, each in its
     // own words.
     const readVar = B_varWithoutAllocation(input.g);
@@ -565,12 +565,12 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       // A file input with nothing chosen still submits: the HTML Standard's
       // entry list gets "a new File object with an empty name,
       // application/octet-stream as type, and an empty body". That sentinel is
-      // not an upload, so it reads as absent — a required field then reports a
+      // not an upload, so it reads as absent - a required field then reports a
       // missing file rather than accepting an empty one. A string entry falls
       // through the guard untouched (`"".name` is undefined).
       // Declared on its own: the sentinel is read three times, and an
       // assignment inside the initializer would otherwise be an implicit
-      // global — `new Function` is sloppy mode, so nothing would say so.
+      // global - `new Function` is sloppy mode, so nothing would say so.
       const entryVar = B_varWithoutAllocation(input.g);
       B_hoistDecl(input, entryVar);
       B_hoistDecl(
@@ -596,7 +596,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       p: input,
       v: _var,
       i: readVar,
-      // The entry, or the list of them, read as the field schema — whose hook
+      // The entry, or the list of them, read as the field schema - whose hook
       // is consulted once per arm of a union target, so each arm reads by its
       // own rule.
       s: list ? arrayFactory(formDataField) : formDataField,
@@ -635,7 +635,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
     B_addObjectField(
       objectVal,
       key,
-      // What "no entry" means is the reader's to say — the union rules have no
+      // What "no entry" means is the reader's to say - the union rules have no
       // conversion into `undefined` or `null` to dispatch on. Everything else
       // is the field schema's own.
       absent ? readOptional(item, field, schema) : parse(item),
@@ -664,7 +664,7 @@ export const formData: Internal = /* @__PURE__ */ initSchema(
       return (targetTagFlag & 64) && typeof target.additionalItems === "string"
         ? formDataToObject(input, target)
         : // A union picks its variant by narrowing the form to an object it
-          // isn't, so the dispatch never reaches the codec — say so here, where
+          // isn't, so the dispatch never reaches the codec - say so here, where
           // the pair is still named.
           (targetTagFlag & 256)
           ? B_unsupportedDecode(input, input.s, target)

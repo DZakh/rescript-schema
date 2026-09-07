@@ -25,7 +25,7 @@ type Delta = { label: string; before: number; after: number };
 
 // Generated code is the hot path, so the summary shows the codegen itself, not
 // just how much of it there is. Clipped because a discriminated-union parse
-// runs past 600 characters and the point is to be readable at a glance — the
+// runs past 600 characters and the point is to be readable at a glance - the
 // spec file has the untruncated text.
 type ExpressionDelta = Delta & { beforeSrc: string; afterSrc: string };
 const EXPRESSION_CLIP = 200;
@@ -50,7 +50,7 @@ const render = (deltas: Delta[]): string[] => {
   });
 };
 
-// One list ordered by percentage, worst regression to biggest improvement —
+// One list ordered by percentage, worst regression to biggest improvement -
 // no regression/improvement grouping, since the sign already separates them.
 const section = (title: string, deltas: Delta[], lead: string[] = []): string[] => {
   const moved = deltas.filter((d) => d.after !== d.before).sort((a, b) => pct(b) - pct(a));
@@ -77,13 +77,13 @@ const expressionSection = (deltas: ExpressionDelta[]): string[] => {
 
 const outcome = (ex: Example): string => ("output" in ex ? `output ${ex.output}` : `error ${ex.error}`);
 
-// How an op resolved, for the behavior list — enough to read a flip between
+// How an op resolved, for the behavior list - enough to read a flip between
 // compiling and being rejected at operation creation at a glance.
 const opKind = (op: Operation): string =>
   typeof op === "string" ? op : isCreationError(op) ? `creationError ${op.creationError}` : "compiled";
 
 // `before` is the spec as it was on disk, so a hand-authored one is missing
-// every derived field. Absent is not a value that changed into another one —
+// every derived field. Absent is not a value that changed into another one -
 // there is nothing to diff, and formatting `undefined` is what used to crash
 // the whole summary.
 const changed = (
@@ -107,7 +107,7 @@ const changedOptional = (
 };
 
 // A spec written from scratch has no goldens on its `before` side, so every
-// field would report as a change. That's noise — the `wrote <id>` line already
+// field would report as a change. That's noise - the `wrote <id>` line already
 // named it. Listed as new instead, mirroring bundleSize's "first recorded".
 const isNewSpec = (before: Spec): boolean =>
   (before as Partial<Spec>).jsonSchema === undefined;
@@ -163,7 +163,7 @@ const specDeltas = (
         continue;
       }
       // Exactly one side is a creationError (both were handled above), so this
-      // op flipped between compiling and being rejected at creation — the
+      // op flipped between compiling and being rejected at creation - the
       // loudest change an op can have. Reported even when the other side is a
       // shorthand, since `--write` does perform this flip (unlike a shorthand
       // mismatch, an op that newly fails at creation doesn't block the write).
@@ -198,7 +198,7 @@ const specDeltas = (
 
 const bundleSizeSection = (change: BundleSizeChange): string[] => {
   const { before, after } = change;
-  if (!before) return [`bundleSize:`, `  first recorded — ${Object.keys(after.exports).length} exports, total ${after.total}`];
+  if (!before) return [`bundleSize:`, `  first recorded - ${Object.keys(after.exports).length} exports, total ${after.total}`];
 
   const lead: string[] = [];
   if (before.total !== after.total) lead.push(...render([{ label: "total", before: before.total, after: after.total }]));
@@ -217,7 +217,7 @@ const bundleSizeSection = (change: BundleSizeChange): string[] => {
 
 // Sorted worst-regression-first like every other section, so the perf table
 // reads the same way as the instantiations and bundleSize ones. Positive is a
-// slowdown, matching those (where growth is the bad direction) — and matching
+// slowdown, matching those (where growth is the bad direction) - and matching
 // the ratio the child measures, current over baseline. That convention is not
 // guessable from a bare percentage, so every row says which way it went and the
 // header states the rule; `perfComment.ts` parses both back out.
@@ -241,7 +241,7 @@ export const renderPerformance = (perf: Perf): string => {
 
   if (perf.added.length) lines.push(`  new: ${perf.added.join(", ")}`);
   for (const o of perf.outcomeChanged)
-    lines.push(`  behavior changed, not timed — ${o.name}: ${o.note}`);
+    lines.push(`  behavior changed, not timed - ${o.name}: ${o.note}`);
   for (const e of perf.errors) lines.push(`  could not measure ${e.name}: ${e.error}`);
   lines.push(
     `  ${perf.unchanged} unchanged · ${perf.skippedConstants} constant-schema targets skipped · ` +
@@ -252,7 +252,7 @@ export const renderPerformance = (perf: Perf): string => {
   return lines.join("\n");
 };
 
-// Empty when nothing tracked moved — a formatting-only rewrite has no summary
+// Empty when nothing tracked moved - a formatting-only rewrite has no summary
 // to give, and the `wrote <id>` lines already said what was touched.
 export const summarize = (changes: SpecChange[], bundleSize?: BundleSizeChange): string => {
   const { instantiations, expression, behavior, added } = specDeltas(changes);

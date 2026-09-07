@@ -278,7 +278,7 @@ asyncTest("An async encode compiles through the reversed chain", async t => {
 
   // The forward direction stays sync-parseable.
   t->Assert.deepEqual(%raw(`"abc"`)->S.parseOrThrow(~to=schema), %raw(`"abc"`))
-  // Async-ness is discovered by catching the sync operation's rejection —
+  // Async-ness is discovered by catching the sync operation's rejection -
   // there is no S.isAsync probe.
   t->U.assertThrowsMessage(
     () => "abc"->S.convertOrThrow(~from=schema, ~to=S.unknown),
@@ -431,7 +431,7 @@ test("Refines the coder's result, not what went into it", t => {
 })
 
 test("Picks a reading for a content link the way the ambiguity report says to", t => {
-  // The report names `"pack"`/`"unpack"`, so the binding has to offer them —
+  // The report names `"pack"`/`"unpack"`, so the binding has to offer them -
   // without Pack/Unpack the remedy it points at is unwritable from ReScript.
   let packed = S.base64->S.to(S.jsonString, ~custom={decode: Pack, encode: Unpack})
   t->Assert.deepEqual("aGk="->S.parseOrThrow(~to=packed), S.JsonString(`"aGk="`))

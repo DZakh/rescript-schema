@@ -4,12 +4,12 @@ import * as S from "sury";
 // The value side of CONTENT_CODEC_SPEC.md, for the operations whose output the
 // spec format can't write down: a golden holding a `Blob` or `File` raises
 // "cannot represent a ... instance as spec source code", and a compiled op
-// block must run at least one example — so a conversion that only ever
+// block must run at least one example - so a conversion that only ever
 // produces one has no spec at all (see CONTRIBUTING.md's Spec Harness
 // Suggestions, which is where the fix belongs). Bytes are written as a
 // `new Uint8Array([...])` call, so every `Uint8Array` conversion is a
 // `codec-*` spec; what lands here is the container side of the same pairs.
-// Non-ASCII bytes throughout, deliberately — an ASCII-only fixture round-trips
+// Non-ASCII bytes throughout, deliberately - an ASCII-only fixture round-trips
 // even through the broken UTF-8 path.
 const png = new Uint8Array([137, 80, 78, 71]);
 
@@ -88,7 +88,7 @@ test("a declared payload opens the carrier feeding it", async () => {
 });
 
 // `S.assertInput` and `S.inputValidator` compile through the same builder chain as the codecs
-// above, against a result target that discards the value — and the spec format
+// above, against a result target that discards the value - and the spec format
 // has no op block for either, so this is the only place the pair is pinned (see
 // CONTRIBUTING.md's Spec Harness Suggestions).
 test("a document still asserts, where nothing is re-represented at all", () => {
