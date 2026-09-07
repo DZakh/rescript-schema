@@ -13,7 +13,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{i instanceof e[3]||e[4](i);let v0=e[0](i),v1=v0.get("a"),v2=v0.get("b");Array.isArray(v1)&&e[1](v1);Array.isArray(v2)&&e[2](v2);return {a:v1,b:v2}}
+    expression: i=>{i instanceof e[3]||e[4](i);let v0=e[0](i),v1=v0.get("a"),v2=v0.get("b")||void 0;Array.isArray(v1)&&e[1](v1);Array.isArray(v2)&&e[2](v2);return {a:v1,b:v2}}
     examples:
       text:
         input: ((f) => (f.append("a", "x"), f))(new FormData())
@@ -25,7 +25,7 @@ operations:
         input: ((f) => (f.append("a", "x"), f))(new FormData())
         output: '{ a: "x", b: undefined }'
   decode:
-    expression: i=>{let v0=e[0](i),v1=v0.get("a"),v2=v0.get("b");Array.isArray(v1)&&e[1](v1);Array.isArray(v2)&&e[2](v2);return {a:v1,b:v2}}
+    expression: i=>{let v0=e[0](i),v1=v0.get("a"),v2=v0.get("b")||void 0;Array.isArray(v1)&&e[1](v1);Array.isArray(v2)&&e[2](v2);return {a:v1,b:v2}}
     examples:
       repeated-key:
         input: ((f) => (f.append("a", "x"), f.append("a", "y"), f))(new FormData())

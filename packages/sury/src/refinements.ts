@@ -210,8 +210,15 @@ const withBounds = (schema: Internal, base: string): string => {
   // can be strict.
   const exMin = written & 4 ? schema.exclusiveMinimum : U;
   const exMax = written & 8 ? schema.exclusiveMaximum : U;
-  const low = exMin !== U ? exMin : written & 1 ? schema[minKey] : U;
   const high = exMax !== U ? exMax : written & 2 ? schema[maxKey] : U;
+  // A zero length bound excludes nothing, so it is not shown - unless it is
+  // the upper bound too, which `== 0` says better than `<= 0`.
+  const low =
+    exMin !== U
+      ? exMin
+      : written & 1 && !(sized && schema[minKey] === 0 && high !== 0)
+        ? schema[minKey]
+        : U;
   // A divisor narrows the subject the bounds range over rather than adding a
   // bound of its own: `-50 < (number % 2) < 50`. Only a sized schema can't
   // carry one (multipleOf rejects string | array), so `.length` never mixes
@@ -219,8 +226,8 @@ const withBounds = (schema: Internal, base: string): string => {
   const mo = schema.multipleOf;
   const subject0 = sized ? `${base}${member}` : base;
   if (low === U && high === U) {
-    // Only reachable with a bare divisor - nothing wraps it, so no parens.
-    return `${subject0} % ${lit(mo!)}`;
+    // A bare divisor - nothing wraps it, so no parens - or nothing at all.
+    return mo !== U ? `${subject0} % ${lit(mo)}` : base;
   }
   const subject = mo !== U ? `(${subject0} % ${lit(mo)})` : subject0;
   if (low === U) {
@@ -343,7 +350,8 @@ const boundsRefiner = (input: Val): Check[] => {
         f: B_failWithErrorMessage(minKey),
       });
     } else {
-      if (min !== U) {
+      // Every length is already >= 0.
+      if (min) {
         checks.push({
           c: (inputVar) =>
             counted && min > 1
@@ -694,18 +702,10 @@ export const minLength = (root: Internal, length: number, maybeMessage?: string)
   const schema = assertLengthBound("minLength", root, length);
   assertSize(schema, length, false);
   const key = sizeKey(schema, false);
-  if (!narrowsSize(schema[key], length, false)) {
-    // A zero lower bound checks nothing - every length is already >= 0 - but on
-    // a string it is how a schema states that the empty string is a value it
-    // admits, which the text wires read (`decidesBlank` in
-    // advanced/formData.ts). Recorded WITHOUT the `bounds` bit, so no check,
-    // no rendering and no JSON Schema keyword follow it: the bit is what those
-    // three read.
-    if (length === 0 && schema.type === stringTag && schema[key] === U) {
-      return updateOutput(root, (mut: Internal) => {
-        mut[key] = 0;
-      });
-    }
+  // A zero lower bound is recorded like any other, though it checks nothing:
+  // on a string it is how a schema says the empty string is a value it admits,
+  // which the text wires read (`decidesBlank` in advanced/formData.ts).
+  if (!narrowsSize(schema[key], length, false) && !(length === 0 && schema[key] === U)) {
     return carryMessage(root, (schema.bounds ?? 0) & 1 ? key : U, maybeMessage);
   }
   return updateBounds(root, (mut: Internal) => {
@@ -741,10 +741,10 @@ export const length = (root: Internal, length: number, maybeMessage?: string): I
   const maxKey = sizeKey(schema, true);
   // Both sides already pinned here: `=== length` is exactly what runs, so a
   // second copy of it is the one case this adds nothing, the same way a
-  // non-narrowing bound is for the others. The `===` check reports under
-  // minKey, so that's where a message carries.
+  // non-narrowing bound is for the others. The message carries to both keys,
+  // which is what lets the two directions fold into that one check.
   if (schema[minKey] === length && schema[maxKey] === length) {
-    return carryMessage(root, minKey, maybeMessage);
+    return carryMessage(carryMessage(root, minKey, maybeMessage), maxKey, maybeMessage);
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);

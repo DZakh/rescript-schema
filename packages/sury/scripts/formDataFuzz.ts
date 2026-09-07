@@ -156,19 +156,16 @@ const form = (entries: [string, unknown][]): FormData => {
 // the encoder is compiled and not before.
 const ONE_WAY: Record<string, string> = {
   "*/union-text":
-    "the union rules reject `string -> string | number` on the way out, where the codec is not consulted at all",
+    "the union rules reject `string | number -> string` on the way out, where the codec is not consulted at all",
   "*/union-entry": "the same, for `string | File`",
+  "bare/trimmed":
+    "a trimmed bare string still says nothing about a blank entry, which the decoder rejects as ambiguous where the encoder has no blank to write",
   "bare/string-bare":
     "a bare required string says nothing about a blank entry, which the decoder rejects as ambiguous where the encoder has no blank to write",
 };
 
 // Values the wire cannot carry back, and why.
 const KNOWN: Record<string, string> = {
-  "*/union-checkbox <- 0":
-    '"0" is both an unchecked box and zero, and the boolean arm is tried first',
-  "*/union-checkbox <- 1": '"1" is both a checked box and one, and the boolean arm is tried first',
-  "array/union-checkbox <- [true,false,0,1,2]": "the same, per item",
-  "optional-array/union-checkbox <- [true,false,0,1,2]": "the same, per item",
   "nullish/* <- null":
     "a form has one way to say nothing, so a field declaring both sentinels reads it as the weaker one",
   "optional-nullable/* <- null": "the same, spelled as two wrappers",
@@ -177,12 +174,11 @@ const KNOWN: Record<string, string> = {
     "an unchecked box sends nothing, so a default of `true` states what the wire never says and reads back as itself",
   "nullable/void <- null": "the same, from the other side",
   "nullable-defaulted/boolean <- false": "the same, with `null` for the sentinel",
-  "nullable-array/union-checkbox <- [true,false,0,1,2]": "the same as the array case, per item",
   "*/string-bare <- ''":
     "a bare string says nothing about a blank entry, so a wrapper reads one as the absence it declares",
-  "optional-array/* <- []":
-    "no entries is the one wire for both an empty list and no list, and the wrapper reads it as the absence it declares",
-  "nullable-array/* <- []": "the same, with `null` for the absence",
+  "optional-array/* <- undefined":
+    "no entries is the empty list, so the absence a wrapper declares reads back as `[]`",
+  "nullable-array/* <- null": "the same, with `null` for the absence",
 };
 
 // Where an encode writes into the value it was handed.
@@ -320,7 +316,7 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
       if (!excused(ONE_WAY, wrapperName, leafName)) {
         findings.push(`${id}: ${shape} - ${decode.rejected ?? encode.rejected}`);
       }
-    } else if (keyFor(ONE_WAY, wrapperName, leafName) !== undefined) {
+    } else if (!decode.rejected && keyFor(ONE_WAY, wrapperName, leafName) !== undefined) {
       findings.push(`${id}: listed in ONE_WAY but works in both directions - delete the entry`);
     }
     if (decode.rejected || encode.rejected || decode.crash || encode.crash) {

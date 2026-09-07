@@ -63,6 +63,7 @@ import {
   type HoistCond
 } from "./builder";
 import { nestedLoc, never_, parse, typeCheckCond } from "./parse";
+import { bigintDecoder, booleanDecoder, numberDecoder } from "./primitives";
 
 // ── Type identity ────────────────────────────────────────────────────────────
 
@@ -388,7 +389,19 @@ const unionNarrowSchema = (schema: Internal): Internal => {
         ? B_refine(input, input.e)
         : input;
     }
-    return schema.decoder(input);
+    // A coerced literal narrows through its type, not its own decoder: that
+    // one reads the const off the expected schema, which this narrow does not
+    // carry, and the case body checks the const against what the coercion
+    // produced.
+    return (
+      isLiteral(schema) && tagFlag & (4 | 8 | 1024)
+        ? tagFlag & 4
+          ? numberDecoder
+          : tagFlag & 8
+            ? booleanDecoder
+            : bigintDecoder
+        : schema.decoder
+    )(input);
   });
   narrow.encoder = schema.encoder;
   // With the encoder, its marker: the narrow is what a carrier's encoder is

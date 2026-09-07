@@ -99,14 +99,12 @@ test("a boolean is a checkbox: on when set, nothing when not", () => {
 
 test("a checkbox reads the entries a form can carry, and only those", () => {
   const schema = S.formData.with(S.to, S.schema({ a: S.boolean }));
-  // "on" is what a checked box submits; the rest are the hidden-input
-  // spellings, matching VineJS's accepted set.
+  // "on" is what a checked box submits; "true"/"false" is what a hidden input
+  // carries.
   for (const [entry, value] of [
     ["on", true],
     ["true", true],
-    ["1", true],
     ["false", false],
-    ["0", false],
     // A checked box whose value is "" is indistinguishable from an unchecked
     // one on this wire.
     ["", false],
@@ -143,7 +141,7 @@ test("a nullable field reads a blank entry as null, and omits null on the way ou
 });
 
 test("a blank required string must say what it means", () => {
-  const ambiguous = ["Ambiguous at f:", "S.nonEmpty", "S.minLength(0)", "S.optional", "S.nullable"];
+  const ambiguous = ["Failed at f: Ambiguous blank:", "S.nonEmpty", "S.minLength(0)", "S.optional", "S.nullable"];
   for (const schema of [S.string, S.string.with(S.maxLength, 100)]) {
     for (const fragment of ambiguous) {
       expect(() => S.decoder(S.formData.with(S.to, S.schema({ f: schema })))).toThrow(fragment);
@@ -165,7 +163,7 @@ test("a blank required string must say what it means", () => {
   // A pattern that matches "" says nothing about it, so it stays ambiguous.
   expect(() =>
     S.decoder(S.formData.with(S.to, S.schema({ f: S.string.with(S.pattern, /^\d*$/) }))),
-  ).toThrow("Ambiguous at f:");
+  ).toThrow("Failed at f: Ambiguous blank:");
   // Encoding never reads a blank entry, so it has nothing to be ambiguous about.
   expect(() => S.encoder(S.formData.with(S.to, S.schema({ f: S.string })))).not.toThrow();
 });
@@ -272,19 +270,23 @@ test("a checkbox round-trips however the field is wrapped", () => {
 
 test("a boolean literal is the must-be-checked box", () => {
   // The terms-and-conditions checkbox, which submits "on" like any other and
-  // reports the box rather than the entry when it is missing.
+  // reports what the browser sent when it is not ticked.
   const schema = S.formData.with(S.to, S.schema({ terms: S.schema(true) }));
   expect(S.decoder(schema)(form(["terms", "on"]))).toEqual({ terms: true });
   expect(entries(S.encoder(schema)({ terms: true }))).toEqual([["terms", "on"]]);
-  for (const fd of [new FormData(), form(["terms", "false"]), form(["terms", "0"])]) {
-    expect(() => S.decoder(schema)(fd)).toThrow("Failed at terms: Expected true, received false");
+  for (const [fd, received] of [
+    [new FormData(), "undefined"],
+    [form(["terms", "false"]), '"false"'],
+    [form(["terms", "0"]), '"0"'],
+  ] as const) {
+    expect(() => S.decoder(schema)(fd)).toThrow(`Failed at terms: Expected true, received ${received}`);
   }
   // And its mirror, for a box that must stay clear.
   const clear = S.formData.with(S.to, S.schema({ spam: S.schema(false) }));
   expect(S.decoder(clear)(new FormData())).toEqual({ spam: false });
   expect(entries(S.encoder(clear)({ spam: false }))).toEqual([]);
   expect(() => S.decoder(clear)(form(["spam", "on"]))).toThrow(
-    "Failed at spam: Expected false, received true",
+    'Failed at spam: Expected false, received "on"',
   );
 });
 
@@ -294,7 +296,7 @@ test("a union arm reads by its own rule, not the field's", () => {
   const schema = S.formData.with(S.to, S.schema({ a: S.union([S.boolean, S.number]) }));
   const d = S.decoder(schema);
   expect(d(form(["a", "on"]))).toEqual({ a: true });
-  expect(d(form(["a", "1"]))).toEqual({ a: true });
+  expect(d(form(["a", "1"]))).toEqual({ a: 1 });
   expect(d(form(["a", "false"]))).toEqual({ a: false });
   expect(d(form(["a", "42"]))).toEqual({ a: 42 });
   expect(() => d(form(["a", "x"]))).toThrow("Expected boolean | number");

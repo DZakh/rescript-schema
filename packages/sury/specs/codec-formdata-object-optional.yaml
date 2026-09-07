@@ -6,7 +6,7 @@ ts:
   instantiations: 8029
 jsonSchema:
   input: Expected JSON, received FormData
-  output: '{ type: "object", properties: { nick: { type: "string", maxLength: 3 }, age: { type: "number" }, bio: { type: "string" }, note: { type: "string" } }, required: ["age", "bio"] }'
+  output: '{ type: "object", properties: { nick: { type: "string", maxLength: 3 }, age: { type: "number" }, bio: { type: "string", minLength: 0 }, note: { type: "string", minLength: 0 } }, required: ["age", "bio"] }'
 vs:
   zod:
     _skip: not-applicable

@@ -1677,7 +1677,7 @@ test("fromJSONSchema: assertion-only schemas preserve valid JSON", (t) => {
   });
   t.expect(S.parser(unicode)("\u{10400}\u{10401}")).toBe("\u{10400}\u{10401}");
   t.expect(() => S.parser(unicode)("😀")).toThrow(
-    "Should have a code-point length within the JSON Schema bounds."
+    "Expected string.length == 2"
   );
 
   const legacyPattern = S.fromJSONSchema({

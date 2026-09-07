@@ -486,11 +486,7 @@ const internalToJSONSchemaBase = (
       const name = alias === U ? format : alias;
       if (name) jsonSchema.format = name;
     }
-    // `bounds`, not the field: `S.minLength(0)` records a zero without the bit
-    // (see refinements.ts) because it states what the empty string means to a
-    // text wire rather than constraining the value, and `minLength: 0` is the
-    // keyword's own default anyway.
-    if ((schema.bounds ?? 0) & 1) jsonSchema.minLength = schema.minLength;
+    if (schema.minLength !== U) jsonSchema.minLength = schema.minLength;
     if (schema.maxLength !== U) jsonSchema.maxLength = schema.maxLength;
     if (schema.pattern !== U) jsonSchema.pattern = schema.pattern.source;
     if (const_ !== U) setConstOrEnum(const_);
@@ -942,22 +938,6 @@ const jsonItemsUnique = (items: unknown[]): boolean => {
     }
   }
   return true;
-};
-
-const codePointLength = (value: string): number => {
-  const end = value.length;
-  let length = end;
-  for (let idx = 0; idx < end - 1; idx++) {
-    const first = value.charCodeAt(idx);
-    if (first >= 0xd800 && first <= 0xdbff) {
-      const second = value.charCodeAt(idx + 1);
-      if (second >= 0xdc00 && second <= 0xdfff) {
-        length--;
-        idx++;
-      }
-    }
-  }
-  return length;
 };
 
 const B_invalidLengthRange = (
@@ -1656,6 +1636,17 @@ export const fromJSONSchema = (
       stringFormatSchemas[jsonSchema.format!] ||
       contentEncodingSchemas[jsonSchema.contentEncoding!] ||
       string;
+    // The keyword counts code points, and so do `S.minLength`/`S.maxLength`.
+    // A zero lower bound is kept: it is how a schema says a blank string is a
+    // value, which the form codec reads.
+    const minimum = jsonSchema.minLength;
+    const maximum = jsonSchema.maxLength;
+    if (B_invalidLengthRange(minimum, maximum)) {
+      schema = never_;
+    } else {
+      if (minimum !== U) schema = applyBound(schema, minLength, minimum);
+      if (maximum !== U) schema = applyBound(schema, maxLength, maximum);
+    }
     if (jsonSchema.pattern !== U) {
       // `utcDateTime` publishes its regex beside `date-time`: the pair reads
       // back as that schema, not as the wide format plus a refinement.
@@ -1663,34 +1654,6 @@ export const fromJSONSchema = (
         schema === isoDateTime && jsonSchema.pattern === utcDateTime.pattern!.source
           ? utcDateTime
           : pattern(schema, B_compilePattern(jsonSchema.pattern));
-    }
-    if (jsonSchema.minLength !== U || jsonSchema.maxLength !== U) {
-      const minimum = jsonSchema.minLength;
-      const maximum = jsonSchema.maxLength;
-      if (B_invalidLengthRange(minimum, maximum)) {
-        schema = never_;
-      } else if (minimum !== 0 || maximum !== U) {
-        schema = refineInput(
-          schema,
-          (data: unknown) => {
-            const stringData = data as string;
-            if (minimum !== U && stringData.length < minimum) return false;
-            if (minimum === U && maximum !== U && stringData.length <= maximum)
-              return true;
-            const length = codePointLength(stringData);
-            return (minimum === U || length >= minimum) && (maximum === U || length <= maximum);
-          },
-          "Should have a code-point length within the JSON Schema bounds."
-        );
-      }
-      // `minLength: 0` asserts nothing, so a document carrying only that has
-      // no keyword to store and no copy to pay for.
-      if (schema.type !== neverTag && (minimum || maximum !== U)) {
-        const lengthKeywords: JSONSchemaT = {};
-        if (minimum) lengthKeywords.minLength = minimum;
-        if (maximum !== U) lengthKeywords.maxLength = maximum;
-        schema = extendJSONSchema(schema, lengthKeywords);
-      }
     }
   } else if (
     jsonSchema.type === "integer" ||

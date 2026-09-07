@@ -6,7 +6,7 @@ ts:
   instantiations: 6655
 jsonSchema:
   input: Expected JSON, received FormData
-  output: '{ type: "object", properties: { ["__proto__"]: { type: "string", minLength: 1 }, "a[b]": { type: "number" }, "": { type: "string" } }, required: ["__proto__", "a[b]", ""] }'
+  output: '{ type: "object", properties: { ["__proto__"]: { type: "string", minLength: 1 }, "a[b]": { type: "number" }, "": { type: "string", minLength: 0 } }, required: ["__proto__", "a[b]", ""] }'
 vs:
   zod:
     _skip: not-applicable

@@ -277,8 +277,6 @@ export type Error =
     })
   | (BaseError & {
       readonly code: "invalid_operation";
-      /** Leads `message` in place of `"Failed"`, when the operation is rejected rather than failed. */
-      readonly verb?: string;
     })
   | (BaseError & {
       readonly code: "unsupported_decode";

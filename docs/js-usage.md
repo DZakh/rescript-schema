@@ -1228,6 +1228,9 @@ S.schema({
 });
 ```
 
+A list is never absent - no entries is the empty list - so `S.optional(S.array(x))`
+reads `[]` where the key is missing, and a default on a list is rejected.
+
 A key the schema declares once but the form sent twice is reported rather than
 resolved - `get` would answer the first and say nothing, and which one that is
 depends on submission order:
@@ -1245,9 +1248,9 @@ it stays one however you wrap it:
 
 ```ts
 S.schema({
-  agree: S.boolean, // "on"/"true"/"1" -> true, "false"/"0" or absent -> false
-  terms: true, // must be ticked:  absent -> Expected true, received false
-  spam: false, // must stay clear: "on"  -> Expected false, received true
+  agree: S.boolean, // "on"/"true" -> true, "false" or absent -> false
+  terms: true, // must be ticked:  absent -> Expected true, received undefined
+  spam: false, // must stay clear: "on"  -> Expected false, received "on"
   notify: S.optional(S.boolean), // tri-state: absent -> undefined
   seen: S.nullable(S.boolean), // absent -> null
 });
@@ -1277,8 +1280,8 @@ that means:
 
 ```ts
 S.formData.with(S.to, S.schema({ name: S.string }));
-// throws at S.decoder: Ambiguous at name: say what "" means with
-// S.nonEmpty, S.minLength(0), S.optional or S.nullable
+// throws at S.decoder: Failed at name: Ambiguous blank: say what "" means
+// with S.nonEmpty, S.minLength(0), S.optional or S.nullable
 ```
 
 ```ts
@@ -1297,6 +1300,10 @@ for itself, `S.minLength(0)` being the way to say "the empty string is a value"
 without adding a check. It says that inside a wrapper too:
 `S.optional(S.string.with(S.minLength, 0))` reads `""` as `""` and only a
 missing key as absent, which is the one spelling that tells the two apart.
+
+The question follows the text: `S.string.with(S.trim)` hands it on to a bare
+string and is asked again, `S.string.with(S.trim).with(S.nonEmpty)` is not, and
+each string arm of a union answers for itself.
 
 ### Not supported
 

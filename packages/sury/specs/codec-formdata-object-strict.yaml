@@ -14,4 +14,9 @@ operations:
   parse:
     creationError: "SuryError: S.strict is not supported by S.formData. Use S.strip"
   decode: eq-to-parse
-  encode: eq-to-parse
+  encode:
+    expression: i=>{let v0=new e[0]();v0.append("a",i["a"]);return v0}
+    examples:
+      built:
+        input: '{ a: "x" }'
+        output: ((f) => (f.append("a", "x"), f))(new FormData())
