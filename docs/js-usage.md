@@ -93,14 +93,14 @@ const playerSchema = S.schema({
 Parses unknown data and returns a strongly-typed deep clone of the input, with unknown fields stripped by default:
 
 ```ts
-S.parseOrThrow(playerSchema)({ username: "billie", xp: 100 });
+S.parseOrThrow(playerSchema, { username: "billie", xp: 100 });
 // => returns { username: "billie", xp: 100 }
 ```
 
 Invalid data throws `S.Error`:
 
 ```ts
-S.parseOrThrow(playerSchema)({ username: "billie", xp: "not a number" });
+S.parseOrThrow(playerSchema, { username: "billie", xp: "not a number" });
 // => throws S.Error: Failed at xp: Expected number, received "not a number"
 ```
 
@@ -128,7 +128,7 @@ To annotate "any schema producing `T`, whatever it accepts", leave the input as 
 
 ```ts
 const parseT = <T>(schema: S.Schema<unknown, T>, data: unknown): T =>
-  S.parseOrThrow(schema)(data);
+  S.parseOrThrow(schema, data);
 ```
 
 ### Encoding data
@@ -136,7 +136,7 @@ const parseT = <T>(schema: S.Schema<unknown, T>, data: unknown): T =>
 Every schema has an `Input` type as well as an `Output` type, so the same definition encodes back to the input format:
 
 ```ts
-S.encodeOrThrow(playerSchema)({ username: "billie", xp: 100 });
+S.encodeOrThrow(playerSchema, { username: "billie", xp: 100 });
 // => returns { username: "billie", xp: 100 }
 ```
 
@@ -152,17 +152,17 @@ const userSchema = S.schema({
 }));
 //? S.Schema<{ USER_ID: string; USER_NAME: string }, { id: bigint; name: string }>
 
-S.parseOrThrow(userSchema)({ USER_ID: "0", USER_NAME: "Dmitry" });
+S.parseOrThrow(userSchema, { USER_ID: "0", USER_NAME: "Dmitry" });
 // { id: 0n, name: "Dmitry" }
 
-S.encodeOrThrow(userSchema)({ id: 0n, name: "Dmitry" });
+S.encodeOrThrow(userSchema, { id: 0n, name: "Dmitry" });
 // { USER_ID: "0", USER_NAME: "Dmitry" }
 ```
 
 `S.encodeOrThrow` skips validation. For a validating reverse pass, use [`reverse`](#reverse), which returns a full-featured schema with `Input` and `Output` swapped:
 
 ```ts
-S.parseOrThrow(S.reverse(userSchema))({ id: 0n, name: "Dmitry" });
+S.parseOrThrow(S.reverse(userSchema), { id: 0n, name: "Dmitry" });
 // { USER_ID: "0", USER_NAME: "Dmitry" }
 ```
 
@@ -562,12 +562,12 @@ Available keys: `format`, `type`, `minimum`, `maximum`, `minLength`, `maxLength`
 `S.isoDateTime` is a **standalone** string schema (`S.Schema<string, string>`) that validates RFC 3339 datetime strings, exactly what the JSON Schema `date-time` format means: a `Z` or a timezone offset, with arbitrary sub-second decimal precision. `S.utcDateTime` is the same grammar with only `Z` allowed.
 
 ```ts
-S.parseOrThrow(S.isoDateTime)("2020-01-01T00:00:00Z"); // pass
-S.parseOrThrow(S.isoDateTime)("2020-01-01T00:00:00.123456Z"); // pass (arbitrary precision)
-S.parseOrThrow(S.isoDateTime)("2020-01-01T00:00:00+02:00"); // pass
+S.parseOrThrow(S.isoDateTime, "2020-01-01T00:00:00Z"); // pass
+S.parseOrThrow(S.isoDateTime, "2020-01-01T00:00:00.123456Z"); // pass (arbitrary precision)
+S.parseOrThrow(S.isoDateTime, "2020-01-01T00:00:00+02:00"); // pass
 
-S.parseOrThrow(S.utcDateTime)("2020-01-01T00:00:00Z"); // pass
-S.parseOrThrow(S.utcDateTime)("2020-01-01T00:00:00+02:00"); // throws: Expected UTC date-time, received "2020-01-01T00:00:00+02:00"
+S.parseOrThrow(S.utcDateTime, "2020-01-01T00:00:00Z"); // pass
+S.parseOrThrow(S.utcDateTime, "2020-01-01T00:00:00+02:00"); // throws: Expected UTC date-time, received "2020-01-01T00:00:00+02:00"
 ```
 
 Both emit `format: "date-time"`. `S.utcDateTime` adds a `pattern` pinning the `Z`, so its document reads back as `S.utcDateTime` through `S.fromJSONSchema`.
@@ -616,7 +616,7 @@ You can make any schema optional with `S.optional`.
 ```ts
 const schema = S.optional(S.string);
 
-S.parseOrThrow(schema)(undefined); // => returns undefined
+S.parseOrThrow(schema, undefined); // => returns undefined
 type A = S.Infer<typeof schema>; // string | undefined
 ```
 
@@ -625,7 +625,7 @@ You can pass a default value to the second argument of `S.optional`.
 ```ts
 const stringWithDefaultSchema = S.optional(S.string, "tuna");
 
-S.parseOrThrow(stringWithDefaultSchema)(undefined); // => returns "tuna"
+S.parseOrThrow(stringWithDefaultSchema, undefined); // => returns "tuna"
 type A = S.Infer<typeof stringWithDefaultSchema>; // string
 ```
 
@@ -634,9 +634,9 @@ Optionally, you can pass a function as a default value that will be re-executed 
 ```ts
 const numberWithRandomDefault = S.optional(S.number, Math.random);
 
-S.parseOrThrow(numberWithRandomDefault)(undefined); // => 0.4413456736055323
-S.parseOrThrow(numberWithRandomDefault)(undefined); // => 0.1871840107401901
-S.parseOrThrow(numberWithRandomDefault)(undefined); // => 0.7223408162401552
+S.parseOrThrow(numberWithRandomDefault, undefined); // => 0.4413456736055323
+S.parseOrThrow(numberWithRandomDefault, undefined); // => 0.1871840107401901
+S.parseOrThrow(numberWithRandomDefault, undefined); // => 0.7223408162401552
 ```
 
 Conceptually, this is how **Sury** processes default values:
@@ -650,14 +650,14 @@ Similarly, you can create nullable types with `S.nullable`.
 
 ```ts
 const nullableStringSchema = S.nullable(S.string);
-S.parseOrThrow(nullableStringSchema)("asdf"); // => "asdf"
-S.parseOrThrow(nullableStringSchema)(null); // => null
+S.parseOrThrow(nullableStringSchema, "asdf"); // => "asdf"
+S.parseOrThrow(nullableStringSchema, null); // => null
 ```
 
 Pass a fallback as the second argument to replace the absent case:
 
 ```ts
-S.parseOrThrow(S.nullable(S.string, "fallback"))(null); // => "fallback"
+S.parseOrThrow(S.nullable(S.string, "fallback"), null); // => "fallback"
 ```
 
 ## Nullish
@@ -666,9 +666,9 @@ A convenience method that returns a "nullish" version of a schema. Nullish schem
 
 ```ts
 const nullishStringSchema = S.nullish(S.string);
-S.parseOrThrow(nullishStringSchema)("asdf"); // => "asdf"
-S.parseOrThrow(nullishStringSchema)(null); // => null
-S.parseOrThrow(nullishStringSchema)(undefined); // => undefined
+S.parseOrThrow(nullishStringSchema, "asdf"); // => "asdf"
+S.parseOrThrow(nullishStringSchema, null); // => null
+S.parseOrThrow(nullishStringSchema, undefined); // => undefined
 ```
 
 ## Objects
@@ -813,7 +813,7 @@ S.array(S.string).with(S.minLength, 2); //? S.Schema<[string, string, ...string[
 S.array(S.string).with(S.nonEmpty); //? S.Schema<[string, ...string[]]>
 S.array(S.string).with(S.maxLength, 5); //? S.Schema<string[]>
 
-const [lat, lng] = S.parseOrThrow(S.array(S.number).with(S.length, 2))(input); // both number
+const [lat, lng] = S.parseOrThrow(S.array(S.number).with(S.length, 2), input); // both number
 ```
 
 ### Compact Columns
@@ -835,7 +835,7 @@ S.encodeOrThrow(schema)([
 ]);
 // [["0", "1"], ["Hello", "World"], [false, true]]
 
-S.parseOrThrow(schema)([["0", "1"], ["Hello", "World"], [false, true]]);
+S.parseOrThrow(schema, [["0", "1"], ["Hello", "World"], [false, true]]);
 // [{ id: "0", name: "Hello", deleted: false }, { id: "1", name: "World", deleted: true }]
 ```
 
@@ -922,8 +922,8 @@ It's also available as `S.anyOf`, matching the JSON Schema keyword it maps to.
 
 const stringOrNumberSchema = S.union([S.string, S.number]);
 
-S.parseOrThrow(stringOrNumberSchema)("foo"); // passes
-S.parseOrThrow(stringOrNumberSchema)(14); // passes
+S.parseOrThrow(stringOrNumberSchema, "foo"); // passes
+S.parseOrThrow(stringOrNumberSchema, 14); // passes
 ```
 
 ### Discriminated unions
@@ -963,9 +963,9 @@ first one that accepts the value wins:
 ```ts
 const schema = S.json.with(S.to, S.union([S.bigint, S.string]));
 
-S.parseOrThrow(schema)("123"); // 123n — the bigint member comes first
-S.parseOrThrow(schema)("abc"); // "abc" — not a valid bigint, so the string member takes it
-S.parseOrThrow(schema)(true); // throws — no member accepts a boolean
+S.parseOrThrow(schema, "123"); // 123n — the bigint member comes first
+S.parseOrThrow(schema, "abc"); // "abc" — not a valid bigint, so the string member takes it
+S.parseOrThrow(schema, true); // throws — no member accepts a boolean
 ```
 
 Notice that `true` wasn't converted to `"true"`, even though boolean → string
@@ -980,8 +980,8 @@ the same way it would with a direct `S.to`:
 ```ts
 const schema = S.union([S.bigint, S.boolean]).with(S.to, S.string);
 
-S.parseOrThrow(schema)(123n); // "123"
-S.parseOrThrow(schema)(true); // "true"
+S.parseOrThrow(schema, 123n); // "123"
+S.parseOrThrow(schema, true); // "true"
 ```
 
 **Union → union.** Values pass through to the member of the same type on the
@@ -1022,13 +1022,13 @@ S.string.with(S.to, S.union([S.number, S.string]));
 
 // Convert to a number when possible, keep the string otherwise:
 const asNumber = S.string.with(S.to, S.union([S.string.with(S.to, S.number), S.string]));
-S.parseOrThrow(asNumber)("123"); // 123
-S.parseOrThrow(asNumber)("abc"); // "abc"
+S.parseOrThrow(asNumber, "123"); // 123
+S.parseOrThrow(asNumber, "abc"); // "abc"
 
 // Or pass strings through, never producing a number:
 const asString = S.string.with(S.to, S.union([S.never.with(S.to, S.number), S.string]));
-S.parseOrThrow(asString)("123"); // "123"
-S.parseOrThrow(asString)("abc"); // "abc"
+S.parseOrThrow(asString, "123"); // "123"
+S.parseOrThrow(asString, "abc"); // "abc"
 ```
 
 **The two unions don't cover each other.** Union-to-union converts nothing, so
@@ -1072,10 +1072,10 @@ type NumberCache = S.Infer<typeof numberCacheSchema>;
 `S.date` validates that the input is a `Date` instance and rejects Invalid Date.
 
 ```ts
-S.parseOrThrow(S.date)(new Date()); // passes
-S.parseOrThrow(S.date)(new Date("2024-01-01T00:00:00Z")); // passes
-S.parseOrThrow(S.date)(new Date("invalid")); // throws
-S.parseOrThrow(S.date)("2024-01-01"); // throws - not a Date instance
+S.parseOrThrow(S.date, new Date()); // passes
+S.parseOrThrow(S.date, new Date("2024-01-01T00:00:00Z")); // passes
+S.parseOrThrow(S.date, new Date("invalid")); // throws
+S.parseOrThrow(S.date, "2024-01-01"); // throws - not a Date instance
 ```
 
 > Unlike `S.isoDateTime` (which validates ISO datetime strings) and `S.string.with(S.to, S.date)` (which decodes ISO strings into Date objects), `S.date` validates existing Date instances directly.
@@ -1084,10 +1084,10 @@ You can use `S.decodeOrThrow` with multiple arguments to decode between strings 
 
 ```ts
 // Decode ISO string to Date
-S.decodeOrThrow(S.string, S.date)("2024-01-01T00:00:00.000Z"); // Date
+S.decodeOrThrow(S.string, S.date, "2024-01-01T00:00:00.000Z"); // Date
 
 // Decode Date to ISO string
-S.decodeOrThrow(S.date, S.string)(new Date("2024-01-01T00:00:00.000Z")); // "2024-01-01T00:00:00.000Z"
+S.decodeOrThrow(S.date, S.string, new Date("2024-01-01T00:00:00.000Z")); // "2024-01-01T00:00:00.000Z"
 ```
 
 ## ISO DateTime
@@ -1097,8 +1097,8 @@ S.decodeOrThrow(S.date, S.string)(new Date("2024-01-01T00:00:00.000Z")); // "202
 ```ts
 const schema = S.isoDateTime;
 
-S.parseOrThrow(schema)("2020-01-01T00:00:00Z"); // "2020-01-01T00:00:00Z"
-S.parseOrThrow(schema)("not-a-date"); // throws
+S.parseOrThrow(schema, "2020-01-01T00:00:00Z"); // "2020-01-01T00:00:00Z"
+S.parseOrThrow(schema, "not-a-date"); // throws
 ```
 
 Standalone string schema that validates RFC 3339 datetime strings; `S.utcDateTime` allows only `Z`. See also [ISO datetimes](#iso-datetimes) under Strings for more details and examples.
@@ -1115,8 +1115,8 @@ class Test {
 const testSchema = S.instance(Test);
 
 const blob: any = "whatever";
-S.parseOrThrow(testSchema)(new Test()); // passes
-S.parseOrThrow(testSchema)(blob); // throws S.Error: Expected Test, received "whatever"
+S.parseOrThrow(testSchema, new Test()); // passes
+S.parseOrThrow(testSchema, blob); // throws S.Error: Expected Test, received "whatever"
 ```
 
 ## Blob
@@ -1148,9 +1148,9 @@ S.instance(Set).with(S.minSize, 1); // Expected Set.size >= 1
 `S.blob` — not the other way round.
 
 ```ts
-S.parseOrThrow(S.file)(new File(["hi"], "a.txt")); // passes
-S.parseOrThrow(S.file)(new Blob(["hi"])); // throws - Expected File, received Blob
-S.parseOrThrow(S.blob)(new File(["hi"], "a.txt")); // passes
+S.parseOrThrow(S.file, new File(["hi"], "a.txt")); // passes
+S.parseOrThrow(S.file, new Blob(["hi"])); // throws - Expected File, received Blob
+S.parseOrThrow(S.blob, new File(["hi"], "a.txt")); // passes
 ```
 
 It takes the same size bounds as [`S.blob`](#blob):
@@ -1164,7 +1164,7 @@ config has neither `lib.dom` nor `@types/node` and so has no `Blob`/`File` of
 its own:
 
 ```ts
-const upload = (f: S.File) => S.parseOrThrow(S.file)(f);
+const upload = (f: S.File) => S.parseOrThrow(S.file, f);
 ```
 
 ## Content
@@ -1201,7 +1201,7 @@ S.parseOrThrow(
 S.base64; // standard alphabet, canonical padding
 S.base64url; // URL-safe alphabet, no padding
 
-S.parseOrThrow(S.base64.with(S.to, S.base64url))("iVBORw==");
+S.parseOrThrow(S.base64.with(S.to, S.base64url), "iVBORw==");
 // "iVBORw"
 ```
 
@@ -1273,7 +1273,7 @@ Use `S.brand` to attach a nominal brand to a schema's output. This is a TypeScri
 const userIdSchema = S.string.with(S.brand, "UserId");
 type UserId = S.Infer<typeof userIdSchema>; // S.Brand<string, "UserId">
 
-const id: UserId = S.makeOutputOrThrow(userIdSchema)("u_123"); // OK
+const id: UserId = S.makeOutputOrThrow(userIdSchema, "u_123"); // OK
 const asString: string = id; // OK: branded value is assignable to string
 // @ts-expect-error - A plain string is not assignable to a branded string
 const notId: UserId = "u_123";
@@ -1290,7 +1290,7 @@ const evenSchema = S.number
 
 type Even = S.Infer<typeof evenSchema>; // S.Brand<number, "even">
 
-const good: Even = S.makeOutputOrThrow(evenSchema)(2); // OK
+const good: Even = S.makeOutputOrThrow(evenSchema, 2); // OK
 // @ts-expect-error - number is not assignable to brand "even"
 const bad: Even = 5;
 ```
@@ -1313,7 +1313,7 @@ const mySet = <T>(itemSchema: S.Schema<unknown, T>): S.Schema<unknown, Set<T>> =
         const output = new Set<T>();
         input.forEach((item, index) => {
           try {
-            output.add(S.parseOrThrow(itemSchema)(item));
+            output.add(S.parseOrThrow(itemSchema, item));
           } catch (e) {
             if (e instanceof S.Error) {
               throw new Error(`At item ${index} - ${e.reason}`);
@@ -1324,7 +1324,7 @@ const mySet = <T>(itemSchema: S.Schema<unknown, T>): S.Schema<unknown, Set<T>> =
         return output;
       },
       encode: (output) =>
-        new Set([...output].map((item) => S.encodeOrThrow(itemSchema)(item))),
+        new Set([...output].map((item) => S.encodeOrThrow(itemSchema, item))),
     })
     .with(S.meta, {
       name: `Set<${S.inputExpression(itemSchema)}>`,
@@ -1333,9 +1333,9 @@ const mySet = <T>(itemSchema: S.Schema<unknown, T>): S.Schema<unknown, Set<T>> =
 const numberSetSchema = mySet(S.number);
 type NumberSet = S.Infer<typeof numberSetSchema>; // Set<number>
 
-S.parseOrThrow(numberSetSchema)(new Set([1, 2, 3])); // passes
-S.parseOrThrow(numberSetSchema)(new Set([1, 2, "3"])); // throws S.Error: At item 3 - Expected number, received "3"
-S.parseOrThrow(numberSetSchema)([1, 2, 3]); // throws S.Error: Expected Set<number>, received [1, 2, 3]
+S.parseOrThrow(numberSetSchema, new Set([1, 2, 3])); // passes
+S.parseOrThrow(numberSetSchema, new Set([1, 2, "3"])); // throws S.Error: At item 3 - Expected number, received "3"
+S.parseOrThrow(numberSetSchema, [1, 2, 3]); // throws S.Error: Expected Set<number>, received [1, 2, 3]
 ```
 
 ## Recursive schemas
@@ -1464,10 +1464,10 @@ const circleSchema = S.number.with(S.shape, (radius) => ({
   radius: radius,
 }));
 
-S.parseOrThrow(circleSchema)(1); //? { kind: "circle", radius: 1 }
+S.parseOrThrow(circleSchema, 1); //? { kind: "circle", radius: 1 }
 
 // Also works in reverse 🔄
-S.encodeOrThrow(circleSchema)({ kind: "circle", radius: 1 }); //? 1
+S.encodeOrThrow(circleSchema, { kind: "circle", radius: 1 }); //? 1
 ```
 
 ## Operations
@@ -1535,7 +1535,7 @@ Nothing is ever probed for `undefined`, only counted — `S.parseOrThrow(S.void)
 Two schemas always read as a chain, so parsing a Sury schema **as data** is only available through the compiled form:
 
 ```ts
-S.parseOrThrow(metaSchema)(someSchema); // parses the schema object
+S.parseOrThrow(metaSchema, someSchema); // parses the schema object
 ```
 
 A deeper chain is written with [`S.to`](#to). Anything that isn't a Sury schema in a schema slot — a foreign Standard Schema, or a hole — is reported rather than silently read as the data to validate.
@@ -1551,16 +1551,16 @@ Each call fuses the whole chain into a single function generated via `new Functi
 
 ```ts
 // Validate unknown input.
-S.parseOrThrow(userSchema)(data);
+S.parseOrThrow(userSchema, data);
 
 // Parse a JSON string, then validate.
-S.decodeOrThrow(S.jsonString, userSchema)(rawString);
+S.decodeOrThrow(S.jsonString, userSchema, rawString);
 
 // Encode a domain value all the way out to a JSON string.
-S.encodeOrThrow(userSchema, S.jsonString)(user);
+S.encodeOrThrow(userSchema, S.jsonString, user);
 
 // Decode a UTF-8 byte payload into text.
-S.decodeOrThrow(S.uint8Array, S.string)(bytes);
+S.decodeOrThrow(S.uint8Array, S.string, bytes);
 ```
 
 The same applies inside schemas via [`S.to`](#to). A field, an array element, or a tuple slot can be its own multi-stage chain:
@@ -1667,7 +1667,7 @@ const eventSchema = S.schema({
   at: S.string.with(S.to, S.date),
 });
 
-S.makeOutputOrThrow(eventSchema)({ at: new Date("nope") });
+S.makeOutputOrThrow(eventSchema, { at: new Date("nope") });
 // throws S.Error: Failed at at: Expected Date, received invalid Date
 ```
 
@@ -1676,7 +1676,7 @@ A branded schema is the one place a constructor takes a *narrower* value than it
 ```ts
 const userIdSchema = S.uuid.with(S.brand, "UserId");
 
-const userId = S.makeOutputOrThrow(userIdSchema)("f81d4fae-7dec-11d0-a765-00a0c91e6bf6");
+const userId = S.makeOutputOrThrow(userIdSchema, "f81d4fae-7dec-11d0-a765-00a0c91e6bf6");
 //? S.Brand<string, "UserId">
 ```
 
@@ -1696,7 +1696,7 @@ const stringifyUser = S.encodeOrThrow(userSchema, S.jsonString);
 stringifyUser({ id: "1", name: "John" });
 
 // Later stages run forward, as in S.decodeOrThrow
-S.encodeOrThrow(S.number, S.string.with(S.to, S.number))(1); //? 1
+S.encodeOrThrow(S.number, S.string.with(S.to, S.number), 1); //? 1
 ```
 
 ### **`reverse`**
@@ -1709,15 +1709,15 @@ S.reverse(S.nullable(S.string));
 ```ts
 const schema = S.object((s) => s.field("foo", S.string));
 
-S.parseOrThrow(schema)({ foo: "bar" });
+S.parseOrThrow(schema, { foo: "bar" });
 // "bar"
 
 const reversed = S.reverse(schema);
 
-S.parseOrThrow(reversed)("bar");
+S.parseOrThrow(reversed, "bar");
 // {"foo": "bar"}
 
-S.parseOrThrow(reversed)(123);
+S.parseOrThrow(reversed, 123);
 // throws S.Error with the message: `Expected string, received 123`
 ```
 
@@ -1730,11 +1730,11 @@ This very powerful API allows you to coerce another data type in a declarative w
 ```ts
 const schema = S.string.with(S.to, S.number);
 
-S.parseOrThrow(schema)("123"); //? 123.
-S.parseOrThrow(schema)("abc"); //? throws: Expected number, received "abc"
+S.parseOrThrow(schema, "123"); //? 123.
+S.parseOrThrow(schema, "abc"); //? throws: Expected number, received "abc"
 
 // Reverse works correctly as well 🔥
-S.encodeOrThrow(schema)(123); //? "123"
+S.encodeOrThrow(schema, 123); //? "123"
 ```
 
 #### Custom transformations
@@ -1747,9 +1747,9 @@ const schema = S.string.with(S.to, S.number, {
   encode: (number) => number.toString(),
 });
 
-S.parseOrThrow(schema)("123"); //? 123
-S.parseOrThrow(schema)("abc"); //? throws: Expected number, received NaN
-S.encodeOrThrow(schema)(123); //? "123"
+S.parseOrThrow(schema, "123"); //? 123
+S.parseOrThrow(schema, "abc"); //? throws: Expected number, received NaN
+S.encodeOrThrow(schema, 123); //? "123"
 ```
 
 The result of `decode` is validated by the target schema, so a coder that
@@ -1790,8 +1790,8 @@ const csv = S.string.with(S.to, S.array(S.string), {
   encode: (items) => items.join(","),
 });
 
-S.parseOrThrow(csv)("a,b,c"); //? ["a", "b", "c"]
-S.encodeOrThrow(csv)(["a", "b"]); //? "a,b"
+S.parseOrThrow(csv, "a,b,c"); //? ["a", "b", "c"]
+S.encodeOrThrow(csv, ["a", "b"]); //? "a,b"
 ```
 
 > 🧠 `S.any` accepts anything, so it's the escape hatch for a value no schema
@@ -1804,7 +1804,7 @@ fails, since Sury has no way back:
 ```ts
 const schema = S.string.with(S.to, S.number, (string) => string.length);
 
-S.parseOrThrow(schema)("abc"); //? 3
+S.parseOrThrow(schema, "abc"); //? 3
 S.encodeOrThrow(schema); //? throws: Encoding is ambiguous when only a decode function is provided
 ```
 
@@ -1904,7 +1904,7 @@ The output side is derived through [`reverse`](#reverse), so nested transforms a
 
 ```ts
 try {
-  S.parseOrThrow(S.schema({ items: S.array(S.string) }))({ items: ["a", 1] });
+  S.parseOrThrow(S.schema({ items: S.array(S.string) }), { items: ["a", 1] });
 } catch (e) {
   if (e instanceof S.Error) {
     e.message; // => 'Failed at items[1]: Expected string, received 1'
