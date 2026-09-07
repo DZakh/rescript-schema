@@ -215,10 +215,9 @@ describeArtifact("artifact", () => {
     }
   });
 
-  // Removed API lives on in prose long after the code is gone. The ReScript
-  // reference is checked by eye — its `S.` names are a different module.
-  // Unlike the link checks this scans the raw markdown, code fences included:
-  // the samples are exactly where stale API names live.
+  // Removed API lives on in prose long after the code is gone. Unlike the link
+  // checks these scan the raw markdown, code fences included: the samples are
+  // exactly where stale API names live.
   test("the JS docs name only API that exists", () => {
     const api = new Set(Object.keys(requireCjsEntry()));
     for (const name of declaredTypeNames("index.d.ts")) {
@@ -229,6 +228,32 @@ describeArtifact("artifact", () => {
       for (const [, name] of read(file).matchAll(/\bS\.([A-Za-z_][A-Za-z0-9_]*)/g)) {
         if (!api.has(name!)) unknown.add(`${file} -> S.${name}`);
       }
+    }
+    expect([...unknown]).toEqual([]);
+  });
+
+  // The same, for the ReScript reference — its `S.` names are a different
+  // module, so they are read off the binding file rather than the JS entry.
+  // A JS-only operation named in that doc goes unprefixed for the same reason.
+  test("the ReScript docs name only API that exists", () => {
+    const source = read("src/S.res");
+    const api = new Set<string>();
+    const add = (re: RegExp): void => {
+      for (const [, name] of source.matchAll(re)) api.add(name!);
+    };
+    add(/\bexternal\s+(\w+)\s*:/g);
+    add(/^\s*(?:%%private\(\s*)?let\s+(?:rec\s+)?(\w+)/gm);
+    add(/^\s*module\s+(\w+)/gm);
+    add(/^\s*(?:type|and)\s+(?:rec\s+)?(\w+)/gm);
+    // `type exn += private Exn(error)`: a constructor, and the one name the doc
+    // reaches through `S.` that no declaration form above spells.
+    add(/^\s*type\s+\w+\s*\+=\s*(?:private\s+)?(\w+)/gm);
+
+    const unknown = new Set<string>();
+    for (const [, name] of read("docs/rescript-usage.md").matchAll(
+      /\bS\.([A-Za-z_][A-Za-z0-9_]*)/g
+    )) {
+      if (!api.has(name!)) unknown.add(`S.${name}`);
     }
     expect([...unknown]).toEqual([]);
   });

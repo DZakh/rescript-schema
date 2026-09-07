@@ -1444,7 +1444,7 @@ The same schema works for encoding:
 // }
 ```
 
-You can also use asynchronous parser:
+You can also use an asynchronous codec:
 
 ```rescript
 let paramsSchema = S.schema(s => {name: s.matches(S.string)})
@@ -1725,7 +1725,7 @@ The `compile` prefix returns the operation as a function to call repeatedly — 
 
 `parse*` and `convert*` take `~to` (and `~from`/`~via`): they convert a value into that target. `assert*`, `is*` and `make*` take `~schema` instead — the value is checked against it and either handed back as it stands or answered about, never converted into it.
 
-There is no promisable outcome here, though JS has one (`S.parseAsPromisableResult`): telling `result` from `promise<result>` needs a runtime probe that ReScript's untagged variants can't express over a variant payload, and a boxed `Sync | Async` would cost the allocation the outcome exists to avoid.
+There is no promisable outcome here, though the JS surface has one (`parseAsPromisableResult`): telling `result` from `promise<result>` needs a runtime probe that ReScript's untagged variants can't express over a variant payload, and a boxed `Sync | Async` would cost the allocation the outcome exists to avoid.
 
 | Verb        | Throws                                             | Result                                             |
 | ----------- | -------------------------------------------------- | -------------------------------------------------- |

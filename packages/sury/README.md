@@ -20,7 +20,7 @@ npm install sury
 Describe your data model once - unions, constraints and metadata included, with a type you can actually read on hover:
 
 ```ts
-import * as S from "sury"; // Tree-shakable: a schema + parser starts at 8 kB gzip
+import * as S from "sury"; // Tree-shakable: a schema + parse operation starts at 8 kB gzip
 
 const eventSchema = S.union([
   {

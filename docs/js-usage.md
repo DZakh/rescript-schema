@@ -1915,7 +1915,7 @@ The output side is derived through [`reverse`](#reverse), so nested transforms a
   - `"unrecognized_key"` - a `strict` object saw a key it doesn't declare, named in `key`. One key per error.
   - `"invalid_conversion"` - a custom `decode`/`encode` threw. `from`/`to` are the schemas and `cause` is what it threw.
   - `"unsupported_decode"` - the two schemas have no conversion between them. See [When a conversion is rejected](#when-a-conversion-is-rejected).
-  - `"invalid_operation"` - the schema itself can't run this way, such as an async schema under a sync parser.
+  - `"invalid_operation"` - the schema itself can't run this way, such as an async schema under a sync operation.
 
 ```ts
 try {

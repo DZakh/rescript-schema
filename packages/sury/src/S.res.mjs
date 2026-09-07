@@ -54,52 +54,68 @@ function to(from, target, custom) {
   }
 }
 
-function withVia(from, via, to, two, three) {
-  if (via !== undefined) {
-    return three(from, via, to);
-  } else {
-    return two(from, to);
-  }
-}
-
-function withViaData(any, from, via, to, two, three) {
-  if (via !== undefined) {
-    return three(any, from, via, to);
-  } else {
-    return two(any, from, to);
-  }
-}
-
 function compileConvertOrThrow(from, via, to) {
-  return withVia(from, via, to, (prim0, prim1) => Sury.encodeOrThrow(prim0, prim1), (prim0, prim1, prim2) => Sury.encodeOrThrow(prim0, prim1, prim2));
+  if (via !== undefined) {
+    return Sury.encodeOrThrow(from, via, to);
+  } else {
+    return Sury.encodeOrThrow(from, to);
+  }
 }
 
 function compileConvertAsPromiseOrReject(from, via, to) {
-  return withVia(from, via, to, (prim0, prim1) => Sury.encodeAsPromiseOrReject(prim0, prim1), (prim0, prim1, prim2) => Sury.encodeAsPromiseOrReject(prim0, prim1, prim2));
+  if (via !== undefined) {
+    return Sury.encodeAsPromiseOrReject(from, via, to);
+  } else {
+    return Sury.encodeAsPromiseOrReject(from, to);
+  }
 }
 
 function compileConvertAsResult(from, via, to) {
-  return withVia(from, via, to, (prim0, prim1) => Sury.$encodeAsResult(prim0, prim1), (prim0, prim1, prim2) => Sury.$encodeAsResult(prim0, prim1, prim2));
+  if (via !== undefined) {
+    return Sury.$encodeAsResult(from, via, to);
+  } else {
+    return Sury.$encodeAsResult(from, to);
+  }
 }
 
 function compileConvertAsResultPromise(from, via, to) {
-  return withVia(from, via, to, (prim0, prim1) => Sury.$encodeAsResultPromise(prim0, prim1), (prim0, prim1, prim2) => Sury.$encodeAsResultPromise(prim0, prim1, prim2));
+  if (via !== undefined) {
+    return Sury.$encodeAsResultPromise(from, via, to);
+  } else {
+    return Sury.$encodeAsResultPromise(from, to);
+  }
 }
 
 function convertOrThrow(any, from, via, to) {
-  return withViaData(any, from, via, to, (prim0, prim1, prim2) => Sury.encodeOrThrow(prim0, prim1, prim2), (prim0, prim1, prim2, prim3) => Sury.encodeOrThrow(prim0, prim1, prim2, prim3));
+  if (via !== undefined) {
+    return Sury.encodeOrThrow(any, from, via, to);
+  } else {
+    return Sury.encodeOrThrow(any, from, to);
+  }
 }
 
 function convertAsPromiseOrReject(any, from, via, to) {
-  return withViaData(any, from, via, to, (prim0, prim1, prim2) => Sury.encodeAsPromiseOrReject(prim0, prim1, prim2), (prim0, prim1, prim2, prim3) => Sury.encodeAsPromiseOrReject(prim0, prim1, prim2, prim3));
+  if (via !== undefined) {
+    return Sury.encodeAsPromiseOrReject(any, from, via, to);
+  } else {
+    return Sury.encodeAsPromiseOrReject(any, from, to);
+  }
 }
 
 function convertAsResult(any, from, via, to) {
-  return withViaData(any, from, via, to, (prim0, prim1, prim2) => Sury.$encodeAsResult(prim0, prim1, prim2), (prim0, prim1, prim2, prim3) => Sury.$encodeAsResult(prim0, prim1, prim2, prim3));
+  if (via !== undefined) {
+    return Sury.$encodeAsResult(any, from, via, to);
+  } else {
+    return Sury.$encodeAsResult(any, from, to);
+  }
 }
 
 function convertAsResultPromise(any, from, via, to) {
-  return withViaData(any, from, via, to, (prim0, prim1, prim2) => Sury.$encodeAsResultPromise(prim0, prim1, prim2), (prim0, prim1, prim2, prim3) => Sury.$encodeAsResultPromise(prim0, prim1, prim2, prim3));
+  if (via !== undefined) {
+    return Sury.$encodeAsResultPromise(any, from, via, to);
+  } else {
+    return Sury.$encodeAsResultPromise(any, from, to);
+  }
 }
 
 let Schema = {};

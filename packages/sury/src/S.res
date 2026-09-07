@@ -711,12 +711,20 @@ external compileParseAsResultPromise: (~to: t<'value>) => 'any => promise<result
 
 // One dispatch on `~via` for the four convert outcomes, over the arity-specific
 // externals above.
+//
+// `@inline` is load-bearing, not a hint: an external is not a value, so passing
+// one as an argument eta-expands it into a closure at every call site — each
+// convert would allocate two of them per call, to reach a function it could
+// have called directly. Inlined, both helpers disappear from S.res.mjs and each
+// operation compiles to the branch it would have been written as.
 %%private(
+  @inline
   let withVia = (~from, ~via, ~to, two, three) =>
     switch via {
     | None => two(from, to)
     | Some(via) => three(from, castToUnknown(via), to)
     }
+  @inline
   let withViaData = (any, ~from, ~via, ~to, two, three) =>
     switch via {
     | None => two(any, from, to)
