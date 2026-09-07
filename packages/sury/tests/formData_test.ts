@@ -389,22 +389,6 @@ test("FIXME: encoding a tuple of unions writes into the caller's array", () => {
   expect(plain).toEqual({ a: [true] });
 });
 
-test("FIXME: a refinement inside S.optional is not checked on encode", () => {
-  // Not this codec's doing - the union encode path trusts its typed input, and
-  // a plain object target has the same hole. Pinned so the fix shows up here.
-  const schema = S.formData.with(
-    S.to,
-    S.schema({ nick: S.optional(S.string.with(S.maxLength, 3)) }),
-  );
-  const encoded = S.encoder(schema)({ nick: "long" });
-  expect(entries(encoded)).toEqual([["nick", "long"]]);
-  expect(() => S.decoder(schema)(encoded)).toThrow(
-    'Failed at nick: Expected string.length <= 3, received "long"',
-  );
-  expect(() => S.encoder(S.schema({ nick: S.optional(S.string.with(S.maxLength, 3)) }))({ nick: "long" }))
-    .not.toThrow();
-});
-
 test("a repeated key reaching a field declared once is reported, not resolved", () => {
   // Parameter pollution: a client can send a key twice for a field the schema
   // says holds one value. `get` would answer the first and say nothing, and

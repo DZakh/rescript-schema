@@ -34,7 +34,7 @@ operations:
         input: ((f) => (f.append("a", "x"), f.append("b", "y"), f))(new FormData())
         output: '{ a: "x", b: "y" }'
   encode:
-    expression: i=>{let v1=i["a"],v2=i["b"];let v0=new e[0]();if(v1!=null){typeof v1==="string"||v1 instanceof e[1]||e[2](v1);v0.append("a",v1);}if(v2!=null){if(v2!=null){typeof v2==="string"||v2 instanceof e[3]||e[4](v2);v0.append("b",v2);}}return v0}
+    expression: i=>{let v1=i["a"],v2=i["b"];let v0=new e[0]();if(v1!=null){typeof v1==="string"||v1 instanceof e[1]||e[2](v1);v0.append("a",v1);}if(v2!=null){typeof v2==="string"||v2 instanceof e[3]||e[4](v2);v0.append("b",v2);}return v0}
     examples:
       text:
         input: '{ a: "x", b: undefined }'

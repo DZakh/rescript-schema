@@ -495,7 +495,7 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     );
     return `for(let ${iterVar}=0;${iterVar}<${arrayVar}.length;++${iterVar}){${itemCode}}`;
   }
-  if (isAbsent(schema)) {
+  if (isAbsent(schema) && presentArm(schema).type !== unknownTag) {
     const presentSchema = presentArm(schema);
     if (presentSchema === schema) {
       // Nothing but the sentinels, so nothing is ever written.
@@ -512,10 +512,12 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     detached.prev = U;
     return `if(${inputVar}!=null){${appendValue(detached, fdVar, keyText, inList)}}`;
   }
-  if (tagFlag & 1) {
+  if (tagFlag & 1 || presentArm(schema).type === unknownTag) {
     // An entry, or nothing: `append` stringifies whatever is neither, and
     // `"[object Object]"` is not what an `unknown` field held. `undefined`
-    // and `null` are what its decode reads from no entry, so they write none.
+    // and `null` are what its decode reads from no entry, so they write none
+    // - which is the whole of what a wrapper around it adds, so it needs no
+    // guard of its own.
     const v = val.v();
     return `if(${v}!=null){typeof ${v}==="string"||${v} instanceof ${B_embed(val, globalThis.Blob)}||${B_embedInvalidInput(val, formDataEntry)};${fdVar}.append(${keyText},${v});}`;
   }

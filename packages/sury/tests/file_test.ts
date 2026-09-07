@@ -42,3 +42,19 @@ test("a file is a blob but a blob is not a file", () => {
   expect(S.parser(S.blob)(file)).toBe(file);
   expect(() => S.parser(S.file)(new Blob(["abc"]))).toThrow("Expected File, received Blob");
 });
+
+// A variadic call is not a schema, so no spec can hold it.
+test("FIXME: a three-schema chain decodes but does not encode", async () => {
+  const user = S.schema({ name: S.string.with(S.nonEmpty) });
+  const decoded = await S.asyncDecoder(S.file, S.jsonString, S.array(user))(
+    new File(['[{"name":"Ann"}]'], "users.json"),
+  );
+  expect(decoded).toEqual([{ name: "Ann" }]);
+  // The nested spelling of the same chain encodes.
+  expect(
+    S.encoder(S.file.with(S.to, S.jsonString.with(S.to, S.array(user))))([{ name: "Ann" }]),
+  ).toBeInstanceOf(File);
+  expect(() => S.encoder(S.array(user), S.jsonString, S.file)).toThrow(
+    "Can't decode JSON string to File",
+  );
+});
