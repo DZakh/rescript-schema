@@ -17,8 +17,6 @@ Add a case: a named entry with just `input` under an op's `examples`, then `--wr
 
 **Examples are where findings live.** Cover every edge case the schema turns up — boundary values, IEEE-754 oddities (`-0`, `NaN`, `Infinity`), coercion corners, each generated-check branch. A bug report or review finding becomes an example, not a test file and not a commit message.
 
-One example covers a lot of ground: the golden pins the compiled, data-last, throwing spelling, and `check` re-runs the example through every other one — each outcome (`AsResult`, `AsPromiseOrReject`, `AsResultPromise`, `AsPromisableResult`) in each call form (`op(s)(d)`, `op(s, d)`, `op(d, s)`), plus `assertInput*`/`isInput*`/`makeInput*` on `parse`. All of them must land on the outcome the golden records. Where two genuinely disagree — the async builder taking a different path, or a check passing what parse rejects — the example records it as `whenAsync` / `whenChecked`, which `--write` then keeps fresh; adding or removing one stays yours, since that is the moment a divergence appears or goes away.
-
 ## Metrics ratchet
 
 Goldens snapshot generated code, `ts.instantiations`, inferred types, and per-export bundle size (`bundleSize.yaml`). After core-logic changes run `pnpm spec check --write`: it prints every metric that moved, ranked — **that summary is the deliverable**. Each should improve or stay flat; call out an unavoidable regression in the commit/PR.
