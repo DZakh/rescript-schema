@@ -50,6 +50,9 @@ S.encodeOrThrow(eventSchema, S.jsonString, { type: "user.deleted", id: 7n, paylo
 Errors tell you exactly where to look, in wire terms - the missing `id` is a missing string:
 
 ```ts
+parseEvent('{"type":"user.deleted"}');
+// => throws S.Error: Failed at id: Expected string, received undefined
+
 parseEvent('{"type":"user.created","id":"42","tags":[]}');
 // => throws S.Error: Failed at tags: Add at least one tag
 ```
@@ -64,7 +67,7 @@ S.parseAsResultPromise(eventSchema, input); // => Promise<Result<Event>>
 S.parseAsPromisableResult(eventSchema, input); // => Result<Event> for a sync schema, Promise<Result<Event>> for an async one
 
 S.parseAsResult(input, eventSchema); // Data first works too
-const safeParseEvent = S.parseAsResult(eventSchema); // Schema alone compiles the operation once
+const safeParseEvent = S.parseAsResult(eventSchema); // Schema alone compiles the operation beforehand
 safeParseEvent(input);
 ```
 
