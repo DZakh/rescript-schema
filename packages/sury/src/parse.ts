@@ -97,7 +97,7 @@ export const parse = (input: Val): Val => {
     } else if (loopInput.io) {
       // It's guaranteed that to is not undefined, because it's checked in the while condition
       const to = loopInput.e.to!;
-      result = loopInput.e.parser !== U ? loopInput.e.parser(loopInput) : B_refine(result, U, U, to);
+      result = loopInput.e.parser ? loopInput.e.parser(loopInput) : B_refine(result, U, U, to);
     } else {
       const maybeEncoder = loopInput.s.encoder;
       if (
@@ -212,7 +212,7 @@ export const compileDecoder = (
   expected.hasTransform = output.t === true;
 
   const body = emitTail(input, code, output.i, isAsync, flag, !!defs);
-  if (body === U) return noopOperation;
+  if (!body) return noopOperation;
   const fn = new Function("e", "s", `return ${operationArgVar}=>{${body}}`)(input.g.e, s);
   fn.embedded = input.g.e;
   return fn;
@@ -413,7 +413,7 @@ const compileChain = (
       // custom coder is what answers it.
       if (
         B_contentDiffers(B_contentNode(mut).content, B_contentNode(to).content) &&
-        to.to === U
+        !to.to
       ) {
         mut.parser = (input: Val) => B_unsupportedDecode(input, mut, to);
       }

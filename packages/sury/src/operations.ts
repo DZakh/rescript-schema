@@ -128,7 +128,7 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
     // here would turn that rethrow into a rejection. Only once this emitter is
     // registered, so `~standard.validate` of a sync schema would throw or
     // reject depending on which operation ran first.
-    if (body === U || !(flag & 1) || flag & 512 || hasDefs || !input.g.t) return body;
+    if (!body || !(flag & 1) || flag & 512 || hasDefs || !input.g.t) return body;
     const e = B_varWithoutAllocation(input.g);
     return `try{${body}}catch(${e}){return Promise.reject(${e})}`;
   }

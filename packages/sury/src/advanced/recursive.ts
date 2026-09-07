@@ -54,13 +54,13 @@ export const recursiveDecoder: Builder = (input) => {
   // generated code calls `.v` at runtime and every recompile lands there for
   // free.
   const existing = findOpNode(def, inputSchema, def, flag);
-  if (existing !== U) {
+  if (existing) {
     recOperation =
       existing.v === 0 ? B_embed(input, existing) + ".v" : B_embed(input, existing.v);
   } else {
     // Optimistic compilation with recompile if assumptions were wrong
-    let assumedHasTransform = def.hasTransform !== U ? def.hasTransform : false;
-    let assumedIsAsync = def.isAsync !== U ? def.isAsync : false;
+    let assumedHasTransform = !!def.hasTransform;
+    let assumedIsAsync = !!def.isAsync;
     let compileNeeded = true;
     const node = addOpNode(def, [inputSchema, def], flag, 0);
 
@@ -152,7 +152,7 @@ export const recursive = (name: string, fn: (schema: Internal) => Internal): Int
   refSchema.name = name;
 
   // This is for mutual recursion
-  const isNestedRec = globalConfig.d !== U;
+  const isNestedRec = !!globalConfig.d;
   if (!isNestedRec) {
     // Null prototype: the caller names the definition, so one named `__proto__`
     // would set this object's prototype instead of taking a key.

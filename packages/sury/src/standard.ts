@@ -64,7 +64,7 @@ export const getStandardJSONSchema = (
   options: StandardJsonSchemaOptions,
   isOutput: boolean
 ): JSONSchemaT => {
-  if (standardJSONSchemaConverter !== U) {
+  if (standardJSONSchemaConverter) {
     return standardJSONSchemaConverter(schema, options, isOutput);
   } else {
     throw new SuryError({
