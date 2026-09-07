@@ -423,6 +423,59 @@ export function schema<const T>(
   value: T
 ): Schema<UnknownToInput<T>, UnknownToOutput<T>>;
 
+/**
+ * `schema` for a type you already have: the type argument drives the check
+ * instead of being inferred from the definition.
+ *
+ * ```ts
+ * S.schemaOf<User>({ id: S.string, createdAt: S.date })
+ * S.schemaOf<UserRow, User>({ id: S.string, createdAt: S.isoDateTime.with(S.to, S.date) })
+ * ```
+ *
+ * One type argument pins both sides, so the definition may not transform. Name
+ * the encoded type as well to check (and keep) a codec's input.
+ */
+export function schemaOf<TInput, TOutput = TInput>(
+  definition: Definition<TInput, TOutput>
+): Schema<TInput, TOutput>;
+
+// The definition `schemaOf` demands, derived from the target type rather than
+// inferred from an argument: that is what reports a mismatch on the offending
+// field, and what lets an object literal's excess-property check catch a field
+// the type never declared.
+//
+// Deliberately NOT an overload of `schema` — resolving one would report every
+// other overload as a losing candidate, so a wrong field arrives buried under
+// `(value: TOutput)` with the target type expanded member by member.
+type Definition<TInput, TOutput> = unknown extends TOutput
+  ? never
+  : SchemaLike<TInput, TOutput> | DefinitionValue<TInput, TOutput>;
+
+type DefinitionValue<TInput, TOutput> = TOutput extends DefinitionOpaque
+  ? never
+  : TOutput extends readonly unknown[]
+  ? { -readonly [K in keyof TOutput]: Definition<DefinitionAt<TInput, K>, TOutput[K]> }
+  : TOutput extends object
+  ? { [K in keyof TOutput]-?: Definition<DefinitionAt<TInput, K>, TOutput[K]> }
+  : TOutput;
+
+// A definition reaches these through a schema — mapping over their members
+// would ask for a definition per method.
+type DefinitionOpaque =
+  | Date
+  | RegExp
+  | Error
+  | Promise<unknown>
+  | Map<unknown, unknown>
+  | Set<unknown>
+  | ArrayBuffer
+  | ArrayBufferView
+  | ((...args: never[]) => unknown);
+
+// `TInput` and `TOutput` are walked in lockstep, so a field the encoded type
+// doesn't declare leaves its input unconstrained rather than `never`.
+type DefinitionAt<TInput, K> = K extends keyof TInput ? TInput[K] : unknown;
+
 export function literal<const T>(
   value: T
 ): Schema<UnknownToInput<T>, UnknownToOutput<T>>;

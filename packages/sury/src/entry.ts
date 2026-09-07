@@ -151,7 +151,12 @@ export {
 // ── Public JS/TS API (names match index.d.ts) ────────────────────────────────
 
 export { getDecoder as decoder, reverse, instance } from "./parse";
-export { schemaFactory as schema, schemaFactory as literal, enum } from "./factory";
+export {
+  schemaFactory as schema,
+  schemaFactory as literal,
+  schemaFactory as schemaOf,
+  enum,
+} from "./factory";
 export {
   recursive,
 } from "./advanced/recursive";

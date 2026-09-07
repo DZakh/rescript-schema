@@ -2583,3 +2583,177 @@ test("Schema introspection tags survive on coerced and instance schemas", (t) =>
   const setSchema = S.instance(Set);
   t.expect(setSchema.type === "instance" && setSchema.class === Set).toBe(true);
 });
+
+// `schemaOf` is checked by the type system, so half of its contract is what
+// must NOT compile — a spec snapshots a schema that exists, and can't express
+// a rejection. `object-in-object3` and `codec-string-date` carry the positive
+// half as `ts.aliases`, which is what proves the definition builds the very
+// same schema as the inferred spelling.
+test("schemaOf: builds a schema against a type the consumer already has", (t) => {
+  type User = {
+    id: string;
+    name: string;
+    age?: number;
+    createdAt: Date;
+    role: "admin" | "user";
+  };
+
+  const userSchema = S.schemaOf<User>({
+    id: S.string,
+    name: S.string,
+    age: S.optional(S.number),
+    createdAt: S.date,
+    role: S.union(["admin", "user"]),
+  });
+
+  expectTypeOf(userSchema).toEqualTypeOf<S.Schema<User, User>>();
+
+  const user = {
+    id: "u1",
+    name: "Bob",
+    createdAt: new Date("2024-01-01T00:00:00.000Z"),
+    role: "admin" as const,
+  };
+  t.expect(S.parser(userSchema)(user)).toEqual({ ...user, age: undefined });
+
+  // One type argument pins both sides, so a field that transforms is rejected
+  // — its encoded type isn't the one the type declares.
+  S.schemaOf<User>({
+    id: S.string,
+    name: S.string,
+    age: S.optional(S.number),
+    // @ts-expect-error - Schema<string, Date> where the type declares Date
+    createdAt: S.isoDateTime.with(S.to, S.date),
+    role: S.union(["admin", "user"]),
+  });
+
+  // Naming the encoded type too is what accepts it, and keeps both sides.
+  type UserRow = Omit<User, "createdAt"> & { createdAt: string };
+  const rowSchema = S.schemaOf<UserRow, User>({
+    id: S.string,
+    name: S.string,
+    age: S.optional(S.number),
+    createdAt: S.isoDateTime.with(S.to, S.date),
+    role: S.union(["admin", "user"]),
+  });
+  expectTypeOf(rowSchema).toEqualTypeOf<S.Schema<UserRow, User>>();
+  t.expect(
+    S.parser(rowSchema)({ ...user, createdAt: "2024-01-01T00:00:00.000Z" })
+  ).toEqual({ ...user, age: undefined });
+
+  // An unconstrained encoded side, for a schema only ever parsed.
+  expectTypeOf(
+    S.schemaOf<unknown, User>({
+      id: S.string,
+      name: S.string,
+      age: S.optional(S.number),
+      createdAt: S.date,
+      role: S.union(["admin", "user"]),
+    })
+  ).toEqualTypeOf<S.Schema<unknown, User>>();
+
+  S.schemaOf<User>({
+    // @ts-expect-error - the type declares `id` a string
+    id: S.number,
+    name: S.string,
+    age: S.optional(S.number),
+    createdAt: S.date,
+    role: S.union(["admin", "user"]),
+  });
+
+  // @ts-expect-error - `name`, `age` and `role` are missing
+  S.schemaOf<User>({ id: S.string, createdAt: S.date });
+
+  S.schemaOf<User>({
+    id: S.string,
+    name: S.string,
+    age: S.optional(S.number),
+    createdAt: S.date,
+    role: S.union(["admin", "user"]),
+    // @ts-expect-error - the type declares no `oops`
+    oops: S.string,
+  });
+
+  S.schemaOf<{ role: "admin" | "user" }>({
+    // @ts-expect-error - "guest" is not one of the declared members
+    role: S.union(["admin", "guest"]),
+  });
+});
+
+test("schemaOf: definitions that aren't a plain fields object", (t) => {
+  // A whole schema as the definition — how a union, or anything else with no
+  // fields object, is named.
+  type Shape = { kind: "circle"; r: number } | { kind: "square"; side: number };
+  const shape = S.schemaOf<Shape>(
+    S.union([
+      S.schema({ kind: "circle", r: S.number }),
+      S.schema({ kind: "square", side: S.number }),
+    ])
+  );
+  expectTypeOf(shape).toEqualTypeOf<S.Schema<Shape, Shape>>();
+  t.expect(S.parser(shape)({ kind: "circle", r: 1 })).toEqual({
+    kind: "circle",
+    r: 1,
+  });
+
+  S.schemaOf<Shape>(
+    // @ts-expect-error - `r` is a number in the declared union
+    S.union([
+      S.schema({ kind: "circle", r: S.string }),
+      S.schema({ kind: "square", side: S.number }),
+    ])
+  );
+
+  // A literal field is spelled as the value itself, same as in `S.schema`.
+  const tagged = S.schemaOf<{ kind: "circle"; r: number }>({
+    kind: "circle",
+    r: S.number,
+  });
+  expectTypeOf(tagged).toEqualTypeOf<
+    S.Schema<{ kind: "circle"; r: number }, { kind: "circle"; r: number }>
+  >();
+
+  // @ts-expect-error - the type declares the tag "circle"
+  S.schemaOf<{ kind: "circle"; r: number }>({ kind: "square", r: S.number });
+
+  type Node = { id: string; children: Node[] };
+  const node = S.schemaOf<Node>(
+    S.recursive<Node>("Node", (node) =>
+      S.schema({ id: S.string, children: S.array(node) })
+    )
+  );
+  expectTypeOf(node).toEqualTypeOf<S.Schema<Node, Node>>();
+  t.expect(S.parser(node)({ id: "a", children: [] })).toEqual({
+    id: "a",
+    children: [],
+  });
+
+  type Team = {
+    name: string;
+    members: { id: string }[];
+    tags: Record<string, number>;
+    at: readonly [number, number];
+  };
+  expectTypeOf(
+    S.schemaOf<Team>({
+      name: S.string,
+      members: S.array(S.schema({ id: S.string })),
+      tags: S.record(S.number),
+      at: S.tuple([S.number, S.number]),
+    })
+  ).toEqualTypeOf<S.Schema<Team, Team>>();
+});
+
+// The definition parameter is derived from the type argument, so with no type
+// argument it is `never` and an inferring call has to resolve elsewhere. These
+// pin that `schema` still infers rather than matching `schemaOf`'s shape.
+test("schemaOf: leaves inference alone", () => {
+  expectTypeOf(S.schema("tuna")).toEqualTypeOf<S.Schema<"tuna", "tuna">>();
+  expectTypeOf(S.schema(12)).toEqualTypeOf<S.Schema<12, 12>>();
+  expectTypeOf(S.schema({ id: S.string })).toEqualTypeOf<
+    S.Schema<{ id: string }, { id: string }>
+  >();
+  expectTypeOf(S.schema([S.string, S.number])).toEqualTypeOf<
+    S.Schema<[string, number], [string, number]>
+  >();
+});
