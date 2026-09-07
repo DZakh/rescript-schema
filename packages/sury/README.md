@@ -67,7 +67,7 @@ S.parseAsResultPromise(eventSchema, input); // => Promise<Result<Event>>
 S.parseAsPromisableResult(eventSchema, input); // => Result<Event> for a sync schema, Promise<Result<Event>> for an async one
 
 S.parseAsResult(input, eventSchema); // Data first works too
-S.decodeAsResult(S.jsonString, eventSchema, '{"type":"user.deleted","id":"7","payload":null}'); // A pipeline of up to three schemas
+S.parseAsResult(S.jsonString, eventSchema, input); // A pipeline of up to three schemas
 const safeParseEvent = S.parseAsResult(eventSchema); // Schema alone compiles the operation beforehand
 safeParseEvent(input);
 ```
