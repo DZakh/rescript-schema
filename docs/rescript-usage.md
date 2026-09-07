@@ -161,7 +161,7 @@ let filmSchema = S.object(s => {
 // }
 
 // 5. Build a value in code, checked by the same schema
-let makeFilm = S.compileMakeOrThrow(~to=filmSchema)
+let makeFilm = S.compileMakeOrThrow(~schema=filmSchema)
 makeFilm({
   id: 3.,
   title: "Shorts",
@@ -317,9 +317,9 @@ S.array(S.string)->S.nonEmpty // S.t<S.nonEmpty<array<string>>>
 spec, so a well-formed value passes even when it isn't one you want to accept:
 
 ```rescript
-"javascript:alert(1)"->S.assertInputOrThrow(~to=S.uri) // passes — a valid URI
-"169.254.169.254"->S.assertInputOrThrow(~to=S.hostname) // passes — a valid host name
-"//evil.com"->S.assertInputOrThrow(~to=S.uriReference) // passes — a valid reference
+"javascript:alert(1)"->S.assertInputOrThrow(~schema=S.uri) // passes — a valid URI
+"169.254.169.254"->S.assertInputOrThrow(~schema=S.hostname) // passes — a valid host name
+"//evil.com"->S.assertInputOrThrow(~schema=S.uriReference) // passes — a valid reference
 ```
 
 When you want a security decision rather than a syntax check, compose one. The
@@ -1700,7 +1700,7 @@ let apiUserSchema = S.schema(s =>
 
 `S.to` is the same compiler as `S.compileConvertOrThrow` and `S.convertOrThrow`, just used at a single point in a larger schema. The whole tree — top-level operation plus every nested `S.to` — still folds into one generated function, so deep pipelines stay free of runtime overhead.
 
-> 🧠 `S.parseOrThrow` and `S.assertInputOrThrow` aren't separate primitives — they're just specializations of `S.convertOrThrow` with `S.unknown` on the input side. `data->S.parseOrThrow(~to=schema)` is `data->S.convertOrThrow(~from=S.unknown, ~to=schema)`. `data->S.assertInputOrThrow(~to=schema)` runs a decoder from `S.unknown` through the schema to `S.literal()->S.noValidation(true)` — the target is a no-op constant with validation disabled, so the compiler emits the schema's validation but no output-construction code at all. That's why `assertInputOrThrow` is 2–3× faster than `parseOrThrow`.
+> 🧠 `S.parseOrThrow` and `S.assertInputOrThrow` aren't separate primitives — they're just specializations of `S.convertOrThrow` with `S.unknown` on the input side. `data->S.parseOrThrow(~to=schema)` is `data->S.convertOrThrow(~from=S.unknown, ~to=schema)`. `data->S.assertInputOrThrow(~schema)` runs a decoder from `S.unknown` through the schema to `S.literal()->S.noValidation(true)` — the target is a no-op constant with validation disabled, so the compiler emits the schema's validation but no output-construction code at all. That's why `assertInputOrThrow` is 2–3× faster than `parseOrThrow`.
 
 ### Built-in operations
 
@@ -1719,9 +1719,11 @@ The result outcomes are compiled, not wrapped: ReScript's `result` is a second t
 
 Asserting has the two throwing outcomes, `assertInputOrThrow` and `assertInputAsPromiseOrReject` (plus their `Output` twins). `isInput` / `isOutput` are the non-throwing counterparts and answer with a `bool` rather than a `result`, since there is no value to hand back either way — `assert` is a ReScript keyword, which is why the boolean form is spelled `is*`.
 
-ReScript has no overloads, so where the JS surface reads the call shape at runtime, the binding names it: the `compile*` form is the data-last one, and the bare name applies it.
+ReScript has no overloads, so where the JS surface reads the call shape at runtime, the binding names it: the `compile*` form is the data-last one, and the bare name takes the data first. Both are bindings over the same JS function, so neither pays for the other.
 
-The `compile` prefix returns the operation as a function to call repeatedly — the fastest way to run one schema many times. Every outcome has one.
+The `compile` prefix returns the operation as a function to call repeatedly — the fastest way to run one schema many times. Every outcome has one except `assert*`, which has nothing to hand back and so nothing to keep.
+
+`parse*` and `convert*` take `~to` (and `~from`/`~via`): they convert a value into that target. `assert*`, `is*` and `make*` take `~schema` instead — the value is checked against it and either handed back as it stands or answered about, never converted into it.
 
 There is no promisable outcome here, though JS has one (`S.parseAsPromisableResult`): telling `result` from `promise<result>` needs a runtime probe that ReScript's untagged variants can't express over a variant payload, and a boxed `Sync | Async` would cost the allocation the outcome exists to avoid.
 
@@ -1733,7 +1735,7 @@ There is no promisable outcome here, though JS has one (`S.parseAsPromisableResu
 | **assert**  | `assertInputOrThrow`, `assertInputAsPromiseOrReject` (and the `Output` twins) | |
 | **is**      | | `isInput`, `isOutput` — a `bool`, not a `result` |
 
-Each has a `compile`-prefixed data-last form: `compileParseOrThrow`, `compileConvertAsResult`, `compileIsOutput`, and so on.
+Each has a `compile`-prefixed data-last form — `compileParseOrThrow`, `compileConvertAsResult`, `compileIsOutput`, and so on — apart from `assert*`.
 
 **Parsing** validates the input value against the schema and transforms it to the expected output type:
 
@@ -1795,29 +1797,29 @@ Also, you can use `S.noValidation` helper to turn off type validations for the s
 **Asserting** validates the input value without returning a transformed result. Since no output is constructed, it's 2-3 times faster than `parseOrThrow` depending on the schema:
 
 ```
-S.assertInputOrThrow: ('any, ~to: S.t<'value>) => ()
-S.assertInputAsPromiseOrReject: ('any, ~to: S.t<'value>) => promise<()>
-S.assertOutputOrThrow: ('any, ~to: S.t<'value>) => ()
-S.assertOutputAsPromiseOrReject: ('any, ~to: S.t<'value>) => promise<()>
+S.assertInputOrThrow: ('any, ~schema: S.t<'value>) => ()
+S.assertInputAsPromiseOrReject: ('any, ~schema: S.t<'value>) => promise<()>
+S.assertOutputOrThrow: ('any, ~schema: S.t<'value>) => ()
+S.assertOutputAsPromiseOrReject: ('any, ~schema: S.t<'value>) => promise<()>
 ```
 
 **Validating** is the non-throwing assert, spelled `is*` (see above) — and with the JS name comes the direction, which is a free parameter here:
 
 ```
-S.isInput: ('any, ~to: S.t<'value>) => bool
-S.isOutput: ('any, ~to: S.t<'value>) => bool
-S.compileIsInput: (~to: S.t<'value>) => 'any => bool
-S.compileIsOutput: (~to: S.t<'value>) => 'any => bool
+S.isInput: ('any, ~schema: S.t<'value>) => bool
+S.isOutput: ('any, ~schema: S.t<'value>) => bool
+S.compileIsInput: (~schema: S.t<'value>) => 'any => bool
+S.compileIsOutput: (~schema: S.t<'value>) => 'any => bool
 ```
 
 **Making** checks a value you built in code rather than received from the wire. Every check the schema carries runs — types, the conversion, refinements — and the value itself comes back, not a decoded copy, so an entity the schema has no way to encode fails at construction rather than at the point it's sent. `S.t<'value>` names the output type, so this is the JS `makeOutputOrThrow`:
 
 ```
-S.makeOrThrow: ('value, ~to: S.t<'value>) => 'value
-S.makeAsResult: ('value, ~to: S.t<'value>) => result<'value, S.error>
-S.makeAsPromiseOrReject: ('value, ~to: S.t<'value>) => promise<'value>
-S.makeAsResultPromise: ('value, ~to: S.t<'value>) => promise<result<'value, S.error>>
-S.compileMakeOrThrow: (~to: S.t<'value>) => 'value => 'value
+S.makeOrThrow: ('value, ~schema: S.t<'value>) => 'value
+S.makeAsResult: ('value, ~schema: S.t<'value>) => result<'value, S.error>
+S.makeAsPromiseOrReject: ('value, ~schema: S.t<'value>) => promise<'value>
+S.makeAsResultPromise: ('value, ~schema: S.t<'value>) => promise<result<'value, S.error>>
+S.compileMakeOrThrow: (~schema: S.t<'value>) => 'value => 'value
 ```
 
 ```rescript
@@ -1825,7 +1827,7 @@ let userSchema = S.object(s => {
   id: s.field("id", S.string),
   email: s.field("email", S.email),
 })
-let makeUser = S.compileMakeOrThrow(~to=userSchema)
+let makeUser = S.compileMakeOrThrow(~schema=userSchema)
 
 makeUser({id: "1", email: "billie@example.com"})
 // returns the very record it was given

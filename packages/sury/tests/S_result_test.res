@@ -28,12 +28,12 @@ asyncTest("convertAsync returns a promise of a result", async t => {
 })
 
 test("make returns a result", t => {
-  t->Assert.deepEqual(1.->S.makeAsResult(~to=schema), Ok(1.))
-  t->Assert.deepEqual(%raw(`"1"`)->S.makeAsResult(~to=schema)->Result.isError, true)
+  t->Assert.deepEqual(1.->S.makeAsResult(~schema=schema), Ok(1.))
+  t->Assert.deepEqual(%raw(`"1"`)->S.makeAsResult(~schema=schema)->Result.isError, true)
 })
 
 asyncTest("makeAsync returns a promise of a result", async t => {
-  t->Assert.deepEqual(await 1.->S.makeAsResultPromise(~to=schema), Ok(1.))
+  t->Assert.deepEqual(await 1.->S.makeAsResultPromise(~schema=schema), Ok(1.))
 })
 
 test("A refine that throws is that refinement failing, so the exception comes back as an Error", t => {

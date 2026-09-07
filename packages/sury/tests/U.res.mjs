@@ -187,7 +187,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
 }
 
 function assertReverseParsesBack(t, schema, value) {
-  Vitest.Assert.unsafeDeepEqual(t, S.parseOrThrow(S.convertOrThrow(value, schema, undefined, Sury.unknown), schema), value, undefined);
+  Vitest.Assert.unsafeDeepEqual(t, Sury.parseOrThrow(S.convertOrThrow(value, schema, undefined, Sury.unknown), schema), value, undefined);
 }
 
 function assertReverseReversesBack(t, schema) {

@@ -53,9 +53,9 @@ test("compileConvertOrThrow with ~via chains through the middle schema", t => {
 })
 
 test("validate and compileValidate answer with a bool", t => {
-  t->Assert.deepEqual("abc"->S.isInput(~to=S.string), true)
-  t->Assert.deepEqual(%raw(`1`)->S.isInput(~to=S.string), false)
-  let isString = S.compileIsInput(~to=S.string)
+  t->Assert.deepEqual("abc"->S.isInput(~schema=S.string), true)
+  t->Assert.deepEqual(%raw(`1`)->S.isInput(~schema=S.string), false)
+  let isString = S.compileIsInput(~schema=S.string)
   t->Assert.deepEqual(isString("abc"), true)
   t->Assert.deepEqual(isString(%raw(`1`)), false)
 })

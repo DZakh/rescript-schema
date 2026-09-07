@@ -17,7 +17,7 @@ asyncTest("Resets S.float cache after disableNanNumberValidation=true removed", 
   )
   t->Assert.throws(
     () => {
-      nan->S.assertInputOrThrow(~to=S.float)
+      nan->S.assertInputOrThrow(~schema=S.float)
     },
     ~expectations={
       message: "Expected number, received NaN",

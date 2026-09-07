@@ -62,6 +62,14 @@ function withVia(from, via, to, two, three) {
   }
 }
 
+function withViaData(any, from, via, to, two, three) {
+  if (via !== undefined) {
+    return three(any, from, via, to);
+  } else {
+    return two(any, from, to);
+  }
+}
+
 function compileConvertOrThrow(from, via, to) {
   return withVia(from, via, to, (prim0, prim1) => Sury.encodeOrThrow(prim0, prim1), (prim0, prim1, prim2) => Sury.encodeOrThrow(prim0, prim1, prim2));
 }
@@ -78,60 +86,20 @@ function compileConvertAsResultPromise(from, via, to) {
   return withVia(from, via, to, (prim0, prim1) => Sury.$encodeAsResultPromise(prim0, prim1), (prim0, prim1, prim2) => Sury.$encodeAsResultPromise(prim0, prim1, prim2));
 }
 
-function parseOrThrow(any, to) {
-  return Sury.parseOrThrow(to)(any);
-}
-
-function parseAsPromiseOrReject(any, to) {
-  return Sury.parseAsPromiseOrReject(to)(any);
-}
-
-function parseAsResult(any, to) {
-  return Sury.$parseAsResult(to)(any);
-}
-
-function parseAsResultPromise(any, to) {
-  return Sury.$parseAsResultPromise(to)(any);
-}
-
-function isInput(any, to) {
-  return Sury.isInput(to)(any);
-}
-
-function isOutput(any, to) {
-  return Sury.isOutput(to)(any);
-}
-
 function convertOrThrow(any, from, via, to) {
-  return compileConvertOrThrow(from, via, to)(any);
+  return withViaData(any, from, via, to, (prim0, prim1, prim2) => Sury.encodeOrThrow(prim0, prim1, prim2), (prim0, prim1, prim2, prim3) => Sury.encodeOrThrow(prim0, prim1, prim2, prim3));
 }
 
 function convertAsPromiseOrReject(any, from, via, to) {
-  return compileConvertAsPromiseOrReject(from, via, to)(any);
+  return withViaData(any, from, via, to, (prim0, prim1, prim2) => Sury.encodeAsPromiseOrReject(prim0, prim1, prim2), (prim0, prim1, prim2, prim3) => Sury.encodeAsPromiseOrReject(prim0, prim1, prim2, prim3));
 }
 
 function convertAsResult(any, from, via, to) {
-  return compileConvertAsResult(from, via, to)(any);
+  return withViaData(any, from, via, to, (prim0, prim1, prim2) => Sury.$encodeAsResult(prim0, prim1, prim2), (prim0, prim1, prim2, prim3) => Sury.$encodeAsResult(prim0, prim1, prim2, prim3));
 }
 
 function convertAsResultPromise(any, from, via, to) {
-  return compileConvertAsResultPromise(from, via, to)(any);
-}
-
-function makeOrThrow(value, to) {
-  return Sury.makeOutputOrThrow(to)(value);
-}
-
-function makeAsPromiseOrReject(value, to) {
-  return Sury.makeOutputAsPromiseOrReject(to)(value);
-}
-
-function makeAsResult(value, to) {
-  return Sury.$makeAsResult(to)(value);
-}
-
-function makeAsResultPromise(value, to) {
-  return Sury.$makeAsResultPromise(to)(value);
+  return withViaData(any, from, via, to, (prim0, prim1, prim2) => Sury.$encodeAsResultPromise(prim0, prim1, prim2), (prim0, prim1, prim2, prim3) => Sury.$encodeAsResultPromise(prim0, prim1, prim2, prim3));
 }
 
 let Schema = {};
@@ -182,20 +150,10 @@ export {
   compileConvertAsPromiseOrReject,
   compileConvertAsResult,
   compileConvertAsResultPromise,
-  parseOrThrow,
-  parseAsPromiseOrReject,
-  parseAsResult,
-  parseAsResultPromise,
-  isInput,
-  isOutput,
   convertOrThrow,
   convertAsPromiseOrReject,
   convertAsResult,
   convertAsResultPromise,
-  makeOrThrow,
-  makeAsPromiseOrReject,
-  makeAsResult,
-  makeAsResultPromise,
   Schema,
   $$Object,
   Tuple,

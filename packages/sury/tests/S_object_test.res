@@ -701,7 +701,7 @@ module BenchmarkWithSObject = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~to=schema), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~schema=schema), ())
 
     t->U.assertCompiledCode(
       ~schema,
@@ -735,7 +735,7 @@ module BenchmarkWithSObject = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~to=schema), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~schema=schema), ())
 
     t->U.assertCompiledCode(
       ~schema,
@@ -824,7 +824,7 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~to=schema), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~schema=schema), ())
 
     t->U.assertCompiledCode(
       ~schema,
@@ -858,7 +858,7 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~to=schema), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~schema=schema), ())
 
     t->U.assertCompiledCode(
       ~schema,
