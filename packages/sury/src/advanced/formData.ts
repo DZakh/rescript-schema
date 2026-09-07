@@ -18,6 +18,7 @@ import {
   inlinedValueFromString,
   instanceTag,
   initSchema,
+  inputExpression,
   type Internal,
   isOptional,
   nullTag,
@@ -236,7 +237,7 @@ const entrySchema = (blank: boolean): Internal =>
       if (blank && !decidesBlank(target)) {
         B_invalidOperation(
           input,
-          `Ambiguous blank: say what "" means with S.nonEmpty, S.minLength(0), S.optional or S.nullable`,
+          `Ambiguous "" for ${inputExpression(target)}: a blank input is a value or a missing one. Use S.nonEmpty, S.minLength(0), S.optional or S.nullable to say which`,
         );
       }
       const flag = tagFlags[target.type]!;

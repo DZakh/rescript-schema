@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Can't decode string | number to number | string | boolean. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't convert string | number to number | string | boolean: boolean has no same-type variant on the other side. Use S.to on that arm, or S.never to mark it unreachable"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Can't decode number | string | boolean to string | number. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't convert number | string | boolean to string | number: boolean has no same-type variant on the other side. Use S.to on that arm, or S.never to mark it unreachable"

@@ -147,7 +147,7 @@ test("a blank entry is absent for an optional field, and its own value otherwise
   // A required string must say which it means, and each spelling then answers
   // for itself.
   expect(() => S.decoder(S.formData.with(S.to, S.schema({ blank: S.string })))).toThrow(
-    'Failed at blank: Ambiguous blank: say what "" means',
+    'Failed at blank: Ambiguous "" for string:',
   );
   expect(
     S.decoder(S.formData.with(S.to, S.schema({ blank: S.string.with(S.minLength, 0) })))(

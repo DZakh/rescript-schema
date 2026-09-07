@@ -609,24 +609,24 @@ const unionCheckPartial = (
   if (matched !== U && unmatched) {
     unionInvalid(
       input,
-      source,
-      target,
-      `. Use S.to(from, to, {decode, encode}), or S.never on an arm`
+      `Ambiguous conversion from ${inputExpression(source)} to ${inputExpression(target)}`,
+      `${inputExpression(matched)} has the same type as the ${outputSide ? "target" : "source"} and the others don't`,
     );
   }
 };
 
-// An arm with no counterpart is not ambiguous, it is a pair with no reading -
-// which is what every other unconvertible pair reports, in the same words.
-const unionUncovered = (input: Val, source: Internal, target: Internal): never =>
-  B_unsupportedDecode(input, source, target);
+const unionUncovered = (input: Val, source: Internal, target: Internal, variant: Internal): never =>
+  unionInvalid(
+    input,
+    `Can't convert ${inputExpression(source)} to ${inputExpression(target)}`,
+    `${inputExpression(variant)} has no same-type variant on the other side`,
+  );
 
-// The pair, then the spelling that resolves it - the shape `S.to` already uses
-// for a content pair with two readings.
-const unionInvalid = (input: Val, from: Internal, to: Internal, why: string): never =>
+// The pair, the arm that decides it, then the spelling that resolves it.
+const unionInvalid = (input: Val, pair: string, why: string): never =>
   B_invalidOperation(
     input,
-    `Ambiguous conversion from ${inputExpression(from)} to ${inputExpression(to)}${why}`
+    `${pair}: ${why}. Use S.to on that arm, or S.never to mark it unreachable`,
   );
 
 // ── Normalize → Analyze → Plan → Emit ────────────────────────────────────────
@@ -1591,7 +1591,7 @@ const unionResolveToUnion = (
       );
     }
     if (matches[s] === U) {
-      unionUncovered(input, source, target);
+      unionUncovered(input, source, target, sourceOut);
     }
   }
   for (let t = 0; t < targets.length; t++) {
@@ -1607,7 +1607,7 @@ const unionResolveToUnion = (
         unionOutput(targetVariant).type === neverTag ||
         !(sourceNullish & tagFlags[opposite]!))
     ) {
-      unionUncovered(input, source, target);
+      unionUncovered(input, source, target, targetVariant);
     }
   }
 

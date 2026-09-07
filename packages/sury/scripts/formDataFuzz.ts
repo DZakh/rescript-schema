@@ -269,6 +269,12 @@ const compile = (build: () => unknown): { fn?: unknown; rejected?: string; crash
 
 const findings: string[] = [];
 const used = new Set<string>();
+// Every field that works, for one schema of them all: a field on its own can't
+// show a name the compiler hands out twice, a declaration hoisted after the
+// code that reads it, or a read that answers another field's entry.
+const together: Record<string, unknown> = {};
+// One entry each, so every field is read with its neighbours supplied.
+const wire: [string, unknown][] = [];
 let checked = 0;
 let wires = 0;
 let rejected = 0;
@@ -323,6 +329,9 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
       rejected += 1;
       continue;
     }
+    const key = `${wrapperName}_${leafName}`.replace(/-/g, "_");
+    together[key] = field.schema;
+    wire.push([key, field.list ? "x" : "on"]);
 
     // What a client can send, checked against the schema's own output type:
     // a decode either rejects an entry list or reads it as a value the schema
@@ -384,35 +393,12 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
   }
 }
 
-// Every field that works, in one schema. A field on its own can't show a name
-// the compiler hands out twice, a declaration hoisted after the code that reads
-// it, or a read that answers another field's entry - all of which have happened
-// here, and none of which the cross above can see.
-const together: Record<string, unknown> = {};
-const wire: [string, unknown][] = [];
-for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
-  for (const [leafName, leaf] of Object.entries(LEAVES)) {
-    let field: Leaf;
-    try {
-      field = wrap(leaf);
-    } catch {
-      continue;
-    }
-    const one = S.formData.with(S.to, S.schema({ a: field.schema as never }) as never);
-    if (compile(() => S.decoder(one)).fn && compile(() => S.encoder(one)).fn) {
-      const key = `${wrapperName}_${leafName}`.replace(/-/g, "_");
-      together[key] = field.schema;
-      // One entry each, so every field is read with its neighbours supplied.
-      wire.push([key, field.list ? "x" : "on"]);
-    }
-  }
-}
 const combined = S.formData.with(S.to, S.schema(together as never) as never);
-for (const [direction, build] of [
-  ["decode", () => S.decoder(combined)],
-  ["encode", () => S.encoder(combined)],
+const combinedDecode = compile(() => S.decoder(combined));
+for (const [direction, result] of [
+  ["decode", combinedDecode],
+  ["encode", compile(() => S.encoder(combined))],
 ] as const) {
-  const result = compile(build);
   if (result.crash) {
     findings.push(`all ${Object.keys(together).length} fields in one schema: ${direction} - ${result.crash}`);
   } else if (result.rejected) {
@@ -421,16 +407,13 @@ for (const [direction, build] of [
     );
   }
 }
-const combinedDecode = compile(() => S.decoder(combined)).fn as
-  | ((form: FormData) => unknown)
-  | undefined;
-if (combinedDecode) {
+if (combinedDecode.fn) {
   for (const [label, entries] of [
     ["nothing", []],
     ["one entry each", wire],
   ] as const) {
     try {
-      combinedDecode(form(entries as [string, unknown][]));
+      (combinedDecode.fn as (form: FormData) => unknown)(form(entries as [string, unknown][]));
     } catch (error) {
       if (!(error instanceof S.Error)) {
         findings.push(

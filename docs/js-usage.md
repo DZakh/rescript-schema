@@ -1045,8 +1045,8 @@ Both readings are sensible, so Sury makes you pick:
 
 ```ts
 S.string.with(S.to, S.union([S.number, S.string]));
-// Ambiguous conversion from string to number | string.
-// Use S.to(from, to, {decode, encode}), or S.never on an arm
+// Ambiguous conversion from string to number | string: string has the same type
+// as the source and the others don't. Use S.to on that arm, or S.never to mark it unreachable
 
 // Convert to a number when possible, keep the string otherwise:
 const asNumber = S.string.with(S.to, S.union([S.string.with(S.to, S.number), S.string]));
@@ -1064,7 +1064,8 @@ a member with no same-type counterpart has nowhere to go:
 
 ```ts
 S.union([S.string, S.number]).with(S.to, S.union([S.number, S.string, S.boolean]));
-// Can't decode string | number to number | string | boolean. Use S.to to define a custom decoder
+// Can't convert string | number to number | string | boolean: boolean has no
+// same-type variant on the other side. Use S.to on that arm, or S.never to mark it unreachable
 S.optional(S.string).with(S.to, S.nullable(S.boolean)); // ❌ string doesn't match boolean
 S.optional(S.string).with(S.to, S.nullable(S.string.with(S.to, S.boolean))); // ✅
 ```
@@ -1232,8 +1233,7 @@ A list is never absent - no entries is the empty list - so `S.optional(S.array(x
 reads `[]` where the key is missing, and a default on a list is rejected.
 
 A key the schema declares once but the form sent twice is reported rather than
-resolved - `get` would answer the first and say nothing, and which one that is
-depends on submission order:
+resolved:
 
 ```ts
 S.schema({ name: S.string.with(S.nonEmpty) });
@@ -1266,8 +1266,7 @@ Any other `value` is a string the schema should name (`S.union(["yes", "no"])`),
 and a list of booleans is rejected: a checkbox group submits the value of each
 checked box, so `S.array(S.string)` is what one decodes to.
 
-A boolean arm of a union reads the same way, because the rule belongs to the
-entry rather than to the field:
+A boolean arm of a union reads the same way:
 
 ```ts
 S.union([S.boolean, S.number]); // "on" -> true, "false" -> false, "42" -> 42
@@ -1280,8 +1279,9 @@ that means:
 
 ```ts
 S.formData.with(S.to, S.schema({ name: S.string }));
-// throws at S.decoder: Failed at name: Ambiguous blank: say what "" means
-// with S.nonEmpty, S.minLength(0), S.optional or S.nullable
+// throws at S.decoder: Failed at name: Ambiguous "" for string: a blank input
+// is a value or a missing one. Use S.nonEmpty, S.minLength(0), S.optional or
+// S.nullable to say which
 ```
 
 ```ts
