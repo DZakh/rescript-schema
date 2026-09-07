@@ -134,82 +134,26 @@ const parseT = <T>(schema: S.Schema<unknown, T>, data: unknown): T =>
 
 ### Checking against a type you already have
 
-When the type comes first — it's generated, shared, or simply already written — `S.schemaOf` reverses the direction: the type argument says what the schema must produce, and **Sury** checks the definition against it field by field.
+When the type comes first — it's generated, shared, or simply already written — `S.schemaOf` reverses the direction: the type argument says what the schema must produce, and the definition is checked against it field by field.
 
 ```ts
 type User = {
   id: string;
   name: string;
-  createdAt: Date;
+  publishedAt?: Date;
 };
 
 const userSchema = S.schemaOf<User>()({
   id: S.string,
   name: S.string,
-  createdAt: S.date,
+  publishedAt: S.optional(S.isoDateTime.with(S.to, S.date)),
 });
-//? S.Schema<User, User>
+//? S.Schema<{ id: string; name: string; publishedAt?: string | undefined }, User>
 ```
 
-The encoded side is read off the definition, so a codec needs no second type argument:
+The encoded side is read off the definition, so a codec needs no second type argument. Anything without a fields object — a union, a recursive schema — is named by passing the schema itself.
 
-```ts
-const rowSchema = S.schemaOf<User>()({
-  id: S.string,
-  name: S.string,
-  createdAt: S.isoDateTime.with(S.to, S.date),
-});
-//? S.Schema<{ id: string; name: string; createdAt: string }, User>
-```
-
-The empty `()` is what makes the checking possible: it fixes the type before the definition is written, so **Sury** compares the two for *equality* rather than assignability. That's what catches a definition which merely happens to fit — a field the type declares optional, defined by a schema that requires it:
-
-```ts
-type Draft = { title: string; publishedAt?: Date };
-
-S.schemaOf<Draft>()({ title: S.string, publishedAt: S.date });
-// Type 'Schema<Date, Date>' is not assignable to type
-// '{ "types do not match": { expected: Date | undefined; received: Date } }'
-```
-
-`S.date` produces a `Date`, which *is* a `Date | undefined` — so every check based on assignability accepts it, and the schema it builds then rejects `{ title: "…" }`, a value the type calls valid. The fix is [`S.optional`](#optional):
-
-```ts
-S.schemaOf<Draft>()({ title: S.string, publishedAt: S.optional(S.date) });
-```
-
-The same equality catches a schema narrower than the type declares — `S.schema("fixed")` where the type says `string` would refuse values the type admits. A wrong field type, and a field the type doesn't declare, are each reported where they're written:
-
-```ts
-S.schemaOf<User>()({ id: S.number, name: S.string, createdAt: S.date });
-// '{ "types do not match": { expected: string; received: number } }'
-
-S.schemaOf<User>()({ id: S.string, name: S.string, createdAt: S.date, nickname: S.string });
-// '{ "types do not match": { expected: never; received: string } }'
-```
-
-A missing field is reported against the call, listing every one of them:
-
-```ts
-S.schemaOf<User>()({ id: S.string });
-// Type '{ id: Schema<string, string>; }' is not assignable to
-// '{ id: … } & { name: …; createdAt: … }'
-```
-
-Anything without a fields object — a union, a recursive schema — is named by passing the schema itself:
-
-```ts
-type Shape = { kind: "circle"; r: number } | { kind: "square"; side: number };
-
-S.schemaOf<Shape>()(
-  S.union([
-    S.schema({ kind: "circle", r: S.number }),
-    S.schema({ kind: "square", side: S.number }),
-  ])
-);
-```
-
-> 🧠 A `readonly` array or tuple in the type is matched by an ordinary [`S.array`](#array) or [`S.tuple`](#tuple) — there's no `readonly` schema to ask for, so the modifier is dropped for the comparison. It's dropped from the encoded side of the result too.
+The empty `()` fixes the type before the definition is written, which is what lets **Sury** compare the two for *equality* rather than assignability. Writing `publishedAt: S.date` above would be a type error: it produces a `Date`, which *is* a `Date | undefined`, so it passes every check based on assignability and then builds a schema that rejects `{ id, name }` — a value the type calls valid. Mismatches are reported on the field that carries them.
 
 ### Encoding data
 
