@@ -449,23 +449,6 @@ export function union<const T>(
 
 export { union as anyOf };
 
-// `enum` is a reserved word, so it is declared under an alias and renamed on
-// the way out — same as `void` below.
-declare function enum_<const TFirst, const TRest extends unknown[]>(
-  values: [TFirst, ...TRest]
-): Schema<
-  UnknownToInput<TFirst> | UnknownArrayToInput<TRest>[number],
-  UnknownToOutput<TFirst> | UnknownArrayToOutput<TRest>[number]
->;
-declare function enum_<const T>(
-  values: readonly T[]
-): Schema<UnknownToInput<T>, UnknownToOutput<T>>;
-/**
- * A union written as a list of values, the way JSON Schema spells `enum`. Each
- * value becomes a literal schema, so this is `S.union` over the same list.
- */
-export { enum_ as enum };
-
 export const string: Schema<string, string>;
 export const boolean: Schema<boolean, boolean>;
 export const int32: Schema<number, number>;
@@ -473,8 +456,6 @@ export const integer: Schema<number, number>;
 export const number: Schema<number, number>;
 export const bigint: Schema<bigint, bigint>;
 export const symbol: Schema<symbol, symbol>;
-/** `NaN`, the one number `S.number` rejects. */
-export const nan: Schema<number, number>;
 export const never: Schema<never, never>;
 export const unknown: Schema<unknown, unknown>;
 export const any: Schema<any, any>;

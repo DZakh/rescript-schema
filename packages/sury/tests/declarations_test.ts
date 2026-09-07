@@ -68,11 +68,16 @@ test("every declared value has a runtime export, and vice versa", async () => {
       if (parts[0]) declared.add(parts[1] ?? parts[0]!);
     }
   }
-  // `$`-prefixed exports are the ReScript binding surface (entry.ts), which
-  // index.d.ts deliberately doesn't describe. `list` builds a ReScript linked
-  // list, which has no JS type worth writing down — arguably it should carry
-  // the prefix too.
-  const rescriptOnly = (name: string) => name.startsWith("$") || name === "list";
+  // The ReScript binding surface, which index.d.ts deliberately doesn't
+  // describe. `$`-prefixed is the convention (entry.ts); these three predate it
+  // and are bound from S.res under their bare names — `list` builds a ReScript
+  // linked list, `enum` takes the array of values `S.union` takes as a
+  // definition, and `nan` is `t<float>`'s NaN literal. Declaring them would put
+  // three ReScript-shaped APIs in front of every TS consumer; renaming them to
+  // `$list`/`$enum`/`$nan` is the fix, and it belongs to whoever owns the
+  // published surface.
+  const RESCRIPT_ONLY = new Set(["list", "enum", "nan"]);
+  const rescriptOnly = (name: string) => name.startsWith("$") || RESCRIPT_ONLY.has(name);
   expect([...runtime].filter((n) => !rescriptOnly(n) && !declared.has(n)).sort()).toEqual([]);
   expect([...declared].filter((n) => !runtime.has(n)).sort()).toEqual([]);
 });
