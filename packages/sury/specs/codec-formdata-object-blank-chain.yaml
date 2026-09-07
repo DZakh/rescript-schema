@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: 'SuryError: Failed at a: Ambiguous "" for string. Should a blank input be rejected, kept, or read as absent? Choose with S.nonEmpty, S.minLength(0), S.optional or S.nullable'
+    creationError: 'SuryError: Failed at a: Ambiguous "" for string. Should a blank input be rejected, kept, or read as absent? Choose with S.nonEmpty, S.minLength(0), or S.optional'
   decode: eq-to-parse
   encode:
     expression: i=>{let v0;try{v0=e[0](i["a"])}catch(x){e[1](x)}let v1=new e[2]();v1.append("a",v0);return v1}

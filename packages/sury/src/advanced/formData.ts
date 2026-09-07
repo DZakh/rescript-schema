@@ -237,7 +237,7 @@ const entrySchema = (blank: boolean): Internal =>
       if (blank && !decidesBlank(target)) {
         B_invalidOperation(
           input,
-          `Ambiguous "" for ${inputExpression(target)}. Should a blank input be rejected, kept, or read as absent? Choose with S.nonEmpty, S.minLength(0), S.optional or S.nullable`,
+          `Ambiguous "" for ${inputExpression(target)}. Should a blank input be rejected, kept, or read as absent? Choose with S.nonEmpty, S.minLength(0), or S.optional`,
         );
       }
       const flag = tagFlags[target.type]!;

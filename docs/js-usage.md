@@ -1281,7 +1281,7 @@ that means:
 S.formData.with(S.to, S.schema({ name: S.string }));
 // throws at S.decoder: Failed at name: Ambiguous "" for string. Should a blank
 // input be rejected, kept, or read as absent? Choose with S.nonEmpty,
-// S.minLength(0), S.optional or S.nullable
+// S.minLength(0), or S.optional
 ```
 
 ```ts
