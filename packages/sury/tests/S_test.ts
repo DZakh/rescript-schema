@@ -2775,6 +2775,44 @@ test("schemaOf: definitions that aren't a plain fields object", (t) => {
   >();
 });
 
+// No schema produces a `readonly` type, so a target that declares one has the
+// modifier dropped before the comparison rather than being unsatisfiable. Two
+// mechanisms do it between them: `Mutable` for arrays and tuples, and the
+// per-field walk for properties, which reads `TOutput[K]` and so never sees a
+// property modifier at all. The result names the target — `readonly` and all —
+// while the encoded side, which is what the definition actually builds, stays
+// mutable.
+test("schemaOf: a target type that declares readonly", (t) => {
+  type Tagged = { readonly id: string; readonly tags: readonly string[] };
+  const tagged = S.schemaOf<Tagged>()({ id: S.string, tags: S.array(S.string) });
+  expectTypeOf(tagged).toEqualTypeOf<
+    S.Schema<{ id: string; tags: string[] }, Tagged>
+  >();
+  t.expect(S.parser(tagged)({ id: "a", tags: ["x"] })).toEqual({
+    id: "a",
+    tags: ["x"],
+  });
+
+  type Wrapped = Readonly<{ id: string; nested: { readonly n: number } }>;
+  expectTypeOf(
+    S.schemaOf<Wrapped>()({ id: S.string, nested: { n: S.number } })
+  ).toEqualTypeOf<S.Schema<{ id: string; nested: { n: number } }, Wrapped>>();
+
+  type Deep = { outer: { items: readonly number[] } };
+  expectTypeOf(
+    S.schemaOf<Deep>()({ outer: { items: S.array(S.number) } })
+  ).toEqualTypeOf<S.Schema<{ outer: { items: number[] } }, Deep>>();
+
+  type Pair = readonly [string, number];
+  expectTypeOf(S.schemaOf<Pair>()([S.string, S.number])).toEqualTypeOf<
+    S.Schema<[string, number], Pair>
+  >();
+
+  // Dropping `readonly` doesn't drop the check underneath it.
+  // @ts-expect-error - the type declares `readonly string[]`, not numbers
+  S.schemaOf<Tagged>()({ id: S.string, tags: S.array(S.number) });
+});
+
 // The first call takes only a type argument, so an inferring `S.schema` call
 // can't reach `schemaOf`'s checking at all. These pin that inference is
 // untouched by it.
