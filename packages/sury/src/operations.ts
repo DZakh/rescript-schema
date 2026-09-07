@@ -491,29 +491,4 @@ export function $makeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: 
   return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 256 | 2048);
 }
 
-export function $parseAsPromisableResult(
-  a?: unknown,
-  b?: unknown,
-  c?: unknown,
-  d?: unknown,
-): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1 | 256 | 512);
-}
 
-export function $encodeAsPromisableResult(
-  a?: unknown,
-  b?: unknown,
-  c?: unknown,
-  d?: unknown,
-): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 256 | 512);
-}
-
-export function $makeAsPromisableResult(
-  a?: unknown,
-  b?: unknown,
-  c?: unknown,
-  d?: unknown,
-): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 256 | 512 | 2048);
-}

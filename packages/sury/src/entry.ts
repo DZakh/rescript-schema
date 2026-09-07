@@ -479,9 +479,6 @@ export {
   $encodeAsResultPromise,
   $makeAsResult,
   $makeAsResultPromise,
-  $parseAsPromisableResult,
-  $encodeAsPromisableResult,
-  $makeAsPromisableResult,
 } from "./operations";
 export {
   Option_getOr as $Option_getOr,

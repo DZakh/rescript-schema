@@ -1713,32 +1713,22 @@ Every operation is named `[compile]` + verb + outcome, and the names match the J
 | `AsResult` | `result<'value, S.error>` |
 | `AsPromiseOrReject` | `promise<'value>` — rejects, never throws synchronously |
 | `AsResultPromise` | `promise<result<'value, S.error>>` |
-| `AsPromisableResult` | `S.promisableResult<'value>` — the result itself, or a promise of it |
 
 The result outcomes are compiled, not wrapped: ReScript's `result` is a second tail the same compiler emits, so nothing pays for a closure per call.
-
-`AsPromisableResult` is the one for a schema whose async-ness you don't know — one compiled operation answers in the schema's own shape. `S.classify` tells the two apart; the type is opaque rather than an untagged `Sync | Async` variant because an untagged case's payload has to be a shape the compiler can probe, and `result` is a variant:
-
-```rescript
-switch data->S.parseAsPromisableResult(~to=schema)->S.classify {
-| Sync(result) => result
-| Async(promise) => await promise
-}
-```
-
-There is no promisable *throwing* variant: two shapes to branch on is already what not knowing costs, and by the time you have branched you know.
 
 Asserting has the two throwing outcomes, `assertInputOrThrow` and `assertInputAsPromiseOrReject` (plus their `Output` twins). `isInput` / `isOutput` are the non-throwing counterparts and answer with a `bool` rather than a `result`, since there is no value to hand back either way — `assert` is a ReScript keyword, which is why the boolean form is spelled `is*`.
 
 ReScript has no overloads, so where the JS surface reads the call shape at runtime, the binding names it: the `compile*` form is the data-last one, and the bare name applies it.
 
-The `compile` prefix returns the operation as a function to call repeatedly — the fastest way to run one schema many times. Only the throwing operations compile: a compiled operation is for the hot path, where the `result` allocation per call is the cost you are avoiding, so wrap the compiled function yourself if you want a `result` there. `compileValidate` is the exception, since its answer is already a bool.
+The `compile` prefix returns the operation as a function to call repeatedly — the fastest way to run one schema many times. Every outcome has one, the result outcomes included: the `result` is emitted into the operation's own body rather than wrapped around it, so it costs the object and nothing else.
+
+There is no promisable outcome here, though JS has one (`S.parseAsPromisableResult`): telling `result` from `promise<result>` needs a runtime probe that ReScript's untagged variants can't express over a variant payload, and a boxed `Sync | Async` would cost the allocation the outcome exists to avoid.
 
 | Verb        | Throws                                             | Result                                             |
 | ----------- | -------------------------------------------------- | -------------------------------------------------- |
-| **parse**   | `parseOrThrow`, `parseAsPromiseOrReject`           | `parseAsResult`, `parseAsResultPromise`, `parseAsPromisableResult`     |
-| **convert** | `convertOrThrow`, `convertAsPromiseOrReject`       | `convertAsResult`, `convertAsResultPromise`, `convertAsPromisableResult` |
-| **make**    | `makeOrThrow`, `makeAsPromiseOrReject`             | `makeAsResult`, `makeAsResultPromise`, `makeAsPromisableResult`       |
+| **parse**   | `parseOrThrow`, `parseAsPromiseOrReject`           | `parseAsResult`, `parseAsResultPromise`            |
+| **convert** | `convertOrThrow`, `convertAsPromiseOrReject`       | `convertAsResult`, `convertAsResultPromise`        |
+| **make**    | `makeOrThrow`, `makeAsPromiseOrReject`             | `makeAsResult`, `makeAsResultPromise`              |
 | **assert**  | `assertInputOrThrow`, `assertInputAsPromiseOrReject` (and the `Output` twins) | |
 | **is**      | | `isInput`, `isOutput` — a `bool`, not a `result` |
 

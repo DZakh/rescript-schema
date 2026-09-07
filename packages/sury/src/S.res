@@ -635,37 +635,6 @@ let to = (from, target, ~custom=?) =>
 
 @module("sury") external reverse: t<'value> => t<unknown> = "reverse"
 
-// What an operation answers when it hasn't been told whether the schema is
-// async: a synchronous one hands back the result, an async one a promise of it,
-// and ONE compiled operation covers both.
-//
-// Opaque, rather than the `Sync(result) | Async(promise)` untagged variant it
-// looks like — ReScript can't build that one. An untagged case's payload has to
-// be a shape the compiler can probe at runtime, and `result` is a variant, not
-// one of them ("Case Sync has a payload that is not of one of the recognized
-// shapes"). `classify` does the probe instead, the same way
-// `StandardSchema.Result.classify` does for the spec's own result object.
-//
-// There is deliberately no promisable THROWING variant: two shapes to branch on
-// is already what not knowing costs, and by the time you have branched you know.
-type promisableResult<'value>
-
-// `promisableResult` told apart. Boxed, so a `switch` costs one small
-// allocation — against lifting every synchronous answer into a promise, which
-// is the thing promisable exists to avoid.
-type promisable<'value> =
-  | Sync(result<'value, error>)
-  | Async(promise<result<'value, error>>)
-
-// Probes for OUR result rather than for the promise: `{TAG, _0}` is the shape
-// this library emits, where `.then` would also match anything else thenable.
-let classify = (promisable: promisableResult<'value>): promisable<'value> =>
-  if %raw(`promisable.TAG === undefined`) {
-    Async(promisable->Obj.magic)
-  } else {
-    Sync(promisable->Obj.magic)
-  }
-
 %%private(
   // The ReScript convert runs FROM a schema's Output space, which is exactly
   // what the JS `encode*` operations compile: they reverse the first schema
@@ -686,15 +655,6 @@ let classify = (promisable: promisableResult<'value>): promisable<'value> =>
   @module("sury")
   external convertResult3: (t<'from>, t<unknown>, t<'to>) => 'from => result<'to, error> =
     "$encodeAsResult"
-  @module("sury")
-  external convertPromisable2: (t<'from>, t<'to>) => 'from => promisableResult<'to> =
-    "$encodeAsPromisableResult"
-  @module("sury")
-  external convertPromisable3: (
-    t<'from>,
-    t<unknown>,
-    t<'to>,
-  ) => 'from => promisableResult<'to> = "$encodeAsPromisableResult"
   @module("sury")
   external convertResultPromise2: (t<'from>, t<'to>) => 'from => promise<result<'to, error>> =
     "$encodeAsResultPromise"
@@ -720,9 +680,6 @@ external compileParseAsResult: (~to: t<'value>) => 'any => result<'value, error>
 @module("sury")
 external compileParseAsResultPromise: (~to: t<'value>) => 'any => promise<result<'value, error>> =
   "$parseAsResultPromise"
-@module("sury")
-external compileParseAsPromisableResult: (~to: t<'value>) => 'any => promisableResult<'value> =
-  "$parseAsPromisableResult"
 
 let compileConvertOrThrow = (~from, ~via=?, ~to) =>
   switch via {
@@ -743,11 +700,6 @@ let compileConvertAsResultPromise = (~from, ~via=?, ~to) =>
   switch via {
   | None => convertResultPromise2(from, to)
   | Some(via) => convertResultPromise3(from, castToUnknown(via), to)
-  }
-let compileConvertAsPromisableResult = (~from, ~via=?, ~to) =>
-  switch via {
-  | None => convertPromisable2(from, to)
-  | Some(via) => convertPromisable3(from, castToUnknown(via), to)
   }
 
 // `assert` is a ReScript keyword, so the boolean-answering check keeps the JS
@@ -770,15 +722,11 @@ external compileMakeAsResult: (~schema: t<'value>) => 'value => result<'value, e
 external compileMakeAsResultPromise: (
   ~schema: t<'value>,
 ) => 'value => promise<result<'value, error>> = "$makeAsResultPromise"
-@module("sury")
-external compileMakeAsPromisableResult: (~schema: t<'value>) => 'value => promisableResult<'value> =
-  "$makeAsPromisableResult"
 
 let parseOrThrow = (any, ~to) => compileParseOrThrow(~to)(any)
 let parseAsPromiseOrReject = (any, ~to) => compileParseAsPromiseOrReject(~to)(any)
 let parseAsResult = (any, ~to) => compileParseAsResult(~to)(any)
 let parseAsResultPromise = (any, ~to) => compileParseAsResultPromise(~to)(any)
-let parseAsPromisableResult = (any, ~to) => compileParseAsPromisableResult(~to)(any)
 
 @module("sury") external assertInputOrThrow: ('any, ~to: t<'value>) => unit = "assertInputOrThrow"
 @module("sury")
@@ -799,14 +747,11 @@ let convertAsPromiseOrReject = (any, ~from, ~via=?, ~to) =>
 let convertAsResult = (any, ~from, ~via=?, ~to) => compileConvertAsResult(~from, ~via?, ~to)(any)
 let convertAsResultPromise = (any, ~from, ~via=?, ~to) =>
   compileConvertAsResultPromise(~from, ~via?, ~to)(any)
-let convertAsPromisableResult = (any, ~from, ~via=?, ~to) =>
-  compileConvertAsPromisableResult(~from, ~via?, ~to)(any)
 
 let makeOrThrow = (value, ~schema) => compileMakeOrThrow(~schema)(value)
 let makeAsPromiseOrReject = (value, ~schema) => compileMakeAsPromiseOrReject(~schema)(value)
 let makeAsResult = (value, ~schema) => compileMakeAsResult(~schema)(value)
 let makeAsResultPromise = (value, ~schema) => compileMakeAsResultPromise(~schema)(value)
-let makeAsPromisableResult = (value, ~schema) => compileMakeAsPromisableResult(~schema)(value)
 
 @module("sury") external recursive: (string, t<'value> => t<'value>) => t<'value> = "recursive"
 

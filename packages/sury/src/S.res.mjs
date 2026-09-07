@@ -54,20 +54,6 @@ function to(from, target, custom) {
   }
 }
 
-function classify(promisable) {
-  if ((promisable.TAG === undefined)) {
-    return {
-      TAG: "Async",
-      _0: promisable
-    };
-  } else {
-    return {
-      TAG: "Sync",
-      _0: promisable
-    };
-  }
-}
-
 function compileConvertOrThrow(from, via, to) {
   if (via !== undefined) {
     return Sury.encodeOrThrow(from, via, to);
@@ -100,14 +86,6 @@ function compileConvertAsResultPromise(from, via, to) {
   }
 }
 
-function compileConvertAsPromisableResult(from, via, to) {
-  if (via !== undefined) {
-    return Sury.$encodeAsPromisableResult(from, via, to);
-  } else {
-    return Sury.$encodeAsPromisableResult(from, to);
-  }
-}
-
 function parseOrThrow(any, to) {
   return Sury.parseOrThrow(to)(any);
 }
@@ -122,10 +100,6 @@ function parseAsResult(any, to) {
 
 function parseAsResultPromise(any, to) {
   return Sury.$parseAsResultPromise(to)(any);
-}
-
-function parseAsPromisableResult(any, to) {
-  return Sury.$parseAsPromisableResult(to)(any);
 }
 
 function isInput(any, to) {
@@ -152,10 +126,6 @@ function convertAsResultPromise(any, from, via, to) {
   return compileConvertAsResultPromise(from, via, to)(any);
 }
 
-function convertAsPromisableResult(any, from, via, to) {
-  return compileConvertAsPromisableResult(from, via, to)(any);
-}
-
 function makeOrThrow(value, schema) {
   return Sury.makeOutputOrThrow(schema)(value);
 }
@@ -170,10 +140,6 @@ function makeAsResult(value, schema) {
 
 function makeAsResultPromise(value, schema) {
   return Sury.$makeAsResultPromise(schema)(value);
-}
-
-function makeAsPromisableResult(value, schema) {
-  return Sury.$makeAsPromisableResult(schema)(value);
 }
 
 let Schema = {};
@@ -220,29 +186,24 @@ export {
   $$Error,
   refine,
   to,
-  classify,
   compileConvertOrThrow,
   compileConvertAsPromiseOrReject,
   compileConvertAsResult,
   compileConvertAsResultPromise,
-  compileConvertAsPromisableResult,
   parseOrThrow,
   parseAsPromiseOrReject,
   parseAsResult,
   parseAsResultPromise,
-  parseAsPromisableResult,
   isInput,
   isOutput,
   convertOrThrow,
   convertAsPromiseOrReject,
   convertAsResult,
   convertAsResultPromise,
-  convertAsPromisableResult,
   makeOrThrow,
   makeAsPromiseOrReject,
   makeAsResult,
   makeAsResultPromise,
-  makeAsPromisableResult,
   Schema,
   $$Object,
   Tuple,
