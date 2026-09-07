@@ -1673,7 +1673,7 @@ makeUser({ id: "1", email: "not-an-address" });
 // throws S.Error: Failed at email: Expected email, received "not-an-address"
 ```
 
-`S.makeOutput*` validates a value of the schema's output type, `S.makeInput*` one of its input type. Each comes in all five outcomes (`OrThrow`, `AsResult`, `AsPromiseOrReject`, `AsResultPromise`, `AsPromisableResult` — see [Outcomes](#outcomes)) and takes every [call form](#call-forms); the compiled form is `(Schema<TInput, TOutput>) => (TOutput) => TOutput` for the output side and `(TInput) => TInput` for the input side, with the outcome's return wrapper.
+`S.makeOutputOrThrow` validates a value of the schema's output type, `S.makeInputOrThrow` one of its input type. Each verb comes in all five outcomes (`OrThrow`, `AsResult`, `AsPromiseOrReject`, `AsResultPromise`, `AsPromisableResult` — see [Outcomes](#outcomes)) and takes every [call form](#call-forms); the compiled form is `(Schema<TInput, TOutput>) => (TOutput) => TOutput` for the output side and `(TInput) => TInput` for the input side, with the outcome's return wrapper.
 
 Every check the schema carries runs — types, refinements, and the conversion itself — so an entity the schema has no way to encode is rejected at construction rather than at the point it's sent:
 
