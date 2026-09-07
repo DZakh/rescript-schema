@@ -15,17 +15,17 @@ test("all four call forms resolve, on every arity", () => {
   const trimmed = S.string.with(S.trim);
   const toNumber = S.string.with(S.to, S.number, { decode: Number, encode: String });
 
-  // op(s…) — compiled
+  // op(s...) — compiled
   expect(S.parseOrThrow(trimmed)(" a ")).toBe("a");
   expect(S.parseOrThrow(S.unknown, toNumber)("1")).toBe(1);
   expect(S.parseOrThrow(S.unknown, S.string, toNumber)("2")).toBe(2);
 
-  // op(s…, data) — immediate, schema-first
+  // op(s..., data) — immediate, schema-first
   expect(S.parseOrThrow(trimmed, " a ")).toBe("a");
   expect(S.parseOrThrow(S.unknown, toNumber, "1")).toBe(1);
   expect(S.parseOrThrow(S.unknown, S.string, toNumber, "2")).toBe(2);
 
-  // op(data, s…) — immediate, data-first
+  // op(data, s...) — immediate, data-first
   expect(S.parseOrThrow(" a ", trimmed)).toBe("a");
   expect(S.parseOrThrow("1", S.unknown, toNumber)).toBe(1);
   expect(S.parseOrThrow("2", S.unknown, S.string, toNumber)).toBe(2);

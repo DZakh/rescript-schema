@@ -5,7 +5,7 @@
 // of four call forms. The Result outcomes are compiled, not wrapped: the tail
 // that builds `{success, value, error}` is emitted into the operation's own
 // body, which is what lets a schema that provably cannot throw skip the `try`
-// entirely — a decision no `safe(() => …)` wrapper can make.
+// entirely — a decision no `safe(() => ...)` wrapper can make.
 //
 // Deliberately free of top-level side effects, and deliberately NOT the module
 // that installs the schema prototype's interop getters (standard.ts): a bundle
@@ -204,12 +204,12 @@ const compile = (
 // The four call forms, told apart by `arguments.length` and by which arguments
 // are Sury schemas:
 //
-//   op(s…)        → the compiled operation (curried / data-last)
-//   op(s…, data)  → immediate, schema-first
-//   op(data, s…)  → immediate, data-first
+//   op(s...)        → the compiled operation (curried / data-last)
+//   op(s..., data)  → immediate, schema-first
+//   op(data, s...)  → immediate, data-first
 //
 // Three schemas is the ceiling — it is ReScript's ~from/~via/~to; a longer
-// chain is written with `.with(S.to, …)`.
+// chain is written with `.with(S.to, ...)`.
 //
 // Only the argument count partitions the forms: an argument is NEVER tested
 // for `undefined`, or `op(S.void, undefined)` (arity 2, a trailing non-schema,

@@ -947,12 +947,12 @@ export function reverse<TInput, TOutput>(
 // Each takes any of four call forms:
 //
 //   op(s)          the compiled operation (curried / data-last)
-//   op(s1, …, sn)  the compiled chain, up to three schemas
-//   op(s…, data)   immediate, schema-first
-//   op(data, s…)   immediate, data-first
+//   op(s1, ..., sn)  the compiled chain, up to three schemas
+//   op(s..., data)   immediate, schema-first
+//   op(data, s...)   immediate, data-first
 //
 // Three schemas is the ceiling — it is ReScript's ~from/~via/~to; a longer
-// chain is written `.with(S.to, …)`.
+// chain is written `.with(S.to, ...)`.
 //
 // Nine arity-discriminated overloads each rather than a rest tuple: dedicated
 // arity overloads resolve far cheaper (see `with` above), and `(...schemas,
