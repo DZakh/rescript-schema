@@ -55,6 +55,6 @@ test("FIXME: a three-schema chain decodes but does not encode", async () => {
     S.encoder(S.file.with(S.to, S.jsonString.with(S.to, S.array(user))))([{ name: "Ann" }]),
   ).toBeInstanceOf(File);
   expect(() => S.encoder(S.array(user), S.jsonString, S.file)).toThrow(
-    "Can't decode JSON string to File",
+    "Can't decode JSON string -> File",
   );
 });

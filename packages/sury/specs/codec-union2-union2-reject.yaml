@@ -22,4 +22,4 @@ operations:
         output: '"ok"'
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Can't convert never | string to number | string: number has no same-type variant on the other side. Use S.to on that arm, or S.never to mark it unreachable"
+    creationError: "SuryError: Ambiguous never | string -> number | string. Should number be decoded or ignored? Choose with S.to for string -> number, or S.never -> number"

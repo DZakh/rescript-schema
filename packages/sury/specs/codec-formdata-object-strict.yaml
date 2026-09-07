@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: S.strict is not supported by S.formData. Use S.strip"
+    creationError: "SuryError: Can't decode FormData -> { a: string; } with S.strict. A browser adds entries no schema declares, so use S.strip"
   decode: eq-to-parse
   encode:
     expression: i=>{let v0=new e[0]();v0.append("a",i["a"]);return v0}

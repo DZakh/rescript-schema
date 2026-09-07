@@ -793,7 +793,7 @@ test("Compiled operations stay per-operation and per-global-config", (t) => {
 // not leave the cache claiming to be current.
 test("A conversion rejected at operation creation throws from validate, on every call", (t) => {
   const standard = S.boolean.with(S.to, S.number)["~standard"];
-  const message = "Can't decode boolean to number. Use S.to to define a custom decoder";
+  const message = "Can't decode boolean -> number. Define custom codec with S.to";
   for (let i = 0; i < 3; i++) {
     t.expect(() => standard.validate(true)).toThrow(message);
   }
@@ -834,7 +834,7 @@ test("~standard.validate returns a promise for a schema with an async codec", as
   // A conversion rejected at operation creation still throws, on the async
   // retry rather than being read as an async schema.
   t.expect(() => S.boolean.with(S.to, S.number)["~standard"].validate(true)).toThrow(
-    "Can't decode boolean to number. Use S.to to define a custom decoder"
+    "Can't decode boolean -> number. Define custom codec with S.to"
   );
 });
 
@@ -854,7 +854,7 @@ test("~standard.validate forwards a symbol path segment", (t) => {
 test("A conversion rejected at operation creation throws from S.inputValidator, rather than reading as false", (t) => {
   const rejected = S.boolean.with(S.to, S.number);
   t.expect(() => S.inputValidator(rejected)).toThrow(
-    "Can't decode boolean to number. Use S.to to define a custom decoder"
+    "Can't decode boolean -> number. Define custom codec with S.to"
   );
 
   const isValid = S.inputValidator(S.schema({ id: S.string }));
@@ -884,7 +884,7 @@ test("A failed recursive compile reports the same error on retry, not a poisoned
       S.schema({ bad: S.boolean.with(S.to, S.number) }),
     ),
   });
-  const message = "Can't decode boolean to number. Use S.to to define a custom decoder";
+  const message = "Can't decode boolean -> number. Define custom codec with S.to";
   t.expect(() => S.parser(schema)).toThrow(message);
   t.expect(() => S.parser(schema)({ node: { bad: true } })).toThrow(message);
 });
@@ -1081,7 +1081,7 @@ test("OutputConstructor rejects a value the schema can't encode", (t) => {
   });
 
   t.expect(() => S.outputConstructor(schema)({ n: 1 })).toThrow(
-    "Can't decode number to string. The conversion is marked as never"
+    "Nothing decodes number -> string. It is marked with S.never"
   );
 });
 
@@ -1308,7 +1308,7 @@ test("Recursive with self as transform target", (t) => {
   }).toThrow(
     t.expect.objectContaining({
       message:
-        "Can't decode string to Node[]. Use S.to to define a custom decoder",
+        "Can't decode string -> Node[]. Define custom codec with S.to",
     }),
   );
 });

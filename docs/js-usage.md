@@ -1045,8 +1045,8 @@ Both readings are sensible, so Sury makes you pick:
 
 ```ts
 S.string.with(S.to, S.union([S.number, S.string]));
-// Ambiguous conversion from string to number | string: string has the same type
-// as the source and the others don't. Use S.to on that arm, or S.never to mark it unreachable
+// Ambiguous string -> number | string. Should number be decoded or ignored?
+// Choose with S.to for string -> number, or S.never -> number
 
 // Convert to a number when possible, keep the string otherwise:
 const asNumber = S.string.with(S.to, S.union([S.string.with(S.to, S.number), S.string]));
@@ -1064,8 +1064,8 @@ a member with no same-type counterpart has nowhere to go:
 
 ```ts
 S.union([S.string, S.number]).with(S.to, S.union([S.number, S.string, S.boolean]));
-// Can't convert string | number to number | string | boolean: boolean has no
-// same-type variant on the other side. Use S.to on that arm, or S.never to mark it unreachable
+// Ambiguous string | number -> number | string | boolean. Should boolean be decoded
+// or ignored? Choose with S.to for string -> boolean, or S.never -> boolean
 S.optional(S.string).with(S.to, S.nullable(S.boolean)); // ❌ string doesn't match boolean
 S.optional(S.string).with(S.to, S.nullable(S.string.with(S.to, S.boolean))); // ✅
 ```
@@ -1279,9 +1279,9 @@ that means:
 
 ```ts
 S.formData.with(S.to, S.schema({ name: S.string }));
-// throws at S.decoder: Failed at name: Ambiguous "" for string: a blank input
-// is a value or a missing one. Use S.nonEmpty, S.minLength(0), S.optional or
-// S.nullable to say which
+// throws at S.decoder: Failed at name: Ambiguous "" for string. Should a blank
+// input be rejected, kept, or read as absent? Choose with S.nonEmpty,
+// S.minLength(0), or S.optional
 ```
 
 ```ts
@@ -1384,8 +1384,8 @@ Sury does not guess when both conversions exist.
 
 ```ts
 S.uint8Array.with(S.to, S.jsonString);
-// Ambiguous conversion from Uint8Array to JSON string.
-// Use S.to(from, to, "unpack" | "pack")
+// Ambiguous Uint8Array -> JSON string. Should the bytes be packed or unpacked?
+// Choose with S.to and "pack" or "unpack"
 ```
 
 ### UTF-8, the same bytes, parse, or widen
@@ -1896,7 +1896,7 @@ fails, since Sury has no way back:
 const schema = S.string.with(S.to, S.number, (string) => string.length);
 
 S.parser(schema)("abc"); //? 3
-S.encoder(schema); //? throws: Encoding is ambiguous when only a decode function is provided
+S.encoder(schema); //? throws: Ambiguous encode for number -> string. Only decode is defined
 ```
 
 > 🧠 Prefer the built-in `S.string.with(S.to, S.number)` when it does the job.

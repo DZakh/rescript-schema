@@ -147,7 +147,7 @@ test("a blank entry is absent for an optional field, and its own value otherwise
   // A required string must say which it means, and each spelling then answers
   // for itself.
   expect(() => S.decoder(S.formData.with(S.to, S.schema({ blank: S.string })))).toThrow(
-    'Failed at blank: Ambiguous "" for string:',
+    'Failed at blank: Ambiguous "" for string.',
   );
   expect(
     S.decoder(S.formData.with(S.to, S.schema({ blank: S.string.with(S.minLength, 0) })))(
@@ -207,7 +207,7 @@ test("a browser adds entries the schema never declared, so S.strict cannot hold"
     S.decoder(
       S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty) }).with(S.strict)),
     ),
-  ).toThrow("S.strict is not supported by S.formData");
+  ).toThrow("with S.strict");
   // Stripping is the supported mode, and it reads the same submission fine.
   expect(
     S.decoder(S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty) })))(submitted()),

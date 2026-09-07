@@ -331,11 +331,13 @@ export { union as anyOf };
 // at operation creation, and unlike the never slot it stays a hard error
 // inside a union too: skipping the variant silently would commit to a
 // semantics the caller never chose.
-const ambiguousEncode: Builder = (input: Val) =>
-  B_invalidOperation(
-    input,
-    "Encoding is ambiguous when only a decode function is provided. Use S.to(target, {decode, encode})",
-  );
+const ambiguousEncode =
+  (from: Internal, to: Internal): Builder =>
+  (input: Val) =>
+    B_invalidOperation(
+      input,
+      `Ambiguous encode for ${inputExpression(from)} -> ${inputExpression(to)}. Only decode is defined. Add encode to S.to as a function, "auto" or "never"`,
+    );
 
 // One codec slot resolved. `"auto"` (and an omitted argument)
 // is `undefined`, which every caller reads as "no coder, use the built-in
@@ -387,7 +389,7 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
     encode = custom === "pack";
   } else if (typeof custom === functionTag) {
     decode = B_conversion(custom as (value: unknown) => unknown, false, true);
-    encode = ambiguousEncode;
+    encode = ambiguousEncode(target, schema);
   } else if (custom) {
     const codecs = custom as Record<string, unknown>;
     // Two spellings, one per seam, never mixed: `{decode, encode}` is the

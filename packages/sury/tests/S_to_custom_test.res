@@ -49,7 +49,7 @@ test("A never decode rejects the parse operation at creation", t => {
 
   t->U.assertThrowsMessage(
     () => "Hello world!"->S.parseOrThrow(~to=schema),
-    `Can't decode string to unknown. The conversion is marked as never`,
+    `Nothing decodes string -> unknown. It is marked with S.never`,
   )
 })
 
@@ -59,7 +59,7 @@ test("A never encode rejects the encode operation at creation", t => {
   t->Assert.deepEqual("Hello world!"->S.parseOrThrow(~to=schema), %raw(`"Hello world!"`))
   t->U.assertThrowsMessage(
     () => "Hello world!"->S.convertOrThrow(~from=schema, ~to=S.unknown),
-    `Can't decode unknown to string. The conversion is marked as never`,
+    `Nothing decodes unknown -> string. It is marked with S.never`,
   )
 })
 
@@ -445,6 +445,6 @@ test("Picks a reading for a content link the way the ambiguity report says to", 
 
   t->U.assertThrowsMessage(
     () => "aGk="->S.parseOrThrow(~to=S.base64->S.to(S.jsonString))->ignore,
-    `Ambiguous conversion from base64 to JSON string. Use S.to(from, to, "unpack" | "pack")`,
+    `Ambiguous base64 -> JSON string. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"`,
   )
 })

@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Can't convert never | string to undefined | string: undefined has no same-type variant on the other side. Use S.to on that arm, or S.never to mark it unreachable"
+    creationError: "SuryError: Ambiguous never | string -> undefined | string. Should undefined be decoded or ignored? Choose with S.to for string -> undefined, or S.never -> undefined"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Can't convert undefined | string to null | string: undefined has no same-type variant on the other side. Use S.to on that arm, or S.never to mark it unreachable"
+    creationError: "SuryError: Ambiguous undefined | string -> null | string. Should undefined be decoded or ignored? Choose with S.to for undefined -> string, or S.never -> undefined"

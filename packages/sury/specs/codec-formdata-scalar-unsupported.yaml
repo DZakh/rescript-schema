@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Can't decode FormData to number. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't decode FormData -> number. Define custom codec with S.to"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Can't decode number to FormData. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't decode number -> FormData. Define custom codec with S.to"

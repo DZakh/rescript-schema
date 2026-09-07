@@ -141,7 +141,7 @@ test("a nullable field reads a blank entry as null, and omits null on the way ou
 });
 
 test("a blank required string must say what it means", () => {
-  const ambiguous = ['Failed at f: Ambiguous "" for', "S.nonEmpty", "S.minLength(0)", "S.optional", "S.nullable"];
+  const ambiguous = ['Failed at f: Ambiguous "" for', "S.nonEmpty", "S.minLength(0)", "S.optional"];
   for (const schema of [S.string, S.string.with(S.maxLength, 100)]) {
     for (const fragment of ambiguous) {
       expect(() => S.decoder(S.formData.with(S.to, S.schema({ f: schema })))).toThrow(fragment);
@@ -237,17 +237,17 @@ test("a list carries neither a hole nor a list, in either direction", () => {
   // directions reject rather than silently reshape - an encoder that only ever
   // encodes would otherwise drop the holes and never hear about it.
   const holes = S.formData.with(S.to, S.schema({ m: S.array(S.optional(S.string)) }));
-  const positional =
-    "Failed at m: A list item that can be absent is not supported by S.formData: a repeated key is positional";
-  expect(() => S.encoder(holes)({ m: ["a", undefined] })).toThrow(positional);
-  expect(() => S.decoder(holes)(new FormData())).toThrow(positional);
+  const positional = (list: string) =>
+    `Failed at m: Can't decode form field -> ${list}. A repeated key is positional, so every item needs an entry`;
+  expect(() => S.encoder(holes)({ m: ["a", undefined] })).toThrow(positional("(string | undefined)[]"));
+  expect(() => S.decoder(holes)(new FormData())).toThrow(positional("(string | undefined)[]"));
   const nullableItems = S.formData.with(S.to, S.schema({ m: S.array(S.nullable(S.string)) }));
-  expect(() => S.encoder(nullableItems)({ m: [null] })).toThrow(positional);
+  expect(() => S.encoder(nullableItems)({ m: [null] })).toThrow(positional("(string | null)[]"));
   const slots = S.formData.with(S.to, S.schema({ m: S.schema([S.string, S.optional(S.string)]) }));
-  expect(() => S.encoder(slots)({ m: ["a", undefined] })).toThrow(positional);
+  expect(() => S.encoder(slots)({ m: ["a", undefined] })).toThrow(positional("[string, string | undefined]"));
 
   const nested = S.formData.with(S.to, S.schema({ n: S.array(S.array(S.string)) }));
-  const flat = "Failed at n: A list of lists is not supported by S.formData: a repeated key is flat";
+  const flat = "Failed at n: Can't decode form field -> string[][]. A repeated key is flat";
   expect(() => S.encoder(nested)({ n: [["a"], ["b"]] })).toThrow(flat);
   expect(() => S.decoder(nested)(new FormData())).toThrow(flat);
 });
@@ -309,7 +309,7 @@ test("a list of booleans is not something a form can send", () => {
   // its own.
   for (const schema of [S.array(S.boolean), S.tuple([S.string, S.boolean])]) {
     expect(() => S.decoder(S.formData.with(S.to, S.schema({ flags: schema })))).toThrow(
-      "Failed at flags: A list of booleans is not supported by S.formData",
+      "A checkbox group sends the value of each checked box, so read it as string[]",
     );
   }
   // The group a browser does send is a list of the checked values.

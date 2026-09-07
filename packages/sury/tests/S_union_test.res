@@ -33,7 +33,7 @@ test("Rejects at creation when every variant's decode is never", t => {
 
   t->U.assertThrowsMessage(
     () => %raw(`"foo"`)->S.parseOrThrow(~to=schema),
-    `Every variant of string is marked as never`,
+    `Nothing decodes string. Every member is S.never`,
   )
 })
 
@@ -45,7 +45,7 @@ test("Rejects at creation when every variant's decode is never and types differ"
 
   t->U.assertThrowsMessage(
     () => %raw(`"abc"`)->S.parseOrThrow(~to=schema),
-    `Every variant of "apple" | string is marked as never`,
+    `Nothing decodes "apple" | string. Every member is S.never`,
   )
 })
 
@@ -57,7 +57,7 @@ test("Rejects at creation when every variant's encode is never", t => {
 
   t->U.assertThrowsMessage(
     () => %raw(`null`)->S.convertOrThrow(~from=schema, ~to=S.unknown),
-    `Every variant of unknown is marked as never`,
+    `Nothing decodes unknown. Every member is S.never`,
   )
 })
 

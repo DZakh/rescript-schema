@@ -12,6 +12,6 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Failed at rows: A list of lists is not supported by S.formData: a repeated key is flat"
+    creationError: "SuryError: Failed at rows: Can't decode form field -> string[][]. A repeated key is flat"
   decode: eq-to-parse
   encode: eq-to-parse

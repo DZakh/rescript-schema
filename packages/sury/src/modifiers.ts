@@ -289,9 +289,7 @@ export const codecTo = (
         ? (input: Val) =>
             B_invalidOperation(
               input,
-              `Ambiguous conversion from ${inputExpression(mut)} to ${inputExpression(
-                target,
-              )}. Use S.to(from, to, "unpack" | "pack")`,
+              `Ambiguous ${inputExpression(mut)} -> ${inputExpression(target)}. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"`,
             )
         : (input: Val) => B_unsupportedDecode(input, mut, target)
       : U;

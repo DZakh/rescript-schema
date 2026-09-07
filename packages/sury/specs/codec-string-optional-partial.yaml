@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Ambiguous conversion from string to string | undefined: string has the same type as the source and the others don't. Use S.to on that arm, or S.never to mark it unreachable"
+    creationError: "SuryError: Ambiguous string -> string | undefined. Should undefined be decoded or ignored? Choose with S.to for string -> undefined, or S.never -> undefined"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Ambiguous conversion from string | undefined to string: string has the same type as the target and the others don't. Use S.to on that arm, or S.never to mark it unreachable"
+    creationError: "SuryError: Ambiguous string | undefined -> string. Should undefined be decoded or ignored? Choose with S.to for undefined -> string, or S.never -> undefined"

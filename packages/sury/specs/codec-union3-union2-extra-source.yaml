@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Can't convert string | number | boolean to number | string: boolean has no same-type variant on the other side. Use S.to on that arm, or S.never to mark it unreachable"
+    creationError: "SuryError: Ambiguous string | number | boolean -> number | string. Should boolean be decoded or ignored? Choose with S.to for boolean -> number, or S.never -> boolean"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Can't convert number | string to string | number | boolean: boolean has no same-type variant on the other side. Use S.to on that arm, or S.never to mark it unreachable"
+    creationError: "SuryError: Ambiguous number | string -> string | number | boolean. Should boolean be decoded or ignored? Choose with S.to for number -> boolean, or S.never -> boolean"

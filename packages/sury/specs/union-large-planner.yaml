@@ -39,4 +39,4 @@ operations:
           - At value: Expected number, received "wrong"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Encoding is ambiguous when only a decode function is provided. Use S.to(target, {decode, encode})"
+    creationError: 'SuryError: Ambiguous encode for string -> Date. Only decode is defined. Add encode to S.to as a function, "auto" or "never"'

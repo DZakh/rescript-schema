@@ -14,6 +14,6 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: 'SuryError: Ambiguous conversion from Uint8Array to JSON string. Use S.to(from, to, "unpack" | "pack")'
+    creationError: 'SuryError: Ambiguous Uint8Array -> JSON string. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'
   decode: eq-to-parse
   encode: eq-to-parse

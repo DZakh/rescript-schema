@@ -12,6 +12,6 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Failed at tags: A list item that can be absent is not supported by S.formData: a repeated key is positional"
+    creationError: "SuryError: Failed at tags: Can't decode form field -> (string | undefined)[]. A repeated key is positional, so every item needs an entry"
   decode: eq-to-parse
   encode: eq-to-parse

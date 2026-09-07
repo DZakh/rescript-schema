@@ -27,4 +27,4 @@ operations:
         input: new Uint8Array([97, 98, 99, 100])
         output: '"abcd"'
   encode:
-    creationError: "SuryError: Can't decode undefined to Uint8Array. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't decode undefined -> Uint8Array. Define custom codec with S.to"

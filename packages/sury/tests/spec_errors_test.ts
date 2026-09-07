@@ -128,10 +128,10 @@ test("stale creationError golden (recorded message drifted from what the schema 
       operations:
         parse:
     -     creationError: stale message
-    +     creationError: "SuryError: Can't decode boolean to number. Use S.to to define a custom decoder"
+    +     creationError: "SuryError: Can't decode boolean -> number. Define custom codec with S.to"
         decode: eq-to-parse
         encode:
-          creationError: "SuryError: Can't decode number to boolean. Use S.to to define a custom decoder"",
+          creationError: "SuryError: Can't decode number -> boolean. Define custom codec with S.to"",
       "stdout": "",
     }
   `);

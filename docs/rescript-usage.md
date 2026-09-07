@@ -1016,8 +1016,8 @@ Both readings are sensible, so Sury makes you pick:
 
 ```rescript
 S.string->S.to(S.union([S.float->S.castToUnknown, S.string->S.castToUnknown]))
-// Ambiguous conversion from string to number | string: string has the same type
-// as the source and the others don't. Use S.to on that arm, or S.never to mark it unreachable
+// Ambiguous string -> number | string. Should number be decoded or ignored?
+// Choose with S.to for string -> number, or S.never -> number
 
 // Convert to a float when possible, keep the string otherwise:
 let asFloat = S.string->S.to(
@@ -1045,8 +1045,8 @@ S.union([S.string->S.castToUnknown, S.float->S.castToUnknown])->S.to(
     S.bool->S.castToUnknown,
   ]),
 )
-// Can't convert string | number to number | string | boolean: boolean has no
-// same-type variant on the other side. Use S.to on that arm, or S.never to mark it unreachable
+// Ambiguous string | number -> number | string | boolean. Should boolean be decoded
+// or ignored? Choose with S.to for string -> boolean, or S.never -> boolean
 S.option(S.string)->S.to(S.null(S.bool)) // ❌ string doesn't match boolean
 S.option(S.string)->S.to(S.null(S.string->S.to(S.bool))) // ✅
 ```
@@ -1386,8 +1386,8 @@ Sury does not guess when both conversions exist.
 
 ```rescript
 S.uint8Array->S.to(S.jsonString)
-// Ambiguous conversion from Uint8Array to JSON string.
-// Use S.to(from, to, "unpack" | "pack")
+// Ambiguous Uint8Array -> JSON string. Should the bytes be packed or unpacked?
+// Choose with S.to and "pack" or "unpack"
 ```
 
 #### UTF-8, the same bytes, parse, or widen

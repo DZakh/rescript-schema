@@ -600,27 +600,48 @@ const unionCheckPartial = (
     else unmatched = true;
   }
   if (matched !== U && unmatched) {
+    // The member with no same-typed counterpart is the one to decide about.
     unionInvalid(
       input,
-      `Ambiguous conversion from ${inputExpression(source)} to ${inputExpression(target)}`,
-      `${inputExpression(matched)} has the same type as the ${outputSide ? "target" : "source"} and the others don't`,
+      source,
+      target,
+      variants.find((variant) => variant !== matched && variant.type !== neverTag)!,
+      outputSide,
     );
   }
 };
 
-const unionUncovered = (input: Val, source: Internal, target: Internal, variant: Internal): never =>
-  unionInvalid(
-    input,
-    `Can't convert ${inputExpression(source)} to ${inputExpression(target)}`,
-    `${inputExpression(variant)} has no same-type variant on the other side`,
-  );
+const unionUncovered = (
+  input: Val,
+  source: Internal,
+  target: Internal,
+  member: Internal,
+  onSource: boolean,
+): never => unionInvalid(input, source, target, member, onSource);
 
-// The pair, the arm that decides it, then the spelling that resolves it.
-const unionInvalid = (input: Val, pair: string, why: string): never =>
-  B_invalidOperation(
+// A member a conversion could pair the open one with: the first that is not a
+// sentinel, any being as good a spelling as another.
+const unionPeer = (schema: Internal): Internal =>
+  schema.anyOf?.find((variant) => !(tagFlags[variant.type]! & (16 | 32 | 32768))) || schema;
+
+// The pair, the member the pair leaves open, and the two ways to close it:
+// convert it from (or to) the other side, or declare it never there.
+const unionInvalid = (
+  input: Val,
+  source: Internal,
+  target: Internal,
+  member: Internal,
+  onSource: boolean,
+): never => {
+  const it = inputExpression(member);
+  const conversion = onSource
+    ? `${it} -> ${inputExpression(unionPeer(target))}`
+    : `${inputExpression(unionPeer(source))} -> ${it}`;
+  return B_invalidOperation(
     input,
-    `${pair}: ${why}. Use S.to on that arm, or S.never to mark it unreachable`,
+    `Ambiguous ${inputExpression(source)} -> ${inputExpression(target)}. Should ${it} be decoded or ignored? Choose with S.to for ${conversion}, or S.never -> ${it}`,
   );
+};
 
 // ── Normalize → Analyze → Plan → Emit ────────────────────────────────────────
 
@@ -1317,7 +1338,7 @@ export const unionDecoder: Builder = (input: Val) => {
   if (variants.every(unionNeverLink)) {
     B_invalidOperation(
       input,
-      `Every variant of ${inputExpression(self)} is marked as never`
+      `Nothing decodes ${inputExpression(self)}. Every member is S.never`
     );
   }
 
@@ -1584,7 +1605,7 @@ const unionResolveToUnion = (
       );
     }
     if (matches[s] === U) {
-      unionUncovered(input, source, target, sourceOut);
+      unionUncovered(input, source, target, sourceOut, true);
     }
   }
   for (let t = 0; t < targets.length; t++) {
@@ -1600,7 +1621,7 @@ const unionResolveToUnion = (
         unionOutput(targetVariant).type === neverTag ||
         !(sourceNullish & tagFlags[opposite]!))
     ) {
-      unionUncovered(input, source, target, targetVariant);
+      unionUncovered(input, source, target, targetVariant, false);
     }
   }
 

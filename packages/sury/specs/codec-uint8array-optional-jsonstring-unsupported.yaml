@@ -12,6 +12,6 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Can't decode Uint8Array to JSON string | undefined. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't decode Uint8Array -> JSON string | undefined. Define custom codec with S.to"
   decode: eq-to-parse
   encode: eq-to-parse

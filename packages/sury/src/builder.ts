@@ -225,7 +225,7 @@ export const B_unsupportedDecode = (b: Val, from: Internal, target: Internal): n
     code: "unsupported_decode",
     from,
     to: target,
-    reason: `Can't decode ${inputExpression(from)} to ${inputExpression(target)}. Use S.to to define a custom decoder`,
+    reason: `Can't decode ${inputExpression(from)} -> ${inputExpression(target)}. Define custom codec with S.to`,
     path: b.path,
   });
 
@@ -799,9 +799,7 @@ export const B_conversion = (
 export const B_neverSlot: Builder = (input: Val) =>
   B_invalidOperation(
     input,
-    `Can't decode ${inputExpression(input.e)} to ${inputExpression(
-      input.e.to!,
-    )}. The conversion is marked as never`,
+    `Nothing decodes ${inputExpression(input.e)} -> ${inputExpression(input.e.to!)}. It is marked with S.never`,
   );
 
 // CONTENT_CODEC_SPEC.md rules 3 and 4, for the direction a link is written in:

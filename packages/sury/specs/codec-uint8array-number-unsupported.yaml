@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Can't decode Uint8Array to number. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't decode Uint8Array -> number. Define custom codec with S.to"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Can't decode number to Uint8Array. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't decode number -> Uint8Array. Define custom codec with S.to"

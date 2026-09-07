@@ -32,4 +32,4 @@ operations:
         input: ((f) => (f.append("c", "42"), f))(new FormData())
         output: "{ a: undefined, b: null, c: 42 }"
   encode:
-    creationError: "SuryError: Failed at c: Ambiguous conversion from \"\" | number to string: \"\" has the same type as the target and the others don't. Use S.to on that arm, or S.never to mark it unreachable"
+    creationError: 'SuryError: Failed at c: Ambiguous "" | number -> string. Should number be decoded or ignored? Choose with S.to for number -> string, or S.never -> number'

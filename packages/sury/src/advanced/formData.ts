@@ -237,7 +237,7 @@ const entrySchema = (blank: boolean): Internal =>
       if (blank && !decidesBlank(target)) {
         B_invalidOperation(
           input,
-          `Ambiguous "" for ${inputExpression(target)}: a blank input is a value or a missing one. Use S.nonEmpty, S.minLength(0), S.optional or S.nullable to say which`,
+          `Ambiguous "" for ${inputExpression(target)}. Should a blank input be rejected, kept, or read as absent? Choose with S.nonEmpty, S.minLength(0), or S.optional`,
         );
       }
       const flag = tagFlags[target.type]!;
@@ -325,28 +325,21 @@ const listItems = (schema: Internal): Internal[] => {
 // What a repeated key can carry, asked by both directions: it is read and
 // written by position, so every item is exactly one entry.
 const assertListItems = (val: Val, schema: Internal): void => {
+  const unsupported = (why: string): never =>
+    B_invalidOperation(val, `Can't decode form field -> ${inputExpression(schema)}. ${why}`);
   for (const item of listItems(schema)) {
     if (isCheckbox(item)) {
       // A checkbox is a whole field: a group of them submits the *value* of
       // each checked box, never `"on"` per position.
-      B_invalidOperation(
-        val,
-        `A list of booleans is not supported by S.formData: a checkbox group submits the value of each checked box. Use S.array(S.string)`,
-      );
+      unsupported(`A checkbox group sends the value of each checked box, so read it as string[]`);
     }
     if (isAbsent(item)) {
       // An item with no entry would shift every item after it rather than
       // leave a hole.
-      B_invalidOperation(
-        val,
-        `A list item that can be absent is not supported by S.formData: a repeated key is positional`,
-      );
+      unsupported(`A repeated key is positional, so every item needs an entry`);
     }
     if (isList(item)) {
-      B_invalidOperation(
-        val,
-        `A list of lists is not supported by S.formData: a repeated key is flat`,
-      );
+      unsupported(`A repeated key is flat`);
     }
   }
 };
@@ -555,7 +548,10 @@ const formDataToObject = (input: Val, target: Internal): Val => {
   // written rather than silently read as `S.strip`. Asked of the declared
   // target only: writing a strict object says nothing about extra entries.
   if (target.additionalItems === "strict") {
-    B_invalidOperation(input, `S.strict is not supported by S.formData. Use S.strip`);
+    B_invalidOperation(
+      input,
+      `Can't decode FormData -> ${inputExpression(target)} with S.strict. A browser adds entries no schema declares, so use S.strip`,
+    );
   }
   const objectVal = makeObjectVal(input, target);
   const entriesVar = B_varWithoutAllocation(input.g);
@@ -620,7 +616,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
         // No entries is the empty list, so nothing is ever absent to default.
         B_invalidOperation(
           item,
-          `A default on a list is never read by S.formData: no entries is the empty list`,
+          `Can't decode form field -> ${inputExpression(present)} with a default. No entries is the empty list, so the default is never read`,
         );
       }
     } else if (present.type === unknownTag) {

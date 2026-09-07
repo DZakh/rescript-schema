@@ -266,7 +266,7 @@ test("Encodes a nullable optional Timestamp whose input is string | number (issu
   let timestamp = S.union([S.string->S.castToUnknown, S.float->S.castToUnknown])->S.to(S.date)
   t->U.assertThrowsMessage(
     () => "2024-01-01T00:00:00.000Z"->S.parseOrThrow(~to=S.nullableAsOption(timestamp)),
-    `Can't decode number to Date. Use S.to to define a custom decoder`,
+    `Can't decode number -> Date. Define custom codec with S.to`,
   )
 
   let timestamp = S.union([

@@ -278,7 +278,7 @@ Two consequences:
 ## No built-in decoder for a variant
 
 A pair with no built-in decoder is rejected when the operation is created -
-`Can't decode boolean to number. Use S.to to define a custom decoder`. Being one
+`Can't decode boolean -> number. Define custom codec with S.to`. Being one
 variant of a union changes nothing about that: if any variant's decoder can't be
 built, the whole operation is rejected, under every rule above.
 

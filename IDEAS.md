@@ -186,7 +186,7 @@ of a form-data story. What they were built to make cheap, roughly in order:
 - **A three-schema chain decodes but does not encode.** `S.decoder(S.file,
   S.jsonString, S.array(User))` works; the mirror
   `S.encoder(S.array(User), S.jsonString, S.file)` raises `Can't decode JSON
-  string to File`, and the wire-first spelling raises `Expected base64url,
+  string -> File`, and the wire-first spelling raises `Expected base64url,
   received {...}` on the base64url version of the same pair. Two arguments
   encode fine, and so does the nested schema the chain stands for
   (`S.encoder(S.file.with(S.to, S.jsonString.with(S.to, S.array(User))))`

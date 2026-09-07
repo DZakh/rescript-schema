@@ -136,7 +136,7 @@ Both fail at **operation creation** (like every conversion error), one message
 built from the same pieces the existing unsupported-conversion error uses:
 
 ```
-Ambiguous conversion from File to JSON string. Use S.to(from, to, "unpack" | "pack")
+Ambiguous File -> JSON string. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"
 ```
 
 There are no per-carrier defaults. When both readings are live, the library

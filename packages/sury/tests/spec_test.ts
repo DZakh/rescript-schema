@@ -217,7 +217,7 @@ test("summarize renders creation-error flips and message drift", () => {
       first recorded - 0 exports, total 20000
     behavior changed:
       string.parse  compiled → creationError SuryError: Can't decode string to number
-      codec-bool-number-unsupported.parse.creationError  SuryError: Can't decode boolean to number. Use S.to to define a custom decoder → SuryError: some new wording"
+      codec-bool-number-unsupported.parse.creationError  SuryError: Can't decode boolean -> number. Define custom codec with S.to → SuryError: some new wording"
   `);
 });
 
