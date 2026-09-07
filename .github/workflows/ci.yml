@@ -64,9 +64,10 @@ jobs:
       # A form field's reading depends on its wrapper as much as its type, and
       # a spec covers one schema (CLAUDE.md, "Changing the form codec"). This
       # crosses the two and checks what a golden cannot: that a field works in
-      # both directions or neither, that an encode leaves its input alone, and
-      # that every entry list a client could send is either rejected or read as
-      # a value the schema itself accepts. Exhaustive, so no seed. Seconds.
+      # both directions or neither, that an encode leaves its input alone, that
+      # a value survives an encode and the decode of it, and that every entry
+      # list a client could send is either rejected or read as a value the
+      # schema itself accepts. Exhaustive, so no seed. Seconds.
       - run: pnpm fuzz:formdata
         working-directory: packages/sury
 

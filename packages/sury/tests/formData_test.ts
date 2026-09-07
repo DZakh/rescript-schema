@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
 import * as S from "sury";
 import { withoutGlobalRoutes } from "./withoutGlobal";
@@ -483,4 +481,22 @@ test("a runtime without FormData says so on every route into the schema", () => 
       `typeof S.parser(S.file)`,
     ]),
   ).toEqual([message, message, message, message, "ok:function"]);
+});
+
+// A spec example is sync; an async arm inside a wrapper is what a golden
+// cannot run.
+test("an async conversion inside an optional or nullable field is awaited", async () => {
+  const shout = S.string
+    .with(S.nonEmpty)
+    .with(S.to, S.string, { decode: { async: async (v) => `${v}!` }, encode: (v) => v });
+  const schema = S.formData.with(
+    S.to,
+    S.schema({ a: S.optional(shout), b: S.nullable(shout, "d"), c: S.optional(shout, "e") }),
+  );
+  expect(await S.asyncParser(schema)(form(["a", "x"]))).toEqual({ a: "x!", b: "d", c: "e" });
+  expect(await S.asyncParser(schema)(form(["b", "y"], ["c", "z"]))).toEqual({
+    a: undefined,
+    b: "y!",
+    c: "z!",
+  });
 });

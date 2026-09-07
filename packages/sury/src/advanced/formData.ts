@@ -112,7 +112,8 @@ const presentArm = (schema: Internal): Internal => {
 // box, which submits `"on"` like any other and must be checked.
 const isCheckbox = (schema: Internal): boolean =>
   schema.type === anyOfTag
-    ? schema.anyOf!.every(
+    ? schema.anyOf!.some((variant) => tagFlags[variant.type]! & 8) &&
+      schema.anyOf!.every(
         (variant) =>
           variant.type === undefinedTag || variant.type === nullTag || isCheckbox(variant),
       )
@@ -217,6 +218,14 @@ const asList = (value: unknown): unknown[] =>
 const asOptionalList = (value: unknown): unknown[] | undefined =>
   value === U ? U : Array.isArray(value) ? value : [value];
 
+// What a blank entry leaves the var holding is the absent arm's to overwrite,
+// where it has one: `null`, or a default. Where it has none the read itself
+// has to leave `undefined` there.
+const overwritesAbsent = (field: Field, schema: Internal): boolean =>
+  field.optional
+    ? (schema.anyOf?.find((variant) => variant.type === undefinedTag) || schema).to !== U
+    : field.nullable;
+
 // One entry of the list - a string or a `File` - as a schema, so the rules for
 // reading one live on it rather than in a per-field inspection. `parse`
 // consults a source's encoder hook once per arm of a union target, so a
@@ -244,7 +253,7 @@ const formDataField: Internal = /* @__PURE__ */ initSchema(instanceTag, instance
         ? asText(input, target)
         : input;
     }
-    if (flag & (64 | 128)) {
+    if (flag & (64 | 128 | 512)) {
       // An entry is one value, so no structure fits in it. Reported from here,
       // where the pair still names the form field - the text stage below would
       // otherwise report a `string` the schema never mentioned.
@@ -262,10 +271,17 @@ const formDataField: Internal = /* @__PURE__ */ initSchema(instanceTag, instance
   };
 });
 
+const formDataList: Internal = /* @__PURE__ */ arrayFactory(formDataField);
+
 // The entry checked to be a string, with the target's own decoder reading it
-// from there.
-const asText = (input: Val, target: Internal): Val =>
-  B_refine(parse(B_refine(input, unknown, U, string)), string, U, target);
+// from there. The check names the target: `Expected number, received
+// undefined` is the field's own vocabulary, and `string` is not.
+const asText = (input: Val, target: Internal): Val => {
+  const output = B_next(input, input.i, string, target);
+  output.v = _var;
+  output.cp = `typeof ${input.i}==="string"||${B_embedInvalidInput(input, target)};`;
+  return output;
+};
 
 // A repeated key is how a form carries an array, and `getAll` is its read.
 // A repeated key is positional, so every array-tagged target reads the same
@@ -352,6 +368,7 @@ const assembled = (item: Val, schema: Internal, code: string, resultVar: string)
   output.v = _var;
   output.io = true;
   output.cp = code;
+  output.f |= item.f & 1;
   return parse(B_markOutput(output, item));
 };
 
@@ -363,6 +380,9 @@ const armCode = (item: Val, source: Internal, target: Internal): string => {
   armIn.s = source;
   armIn.e = target;
   const armOut = parse(armIn);
+  // A promise left in the var is the field's to await, which `assembled`
+  // reads off the field val.
+  item.f |= armOut.f & 1;
   return B_merge(armOut) + (armOut.i === item.i ? "" : `${item.i}=${armOut.i};`);
 };
 
@@ -506,8 +526,12 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     // apart.
     // Compiled on a chain detached from the field val, the way json.ts's
     // guardedJsonPiece does, so the conversion's own code lands inside it.
-    const inputVar = val.v();
     const presentSchema = presentArm(schema);
+    if (presentSchema === schema) {
+      // Nothing but the sentinels, so nothing is ever written.
+      return "";
+    }
+    const inputVar = val.v();
     const detached = B_next(val, inputVar, presentSchema, presentSchema);
     detached.v = _var;
     detached.prev = U;
@@ -571,6 +595,9 @@ const formDataToObject = (input: Val, target: Internal): Val => {
   const entriesVar = B_varWithoutAllocation(input.g);
   B_hoistDecl(input, `${entriesVar}=${B_embed(input, readEntries)}(${input.v()})`);
   const properties = target.properties!;
+  // Embedded once each, however many list fields read through them.
+  let listRead = "";
+  let optionalListRead = "";
   for (const key in properties) {
     const schema = properties[key]!;
     const keyText = inlinedValueFromString(key);
@@ -592,16 +619,16 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       // A repeated key is `getAll`, which answers `[]` rather than `undefined`;
       // an optional list folds that empty read into absent, since a form has no
       // other way to submit an empty one.
-      B_hoistDecl(
-        input,
-        `${readVar}=${B_embed(input, absent ? asOptionalList : asList)}(${slot})`,
-      );
+      const read = absent
+        ? (optionalListRead ||= B_embed(input, asOptionalList))
+        : (listRead ||= B_embed(input, asList));
+      B_hoistDecl(input, `${readVar}=${read}(${slot})`);
     } else {
       // The entry as it stands, with a blank one read away where the field has
       // somewhere to put it (see `normalized`).
       B_hoistDecl(
         input,
-        `${readVar}=${slot}${absent && field.normalized ? "||void 0" : ""}`,
+        `${readVar}=${slot}${absent && field.normalized && !overwritesAbsent(field, schema) ? "||void 0" : ""}`,
       );
     }
 
@@ -618,7 +645,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       // The entry, or the list of them, read as the field schema - whose hook
       // is consulted once per arm of a union target, so each arm reads by its
       // own rule.
-      s: list ? arrayFactory(formDataField) : formDataField,
+      s: list ? formDataList : formDataField,
       io: U,
       e: schema,
       prev: U,
@@ -687,12 +714,12 @@ export const formData: Internal = /* @__PURE__ */ initSchema(
       const targetTagFlag = tagFlags[target.type]!;
       return (targetTagFlag & 64) && typeof target.additionalItems === "string"
         ? formDataToObject(input, target)
-        : // A union picks its variant by narrowing the form to an object it
-          // isn't, so the dispatch never reaches the codec - say so here, where
-          // the pair is still named.
-          (targetTagFlag & 256)
-          ? B_unsupportedDecode(input, input.s, target)
-          : input;
+        : // Refused here, where the pair is still named: a union picks its
+          // variant by narrowing the form to an object it isn't, and any other
+          // target would run its own decoder on a `FormData` it never expects.
+          (targetTagFlag & (1 | 8192))
+            ? input
+            : B_unsupportedDecode(input, input.s, target);
     };
   },
 );

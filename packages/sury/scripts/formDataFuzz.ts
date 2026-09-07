@@ -5,7 +5,7 @@
 //
 // The union fuzzer differs against a reference implementation. This one has
 // none - a form submission is whatever a browser sends, and nothing here can
-// re-derive that - so it checks the three properties the codec claims for
+// re-derive that - so it checks the four properties the codec claims for
 // itself, over every wrapper crossed with every leaf:
 //
 //   symmetry     a field works in both directions or is rejected in both, with

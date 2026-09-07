@@ -1007,17 +1007,17 @@ Good to know:
 #### When a conversion is rejected
 
 Some conversions have more than one reasonable meaning, and some have none.
-Rather than guess, Sury rejects those with an `Invalid operation` error right
-at the operation compilation - not later, on each value - and the error
-suggests a rewrite that says what you mean.
+Rather than guess, Sury rejects those right at the operation compilation -
+not later, on each value - and the error suggests a rewrite that says what
+you mean.
 
 **Ambiguous.** Given `"123"` - should it stay a string, or become a float?
 Both readings are sensible, so Sury makes you pick:
 
 ```rescript
 S.string->S.to(S.union([S.float->S.castToUnknown, S.string->S.castToUnknown]))
-// Invalid operation: can't convert string to number | string - string has the same
-// type as the source and the others don't.
+// Ambiguous conversion from string to number | string.
+// Use S.to(from, to, {decode, encode}), or S.never on an arm
 
 // Convert to a float when possible, keep the string otherwise:
 let asFloat = S.string->S.to(
@@ -1045,7 +1045,7 @@ S.union([S.string->S.castToUnknown, S.float->S.castToUnknown])->S.to(
     S.bool->S.castToUnknown,
   ]),
 )
-// Invalid operation: ... boolean has no same-type variant on the other side.
+// Can't decode string | number to number | string | boolean. Use S.to to define a custom decoder
 S.option(S.string)->S.to(S.null(S.bool)) // ❌ string doesn't match boolean
 S.option(S.string)->S.to(S.null(S.string->S.to(S.bool))) // ✅
 ```

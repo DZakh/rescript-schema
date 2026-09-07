@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{i instanceof e[11]||e[12](i);let v0=e[0](i),v1=v0.get("n")||void 0,v3=v0.get("s")||void 0,v4=e[6](v0.get("tags"));if(v1){typeof v1==="string"||e[2](v1);let v2=+v1;v2===v2&&(v2||v1.trim())||e[1](v1);v1=v2;}else{v1=5;}if(v3){typeof v3==="string"||e[4](v3);v3.length>0||e[3](v3);}else{"d".length>0||e[5]("d");v3="d";}if(v4){for(let v5=0;v5<v4.length;++v5){try{let v6=v4[v5];typeof v6==="string"||e[8](v6);v6.length>0||e[7](v6);}catch(v7){v7.path=["tags",v5,...v7.path];throw v7}}}else{for(let v8=0;v8<e[9].length;++v8){try{let v9=e[9][v8];v9.length>0||e[10](v9);}catch(v10){v10.path=["tags",v8,...v10.path];throw v10}}v4=e[9];}return {n:v1,s:v3,tags:v4}}
+    expression: i=>{i instanceof e[11]||e[12](i);let v0=e[0](i),v1=v0.get("n"),v3=v0.get("s"),v4=e[6](v0.get("tags"));if(v1){typeof v1==="string"||e[1](v1);let v2=+v1;v2===v2&&(v2||v1.trim())||e[2](v1);v1=v2;}else{v1=5;}if(v3){typeof v3==="string"||e[4](v3);v3.length>0||e[3](v3);}else{"d".length>0||e[5]("d");v3="d";}if(v4){for(let v5=0;v5<v4.length;++v5){try{let v6=v4[v5];typeof v6==="string"||e[8](v6);v6.length>0||e[7](v6);}catch(v7){v7.path=["tags",v5,...v7.path];throw v7}}}else{for(let v8=0;v8<e[9].length;++v8){try{let v9=e[9][v8];v9.length>0||e[10](v9);}catch(v10){v10.path=["tags",v8,...v10.path];throw v10}}v4=e[9];}return {n:v1,s:v3,tags:v4}}
     examples:
       absent-is-default:
         input: new FormData()
@@ -21,7 +21,7 @@ operations:
         input: ((f) => (f.append("n", ""), f.append("s", ""), f))(new FormData())
         output: '{ n: 5, s: "d", tags: ["none"] }'
   decode:
-    expression: i=>{let v0=e[0](i),v1=v0.get("n")||void 0,v3=v0.get("s")||void 0,v4=e[6](v0.get("tags"));if(v1){typeof v1==="string"||e[2](v1);let v2=+v1;v2===v2&&(v2||v1.trim())||e[1](v1);v1=v2;}else{v1=5;}if(v3){typeof v3==="string"||e[4](v3);v3.length>0||e[3](v3);}else{"d".length>0||e[5]("d");v3="d";}if(v4){for(let v5=0;v5<v4.length;++v5){try{let v6=v4[v5];typeof v6==="string"||e[8](v6);v6.length>0||e[7](v6);}catch(v7){v7.path=["tags",v5,...v7.path];throw v7}}}else{for(let v8=0;v8<e[9].length;++v8){try{let v9=e[9][v8];v9.length>0||e[10](v9);}catch(v10){v10.path=["tags",v8,...v10.path];throw v10}}v4=e[9];}return {n:v1,s:v3,tags:v4}}
+    expression: i=>{let v0=e[0](i),v1=v0.get("n"),v3=v0.get("s"),v4=e[6](v0.get("tags"));if(v1){typeof v1==="string"||e[1](v1);let v2=+v1;v2===v2&&(v2||v1.trim())||e[2](v1);v1=v2;}else{v1=5;}if(v3){typeof v3==="string"||e[4](v3);v3.length>0||e[3](v3);}else{"d".length>0||e[5]("d");v3="d";}if(v4){for(let v5=0;v5<v4.length;++v5){try{let v6=v4[v5];typeof v6==="string"||e[8](v6);v6.length>0||e[7](v6);}catch(v7){v7.path=["tags",v5,...v7.path];throw v7}}}else{for(let v8=0;v8<e[9].length;++v8){try{let v9=e[9][v8];v9.length>0||e[10](v9);}catch(v10){v10.path=["tags",v8,...v10.path];throw v10}}v4=e[9];}return {n:v1,s:v3,tags:v4}}
     examples:
       absent-is-default:
         input: new FormData()
