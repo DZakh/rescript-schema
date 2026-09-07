@@ -54,17 +54,19 @@ parseEvent('{"type":"user.created","id":"42","tags":[]}');
 // => throws S.Error: Failed at tags: Add at least one tag
 ```
 
-### Every operation says what it does when it fails
-
-A flexible API that forces an explicit decision where safety matters - best for reviewing AI-written code. `S.parseOrThrow` throws and `S.parseAsResult` doesn't, so neither a call that throws nor one that swallows can hide in a diff:
+Every operation says in its name what happens when it fails, so neither a call that throws nor one that swallows can hide in a diff - and the schema goes on either side of the data, or alone to get a reusable function:
 
 ```ts
-const { value, error } = S.parseAsResult(eventSchema, input);
-if (error) error.message;
-// => 'Failed at id: Expected string, received undefined'
-```
+S.parseOrThrow(eventSchema, input); // => Event, or throws S.Error
+S.parseAsResult(eventSchema, input); // => { success: true, value } | { success: false, error }
+S.parseAsPromiseOrReject(eventSchema, input); // => Promise<Event>, rejects with S.Error
+S.parseAsResultPromise(eventSchema, input); // => Promise<Result<Event>>
+S.parseAsPromisableResult(eventSchema, input); // => Result<Event> for a sync schema, Promise<Result<Event>> for an async one
 
-Every verb takes the same five suffixes - `OrThrow`, `AsResult`, `AsPromiseOrReject`, `AsResultPromise`, `AsPromisableResult` - and the schema goes on either side of the data, so there's no argument order to memorize. The Result is compiled into the operation rather than wrapped around it, so a schema that provably can't fail emits no `try` at all.
+S.parseAsResult(input, eventSchema); // Data first works too
+const safeParseEvent = S.parseAsResult(eventSchema); // Schema alone compiles the operation once
+safeParseEvent(input);
+```
 
 Need a different wire? Wrap the same model in base64url. The pipeline knows both of its ends, so `S.encodeOrThrow` and `S.decodeOrThrow` take just the schema:
 
