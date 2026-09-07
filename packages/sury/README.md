@@ -10,10 +10,10 @@
 Declare your data once, in TypeScript or ReScript. The wires it travels are schemas too, and they chain:
 
 ```ts
-const Signup = S.schema({ id: S.bigint, email: S.email, avatar: S.blob });
-type Signup = S.Infer<typeof Signup>;
+const signupSchema = S.schema({ id: S.bigint, email: S.email, avatar: S.blob });
+type Signup = S.Infer<typeof signupSchema>;
 
-const signupsFileSchema = S.file.with(S.to, S.jsonString.with(S.to, S.array(Signup)));
+const signupsFileSchema = S.file.with(S.to, S.jsonString.with(S.to, S.array(signupSchema)));
 
 await S.asyncDecoder(signupsFileSchema)(file);
 // => [{ id: 7n, email: "a@b.co", avatar: Blob }], the avatar rode as base64
