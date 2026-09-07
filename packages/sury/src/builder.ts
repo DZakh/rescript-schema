@@ -290,12 +290,16 @@ export const B_makeInvalidConversionDetails = (input: Val, to: Internal, cause: 
 // wrapped, so every outcome shape holds a SuryError and a consumer never has to
 // tell a validation failure from an exception by inspecting it. Not the
 // throwing outcomes: there the exception is the answer, and it stays raw.
-export const B_errorOf =
-  (input: Val) =>
-  (e: unknown): SuryErrorRecord =>
+// `to` is the chain's last schema, the one the caller named: the operation
+// arg's own `e` is the private chain-head copy `compileChain` builds.
+export const B_errorOf = (input: Val): ((e: unknown) => SuryErrorRecord) => {
+  let to = input.e;
+  while (to.to) to = to.to;
+  return (e) =>
     e && (e as { s?: symbol }).s === s
       ? (e as SuryErrorRecord)
-      : (new SuryError(B_foreignDetails(input, input.e, e)) as unknown as SuryErrorRecord);
+      : (new SuryError(B_foreignDetails(input, to, e)) as unknown as SuryErrorRecord);
+};
 
 export const B_embedErrorOf = (input: Val): string => B_embedPure(input, B_errorOf(input));
 
@@ -791,9 +795,9 @@ export const B_conversion = (
     // Whatever the coder throws — a `SuryError` it raised on purpose or a
     // TypeError it hit on a value it was never written for — is that
     // conversion failing, so in a union it is what hands the value to the
-    // next case rather than aborting the operation (#347). The foreign
-    // errors that do escape a union are a refiner's or a getter's, which
-    // never enter this try.
+    // next case rather than aborting the operation (#347); a refiner's throw
+    // is wrapped the same way (modifiers.ts `refine`). The foreign errors that
+    // do escape a union are a getter's, which never enter this try.
     const failure = B_failWithArg(
       output,
       (e: unknown) => B_makeInvalidConversionDetails(input, target, e),
