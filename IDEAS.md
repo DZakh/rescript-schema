@@ -183,6 +183,15 @@ of a form-data story. What they were built to make cheap, roughly in order:
     `S.record(S.union([S.string, S.number]))` can't be - the union rules reject
     `string -> string | number` before the codec is consulted, since every
     entry satisfies the string arm.
+- **A three-schema chain decodes but does not encode.** `S.decoder(S.file,
+  S.jsonString, S.array(User))` works; the mirror
+  `S.encoder(S.array(User), S.jsonString, S.file)` raises `Can't decode JSON
+  string to File`, and the wire-first spelling raises `Expected base64url,
+  received {...}` on the base64url version of the same pair. Two arguments
+  encode fine, and so does the nested schema the chain stands for
+  (`S.encoder(S.file.with(S.to, S.jsonString.with(S.to, S.array(User))))`
+  returns a `File`), so the feature is there and only the variadic form misses
+  it - which is the spelling the `encoder` overloads advertise.
 - **A union dispatch writes its result back into the slot it read**, so
   encoding a tuple whose slots need one mutates the caller's array:
   `S.schema([S.union([S.boolean, S.number])]).with(S.to, S.schema([S.string]))`
