@@ -851,6 +851,21 @@ test("~standard.validate returns a promise for a schema with an async codec", as
   );
 });
 
+// A foreign exception (not a Sury error) keeps going up from `~standard.validate`
+// of a sync schema, and keeps doing so after a Result operation has installed
+// the operation tail emitter — which must not wrap the Standard Schema body in
+// a second `try` that turns the rethrow into a rejection. A test file rather
+// than a spec: what's under test is an order dependency between two
+// operations, which a per-schema golden can't express.
+test("~standard.validate rethrows a foreign exception regardless of which operation compiled first", (t) => {
+  const foreign = new Proxy({}, { get() { throw new Error("foreign"); } });
+  t.expect(() => S.schema({ id: S.string })["~standard"].validate(foreign)).toThrow("foreign");
+  S.parseAsResult(S.string, "a");
+  t.expect(() => S.schema({ id: S.string, n: S.number })["~standard"].validate(foreign)).toThrow(
+    "foreign"
+  );
+});
+
 // A symbol is a valid `PropertyKey` segment of a Standard Schema issue path,
 // so one written into a refine's `path` reaches the consumer as is.
 test("~standard.validate forwards a symbol path segment", (t) => {

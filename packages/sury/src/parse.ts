@@ -92,7 +92,7 @@ export const parse = (input: Val): Val => {
               operationOutput.e,
             )
           : B_refine(loopInput, operationOutput.s, U, operationOutput.e);
-      result.f |= 1; // 1
+      result.f |= 1;
       result.io = true;
     } else if (loopInput.io) {
       // It's guaranteed that to is not undefined, because it's checked in the while condition
@@ -161,7 +161,7 @@ export type Tail = (
   hasDefs: boolean,
 ) => string | undefined;
 
-// Throw mode, plus the Standard Schema tail (mode bit 128). The Standard
+// Throw mode, plus the Standard Schema tail (mode bit 1024). The Standard
 // Schema arm is here rather than behind the `__setTail` hook because the
 // `~standard` prototype getter can never be tree-shaken (standard.ts), so a
 // registration from it would drag the whole emitter into every consumer bundle
@@ -173,7 +173,9 @@ export const throwTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
     const e = B_varWithoutAllocation(input.g);
     // `path` is omitted at the root, which is what Standard Schema consumers
     // expect; `s` is the Sury marker symbol, the generated function's second
-    // parameter, so anything else in flight keeps going up.
+    // parameter, so anything else in flight keeps going up. The same guard is
+    // `rethrowUnlessSury` in operations.ts — spelled twice on purpose, since a
+    // shared helper here would ship in every throw-only bundle.
     const issues = `{issues:[{message:${e}.reason,path:${e}.path.length?${e}.path:void 0}]}`;
     const v = isAsync ? B_varWithoutAllocation(input.g) : "";
     const body = isAsync
@@ -185,7 +187,7 @@ export const throwTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
       isAsync ? `Promise.resolve(${issues})` : issues
     };throw ${e}}`;
   }
-  return code === "" && out === operationArgVar && !(flag & 1) // 1
+  return code === "" && out === operationArgVar && !(flag & 1)
     ? U
     : `${code}return ${(flag & 1) && !isAsync && !hasDefs ? `Promise.resolve(${out})` : out}`;
 };
@@ -205,7 +207,7 @@ export const compileDecoder = (
 
   const output = parse(input);
   const code = B_merge(output);
-  const isAsync = !!(output.f & 1); // 1
+  const isAsync = !!(output.f & 1);
   expected.isAsync = isAsync;
   expected.hasTransform = output.t === true;
 

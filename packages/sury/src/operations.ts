@@ -78,10 +78,8 @@ const errResult = (flag: Flag, e: string): string =>
 
 // `s` is the Sury marker symbol, the generated function's second parameter:
 // anything else in flight is somebody else's exception and keeps going up.
-const rethrowUnlessSury = (flag: Flag, e: string, toPromise: boolean): string => {
-  const result = errResult(flag, e);
-  return `if(${e}&&${e}.s===s)return ${toPromise ? `Promise.resolve(${result})` : result};throw ${e}`;
-};
+const rethrowUnlessSury = (e: string, result: string): string =>
+  `if(${e}&&${e}.s===s)return ${result};throw ${e}`;
 
 const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
   // 2048 (`makeInput`/`makeOutput`) hands back the value it was given, and the
@@ -122,7 +120,15 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
     // only caller that passes defs), and a nested operation stays throwing —
     // the generated code around it prepends the path on the way out, and has to
     // reach the value's failure before the promise does.
-    if (body === U || !(flag & 1) || hasDefs || !input.g.t) return body;
+    //
+    // The promisable mode (512) is excluded: it answers in the value's own
+    // shape. It is the bit to test for the Standard Schema tail too — 1024 is
+    // only ever compiled with 512 (standard.ts) — where `throwTail` already
+    // emitted the `try` that rethrows a foreign exception, and a second wrap
+    // here would turn that rethrow into a rejection. Only once this emitter is
+    // registered, so `~standard.validate` of a sync schema would throw or
+    // reject depending on which operation ran first.
+    if (body === U || !(flag & 1) || flag & 512 || hasDefs || !input.g.t) return body;
     const e = B_varWithoutAllocation(input.g);
     return `try{${body}}catch(${e}){return Promise.reject(${e})}`;
   }
@@ -133,10 +139,11 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
   // 4096 (`isInput`/`isOutput`) answers `true`; 2048 already picked its value.
   const valueVar = isAsync ? B_varWithoutAllocation(input.g) : value;
   const success = okResult(flag, flag & 4096 ? "true" : flag & 2048 ? value : valueVar);
+  const failure = errResult(flag, errVar);
   const body = isAsync
     ? // Inlined into the promise chain the operation already builds, rather
       // than wrapped around it.
-      `${code}return ${out}.then(${valueVar}=>(${success}),${errVar}=>{${rethrowUnlessSury(flag, errVar, false)}})`
+      `${code}return ${out}.then(${valueVar}=>(${success}),${errVar}=>{${rethrowUnlessSury(errVar, failure)}})`
     : `${code}return ${toPromise ? `Promise.resolve(${success})` : success}`;
   // The raise counter: when nothing merged can throw, the operation needs no
   // `try` at all — the decision a `safe(() => ...)` wrapper can never make.
@@ -145,7 +152,10 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
   // consumer sees one shape whether the value died before the first await or
   // after it.
   return input.g.t
-    ? `try{${body}}catch(${errVar}){${rethrowUnlessSury(flag, errVar, isAsync || toPromise)}}`
+    ? `try{${body}}catch(${errVar}){${rethrowUnlessSury(
+        errVar,
+        isAsync || toPromise ? `Promise.resolve(${failure})` : failure,
+      )}}`
     : body;
 };
 
@@ -176,16 +186,18 @@ const compile = (
     panicNotSchema();
   }
   const first = (rev ? reverse(s0 as Internal) : s0) as Internal;
-  // The chain, in order: head, the caller's schemas, tail. Written out rather
-  // than assembled into an array so nothing is allocated on a cache hit.
+  // The chain, in order: head, the caller's schemas, tail. `getOp` reads
+  // exactly as many positional arguments as it is told, so the tail has to sit
+  // right after the last schema — which is why each arity is written out with
+  // its own count rather than padded with `U`; it also allocates nothing on a
+  // cache hit. A tail only ever comes with a head (every validate-and-discard
+  // family starts from `S.unknown`), so the headless form has no tail arm.
   return head
-    ? tail
-      ? n > 2
-        ? getOp(flag, 5, head, first, s1 as Internal, s2 as Internal, tail)
-        : n > 1
-          ? getOp(flag, 4, head, first, s1 as Internal, tail)
-          : getOp(flag, 3, head, first, tail)
-      : getOp(flag, n + 1, head, first, s1 as Internal, s2 as Internal)
+    ? n > 2
+      ? getOp(flag, tail ? 5 : 4, head, first, s1 as Internal, s2 as Internal, tail)
+      : n > 1
+        ? getOp(flag, tail ? 4 : 3, head, first, s1 as Internal, tail)
+        : getOp(flag, tail ? 3 : 2, head, first, tail)
     : getOp(flag, n, first, s1 as Internal, s2 as Internal);
 };
 
@@ -206,7 +218,9 @@ const compile = (
 //
 // Accepted and documented: `op(s1, s2)` always reads as a chain, so parsing a
 // Sury schema *as data* is only available compiled — `S.parseOrThrow(Meta)(s)`.
-// No argument order makes both reachable.
+// No argument order makes both reachable. The data is only ever the first or
+// the last argument, so only those two are tested; a hole in the middle
+// (`op(s, data, s)`) is a schema slot and fails in `compile`.
 const dispatch = (
   n: number,
   a: unknown,
@@ -238,7 +252,7 @@ const dispatch = (
         ? compile(head, tail, rev, flag, 3, a, b, c)(d)
         : compile(head, tail, rev, flag, 3, b, c, d)(a);
     default:
-      return n
+      return n > 4
         ? panic("Expected at most 3 schemas and a value. Use .with(S.to, ...) for a longer chain")
         : panicNotSchema();
   }
@@ -275,9 +289,10 @@ const tailDispatch = (
 // One declaration each, never `export const parseAsResult = makeOp(...)`: a
 // factory call at the top level is a side effect that no bundler will shake.
 //
-// Outcome flags: 0 OrThrow · 8 AsResult · 1 AsPromiseOrReject ·
-// 1|8 AsResultPromise · 1|8|32 AsPromisableResult.
-// Family flags: 256 yield the operation's input · 512 answer a boolean.
+// The flag literals are the return modes documented in base.ts. Outcome:
+// 0 OrThrow · 128 AsResult (256 for the ReScript shape) · 1 AsPromiseOrReject ·
+// 1|128 AsResultPromise · 1|128|512 AsPromisableResult. Family: 2048 yield
+// the operation's input (`make*`) · 4096 answer a boolean (`is*`).
 
 export function parseOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
   return dispatch(arguments.length, a, b, c, d, unknown, U, false, 0);
@@ -347,9 +362,9 @@ export function encodeAsPromisableResult(a?: unknown, b?: unknown, c?: unknown, 
   return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 128 | 512);
 }
 
-// The make family validates and hands back the value it was given (flag 256),
-// rather than the decoded clone `parse` would build: the checks run, their
-// result is discarded, and the value keeps its identity.
+// The make family validates and hands back the value it was given, rather than
+// the decoded clone `parse` would build: the checks run, their result is
+// discarded, and the value keeps its identity.
 export function makeInputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
   return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 2048);
 }
@@ -403,8 +418,7 @@ export function makeOutputAsPromisableResult(
 // ── Checks ───────────────────────────────────────────────────────────────────
 //
 // Direction is a free parameter here — there is no value to read it off — so
-// it is spelled out and mandatory. `is*` answers a boolean (flag 512) and
-// never throws for a failed check; `is*AsPromise` resolves to one and never
+// it is spelled out and mandatory. `is*` answers a boolean and never throws for a failed check; `is*AsPromise` resolves to one and never
 // rejects.
 
 export function isInput(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
@@ -457,7 +471,7 @@ export function assertOutputAsPromiseOrReject(
 // ── ReScript result surface ──────────────────────────────────────────────────
 //
 // JS `Result` is `{success, value, error}`; ReScript's `result<'value, S.error>`
-// is `{TAG, _0}`. Two shapes, one compiler (mode bit 256 instead of 128), so
+// is `{TAG, _0}`. Two shapes, one compiler (256 instead of 128), so
 // these are legitimate `$` exports: a ReScript-only result shape has no public
 // JS equivalent. The ReScript tail ships only to bundles importing S.res.mjs,
 // so the two shapes tree-shake independently.
