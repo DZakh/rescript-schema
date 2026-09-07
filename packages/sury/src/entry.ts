@@ -19,6 +19,7 @@
 // (index.d.ts is the curated surface) and tree-shake when unused like any
 // other export.
 
+import { schemaFactory } from "./factory";
 import {
   baseSchema,
   type Builder,
@@ -232,6 +233,12 @@ export { inputExpression, pathToText } from "./base";
 export { outputExpression } from "./parse";
 
 // ── Public JS/TS API implemented here (argument-shape adapters) ──────────────
+
+// Curried so the definition's type is inferred at the second call, which is
+// what index.d.ts compares against the type argument. The type argument is
+// erased, so the first call has nothing to do but hand back the factory.
+// @__NO_SIDE_EFFECTS__
+export const schemaOf = () => schemaFactory;
 
 // @__NO_SIDE_EFFECTS__
 export const union = (values: unknown[]) => unionFactory(values.map(definitionToSchema));
