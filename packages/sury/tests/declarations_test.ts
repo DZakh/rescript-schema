@@ -78,6 +78,9 @@ test("every declared value has a runtime export, and vice versa", async () => {
   // published surface.
   const RESCRIPT_ONLY = new Set(["list", "enum", "nan"]);
   const rescriptOnly = (name: string) => name.startsWith("$") || RESCRIPT_ONLY.has(name);
+  // Excused from the runtime side only: a declaration for one of them is the
+  // very thing the exemption exists to keep out.
+  expect([...declared].filter(rescriptOnly).sort()).toEqual([]);
   expect([...runtime].filter((n) => !rescriptOnly(n) && !declared.has(n)).sort()).toEqual([]);
   expect([...declared].filter((n) => !runtime.has(n)).sort()).toEqual([]);
 });

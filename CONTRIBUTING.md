@@ -216,7 +216,9 @@ const schema = S.schema({
     bool: S.boolean,
   },
 });
-S.parseOrThrow(schema)(data);
+// The pinned release predates the operation rename; with the next one this
+// line becomes `S.parseOrThrow(schema)(data)`.
+S.parser(schema)(data);
 ```
 
 valibot
