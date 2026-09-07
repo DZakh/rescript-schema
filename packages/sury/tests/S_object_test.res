@@ -701,7 +701,7 @@ module BenchmarkWithSObject = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertOrThrow(~to=schema), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~schema=schema), ())
 
     t->U.assertCompiledCode(
       ~schema,
@@ -735,7 +735,7 @@ module BenchmarkWithSObject = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertOrThrow(~to=schema), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~schema=schema), ())
 
     t->U.assertCompiledCode(
       ~schema,
@@ -824,7 +824,7 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertOrThrow(~to=schema), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~schema=schema), ())
 
     t->U.assertCompiledCode(
       ~schema,
@@ -858,7 +858,7 @@ module Benchmark = {
     })
     let schema = makeSchema()
 
-    t->Assert.deepEqual(makeTestObject()->S.assertOrThrow(~to=schema), ())
+    t->Assert.deepEqual(makeTestObject()->S.assertInputOrThrow(~schema=schema), ())
 
     t->U.assertCompiledCode(
       ~schema,
@@ -1125,7 +1125,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#ParseAsync,
-      `i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[3](i);let v1=i["bar"];let v0;try{v0=e[0](i["foo"]).catch(x=>e[1](x))}catch(x){e[1](x)}typeof v1==="boolean"||e[2](v1);return Promise.all([v0]).then(([v0])=>{return {foo:v0,bar:v1}})}`,
+      `i=>{try{typeof i==="object"&&i&&!Array.isArray(i)||e[3](i);let v1=i["bar"];let v0;try{v0=e[0](i["foo"]).catch(x=>e[1](x))}catch(x){e[1](x)}typeof v1==="boolean"||e[2](v1);return Promise.all([v0]).then(([v0])=>{return {foo:v0,bar:v1}})}catch(v2){return Promise.reject(v2)}}`,
     )
   })
 
@@ -1140,7 +1140,7 @@ module Compiled = {
     t->U.assertCompiledCode(
       ~schema,
       ~op=#ParseAsync,
-      `i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[2](i);let v0;try{v0=e[0](i["foo"]).catch(x=>e[1](x))}catch(x){e[1](x)}return v0}`,
+      `i=>{try{typeof i==="object"&&i&&!Array.isArray(i)||e[2](i);let v0;try{v0=e[0](i["foo"]).catch(x=>e[1](x))}catch(x){e[1](x)}return v0}catch(v1){return Promise.reject(v1)}}`,
     )
   })
 
@@ -1268,7 +1268,7 @@ test("Compiles to async serialize operation with the sync object schema", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#EncodeAsync,
-    `i=>{i===void 0||e[0](i);return Promise.resolve({})}`,
+    `i=>{try{i===void 0||e[0](i);return Promise.resolve({})}catch(v0){return Promise.reject(v0)}}`,
   )
 })
 

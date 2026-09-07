@@ -13,11 +13,23 @@
 import type { ChildPayload, ChildResult, Target } from "./bench";
 import { buildScenarioRunner } from "./scenario";
 
-const OP_BUILDER = { parse: "parser", decode: "decoder", encode: "encoder" } as const;
+// Two spellings per builder: a baseline built from a ref older than the
+// operations rename carries the first, the current library the second. Both
+// sides of a comparison have to name the same operation, so the lookup falls
+// back rather than reporting the older side as "new".
+const OP_BUILDER = {
+  parse: ["parseOrThrow", "parser"],
+  decode: ["decodeOrThrow", "decoder"],
+  encode: ["encodeOrThrow", "encoder"],
+} as const;
 // An async schema compiles only through these, so a `create+compile` target for
 // one has to name the builder its spec's `isAsync` declares. (There are no
 // async `run` targets — see deriveTargets.)
-const ASYNC_OP_BUILDER = { parse: "asyncParser", decode: "asyncDecoder", encode: "asyncEncoder" } as const;
+const ASYNC_OP_BUILDER = {
+  parse: ["parseAsPromiseOrReject", "asyncParser"],
+  decode: ["decodeAsPromiseOrReject", "asyncDecoder"],
+  encode: ["encodeAsPromiseOrReject", "asyncEncoder"],
+} as const;
 
 // Every measured value is stored into a box so V8 can't delete the work as
 // dead. The boxes are kept alive here (and read at exit) so escape analysis
@@ -62,7 +74,8 @@ const buildRunner = (
       )(factory, S, box),
     };
 
-  const builder = S[(target.isAsync ? ASYNC_OP_BUILDER : OP_BUILDER)[target.op!]];
+  const [current, legacy] = (target.isAsync ? ASYNC_OP_BUILDER : OP_BUILDER)[target.op!];
+  const builder = (S[current] ?? S[legacy]) as (schema: unknown) => (data: unknown) => unknown;
 
   if (target.phase === "create+compile")
     return {

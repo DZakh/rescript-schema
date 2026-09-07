@@ -59,7 +59,8 @@ import {
   B_scope,
   B_throw,
   failInvalidType,
-  type HoistCond
+  type HoistCond,
+  operationArgVar,
 } from "./builder";
 import { nestedLoc, never_, parse, typeCheckCond } from "./parse";
 
@@ -765,7 +766,7 @@ const unionPlan = (members: UnionMember[]): UnionGroup[] => {
     //
     // Two things make a member observable despite passing its value through:
     //
-    //   - It can raise a *foreign* error (`f & 2`) — a user refiner, a getter.
+    //   - It can raise a *foreign* error (`f & 2`) — a getter the walk can't see.
     //     That escapes the union rather than reading as "this one didn't match",
     //     so running it is the observable part, not what it returns.
     //   - A member that *does* change the value accepts one of the same types. It
@@ -1087,6 +1088,9 @@ const unionEmit = (
       const itemVar = target.v();
       if (async || caseOut.i !== itemVar) {
         body += `${itemVar}=${async && awaitAsync ? "await " : ""}${caseOut.i}`;
+        // The one assignment into the operation's own parameter; `make*`
+        // reads this to know the parameter is no longer the value it was given.
+        if (itemVar === operationArgVar) input.g.r = true;
       }
     }
     if (trustedD !== U) {
@@ -1264,7 +1268,7 @@ export const unionDecoder: Builder = (input: Val) => {
   const self = input.e;
   // The union's own `.to` chain, applied per case during decoding. None when a
   // custom parser owns the conversion, or when the target is the `noValidation`
-  // sentinel `S.assertInput` appends: fusing that into every case replaces each
+  // sentinel `S.assertInputOrThrow` appends: fusing that into every case replaces each
   // member's own check with the sentinel's, which silently breaks dispatch.
   // Left alone, it converts the union's assembled output once instead.
   const toPerCase =
@@ -1443,7 +1447,7 @@ export const unionRewriteTo = (input: Val, target: Internal): Val =>
 
 // Whether the union should hand itself to the target untouched — recursive
 // schemas and `S.json` decode a union source per variant on their own, and a
-// `noValidation` target (`S.assertInput`'s result sentinel) discards the value, so
+// `noValidation` target (`S.assertInputOrThrow`'s result sentinel) discards the value, so
 // converting each member into it would replace every member's check with the
 // sentinel's.
 const unionTargetOwns = (target: Internal) =>
@@ -1505,7 +1509,7 @@ const unionResolve = (
   }
   // Rule 3 — every source variant gets its own built-in decoder to the target.
   // Two targets are never ambiguous: `unknown`, the top type, which decodes
-  // nothing; and a `noValidation` target (S.assertInput's result sentinel), which
+  // nothing; and a `noValidation` target (S.assertInputOrThrow's result sentinel), which
   // discards the value entirely.
   if (!(tagFlags[target.type]! & 1) && !target.noValidation) {
     unionCheckPartial(input, source, target, variants, true);

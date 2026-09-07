@@ -50,7 +50,7 @@
 - [Recursive schemas](#recursive-schemas)
 - [Refinements](#refinements)
   - [`shape`](#shape)
-- [Functions on schema](#functions-on-schema)
+- [Operations](#operations)
   - [At a glance](#at-a-glance)
   - [Pipelines](#pipelines)
   - [Built-in operations](#built-in-operations)
@@ -94,20 +94,20 @@ const playerSchema = S.schema({
 Parses unknown data and returns a strongly-typed deep clone of the input, with unknown fields stripped by default:
 
 ```ts
-S.parser(playerSchema)({ username: "billie", xp: 100 });
+S.parseOrThrow(playerSchema, { username: "billie", xp: 100 });
 // => returns { username: "billie", xp: 100 }
 ```
 
 Invalid data throws `S.Error`:
 
 ```ts
-S.parser(playerSchema)({ username: "billie", xp: "not a number" });
+S.parseOrThrow(playerSchema, { username: "billie", xp: "not a number" });
 // => throws S.Error: Failed at xp: Expected number, received "not a number"
 ```
 
-Use `S.safe` / `S.safeAsync` if you'd rather have a result than an exception — see [Error handling](#error-handling).
+Use `S.parseAsResult` if you'd rather have a result than an exception — see [Operations](#operations) and [Error handling](#error-handling).
 
-> 🧠 Besides `parser` there are operations to transform without validation, assert without allocating an output, and encode back to the input format. See [Functions on schema](#functions-on-schema).
+> 🧠 Besides `parse` there are operations to transform without validation, assert without allocating an output, and encode back to the input format. See [Operations](#operations).
 
 ### Inferred types
 
@@ -129,7 +129,7 @@ To annotate "any schema producing `T`, whatever it accepts", leave the input as 
 
 ```ts
 const parseT = <T>(schema: S.Schema<unknown, T>, data: unknown): T =>
-  S.parser(schema)(data);
+  S.parseOrThrow(schema, data);
 ```
 
 ### Checking against a type you already have
@@ -160,7 +160,7 @@ Codecs need no second type argument, since the encoded type is read off the defi
 Every schema has an `Input` type as well as an `Output` type, so the same definition encodes back to the input format:
 
 ```ts
-S.encoder(playerSchema)({ username: "billie", xp: 100 });
+S.encodeOrThrow(playerSchema, { username: "billie", xp: 100 });
 // => returns { username: "billie", xp: 100 }
 ```
 
@@ -176,17 +176,17 @@ const userSchema = S.schema({
 }));
 //? S.Schema<{ USER_ID: string; USER_NAME: string }, { id: bigint; name: string }>
 
-S.parser(userSchema)({ USER_ID: "0", USER_NAME: "Dmitry" });
+S.parseOrThrow(userSchema, { USER_ID: "0", USER_NAME: "Dmitry" });
 // { id: 0n, name: "Dmitry" }
 
-S.encoder(userSchema)({ id: 0n, name: "Dmitry" });
+S.encodeOrThrow(userSchema, { id: 0n, name: "Dmitry" });
 // { USER_ID: "0", USER_NAME: "Dmitry" }
 ```
 
-`S.encoder` skips validation. For a validating reverse pass, use [`reverse`](#reverse), which returns a full-featured schema with `Input` and `Output` swapped:
+`S.encodeOrThrow` skips validation. For a validating reverse pass, use [`reverse`](#reverse), which returns a full-featured schema with `Input` and `Output` swapped:
 
 ```ts
-S.parser(S.reverse(userSchema))({ id: 0n, name: "Dmitry" });
+S.parseOrThrow(S.reverse(userSchema), { id: 0n, name: "Dmitry" });
 // { USER_ID: "0", USER_NAME: "Dmitry" }
 ```
 
@@ -213,7 +213,7 @@ S.inputJSONSchema(documented);
 // }
 ```
 
-`S.outputJSONSchema` describes the other side — what the schema produces, and what `S.encoder` accepts:
+`S.outputJSONSchema` describes the other side — what the schema produces, and what `S.encodeOrThrow` accepts:
 
 ```ts
 const apiUser = S.schema({
@@ -236,7 +236,7 @@ The `target` decides the type of the result — `S.JSONSchema7`, `S.JSONSchema20
 `S.fromJSONSchema` converts in the other direction:
 
 ```ts
-S.assertInput(
+S.assertInputOrThrow(
   S.fromJSONSchema({
     type: "string",
     format: "email",
@@ -275,7 +275,7 @@ const comment = S.fromJSONSchema({
 });
 // S.Schema<{ text: string; replies?: ...[] | undefined }>
 
-S.assertInput(comment, { text: "hi", replies: [{ text: 1 }] });
+S.assertInputOrThrow(comment, { text: "hi", replies: [{ text: 1 }] });
 // Throws S.Error: Failed at replies[0].text: Expected string, received 1
 ```
 
@@ -531,9 +531,9 @@ S.hex.with(S.length, 64); // a SHA-256 digest
 spec, so a well-formed value passes even when it isn't one you want to accept:
 
 ```ts
-S.assertInput(S.uri, "javascript:alert(1)"); // passes — a valid URI
-S.assertInput(S.hostname, "169.254.169.254"); // passes — a valid host name
-S.assertInput(S.uriReference, "//evil.com"); // passes — a valid reference
+S.assertInputOrThrow(S.uri, "javascript:alert(1)"); // passes — a valid URI
+S.assertInputOrThrow(S.hostname, "169.254.169.254"); // passes — a valid host name
+S.assertInputOrThrow(S.uriReference, "//evil.com"); // passes — a valid reference
 ```
 
 When you want a security decision rather than a syntax check, compose one. The
@@ -586,12 +586,12 @@ Available keys: `format`, `type`, `minimum`, `maximum`, `minLength`, `maxLength`
 `S.isoDateTime` is a **standalone** string schema (`S.Schema<string, string>`) that validates RFC 3339 datetime strings, exactly what the JSON Schema `date-time` format means: a `Z` or a timezone offset, with arbitrary sub-second decimal precision. `S.utcDateTime` is the same grammar with only `Z` allowed.
 
 ```ts
-S.parser(S.isoDateTime)("2020-01-01T00:00:00Z"); // pass
-S.parser(S.isoDateTime)("2020-01-01T00:00:00.123456Z"); // pass (arbitrary precision)
-S.parser(S.isoDateTime)("2020-01-01T00:00:00+02:00"); // pass
+S.parseOrThrow(S.isoDateTime, "2020-01-01T00:00:00Z"); // pass
+S.parseOrThrow(S.isoDateTime, "2020-01-01T00:00:00.123456Z"); // pass (arbitrary precision)
+S.parseOrThrow(S.isoDateTime, "2020-01-01T00:00:00+02:00"); // pass
 
-S.parser(S.utcDateTime)("2020-01-01T00:00:00Z"); // pass
-S.parser(S.utcDateTime)("2020-01-01T00:00:00+02:00"); // throws: Expected UTC date-time, received "2020-01-01T00:00:00+02:00"
+S.parseOrThrow(S.utcDateTime, "2020-01-01T00:00:00Z"); // pass
+S.parseOrThrow(S.utcDateTime, "2020-01-01T00:00:00+02:00"); // throws: Expected UTC date-time, received "2020-01-01T00:00:00+02:00"
 ```
 
 Both emit `format: "date-time"`. `S.utcDateTime` adds a `pattern` pinning the `Z`, so its document reads back as `S.utcDateTime` through `S.fromJSONSchema`.
@@ -640,7 +640,7 @@ You can make any schema optional with `S.optional`.
 ```ts
 const schema = S.optional(S.string);
 
-S.parser(schema)(undefined); // => returns undefined
+S.parseOrThrow(schema, undefined); // => returns undefined
 type A = S.Infer<typeof schema>; // string | undefined
 ```
 
@@ -649,7 +649,7 @@ You can pass a default value to the second argument of `S.optional`.
 ```ts
 const stringWithDefaultSchema = S.optional(S.string, "tuna");
 
-S.parser(stringWithDefaultSchema)(undefined); // => returns "tuna"
+S.parseOrThrow(stringWithDefaultSchema, undefined); // => returns "tuna"
 type A = S.Infer<typeof stringWithDefaultSchema>; // string
 ```
 
@@ -658,9 +658,9 @@ Optionally, you can pass a function as a default value that will be re-executed 
 ```ts
 const numberWithRandomDefault = S.optional(S.number, Math.random);
 
-S.parser(numberWithRandomDefault)(undefined); // => 0.4413456736055323
-S.parser(numberWithRandomDefault)(undefined); // => 0.1871840107401901
-S.parser(numberWithRandomDefault)(undefined); // => 0.7223408162401552
+S.parseOrThrow(numberWithRandomDefault, undefined); // => 0.4413456736055323
+S.parseOrThrow(numberWithRandomDefault, undefined); // => 0.1871840107401901
+S.parseOrThrow(numberWithRandomDefault, undefined); // => 0.7223408162401552
 ```
 
 Conceptually, this is how **Sury** processes default values:
@@ -674,14 +674,14 @@ Similarly, you can create nullable types with `S.nullable`.
 
 ```ts
 const nullableStringSchema = S.nullable(S.string);
-S.parser(nullableStringSchema)("asdf"); // => "asdf"
-S.parser(nullableStringSchema)(null); // => null
+S.parseOrThrow(nullableStringSchema, "asdf"); // => "asdf"
+S.parseOrThrow(nullableStringSchema, null); // => null
 ```
 
 Pass a fallback as the second argument to replace the absent case:
 
 ```ts
-S.parser(S.nullable(S.string, "fallback"))(null); // => "fallback"
+S.parseOrThrow(S.nullable(S.string, "fallback"), null); // => "fallback"
 ```
 
 ## Nullish
@@ -690,9 +690,9 @@ A convenience method that returns a "nullish" version of a schema. Nullish schem
 
 ```ts
 const nullishStringSchema = S.nullish(S.string);
-S.parser(nullishStringSchema)("asdf"); // => "asdf"
-S.parser(nullishStringSchema)(null); // => null
-S.parser(nullishStringSchema)(undefined); // => undefined
+S.parseOrThrow(nullishStringSchema, "asdf"); // => "asdf"
+S.parseOrThrow(nullishStringSchema, null); // => null
+S.parseOrThrow(nullishStringSchema, undefined); // => undefined
 ```
 
 ## Objects
@@ -743,7 +743,7 @@ const userSchema = S.object((s) => ({
   name: s.field("USER_NAME", S.string),
 }));
 
-S.parser(userSchema)({
+S.parseOrThrow(userSchema)({
   USER_ID: 1,
   USER_NAME: "John",
 });
@@ -756,7 +756,7 @@ type User = S.Infer<typeof userSchema>; // { id: number; name: string }
 Compared to using custom transformation functions, the approach has 0 performance overhead. Also, you can use the same schema to convert the parsed data back to the initial format:
 
 ```ts
-S.encoder(userSchema)({
+S.encodeOrThrow(userSchema)({
   id: 1,
   name: "John",
 });
@@ -774,7 +774,7 @@ const personSchema = S.strict(
   })
 );
 
-S.parser(personSchema)({
+S.parseOrThrow(personSchema)({
   name: "bob dylan",
   extraKey: 61,
 });
@@ -837,7 +837,7 @@ S.array(S.string).with(S.minLength, 2); //? S.Schema<[string, string, ...string[
 S.array(S.string).with(S.nonEmpty); //? S.Schema<[string, ...string[]]>
 S.array(S.string).with(S.maxLength, 5); //? S.Schema<string[]>
 
-const [lat, lng] = S.parser(S.array(S.number).with(S.length, 2))(input); // both number
+const [lat, lng] = S.parseOrThrow(S.array(S.number).with(S.length, 2), input); // both number
 ```
 
 ### Compact Columns
@@ -853,13 +853,13 @@ const rowSchema = S.schema({
 
 const schema = S.compactColumns(S.json).with(S.to, S.array(rowSchema));
 
-S.encoder(schema)([
+S.encodeOrThrow(schema)([
   { id: "0", name: "Hello", deleted: false },
   { id: "1", name: "World", deleted: true },
 ]);
 // [["0", "1"], ["Hello", "World"], [false, true]]
 
-S.parser(schema)([["0", "1"], ["Hello", "World"], [false, true]]);
+S.parseOrThrow(schema, [["0", "1"], ["Hello", "World"], [false, true]]);
 // [{ id: "0", name: "Hello", deleted: false }, { id: "1", name: "World", deleted: true }]
 ```
 
@@ -946,8 +946,8 @@ It's also available as `S.anyOf`, matching the JSON Schema keyword it maps to.
 
 const stringOrNumberSchema = S.union([S.string, S.number]);
 
-S.parser(stringOrNumberSchema)("foo"); // passes
-S.parser(stringOrNumberSchema)(14); // passes
+S.parseOrThrow(stringOrNumberSchema, "foo"); // passes
+S.parseOrThrow(stringOrNumberSchema, 14); // passes
 ```
 
 ### Discriminated unions
@@ -987,9 +987,9 @@ first one that accepts the value wins:
 ```ts
 const schema = S.json.with(S.to, S.union([S.bigint, S.string]));
 
-S.parser(schema)("123"); // 123n — the bigint member comes first
-S.parser(schema)("abc"); // "abc" — not a valid bigint, so the string member takes it
-S.parser(schema)(true); // throws — no member accepts a boolean
+S.parseOrThrow(schema, "123"); // 123n — the bigint member comes first
+S.parseOrThrow(schema, "abc"); // "abc" — not a valid bigint, so the string member takes it
+S.parseOrThrow(schema, true); // throws — no member accepts a boolean
 ```
 
 Notice that `true` wasn't converted to `"true"`, even though boolean → string
@@ -1004,8 +1004,8 @@ the same way it would with a direct `S.to`:
 ```ts
 const schema = S.union([S.bigint, S.boolean]).with(S.to, S.string);
 
-S.parser(schema)(123n); // "123"
-S.parser(schema)(true); // "true"
+S.parseOrThrow(schema, 123n); // "123"
+S.parseOrThrow(schema, true); // "true"
 ```
 
 **Union → union.** Values pass through to the member of the same type on the
@@ -1033,7 +1033,7 @@ Good to know:
 
 Some conversions have more than one reasonable meaning, and some have none.
 Rather than guess, Sury rejects those with an `Invalid operation` error right
-at the `S.parser` / `S.encoder` call — not later, on each value — and the
+at the `S.parseOrThrow` / `S.encodeOrThrow` call — not later, on each value — and the
 error suggests a rewrite that says what you mean.
 
 **Ambiguous.** Given `"123"` — should it stay a string, or become a number?
@@ -1046,13 +1046,13 @@ S.string.with(S.to, S.union([S.number, S.string]));
 
 // Convert to a number when possible, keep the string otherwise:
 const asNumber = S.string.with(S.to, S.union([S.string.with(S.to, S.number), S.string]));
-S.parser(asNumber)("123"); // 123
-S.parser(asNumber)("abc"); // "abc"
+S.parseOrThrow(asNumber, "123"); // 123
+S.parseOrThrow(asNumber, "abc"); // "abc"
 
 // Or pass strings through, never producing a number:
 const asString = S.string.with(S.to, S.union([S.never.with(S.to, S.number), S.string]));
-S.parser(asString)("123"); // "123"
-S.parser(asString)("abc"); // "abc"
+S.parseOrThrow(asString, "123"); // "123"
+S.parseOrThrow(asString, "abc"); // "abc"
 ```
 
 **The two unions don't cover each other.** Union-to-union converts nothing, so
@@ -1096,22 +1096,22 @@ type NumberCache = S.Infer<typeof numberCacheSchema>;
 `S.date` validates that the input is a `Date` instance and rejects Invalid Date.
 
 ```ts
-S.parser(S.date)(new Date()); // passes
-S.parser(S.date)(new Date("2024-01-01T00:00:00Z")); // passes
-S.parser(S.date)(new Date("invalid")); // throws
-S.parser(S.date)("2024-01-01"); // throws - not a Date instance
+S.parseOrThrow(S.date, new Date()); // passes
+S.parseOrThrow(S.date, new Date("2024-01-01T00:00:00Z")); // passes
+S.parseOrThrow(S.date, new Date("invalid")); // throws
+S.parseOrThrow(S.date, "2024-01-01"); // throws - not a Date instance
 ```
 
 > Unlike `S.isoDateTime` (which validates ISO datetime strings) and `S.string.with(S.to, S.date)` (which decodes ISO strings into Date objects), `S.date` validates existing Date instances directly.
 
-You can use `S.decoder` with multiple arguments to decode between strings and dates:
+You can use `S.decodeOrThrow` with multiple arguments to decode between strings and dates:
 
 ```ts
 // Decode ISO string to Date
-S.decoder(S.string, S.date)("2024-01-01T00:00:00.000Z"); // Date
+S.decodeOrThrow(S.string, S.date, "2024-01-01T00:00:00.000Z"); // Date
 
 // Decode Date to ISO string
-S.decoder(S.date, S.string)(new Date("2024-01-01T00:00:00.000Z")); // "2024-01-01T00:00:00.000Z"
+S.decodeOrThrow(S.date, S.string, new Date("2024-01-01T00:00:00.000Z")); // "2024-01-01T00:00:00.000Z"
 ```
 
 ## ISO DateTime
@@ -1121,8 +1121,8 @@ S.decoder(S.date, S.string)(new Date("2024-01-01T00:00:00.000Z")); // "2024-01-0
 ```ts
 const schema = S.isoDateTime;
 
-S.parser(schema)("2020-01-01T00:00:00Z"); // "2020-01-01T00:00:00Z"
-S.parser(schema)("not-a-date"); // throws
+S.parseOrThrow(schema, "2020-01-01T00:00:00Z"); // "2020-01-01T00:00:00Z"
+S.parseOrThrow(schema, "not-a-date"); // throws
 ```
 
 Standalone string schema that validates RFC 3339 datetime strings; `S.utcDateTime` allows only `Z`. See also [ISO datetimes](#iso-datetimes) under Strings for more details and examples.
@@ -1139,8 +1139,8 @@ class Test {
 const testSchema = S.instance(Test);
 
 const blob: any = "whatever";
-S.parser(testSchema)(new Test()); // passes
-S.parser(testSchema)(blob); // throws S.Error: Expected Test, received "whatever"
+S.parseOrThrow(testSchema, new Test()); // passes
+S.parseOrThrow(testSchema, blob); // throws S.Error: Expected Test, received "whatever"
 ```
 
 ## Blob
@@ -1172,9 +1172,9 @@ S.instance(Set).with(S.minSize, 1); // Expected Set.size >= 1
 `S.blob` — not the other way round.
 
 ```ts
-S.parser(S.file)(new File(["hi"], "a.txt")); // passes
-S.parser(S.file)(new Blob(["hi"])); // throws - Expected File, received Blob
-S.parser(S.blob)(new File(["hi"], "a.txt")); // passes
+S.parseOrThrow(S.file, new File(["hi"], "a.txt")); // passes
+S.parseOrThrow(S.file, new Blob(["hi"])); // throws - Expected File, received Blob
+S.parseOrThrow(S.blob, new File(["hi"], "a.txt")); // passes
 ```
 
 It takes the same size bounds as [`S.blob`](#blob):
@@ -1188,7 +1188,7 @@ config has neither `lib.dom` nor `@types/node` and so has no `Blob`/`File` of
 its own:
 
 ```ts
-const upload = (f: S.File) => S.parser(S.file)(f);
+const upload = (f: S.File) => S.parseOrThrow(S.file, f);
 ```
 
 ## Content
@@ -1200,7 +1200,7 @@ Bytes in JSON become base64. They are not mangled as UTF-8.
 A field of bytes is written as base64. You do not pass pack or unpack.
 
 ```ts
-S.encoder(S.schema({ payload: S.uint8Array }), S.jsonString)({
+S.encodeOrThrow(S.schema({ payload: S.uint8Array }), S.jsonString)({
   payload: new Uint8Array([137, 80, 78, 71]),
 });
 // {"payload":"iVBORw=="}
@@ -1211,7 +1211,7 @@ S.encoder(S.schema({ payload: S.uint8Array }), S.jsonString)({
 JWT segments are base64url. Parse the text as JSON, then as the object.
 
 ```ts
-S.parser(
+S.parseOrThrow(
   S.base64url.with(S.to, S.jsonString.with(S.to, S.schema({ sub: S.string }))),
 )("eyJzdWIiOiJhIn0");
 // { sub: "a" }
@@ -1225,7 +1225,7 @@ S.parser(
 S.base64; // standard alphabet, canonical padding
 S.base64url; // URL-safe alphabet, no padding
 
-S.parser(S.base64.with(S.to, S.base64url))("iVBORw==");
+S.parseOrThrow(S.base64.with(S.to, S.base64url), "iVBORw==");
 // "iVBORw"
 ```
 
@@ -1290,14 +1290,14 @@ S.inputJSONSchema(documentedStringSchema);
 
 Add a type-only symbol to an existing type so that only values produced by validation satisfy it.
 
-Use `S.brand` to attach a nominal brand to a schema's output. This is a TypeScript-only marker: it does not change runtime behavior. Combine it with `S.refine` (or any validation) so only validated values can acquire the brand — parsing mints one from unknown data, and [`S.outputConstructor`](#constructing-entities) from a plain value you already hold.
+Use `S.brand` to attach a nominal brand to a schema's output. This is a TypeScript-only marker: it does not change runtime behavior. Combine it with `S.refine` (or any validation) so only validated values can acquire the brand — parsing mints one from unknown data, and [`S.makeOutputOrThrow`](#constructing-entities) from a plain value you already hold.
 
 ```ts
 // Brand a string as a UserId
 const userIdSchema = S.string.with(S.brand, "UserId");
 type UserId = S.Infer<typeof userIdSchema>; // S.Brand<string, "UserId">
 
-const id: UserId = S.outputConstructor(userIdSchema)("u_123"); // OK
+const id: UserId = S.makeOutputOrThrow(userIdSchema, "u_123"); // OK
 const asString: string = id; // OK: branded value is assignable to string
 // @ts-expect-error - A plain string is not assignable to a branded string
 const notId: UserId = "u_123";
@@ -1314,7 +1314,7 @@ const evenSchema = S.number
 
 type Even = S.Infer<typeof evenSchema>; // S.Brand<number, "even">
 
-const good: Even = S.outputConstructor(evenSchema)(2); // OK
+const good: Even = S.makeOutputOrThrow(evenSchema, 2); // OK
 // @ts-expect-error - number is not assignable to brand "even"
 const bad: Even = 5;
 ```
@@ -1337,7 +1337,7 @@ const mySet = <T>(itemSchema: S.Schema<unknown, T>): S.Schema<unknown, Set<T>> =
         const output = new Set<T>();
         input.forEach((item, index) => {
           try {
-            output.add(S.parser(itemSchema)(item));
+            output.add(S.parseOrThrow(itemSchema, item));
           } catch (e) {
             if (e instanceof S.Error) {
               throw new Error(`At item ${index} - ${e.reason}`);
@@ -1348,7 +1348,7 @@ const mySet = <T>(itemSchema: S.Schema<unknown, T>): S.Schema<unknown, Set<T>> =
         return output;
       },
       encode: (output) =>
-        new Set([...output].map((item) => S.encoder(itemSchema)(item))),
+        new Set([...output].map((item) => S.encodeOrThrow(itemSchema, item))),
     })
     .with(S.meta, {
       name: `Set<${S.inputExpression(itemSchema)}>`,
@@ -1357,9 +1357,9 @@ const mySet = <T>(itemSchema: S.Schema<unknown, T>): S.Schema<unknown, Set<T>> =
 const numberSetSchema = mySet(S.number);
 type NumberSet = S.Infer<typeof numberSetSchema>; // Set<number>
 
-S.parser(numberSetSchema)(new Set([1, 2, 3])); // passes
-S.parser(numberSetSchema)(new Set([1, 2, "3"])); // throws S.Error: At item 3 - Expected number, received "3"
-S.parser(numberSetSchema)([1, 2, 3]); // throws S.Error: Expected Set<number>, received [1, 2, 3]
+S.parseOrThrow(numberSetSchema, new Set([1, 2, 3])); // passes
+S.parseOrThrow(numberSetSchema, new Set([1, 2, "3"])); // throws S.Error: At item 3 - Expected number, received "3"
+S.parseOrThrow(numberSetSchema, [1, 2, 3]); // throws S.Error: Expected Set<number>, received [1, 2, 3]
 ```
 
 ## Recursive schemas
@@ -1469,8 +1469,8 @@ const userSchema = S.schema({
 
 type User = S.Infer<typeof userSchema>; // { id: string, name: string }
 
-// Need to use asyncParser for schemas with async transformations
-await S.asyncParser(userSchema)({
+// Need to use S.parseAsPromiseOrReject for schemas with async transformations
+await S.parseAsPromiseOrReject(userSchema)({
   id: "1",
   name: "John",
 });
@@ -1488,47 +1488,107 @@ const circleSchema = S.number.with(S.shape, (radius) => ({
   radius: radius,
 }));
 
-S.parser(circleSchema)(1); //? { kind: "circle", radius: 1 }
+S.parseOrThrow(circleSchema, 1); //? { kind: "circle", radius: 1 }
 
 // Also works in reverse 🔄
-S.encoder(circleSchema)({ kind: "circle", radius: 1 }); //? 1
+S.encodeOrThrow(circleSchema, { kind: "circle", radius: 1 }); //? 1
 ```
 
-## Functions on schema
+## Operations
 
 ### At a glance
 
-Every operation that looks at one side of a schema says which side in its name. The conversions cross between the sides, so they keep their own names.
+Every operation names two things: the **verb** — what it does — and the **outcome** — what you get when it fails. Operations that look at one side of a schema say which side in their name; the conversions cross between the sides, so they keep their own names.
 
-|           | Input side                             | Output side                              | Crosses both                     |
-| --------- | -------------------------------------- | ---------------------------------------- | -------------------------------- |
-| Convert   |                                        |                                          | `parser`, `decoder`, `encoder`   |
-| Construct | `inputConstructor`                     | `outputConstructor`                      |                                  |
-| Validate  | `inputValidator`                       | `outputValidator`                        |                                  |
-| Assert    | `assertInput`, `asyncAssertInput`      | `assertOutput`, `asyncAssertOutput`      |                                  |
-| Describe  | `inputJSONSchema`, `inputExpression`   | `outputJSONSchema`, `outputExpression`   |                                  |
+|           | Input side                                                | Output side                                                  | Crosses both                              |
+| --------- | --------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------- |
+| Convert   |                                                            |                                                               | `parse`, `decode`, `encode`               |
+| Construct | `makeInput`                                                | `makeOutput`                                                  |                                           |
+| Validate  | `isInput`, `isInputAsPromise`                              | `isOutput`, `isOutputAsPromise`                               |                                           |
+| Assert    | `assertInputOrThrow`, `assertInputAsPromiseOrReject`       | `assertOutputOrThrow`, `assertOutputAsPromiseOrReject`        |                                           |
+| Describe  | `inputJSONSchema`, `inputExpression`                       | `outputJSONSchema`, `outputExpression`                        |                                           |
+
+### Outcomes
+
+A suffix names the failure mechanism only when the return type doesn't reveal it. `TOutput` and `Promise<TOutput>` reveal nothing, so they take `OrThrow` / `OrReject`; `Result<TOutput>` carries the failure in the type, so it takes none. `isInput` cannot fail, so it takes none either.
+
+| Suffix | Returns | |
+| --- | --- | --- |
+| `OrThrow` | `TOutput` | throws `S.Error` |
+| `AsResult` | `S.Result<TOutput>` | `{ success, value, error }` |
+| `AsPromiseOrReject` | `Promise<TOutput>` | rejects with `S.Error` — never throws synchronously |
+| `AsResultPromise` | `Promise<S.Result<TOutput>>` | |
+| `AsPromisableResult` | `S.Result<TOutput> \| Promise<S.Result<TOutput>>` | follows the schema's own shape |
+
+`parse`, `decode`, `encode`, `makeInput` and `makeOutput` each take all five.
+
+There is no promisable *throwing* variant, in either language: `Result | Promise<Result>` is already two shapes to branch on, and once you have branched you know which one you have.
+
+```ts
+S.parseOrThrow(userSchema, data);          //? { id: string }
+S.parseAsResult(userSchema, data);         //? S.Result<{ id: string }>
+S.decodeAsResultPromise(userSchema, data); //? Promise<S.Result<{ id: string }>>
+```
+
+`assert` keeps its `OrThrow` suffix against that rule: `assert` doesn't unambiguously mean "throws" in JS (`console.assert` logs and continues), and the async form returns `Promise<void>`, which reveals nothing.
+
+The `Result` is compiled into the operation rather than wrapped around it, which is what lets a schema that provably cannot throw emit no `try` at all:
+
+```ts
+S.parseAsResult(S.schema({ id: S.unknown }).with(S.noValidation, true)).toString();
+// => (i) => { return { success: true, value: { id: i["id"] }, error: void 0 } }
+```
+
+Both branches of a `Result` carry the same keys in the same order, so `const { value, error } = result` narrows and a consumer's `.success` read stays monomorphic.
+
+Every failure of the value comes back in the outcome's own shape, exceptions included: a refine or coder that throws is wrapped as `invalid_conversion` with the exception as its `cause`, and so is anything else the value raises on its way through (a getter, say). Only a defect — a schema wired wrong, which fails for every input — throws out of every outcome, at the point the operation is created.
+
+### Call forms
+
+Every operation takes any of four call forms, told apart by how many arguments you pass and which of them are schemas:
+
+```ts
+const parse = S.parseOrThrow(userSchema);      // compiled operation, data-last
+parse(data);
+
+S.parseOrThrow(S.jsonString, userSchema);      // a compiled chain, up to 3 schemas
+
+S.parseOrThrow(userSchema, data);              // immediate, schema first
+S.parseOrThrow(data, userSchema);              // immediate, data first
+S.parseOrThrow(S.jsonString, userSchema, raw); // immediate, chain first
+```
+
+Nothing is ever probed for `undefined`, only counted — `S.parseOrThrow(S.void)` is the compiled operation, `S.parseOrThrow(S.void, undefined)` parses `undefined`.
+
+Two schemas always read as a chain, so parsing a Sury schema **as data** is only available through the compiled form:
+
+```ts
+S.parseOrThrow(metaSchema, someSchema); // parses the schema object
+```
+
+A deeper chain is written with [`S.to`](#to). Anything that isn't a Sury schema in a schema slot — a foreign Standard Schema, or a hole — is reported rather than silently read as the data to validate.
 
 ### Pipelines
 
 Conversion targets are schemas, not dedicated functions: `S.json`, `S.jsonString`, `S.unknown`, `S.date`, and `S.uint8Array` are ordinary schemas usable at any position in a chain.
 
-- **`S.decoder(from, ...intermediate, to)`** — compile a forward pipeline from one schema to another.
-- **`S.encoder(from, ...intermediate, to)`** — the same, starting from the reverse of `from`. Only the first schema is reversed: `S.encoder(a, b)` is `S.decoder(S.reverse(a), b)`.
+- **`S.decodeOrThrow(from, ...intermediate, to)`** — compile a forward pipeline from one schema to another.
+- **`S.encodeOrThrow(from, ...intermediate, to)`** — the same, starting from the reverse of `from`. Only the first schema is reversed: `S.encodeOrThrow(a, b)` is `S.decodeOrThrow(S.reverse(a), b)`.
 
 Each call fuses the whole chain into a single function generated via `new Function`.
 
 ```ts
 // Validate unknown input.
-S.parser(userSchema)(data);
+S.parseOrThrow(userSchema, data);
 
 // Parse a JSON string, then validate.
-S.decoder(S.jsonString, userSchema)(rawString);
+S.decodeOrThrow(S.jsonString, userSchema, rawString);
 
 // Encode a domain value all the way out to a JSON string.
-S.encoder(userSchema, S.jsonString)(user);
+S.encodeOrThrow(userSchema, S.jsonString, user);
 
 // Decode a UTF-8 byte payload into text.
-S.decoder(S.uint8Array, S.string)(bytes);
+S.decodeOrThrow(S.uint8Array, S.string, bytes);
 ```
 
 The same applies inside schemas via [`S.to`](#to). A field, an array element, or a tuple slot can be its own multi-stage chain:
@@ -1546,53 +1606,57 @@ const apiUser = S.schema({
 });
 ```
 
-`S.to` is the same compiler as `S.decoder` / `S.encoder`, applied at a single point in a larger schema. The whole tree — top-level operation plus every nested `S.to` — folds into one generated function.
+`S.to` is the same compiler as `S.decodeOrThrow` / `S.encodeOrThrow`, applied at a single point in a larger schema. The whole tree — top-level operation plus every nested `S.to` — folds into one generated function.
 
-> 🧠 `S.parser` and `S.assertInput` are `S.decoder` with `S.unknown` on the input side. Asserting skips building the output, which is why it's 2–3× faster than parsing.
+> 🧠 `S.parseOrThrow` and `S.assertInputOrThrow` are `S.decodeOrThrow` with `S.unknown` on the input side. Asserting skips building the output, which is why it's 2–3× faster than parsing.
 
 ### Built-in operations
 
-Every compiled operation takes the schema and returns a function: `(schema) => (data) => ...`. The asserts are the one exception — TypeScript can only narrow through a direct call.
+Every operation takes any of the four [call forms](#call-forms); the signatures below show the compiled one.
 
 **Parse** — validate unknown data and transform it to the output type:
 
-- `S.parser(schema)`: `(data: unknown) => TOutput`
-- `S.asyncParser(schema)`: `(data: unknown) => Promise<TOutput>`
+- `S.parseOrThrow(schema)`: `(data: unknown) => TOutput`
+- `S.parseAsResult(schema)`: `(data: unknown) => S.Result<TOutput>`
+- `S.parseAsPromiseOrReject(schema)`: `(data: unknown) => Promise<TOutput>`
+- `S.parseAsResultPromise(schema)`: `(data: unknown) => Promise<S.Result<TOutput>>`
+- `S.parseAsPromisableResult(schema)`: `(data: unknown) => S.Result<TOutput> | Promise<S.Result<TOutput>>` — one compiled operation for a schema whose async-ness you don't know. A synchronous schema answers with the `Result` itself, an async one with a promise of it; `decode`, `encode`, `makeInput` and `makeOutput` take it too.
 
 **Decode** — transform a value the input type already describes. Type validations are skipped; refinements and transforms still run:
 
-- `S.decoder(schema)`: `(data: TInput) => TOutput`
-- `S.asyncDecoder(schema)`: `(data: TInput) => Promise<TOutput>`
+- `S.decodeOrThrow(schema)`: `(data: TInput) => TOutput`
+- `S.decodeAsResult(schema)`: `(data: TInput) => S.Result<TOutput>`
+- `S.decodeAsPromiseOrReject(schema)`: `(data: TInput) => Promise<TOutput>`
+- `S.decodeAsResultPromise(schema)`: `(data: TInput) => Promise<S.Result<TOutput>>`
 
 `S.noValidation(schema, true)` turns type validations off for a schema even under a parse. The value is trusted as it stands, including what it renders to: a `Date` under `S.jsonString` is spliced straight from `toISOString()` with no escaping, so a value that isn't a real `Date` there produces whatever text its method returns.
 
-**Encode** — the reverse direction, exactly `S.decoder` applied to `S.reverse(schema)`:
+**Encode** — the reverse direction, exactly `S.decodeOrThrow` applied to `S.reverse(schema)`:
 
-- `S.encoder(schema)`: `(data: TOutput) => TInput`
-- `S.asyncEncoder(schema)`: `(data: TOutput) => Promise<TInput>`
+- `S.encodeOrThrow(schema)`: `(data: TOutput) => TInput`
+- `S.encodeAsResult(schema)`: `(data: TOutput) => S.Result<TInput>`
+- `S.encodeAsPromiseOrReject(schema)`: `(data: TOutput) => Promise<TInput>`
+- `S.encodeAsResultPromise(schema)`: `(data: TOutput) => Promise<S.Result<TInput>>`
 
 **Validate** — a compiled TypeScript type guard that answers instead of throwing:
 
-- `S.inputValidator(schema)`: `(data: unknown) => data is TInput`
-- `S.outputValidator(schema)`: `(data: unknown) => data is TOutput`
+- `S.isInput(schema)`: `(data: unknown) => data is TInput`
+- `S.isOutput(schema)`: `(data: unknown) => data is TOutput`
+- `S.isInputAsPromise(schema)` / `S.isOutputAsPromise(schema)`: `(data: unknown) => Promise<boolean>`, for a schema with an async conversion. Resolves to the answer and never rejects.
 
 ```ts
-const isUser = S.inputValidator(userSchema);
+const isUser = S.isInput(userSchema);
 
 const users = records.filter(isUser);
 ```
 
 **Assert** — validate without building an output, which makes it 2–3× faster than parsing:
 
-- `S.assertInput(schema, data)`: `asserts data is TInput`
-- `S.assertOutput(schema, data)`: `asserts data is TOutput`
+- `S.assertInputOrThrow(schema, data)`: `asserts data is TInput`
+- `S.assertOutputOrThrow(schema, data)`: `asserts data is TOutput`
+- `S.assertInputAsPromiseOrReject(schema, data)` / `S.assertOutputAsPromiseOrReject(schema, data)`: `Promise<void>`
 
-Both accept `(schema, data)` and `(data, schema)`, so there's no order to memorize — especially handy for AI assistants:
-
-```ts
-S.assertInput(data, S.string);
-S.assertInput(S.string, data); // equivalent
-```
+Only the immediate call forms narrow: TypeScript resolves an assertion signature only through a name with an explicit type annotation, so the compiled form is typed as a plain `(data: unknown) => void`.
 
 ### Constructing entities
 
@@ -1600,7 +1664,7 @@ When you already hold a value of the schema's type — one you built in code rat
 
 ```ts
 const userSchema = S.schema({ id: S.string, email: S.email });
-const makeUser = S.outputConstructor(userSchema);
+const makeUser = S.makeOutputOrThrow(userSchema);
 
 makeUser({ id: "1", email: "billie@example.com" });
 // => returns the very object it was given
@@ -1609,12 +1673,7 @@ makeUser({ id: "1", email: "not-an-address" });
 // throws S.Error: Failed at email: Expected email, received "not-an-address"
 ```
 
-| Operation                 | Interface                                                      | Description                                     |
-| ------------------------- | -------------------------------------------------------------- | ------------------------------------------------- |
-| S.outputConstructor       | `(Schema<TInput, TOutput>) => (TOutput) => TOutput`               | Validates a value of the schema's output type   |
-| S.asyncOutputConstructor  | `(Schema<TInput, TOutput>) => (TOutput) => Promise<TOutput>`      | The same for a schema with async transformations |
-| S.inputConstructor        | `(Schema<TInput, TOutput>) => (TInput) => TInput`                 | Validates a value of the schema's input type    |
-| S.asyncInputConstructor   | `(Schema<TInput, TOutput>) => (TInput) => Promise<TInput>`        | The same for a schema with async transformations |
+`S.makeOutputOrThrow` validates a value of the schema's output type, `S.makeInputOrThrow` one of its input type. Each verb comes in all five outcomes (`OrThrow`, `AsResult`, `AsPromiseOrReject`, `AsResultPromise`, `AsPromisableResult` — see [Outcomes](#outcomes)) and takes every [call form](#call-forms); the compiled form is `(Schema<TInput, TOutput>) => (TOutput) => TOutput` for the output side and `(TInput) => TInput` for the input side, with the outcome's return wrapper.
 
 Every check the schema carries runs — types, refinements, and the conversion itself — so an entity the schema has no way to encode is rejected at construction rather than at the point it's sent:
 
@@ -1623,7 +1682,7 @@ const eventSchema = S.schema({
   at: S.string.with(S.to, S.date),
 });
 
-S.outputConstructor(eventSchema)({ at: new Date("nope") });
+S.makeOutputOrThrow(eventSchema, { at: new Date("nope") });
 // throws S.Error: Failed at at: Expected Date, received invalid Date
 ```
 
@@ -1632,7 +1691,7 @@ A branded schema is the one place a constructor takes a *narrower* value than it
 ```ts
 const userIdSchema = S.uuid.with(S.brand, "UserId");
 
-const userId = S.outputConstructor(userIdSchema)("f81d4fae-7dec-11d0-a765-00a0c91e6bf6");
+const userId = S.makeOutputOrThrow(userIdSchema, "f81d4fae-7dec-11d0-a765-00a0c91e6bf6");
 //? S.Brand<string, "UserId">
 ```
 
@@ -1640,19 +1699,19 @@ A branded schema used as a *field* keeps its brand in what the constructor asks 
 
 ### Chaining operations
 
-`S.decoder` and `S.encoder` accept multiple schemas to build a single fused pipeline. The first schema is the input side and the last is the output side; intermediate schemas act as stages. `S.encoder` reverses only the first schema.
+Every operation accepts up to three schemas to build a single fused pipeline. The first schema is the input side and the last is the output side; intermediate schemas act as stages. `S.encodeOrThrow` reverses only the first schema.
 
 ```ts
 // Decode a JSON string into your domain type in one pass
-const parseJsonString = S.decoder(S.jsonString, userSchema);
+const parseJsonString = S.decodeOrThrow(S.jsonString, userSchema);
 parseJsonString('{"id":"1","name":"John"}');
 
 // Encode your domain type to a JSON string in one pass
-const stringifyUser = S.encoder(userSchema, S.jsonString);
+const stringifyUser = S.encodeOrThrow(userSchema, S.jsonString);
 stringifyUser({ id: "1", name: "John" });
 
-// Later stages run forward, as in S.decoder
-S.encoder(S.number, S.string.with(S.to, S.number))(1); //? 1
+// Later stages run forward, as in S.decodeOrThrow
+S.encodeOrThrow(S.number, S.string.with(S.to, S.number), 1); //? 1
 ```
 
 ### **`reverse`**
@@ -1665,15 +1724,15 @@ S.reverse(S.nullable(S.string));
 ```ts
 const schema = S.object((s) => s.field("foo", S.string));
 
-S.parser(schema)({ foo: "bar" });
+S.parseOrThrow(schema, { foo: "bar" });
 // "bar"
 
 const reversed = S.reverse(schema);
 
-S.parser(reversed)("bar");
+S.parseOrThrow(reversed, "bar");
 // {"foo": "bar"}
 
-S.parser(reversed)(123);
+S.parseOrThrow(reversed, 123);
 // throws S.Error with the message: `Expected string, received 123`
 ```
 
@@ -1686,11 +1745,11 @@ This very powerful API allows you to coerce another data type in a declarative w
 ```ts
 const schema = S.string.with(S.to, S.number);
 
-S.parser(schema)("123"); //? 123.
-S.parser(schema)("abc"); //? throws: Expected number, received "abc"
+S.parseOrThrow(schema, "123"); //? 123.
+S.parseOrThrow(schema, "abc"); //? throws: Expected number, received "abc"
 
 // Reverse works correctly as well 🔥
-S.encoder(schema)(123); //? "123"
+S.encodeOrThrow(schema, 123); //? "123"
 ```
 
 #### Custom transformations
@@ -1703,9 +1762,9 @@ const schema = S.string.with(S.to, S.number, {
   encode: (number) => number.toString(),
 });
 
-S.parser(schema)("123"); //? 123
-S.parser(schema)("abc"); //? throws: Expected number, received NaN
-S.encoder(schema)(123); //? "123"
+S.parseOrThrow(schema, "123"); //? 123
+S.parseOrThrow(schema, "abc"); //? throws: Expected number, received NaN
+S.encodeOrThrow(schema, 123); //? "123"
 ```
 
 The result of `decode` is validated by the target schema, so a coder that
@@ -1728,7 +1787,7 @@ S.string.with(S.to, S.string, { decode: (s) => s.trim(), encode: "auto" });
 // "never": this direction is impossible, fail when an operation needs it
 S.string.with(S.to, S.number, { decode: (s) => s.length, encode: "never" });
 
-// {async: fn}: run with S.asyncParser / S.asyncEncoder
+// {async: fn}: run with S.parseAsPromiseOrReject / S.encodeAsPromiseOrReject
 const user = S.schema({ id: S.uuid, name: S.string });
 
 S.uuid.with(S.to, user, {
@@ -1746,8 +1805,8 @@ const csv = S.string.with(S.to, S.array(S.string), {
   encode: (items) => items.join(","),
 });
 
-S.parser(csv)("a,b,c"); //? ["a", "b", "c"]
-S.encoder(csv)(["a", "b"]); //? "a,b"
+S.parseOrThrow(csv, "a,b,c"); //? ["a", "b", "c"]
+S.encodeOrThrow(csv, ["a", "b"]); //? "a,b"
 ```
 
 > 🧠 `S.any` accepts anything, so it's the escape hatch for a value no schema
@@ -1760,8 +1819,8 @@ fails, since Sury has no way back:
 ```ts
 const schema = S.string.with(S.to, S.number, (string) => string.length);
 
-S.parser(schema)("abc"); //? 3
-S.encoder(schema); //? throws: Encoding is ambiguous when only a decode function is provided
+S.parseOrThrow(schema, "abc"); //? 3
+S.encodeOrThrow(schema); //? throws: Encoding is ambiguous when only a decode function is provided
 ```
 
 > 🧠 Prefer the built-in `S.string.with(S.to, S.number)` when it does the job.
@@ -1856,11 +1915,11 @@ The output side is derived through [`reverse`](#reverse), so nested transforms a
   - `"unrecognized_key"` - a `strict` object saw a key it doesn't declare, named in `key`. One key per error.
   - `"invalid_conversion"` - a custom `decode`/`encode` threw. `from`/`to` are the schemas and `cause` is what it threw.
   - `"unsupported_decode"` - the two schemas have no conversion between them. See [When a conversion is rejected](#when-a-conversion-is-rejected).
-  - `"invalid_operation"` - the schema itself can't run this way, such as an async schema under a sync parser.
+  - `"invalid_operation"` - the schema itself can't run this way, such as an async schema under a sync operation.
 
 ```ts
 try {
-  S.parser(S.schema({ items: S.array(S.string) }))({ items: ["a", 1] });
+  S.parseOrThrow(S.schema({ items: S.array(S.string) }), { items: ["a", 1] });
 } catch (e) {
   if (e instanceof S.Error) {
     e.message; // => 'Failed at items[1]: Expected string, received 1'
@@ -1871,28 +1930,30 @@ try {
 }
 ```
 
-You can catch the error using `S.safe` and `S.safeAsync` helpers:
+Or ask the operation for a result instead of an exception — the `AsResult` and
+`AsResultPromise` outcomes build it into the compiled operation, so there is no
+callback to wrap and nothing to remember to catch:
 
 ```ts
-const result = S.safe(() => S.parser(S.schema(false))(true));
+const result = S.parseAsResult(S.schema(false), true);
 
 if (result.success) {
   console.log(result.value);
 } else {
   console.log(result.error);
 }
+
+const asyncResult = await S.parseAsResultPromise(S.boolean, data);
 ```
 
-Or the async version:
+`error` is a `S.DataError` — `invalid_input`, `unrecognized_key` or
+`invalid_conversion`, all failures **of this value**, reportable to whoever
+supplied it.
 
-```ts
-const result = await S.safeAsync(async () => {
-  const passed = await S.asyncParser(S.boolean)(data);
-  return passed ? 1 : 0;
-});
-```
-
-As you can notice, you can have more logic inside of the safe function callback and still be sure that the error will be caught in a functional way.
+A `S.DefectError` — `invalid_operation` or `unsupported_decode` — is never a
+result. A schema wired wrong fails for every input, so it is the developer's
+bug, not an entry in someone's form validation; it is raised where the operation
+is created, which for an immediate call form is that same call.
 
 ## Global config
 

@@ -92,6 +92,12 @@ async function asyncAssertThrowsMessage(t, cb, errorMessage, message) {
   return Vitest.Assert.fail(t, `Asserted result is not S.Exn "` + errorMessage + `". Instead got: ` + JSON.stringify(any));
 }
 
+let defOperationCode = ((def) => {
+  for (let node = def.c; node; node = node.n) {
+    if (node.a.length === 2 && node.a[1] === def && node.v) return node.v.toString()
+  }
+});
+
 function getCompiledCodeString(schema, op, embedded) {
   let toFn = schema => {
     if (op === "Parse") {
@@ -103,15 +109,15 @@ function getCompiledCodeString(schema, op, embedded) {
     } else if (op === "Assert") {
       return S.compileConvertOrThrow(Sury.unknown, undefined, S.to(schema, Sury.noValidation(Sury.literal(), true), undefined));
     } else if (op === "EncodeAsync") {
-      return S.compileConvertAsyncOrThrow(schema, undefined, Sury.unknown);
+      return S.compileConvertAsPromiseOrReject(schema, undefined, Sury.unknown);
     } else if (op === "ReverseParse") {
       return S.compileConvertOrThrow(Sury.unknown, undefined, Sury.reverse(schema));
     } else if (op === "ConvertAsync") {
-      return S.compileConvertAsyncOrThrow(Sury.reverse(schema), undefined, Sury.unknown);
+      return S.compileConvertAsPromiseOrReject(Sury.reverse(schema), undefined, Sury.unknown);
     } else if (op === "Encode") {
       return S.compileConvertOrThrow(schema, undefined, Sury.unknown);
     } else {
-      return S.compileConvertAsyncOrThrow(Sury.unknown, undefined, schema);
+      return S.compileConvertAsPromiseOrReject(Sury.unknown, undefined, schema);
     }
   };
   let fn = toFn(schema);
@@ -126,11 +132,9 @@ function getCompiledCodeString(schema, op, embedded) {
     let defs = schema.$defs;
     if (defs !== undefined && code.contents !== noopOpCode) {
       Stdlib_Dict.forEachWithKey(defs, (schema, key) => {
-        try {
-          let defFn = toFn(schema);
-          code.contents = code.contents + "\n" + (key + `: ` + defFn.toString());
-          return;
-        } catch (_exn) {
+        let defCode = defOperationCode(schema);
+        if (defCode !== undefined) {
+          code.contents = code.contents + "\n" + (key + `: ` + defCode);
           return;
         }
       });
@@ -183,7 +187,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
 }
 
 function assertReverseParsesBack(t, schema, value) {
-  Vitest.Assert.unsafeDeepEqual(t, S.parseOrThrow(S.convertOrThrow(value, schema, undefined, Sury.unknown), schema), value, undefined);
+  Vitest.Assert.unsafeDeepEqual(t, Sury.parseOrThrow(S.convertOrThrow(value, schema, undefined, Sury.unknown), schema), value, undefined);
 }
 
 function assertReverseReversesBack(t, schema) {
@@ -203,6 +207,7 @@ export {
   assertThrows,
   assertThrowsMessage,
   asyncAssertThrowsMessage,
+  defOperationCode,
   getCompiledCodeString,
   cleanUpSchema,
   unsafeAssertEqualSchemas,

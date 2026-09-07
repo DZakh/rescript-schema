@@ -20,7 +20,7 @@ npm install sury
 Describe your data model once - unions, constraints and metadata included, with a type you can actually read on hover:
 
 ```ts
-import * as S from "sury"; // Tree-shakable: a schema + parser starts at 8 kB gzip
+import * as S from "sury"; // Tree-shakable: a schema + parse operation starts at 8 kB gzip
 
 const eventSchema = S.union([
   {
@@ -39,34 +39,48 @@ type Event = S.Output<typeof eventSchema>;
 The same schema parses and encodes - no second definition. Encoding is even faster than `JSON.stringify` - read more in [Encode, Don't Stringify: How JSON.stringify Lies to You](https://dev.to/dzakh/encode-dont-stringify-how-jsonstringify-lies-to-you-38fk):
 
 ```ts
-const parseEvent = S.decoder(S.jsonString, eventSchema);
+const parseEvent = S.decodeOrThrow(S.jsonString, eventSchema);
 parseEvent('{"type":"user.created","id":"42","tags":[{"name":"vip"}]}');
 // => { type: "user.created", id: 42n, tags: [{ name: "vip" }] }
 
-S.encoder(eventSchema, S.jsonString)({ type: "user.deleted", id: 7n, payload: { reason: "spam" } });
+S.encodeOrThrow(eventSchema, S.jsonString, { type: "user.deleted", id: 7n, payload: { reason: "spam" } });
 // => '{"type":"user.deleted","id":"7","payload":{"reason":"spam"}}'
 ```
 
-Errors tell you exactly where to look, in wire terms - the missing `id` is a missing string. Prefer a result over an exception? Wrap the call in `S.safe`:
+Errors tell you exactly where to look, in wire terms - the missing `id` is a missing string:
 
 ```ts
+parseEvent('{"type":"user.deleted"}');
+// => throws S.Error: Failed at id: Expected string, received undefined
+
 parseEvent('{"type":"user.created","id":"42","tags":[]}');
 // => throws S.Error: Failed at tags: Add at least one tag
-
-const result = S.safe(() => parseEvent('{"type":"user.deleted"}'));
-if (!result.success) result.error.message;
-// => 'Failed at id: Expected string, received undefined'
 ```
 
-Need a different wire? Wrap the same model in base64url. The pipeline knows both of its ends, so `S.encoder` and `S.decoder` take just the schema:
+All possible ways to run your schema, with a decision required where safety matters - perfect to navigate and review agentic code:
+
+```ts
+S.parseOrThrow(eventSchema, input); // => Event, or throws S.Error
+S.parseAsResult(eventSchema, input); // => { success: true, value } | { success: false, error }
+S.parseAsPromiseOrReject(eventSchema, input); // => Promise<Event>, rejects with S.Error
+S.parseAsResultPromise(eventSchema, input); // => Promise<Result<Event>>
+S.parseAsPromisableResult(eventSchema, input); // => Result<Event> for a sync schema, Promise<Result<Event>> for an async one
+
+S.parseAsResult(input, eventSchema); // Data first works too
+S.parseAsResult(S.jsonString, eventSchema, input); // A pipeline of up to three schemas
+const safeParseEvent = S.parseAsResult(eventSchema); // Schema alone compiles the operation beforehand
+safeParseEvent(input);
+```
+
+Need a different wire? Wrap the same model in base64url. The pipeline knows both of its ends, so `S.encodeOrThrow` and `S.decodeOrThrow` take just the schema:
 
 ```ts
 const b64Event = S.base64url.with(S.to, S.jsonString.with(S.to, eventSchema));
 
-S.encoder(b64Event)({ type: "user.deleted", id: 7n, payload: { reason: "spam" } });
+S.encodeOrThrow(b64Event, { type: "user.deleted", id: 7n, payload: { reason: "spam" } });
 // => "eyJ0eXBlIjoidXNlci5kZWxldGVkIiwiaWQiOiI3IiwicGF5bG9hZCI6eyJyZWFzb24iOiJzcGFtIn19"
 
-S.decoder(b64Event)("eyJ0eXBlIjoidXNlci5kZWxldGVkIiwiaWQiOiI3IiwicGF5bG9hZCI6eyJyZWFzb24iOiJzcGFtIn19");
+S.decodeOrThrow(b64Event, "eyJ0eXBlIjoidXNlci5kZWxldGVkIiwiaWQiOiI3IiwicGF5bG9hZCI6eyJyZWFzb24iOiJzcGFtIn19");
 // => { type: "user.deleted", id: 7n, payload: { reason: "spam" } }
 ```
 
@@ -91,7 +105,7 @@ You can go the other way too: feed JSON Schema in and get a typed Sury schema ba
 const emailSchema = S.fromJSONSchema({ type: "string", format: "email" });
 //? S.Schema<string, string>
 
-S.parser(emailSchema)("hi@sury.dev"); // => "hi@sury.dev"
+S.parseOrThrow(emailSchema, "hi@sury.dev"); // => "hi@sury.dev"
 ```
 
 Recursive schemas work out of the box:
@@ -114,16 +128,16 @@ const userSchema = S.schema({
   name: input.USER_NAME,
 }));
 
-S.parser(userSchema)({ USER_ID: "0", USER_NAME: "Dmitry" });
+S.parseOrThrow(userSchema, { USER_ID: "0", USER_NAME: "Dmitry" });
 // => { id: 0n, name: "Dmitry" }
-S.encoder(userSchema)({ id: 0n, name: "Dmitry" });
+S.encodeOrThrow(userSchema, { id: 0n, name: "Dmitry" });
 // => { USER_ID: "0", USER_NAME: "Dmitry" }
 ```
 
 The other side of the wire is yours too. A constructor checks a value you built in code - refinements included, and whether the schema can encode it - and hands back the very object it was given. For a branded schema, it's how the brand gets minted:
 
 ```ts
-const makeEvent = S.outputConstructor(eventSchema);
+const makeEvent = S.makeOutputOrThrow(eventSchema);
 
 makeEvent({ type: "user.deleted", id: 7n, payload: { reason: "spam" } });
 // => the object you passed in, checked
@@ -132,18 +146,18 @@ makeEvent({ type: "user.created", id: 7n, tags: [] });
 // => throws S.Error: Failed at tags: Add at least one tag
 
 const userIdSchema = S.uuid.with(S.brand, "UserId");
-const userId = S.outputConstructor(userIdSchema)("f81d4fae-7dec-11d0-a765-00a0c91e6bf6");
+const userId = S.makeOutputOrThrow(userIdSchema, "f81d4fae-7dec-11d0-a765-00a0c91e6bf6");
 //? S.Brand<string, "UserId">
 ```
 
-Every operation that looks at one side of a schema says which side in its name - `S.outputConstructor` and `S.inputValidator`, `S.inputJSONSchema` for the wire and `S.outputJSONSchema` for your types.
+Every operation that looks at one side of a schema says which side in its name - `S.makeOutputOrThrow` and `S.isInput`, `S.inputJSONSchema` for the wire and `S.outputJSONSchema` for your types.
 
 Reading a `File` is asynchronous, so a pipeline that starts from one becomes async too:
 
 ```ts
 const configSchema = S.file.with(S.to, S.jsonString.with(S.to, S.schema({ theme: S.string })));
 
-await S.asyncParser(configSchema)(new File(['{"theme":"dark"}'], "config.json"));
+await S.parseAsPromiseOrReject(configSchema, new File(['{"theme":"dark"}'], "config.json"));
 // => { theme: "dark" }
 ```
 
@@ -158,7 +172,7 @@ const envSchema = S.record(S.string).with(
   }),
 );
 
-S.decoder(envSchema)(process.env);
+S.decodeOrThrow(envSchema, process.env);
 // => { PORT: 8080, DEBUG: true }
 ```
 
@@ -167,9 +181,9 @@ Some data arrives in awkward layouts - like the columnar arrays that [boost Post
 ```ts
 const rows = S.compactColumns(S.json).with(S.to, S.array({ id: S.bigint, city: S.string }));
 
-S.decoder(rows)([["1", "2"], ["Tbilisi", "Batumi"]]);
+S.decodeOrThrow(rows, [["1", "2"], ["Tbilisi", "Batumi"]]);
 // => [{ id: 1n, city: "Tbilisi" }, { id: 2n, city: "Batumi" }]
-S.encoder(rows)([{ id: 1n, city: "Tbilisi" }, { id: 2n, city: "Batumi" }]);
+S.encodeOrThrow(rows, [{ id: 1n, city: "Tbilisi" }, { id: 2n, city: "Batumi" }]);
 // => [["1", "2"], ["Tbilisi", "Batumi"]]
 ```
 
@@ -248,7 +262,7 @@ And the values `JSON.stringify` silently corrupts throw instead:
 JSON.stringify({ price: Infinity });
 // => '{"price":null}'
 
-S.encoder(S.schema({ price: S.number }), S.jsonString)({ price: Infinity });
+S.encodeOrThrow(S.schema({ price: S.number }), S.jsonString, { price: Infinity });
 // => throws S.Error: Failed at price: Expected JSON, received Infinity
 ```
 

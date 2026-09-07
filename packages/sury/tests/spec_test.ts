@@ -67,7 +67,7 @@ test("there is at least one scenario", () => {
 test("checkScenarios reports a bad shape, a colliding id, and one that throws", () => {
   expect(checkScenarios("standard: { run: 1 }", [])[0]).toMatch(/^schema: /);
   expect(
-    checkScenarios(["string:", "  run: S.parser(S.string)"].join("\n"), ["string"]),
+    checkScenarios(["string:", "  run: S.parseOrThrow(S.string)"].join("\n"), ["string"]),
   ).toEqual(["string: id collides with a spec of the same name"]);
   expect(
     checkScenarios(["broken:", "  run: S.parse(S.string)"].join("\n"), [])[0],
@@ -76,7 +76,7 @@ test("checkScenarios reports a bad shape, a colliding id, and one that throws", 
   // inline its whole setup into the measured expression.
   expect(
     checkScenarios(
-      ["ok:", "  prepare: const schema = S.string", "  run: S.parser(schema)"].join("\n"),
+      ["ok:", "  prepare: const schema = S.string", "  run: S.parseOrThrow(schema)"].join("\n"),
       [],
     ),
   ).toEqual([]);

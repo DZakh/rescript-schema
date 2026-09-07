@@ -16,9 +16,11 @@ operations:
       string-never-coerced:
         input: '"123"'
         output: '"123"'
+        whenChecked: fails
       number:
         input: "123"
         output: "123"
+        whenChecked: fails
       invalid:
         input: "true"
         error: Expected string | number, received true
@@ -28,6 +30,7 @@ operations:
       negative-zero:
         input: "-0"
         output: "-0"
+        whenChecked: fails
   decode: eq-to-parse
   encode:
     expression: i=>{(typeof i==="number"&&i===i||typeof i==="string")||e[0](i);return i}

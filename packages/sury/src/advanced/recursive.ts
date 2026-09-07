@@ -34,30 +34,42 @@ export const recursiveDecoder: Builder = (input) => {
   // Ignore #/$defs/
   const identifier = schemaRef.slice(8);
   const def = defs[identifier]!;
-  const flag = input.g.o;
+  // Masked to the compile-semantics bits (127 and below). A def compiles a
+  // nested operation whose result generated code consumes, so it must throw:
+  // inheriting the outer operation's return mode would have the inner one
+  // answering `false` or a `{success}` object into the middle of a value.
+  // Masking also lets the modes share one node per def.
+  const flag = input.g.o & 127;
+  // The memo key. A sync nested operation is byte-for-byte the top-level
+  // `parseOrThrow(def)`, so the two share a node. An async one is not: nested,
+  // it stays throwing where the top-level one lifts to a promise and rejects,
+  // so it is keyed apart (8192, a bit no operation flag carries) — or a
+  // `parseAsPromiseOrReject(def)` compiled through the wrapper would answer
+  // a bare value, and its failure a synchronous throw.
+  const key = flag & 1 ? flag | 8192 : flag;
 
   const inputSchema = input.s.seq === expectedSchema.seq ? def : input.s;
 
   let recOperation = "";
 
-  // The def's operations live in the same node cache getDecoder uses (see
-  // OpNode in parse.ts), stored on `def`; getDecoder stores on its newest-seq
-  // argument, so the two sides find each other's work whenever `def` is the
-  // newer of the pair — otherwise the pair just compiles twice. `v === 0`
+  // The def's operations live in the same node cache `getOp` uses (see OpNode
+  // in parse.ts), stored on `def`; `getOp` stores on its newest-seq argument,
+  // so the two sides find each other's work whenever `def` is the newer of the
+  // pair — otherwise the pair just compiles twice. `v === 0`
   // means this def is mid-compilation — a circular reference — and the NODE
   // is what gets embedded: it exists before the function it will hold, so
   // generated code calls `.v` at runtime and every recompile lands there for
   // free.
-  const existing = findOpNode(def, inputSchema, def, flag);
-  if (existing !== U) {
+  const existing = findOpNode(def, inputSchema, def, key);
+  if (existing) {
     recOperation =
       existing.v === 0 ? B_embed(input, existing) + ".v" : B_embed(input, existing.v);
   } else {
     // Optimistic compilation with recompile if assumptions were wrong
-    let assumedHasTransform = def.hasTransform !== U ? def.hasTransform : false;
-    let assumedIsAsync = def.isAsync !== U ? def.isAsync : false;
+    let assumedHasTransform = !!def.hasTransform;
+    let assumedIsAsync = !!def.isAsync;
     let compileNeeded = true;
-    const node = addOpNode(def, [inputSchema, def], flag, 0);
+    const node = addOpNode(def, [inputSchema, def], key, 0);
 
     try {
       while (compileNeeded) {
@@ -147,7 +159,7 @@ export const recursive = (name: string, fn: (schema: Internal) => Internal): Int
   refSchema.name = name;
 
   // This is for mutual recursion
-  const isNestedRec = globalConfig.d !== U;
+  const isNestedRec = !!globalConfig.d;
   if (!isNestedRec) {
     // Null prototype: the caller names the definition, so one named `__proto__`
     // would set this object's prototype instead of taking a key.

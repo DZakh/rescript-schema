@@ -216,6 +216,8 @@ const schema = S.schema({
     bool: S.boolean,
   },
 });
+// The pinned release predates the operation rename; with the next one this
+// line becomes `S.parseOrThrow(schema)(data)`.
 S.parser(schema)(data);
 ```
 
@@ -335,6 +337,12 @@ case the harness *should* have caught or guided better — a missing check, a we
 error message, a strictness gap that let a bad spec through — add a bullet here
 instead of silently working around it.
 
+- A spec still pins one schema's *codegen* per direction, so the Result modes'
+  generated bodies (`parseAsResult`'s `try`, and its absence when the raise
+  counter says the body can't fail) have no golden. `spec check` now RUNS every
+  example through all of them and compares outcomes (see checkOperationMatrix),
+  which is what the gap was really about; a `resultExpression` golden beside
+  `expression` would additionally ratchet the emitted text.
 - An operation whose output holds a `Blob` or `File` (`S.blob`/`S.file`
   decoding, or the reverse of any conversion into them) can't be specced: the
   golden writer raises "cannot represent a Blob instance as spec source code",
@@ -357,15 +365,15 @@ instead of silently working around it.
   `creationError` for the ones that survive construction and fail at the
   operation. `tests/content_test.ts` holds those. A `ts.constructionError`
   beside `creationError` would keep them with the schema they reject.
-- `operations` names `parse`, `decode` and `encode` only, so `S.assertInput` and
-  `S.inputValidator` have no golden anywhere. Both compile through the same builder chain
+- `operations` names `parse`, `decode` and `encode` only, so `S.assertInputOrThrow` and
+  `S.isInput` have no golden anywhere. Both compile through the same builder chain
   under a different result target, and a change to that target's handling broke
-  every `S.assertInput(..., S.json)` and `S.inputValidator(S.jsonString)(...)` call with the whole
+  every `S.assertInputOrThrow(..., S.json)` and `S.isInput(S.jsonString)(...)` call with the whole
   suite green. An `assert` op block, even one holding just an expression and a
   pass/throw example, would have caught it; `tests/content_test.ts` holds it
   instead.
 - A spec for a *new* export is timed against a baseline that doesn't have it.
-  The expression evaluates to `undefined` there, `S.parser(undefined)` compiles
+  The expression evaluates to `undefined` there, `S.parseOrThrow(undefined)` compiles
   to `noopOperation`, and the real validator is then reported as thousands of
   percent slower than a function that returns its input — PR #420 added 14
   formats and got 17 such rows, every one of them bogus. The harness already

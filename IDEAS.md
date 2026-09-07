@@ -186,7 +186,7 @@ of a form-data story. What they were built to make cheap, roughly in order:
 
 - **The ReScript codec seam trusts more than the ReScript type proves.** A
   `~custom` coder's result compiles as a typed decode: the target's refiners
-  run, its decoder does not, which is the same deal `S.decoder` gives a caller
+  run, its decoder does not, which is the same deal `S.decodeOrThrow` gives a caller
   who declares the input's schema, and it's why the surface costs nothing on a
   structural target (it skips a full walk plus the object rebuild, not just a
   `typeof`). Two carve-outs exist. Literals, since a type says `string` and
@@ -199,7 +199,7 @@ of a form-data story. What they were built to make cheap, roughly in order:
   `S.string->S.to(S.float, ~custom={decode: Sync(_ => Float.Constants.nan), encode: Never})`
   returns `NaN` where the JS surface rejects it, and any `Obj.magic` upstream
   turns the tag itself into a claim rather than a proof. Tightening this inside
-  the codec alone would make a coder stricter than `S.decoder(~from=S.float)`,
+  the codec alone would make a coder stricter than `S.decodeOrThrow(~from=S.float)`,
   which accepts the same `NaN`, so both want one shared answer: a single
   predicate for "constraints a tag does not imply", consulted by the
   typed-decode entry and by `B_conversion`. Cheap interim step: route the
@@ -244,12 +244,12 @@ of a form-data story. What they were built to make cheap, roughly in order:
 ### Known bugs left over from the validation refactor (`val.validation: array<validationCheck>`)
 
 - **`err.received` is `unknown` for refine-chain vals on type failures.**
-  `S.parser(S.string.with(S.minLength, 2))(1)` reports `expected: string` but
+  `S.parseOrThrow(S.string.with(S.minLength, 2))(1)` reports `expected: string` but
   `received: unknown` — `failInvalidType` reads the val's own schema, and a
   refined val's is the refinement's, not the source's. User-visible reason text
   is unaffected (it uses `input->stringify`), but programmatic consumers
   reading `err.received` get nothing usable where the unrefined
-  `S.parser(S.string)(1)` reports the input's type. Fix: have the fail function
+  `S.parseOrThrow(S.string)(1)` reports the input's type. Fix: have the fail function
   reach through `val.prev.schema` (with a comment on the invariant that
   validation-owning vals always have a prev).
 
@@ -428,7 +428,7 @@ s.fn(s.arg(0, S.string))
 
 ## Articles
 
-- Write an article about creating an AI-friendly JS library (how the API design, type overloads like `S.assertInput` accepting both arg orders, and error messages make Sury easy for both humans and LLMs to use)
+- Write an article about creating an AI-friendly JS library (how the API design, type overloads like `S.assertInputOrThrow` accepting both arg orders, and error messages make Sury easy for both humans and LLMs to use)
 
 ```
 

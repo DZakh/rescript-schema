@@ -17,12 +17,15 @@ operations:
       number-decoded:
         input: "123"
         output: '"123"'
+        whenChecked: fails
       string:
         input: '"abc"'
         output: '"abc"'
+        whenChecked: fails
       float-decoded:
         input: "1.5"
         output: '"1.5"'
+        whenChecked: fails
   decode: eq-to-parse
   encode:
     expression: i=>{for(;;){let r;if(typeof i==="string"){try{let v0=+i;v0===v0&&(v0||i.trim())||e[0](i);i=v0;break}catch(x){(r||(r=[])).push(e[1](x))}break}e[2](i,...(r||[]))}return i}

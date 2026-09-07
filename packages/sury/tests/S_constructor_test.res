@@ -23,7 +23,7 @@ test("Constructor checks the output side of a codec", t => {
 asyncTest("AsyncConstructor awaits the conversion before handing the value back", async t => {
   let schema =
     S.string->S.to(S.float, ~custom={decode: Async(s => Promise.resolve(Float.parseFloat(s))), encode: Auto})
-  let make = S.compileMakeAsyncOrThrow(~schema=schema)
+  let make = S.compileMakeAsPromiseOrReject(~schema=schema)
 
   t->Assert.deepEqual(await make(5.), 5.)
 })
@@ -31,13 +31,13 @@ asyncTest("AsyncConstructor awaits the conversion before handing the value back"
 test("makeOrThrow is the one-shot flavor of compileMakeOrThrow", t => {
   let schema = S.string->S.to(S.float)
 
-  t->Assert.deepEqual(1.->S.makeOrThrow(~schema), 1.)
-  t->U.assertThrowsMessage(() => %raw(`"1"`)->S.makeOrThrow(~schema), `Expected number, received "1"`)
+  t->Assert.deepEqual(1.->S.makeOrThrow(~schema=schema), 1.)
+  t->U.assertThrowsMessage(() => %raw(`"1"`)->S.makeOrThrow(~schema=schema), `Expected number, received "1"`)
 })
 
 asyncTest("makeAsyncOrThrow awaits the conversion", async t => {
   let schema =
     S.string->S.to(S.float, ~custom={decode: Async(s => Promise.resolve(Float.parseFloat(s))), encode: Auto})
 
-  t->Assert.deepEqual(await 5.->S.makeAsyncOrThrow(~schema), 5.)
+  t->Assert.deepEqual(await 5.->S.makeAsPromiseOrReject(~schema=schema), 5.)
 })

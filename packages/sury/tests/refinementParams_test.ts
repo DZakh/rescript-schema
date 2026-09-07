@@ -97,11 +97,11 @@ test("a size is only applied to an instance", () => {
   // Every `.size` carrier works, not just the two binary ones — which is what
   // keeps a future S.set/S.map from needing another pair of constructors, and
   // covers a class that assigns `this.size` rather than inheriting a getter.
-  expect(S.parser(S.instance(Set).with(S.minSize, 1)).toString()).toContain("i.size>0");
+  expect(S.parseOrThrow(S.instance(Set).with(S.minSize, 1)).toString()).toContain("i.size>0");
   class Chunk {
     size = 4;
   }
-  expect(S.parser(S.instance(Chunk).with(S.minSize, 4))(new Chunk())).toBeInstanceOf(Chunk);
+  expect(S.parseOrThrow(S.instance(Chunk).with(S.minSize, 4))(new Chunk())).toBeInstanceOf(Chunk);
   expect(S.inputExpression(S.blob.with(S.size, 2))).toBe("Blob.size == 2");
 });
 
@@ -116,10 +116,10 @@ test("values that are safe to inline still round-trip through codegen", () => {
     [-Infinity, "-Infinity"],
     [Number.MAX_VALUE, "1.7976931348623157e+308"],
   ] as [number, string][]) {
-    expect(S.parser(S.number.with(S.gte, value)).toString()).toContain(`i>=${rendered}`);
+    expect(S.parseOrThrow(S.number.with(S.gte, value)).toString()).toContain(`i>=${rendered}`);
   }
-  expect(S.parser(S.bigint.with(S.gte, 2n ** 64n)).toString()).toContain(
+  expect(S.parseOrThrow(S.bigint.with(S.gte, 2n ** 64n)).toString()).toContain(
     "i>=18446744073709551616n",
   );
-  expect(S.parser(S.bigint.with(S.lte, -5n)).toString()).toContain("i<=-5n");
+  expect(S.parseOrThrow(S.bigint.with(S.lte, -5n)).toString()).toContain("i<=-5n");
 });

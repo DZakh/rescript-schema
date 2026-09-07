@@ -78,13 +78,13 @@ A field or array item is a value in the document — nothing asks it to be a
 document of its own:
 
 ```ts
-S.encoder(S.schema({ payload: S.uint8Array }), S.jsonString)({ payload: bytes });
+S.encodeOrThrow(S.schema({ payload: S.uint8Array }), S.jsonString)({ payload: bytes });
 // {"payload":"ZGF0YQ=="}                      base64, not mangled UTF-8
 ```
 
 A `Blob`/`File` field packs the same way, which makes that **encode async** (a
-Blob's bytes are only readable asynchronously) — `S.asyncEncoder`, and the sync
-`S.encoder` fails at creation like any other async operation.
+Blob's bytes are only readable asynchronously) — `S.encodeAsPromiseOrReject`, and the sync
+`S.encodeOrThrow` fails at creation like any other async operation.
 
 A field that should hold a *nested* document says so, and rule 3 takes over:
 
@@ -241,14 +241,14 @@ between them is a plain transfer; two that disagree have both readings live, and
 the target naming its own payload with `.to` (rule 3).
 
 `B_contentDiffers` asks rule 4's question at the two places a `.to` link is made
-— `codecTo` for a written `S.to`, `getDecoder` for an operation given its own
+— `codecTo` for a written `S.to`, `getOp` for an operation given its own
 target — and the empty direction takes a slot that rejects the operation. It
 cannot be left to compile time, because reversing a chain turns the target's
 payload declaration into just another link: the legal `X -> jsonString -> File`
 and the rejected `jsonString -> File` reach the decoder as the same pair.
 
 What the rejection *says* is the caller's, not the question's. `codecTo` names
-the slots, because the caller has somewhere to write one; `getDecoder`'s form
+the slots, because the caller has somewhere to write one; `getOp`'s form
 has nowhere, so it reports the pair as having no decoder — which a coder still
 answers. And `codecTo` says the same for a pair no slot resolves: a union arm's
 payload and a reading written on the union both stop short of the dispatch, and
@@ -262,7 +262,7 @@ target as instead of assuming `string`, and the nested-jsonString fix is
 declares a payload. No new `Val` fields, no compile-loop cost, nothing in
 generated code a hand-written converter wouldn't contain.
 
-The one price is the universal path: `getDecoder` is in every bundle, so
+The one price is the universal path: `getOp` is in every bundle, so
 `B_contentDiffers` is too, and `copySchema` and `reverse` each carry a line for
 the two markers. About 180 gzipped bytes on every export (`bundleSize.yaml`,
 where the smallest go 4136 → 4315) — the question and one closure; the messages
@@ -306,7 +306,7 @@ refine and `bc` only, so a File bundle does not ship recode or TextEncoder.
 | --- | --- |
 | `S.uint8Array.with(S.to, S.jsonString)` — UTF-8 escape (corrupts non-ASCII) | rule 4 error |
 | `{payload: S.uint8Array}` in a JSON document — corrupts | base64 |
-| `S.encoder(S.uint8Array.with(S.to, S.number))(42)` — returns `42` typed as `Uint8Array` | error (the decoder's missing fall-through, a standalone soundness fix) |
+| `S.encodeOrThrow(S.uint8Array.with(S.to, S.number))(42)` — returns `42` typed as `Uint8Array` | error (the decoder's missing fall-through, a standalone soundness fix) |
 | `S.optional(S.string).with(S.to, S.uint8Array)` — the `undefined` arm passed through as bytes | error, which `CODEC_SPEC.md`'s rule 3 already said: a variant with no decoder rejects the operation |
 | `S.base64.with(S.trim).with(S.to, S.uint8Array)` — packed the base64 *text* as bytes | the payload, same as untrimmed: a refinement that only reshapes the text carries the marker |
 | a `S.jsonString.with(S.to, X)` field of a decoded document — re-escaped its own text, then failed against X | parsed (rule 3) |

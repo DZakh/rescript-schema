@@ -46,7 +46,7 @@ Options:
   --dialect <name>      Limit to one dialect (${DIALECTS.join(", ")}).
   --optional            report only: include tests/<dialect>/optional/**.
   --failures            report only: list every failing test id.
-  --divergent           report only: list tests where S.inputValidator disagrees with S.parser.
+  --divergent           report only: list tests where S.isInput disagrees with S.parseOrThrow.
   --mutated             report only: list valid inputs whose parsed output changed.
 
 Goldens cover the required tests only; optional/ (formats, bignum, content
@@ -156,7 +156,7 @@ if (cmd === "report") {
     for (const id of result.failing) console.log(`  ${id}`);
   }
   if (flag("--divergent")) {
-    console.log("\nS.inputValidator disagrees with S.parser:");
+    console.log("\nS.isInput disagrees with S.parseOrThrow:");
     for (const id of result.divergent) console.log(`  ${id}`);
   }
   if (flag("--mutated")) {
@@ -203,12 +203,12 @@ for (const dialect of targets) {
   // confined to them would otherwise leave the golden silently stale.
   if (golden.summary.divergent !== current.summary.divergent)
     sections.push(
-      `    S.inputValidator vs S.parser divergence: ${golden.summary.divergent} → ${current.summary.divergent}` +
+      `    S.isInput vs S.parseOrThrow divergence: ${golden.summary.divergent} → ${current.summary.divergent}` +
         ` (\`pnpm compliance report ${dialect} --divergent\` to list)`
     );
   if (golden.summary.assertOpPassed !== current.summary.assertOpPassed)
     sections.push(
-      `    S.inputValidator score: ${golden.summary.assertOpPassed} → ${current.summary.assertOpPassed}` +
+      `    S.isInput score: ${golden.summary.assertOpPassed} → ${current.summary.assertOpPassed}` +
         ` of ${current.summary.assertions}`
     );
   if (

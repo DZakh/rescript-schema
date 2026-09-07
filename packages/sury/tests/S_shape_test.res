@@ -10,11 +10,11 @@ asyncTest("Parses with wrapping async schema in variant", async t => {
   let schema =
     S.string->S.to(S.any, ~custom={decode: Async(async i => i), encode: Never})->S.shape(s => Ok(s))
 
-  t->Assert.deepEqual(await "Hello world!"->S.parseAsyncOrThrow(~to=schema), Ok("Hello world!"))
+  t->Assert.deepEqual(await "Hello world!"->S.parseAsPromiseOrReject(~to=schema), Ok("Hello world!"))
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ParseAsync,
-    `i=>{typeof i==="string"||e[2](i);let v0;try{v0=e[0](i).catch(x=>e[1](x))}catch(x){e[1](x)}return v0.then(v0=>{return {TAG:"Ok",_0:v0}})}`,
+    `i=>{try{typeof i==="string"||e[2](i);let v0;try{v0=e[0](i).catch(x=>e[1](x))}catch(x){e[1](x)}return v0.then(v0=>{return {TAG:"Ok",_0:v0}})}catch(v1){return Promise.reject(v1)}}`,
   )
 })
 

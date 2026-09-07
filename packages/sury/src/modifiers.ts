@@ -23,7 +23,8 @@ import {
   undefinedTag,
   unknown,
   updateOutput,
-  type Val
+  type Val,
+  type Path,
 } from "./base";
 import {
   _var,
@@ -38,12 +39,14 @@ import {
   B_nextConst,
   B_refine,
   B_unsupportedDecode,
+  B_throw,
+  B_makeInvalidConversionDetails,
 } from "./builder";
 import {
   objectDecoder
 } from "./composites";
 import {
- getDecoder,
+ getOp,
  getOutputSchema,
  nestedLoc,
  nestedOptionParser,
@@ -204,12 +207,23 @@ export const refine = (
   schema: Internal,
   refineCheck: (value: unknown) => boolean,
   error?: string,
-  path?: string[]
+  path?: Path
 ): Internal => {
   const message = error !== U ? error : "Refinement failed";
   const extraPath = path !== U ? path : pathEmpty;
   return internalRefine(schema, (_) => (input) => {
-    const embeddedCheck = B_embed(input, refineCheck);
+    // Whatever the check throws is that refinement failing, the same way a
+    // coder's throw is its conversion failing (`B_conversion`): a `TypeError` it
+    // hit on a value it was never written for is not a bug in the caller's
+    // `.catch`. Wrapped in the embedded function rather than in a generated
+    // `try`, which would catch the refinement's own failure raise too.
+    const embeddedCheck = B_embed(input, (value: unknown) => {
+      try {
+        return refineCheck(value);
+      } catch (cause) {
+        B_throw(B_makeInvalidConversionDetails(input, input.s, cause));
+      }
+    });
     return [
       {
         c: (inputVar) => `${embeddedCheck}(${inputVar})`,
@@ -400,7 +414,7 @@ export const Option_getWithDefault = (schema: Internal, default_: OptionDefault)
       const v = default_.value;
       // Full unknown -> item decode so primitive item types still get type-checked.
       try {
-        (getDecoder(unknown, item) as (input: unknown) => unknown)(v);
+        (getOp(0, 2, unknown, item) as (input: unknown) => unknown)(v);
       } catch (exn) {
         const error = getOrRethrow(exn);
         panic(
@@ -415,7 +429,7 @@ export const Option_getWithDefault = (schema: Internal, default_: OptionDefault)
       // encode makes it uncomputable, so skip it rather than throw: metadata
       // is not a value operation.
       try {
-        mut.default = (getDecoder(reverse(originalItem)) as (input: unknown) => unknown)(v);
+        mut.default = (getOp(0, 1, reverse(originalItem)) as (input: unknown) => unknown)(v);
       } catch (_exn) {}
     }
 
@@ -589,7 +603,7 @@ export const meta = <TValue>(schema: Internal, data: Meta<TValue>): Internal => 
       // per-value failure still names the author's bad example.
       try {
         mut.examples = data.examples.map(
-          getDecoder(unknown, reverse(schema)) as (input: unknown) => unknown,
+          getOp(0, 2, unknown, reverse(schema)) as (input: unknown) => unknown,
         );
       } catch (exn) {
         if ((getOrRethrow(exn) as unknown as { code: string }).code !== "invalid_operation") {

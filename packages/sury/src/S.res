@@ -636,72 +636,179 @@ let to = (from, target, ~custom=?) =>
 @module("sury") external reverse: t<'value> => t<unknown> = "reverse"
 
 %%private(
+  // Every operation has two JS call shapes — `op(schemas)` compiles, `op(data,
+  // schemas)` runs — and ReScript has no overloads, so each is its own
+  // external over the same import. Binding both beats applying the compiled
+  // one: `compileX(~to)(any)` would ship a wrapper in S.res.mjs and pay a
+  // second call for what the JS dispatch already does in one.
+  //
   // The ReScript convert runs FROM a schema's Output space, which is exactly
-  // what the JS `encoder` compiles: it reverses its first schema only and
-  // runs the rest of the chain forward. Arity-specific bindings, since a
-  // labeled optional `~via` can't spread into a rest param.
-  @module("sury") external encoder2: (t<'from>, t<'to>) => 'from => 'to = "encoder"
+  // what the JS `encode*` operations compile: they reverse the first schema
+  // only and run the rest of the chain forward. Arity-specific bindings, since
+  // a labeled optional `~via` can't spread into a rest param — and an absent
+  // `~via=?` would otherwise compile to a literal `undefined` in the middle of
+  // the argument list, which the JS dispatch rejects as a hole.
+  @module("sury") external compileConvert2: (t<'from>, t<'to>) => 'from => 'to = "encodeOrThrow"
   @module("sury")
-  external encoder3: (t<'from>, t<unknown>, t<'to>) => 'from => 'to = "encoder"
+  external compileConvert3: (t<'from>, t<unknown>, t<'to>) => 'from => 'to = "encodeOrThrow"
+  @module("sury") external convert2: ('from, t<'from>, t<'to>) => 'to = "encodeOrThrow"
+  @module("sury") external convert3: ('from, t<'from>, t<unknown>, t<'to>) => 'to = "encodeOrThrow"
   @module("sury")
-  external asyncEncoder2: (t<'from>, t<'to>) => 'from => promise<'to> = "asyncEncoder"
+  external compileConvertAsync2: (t<'from>, t<'to>) => 'from => promise<'to> =
+    "encodeAsPromiseOrReject"
   @module("sury")
-  external asyncEncoder3: (t<'from>, t<unknown>, t<'to>) => 'from => promise<'to> =
-    "asyncEncoder"
-
-  // Only a Sury failure becomes `Error`; anything else propagates. Bound
-  // rather than written here: a ReScript `catch` compiles to
-  // `internalToException` and the async form pulls in the stdlib Promise.
-  @module("sury") external safe: (unit => 'value) => result<'value, error> = "$safe"
+  external compileConvertAsync3: (t<'from>, t<unknown>, t<'to>) => 'from => promise<'to> =
+    "encodeAsPromiseOrReject"
   @module("sury")
-  external safeAsync: (unit => promise<'value>) => promise<result<'value, error>> = "$safeAsync"
+  external convertAsync2: ('from, t<'from>, t<'to>) => promise<'to> = "encodeAsPromiseOrReject"
+  @module("sury")
+  external convertAsync3: ('from, t<'from>, t<unknown>, t<'to>) => promise<'to> =
+    "encodeAsPromiseOrReject"
+  @module("sury")
+  external compileConvertResult2: (t<'from>, t<'to>) => 'from => result<'to, error> =
+    "$encodeAsResult"
+  @module("sury")
+  external compileConvertResult3: (t<'from>, t<unknown>, t<'to>) => 'from => result<'to, error> =
+    "$encodeAsResult"
+  @module("sury")
+  external convertResult2: ('from, t<'from>, t<'to>) => result<'to, error> = "$encodeAsResult"
+  @module("sury")
+  external convertResult3: ('from, t<'from>, t<unknown>, t<'to>) => result<'to, error> =
+    "$encodeAsResult"
+  @module("sury")
+  external compileConvertResultPromise2: (t<'from>, t<'to>) => 'from => promise<result<'to, error>> =
+    "$encodeAsResultPromise"
+  @module("sury")
+  external compileConvertResultPromise3: (
+    t<'from>,
+    t<unknown>,
+    t<'to>,
+  ) => 'from => promise<result<'to, error>> = "$encodeAsResultPromise"
+  @module("sury")
+  external convertResultPromise2: ('from, t<'from>, t<'to>) => promise<result<'to, error>> =
+    "$encodeAsResultPromise"
+  @module("sury")
+  external convertResultPromise3: (
+    'from,
+    t<'from>,
+    t<unknown>,
+    t<'to>,
+  ) => promise<result<'to, error>> = "$encodeAsResultPromise"
 )
 
-@module("sury") external compileParseOrThrow: (~to: t<'value>) => 'any => 'value = "parser"
+// The compiled (data-last) forms.
+@module("sury") external compileParseOrThrow: (~to: t<'value>) => 'any => 'value = "parseOrThrow"
 @module("sury")
-external compileParseAsyncOrThrow: (~to: t<'value>) => 'any => promise<'value> = "asyncParser"
+external compileParseAsPromiseOrReject: (~to: t<'value>) => 'any => promise<'value> =
+  "parseAsPromiseOrReject"
+// The `$`-prefixed bindings are the ReScript result shape (`{TAG, _0}`), which
+// the JS surface has no equivalent for: one compiler, a second tail.
+@module("sury")
+external compileParseAsResult: (~to: t<'value>) => 'any => result<'value, error> = "$parseAsResult"
+@module("sury")
+external compileParseAsResultPromise: (~to: t<'value>) => 'any => promise<result<'value, error>> =
+  "$parseAsResultPromise"
 
+// One dispatch on `~via` for the four convert outcomes, over the arity-specific
+// externals above.
+//
+// `@inline` is load-bearing, not a hint: an external is not a value, so passing
+// one as an argument eta-expands it into a closure at every call site — each
+// convert would allocate two of them per call, to reach a function it could
+// have called directly. Inlined, both helpers disappear from S.res.mjs and each
+// operation compiles to the branch it would have been written as.
+%%private(
+  @inline
+  let withVia = (~from, ~via, ~to, two, three) =>
+    switch via {
+    | None => two(from, to)
+    | Some(via) => three(from, castToUnknown(via), to)
+    }
+  @inline
+  let withViaData = (any, ~from, ~via, ~to, two, three) =>
+    switch via {
+    | None => two(any, from, to)
+    | Some(via) => three(any, from, castToUnknown(via), to)
+    }
+)
 let compileConvertOrThrow = (~from, ~via=?, ~to) =>
-  switch via {
-  | None => encoder2(from, to)
-  | Some(via) => encoder3(from, castToUnknown(via), to)
-  }
-let compileConvertAsyncOrThrow = (~from, ~via=?, ~to) =>
-  switch via {
-  | None => asyncEncoder2(from, to)
-  | Some(via) => asyncEncoder3(from, castToUnknown(via), to)
-  }
+  withVia(~from, ~via, ~to, compileConvert2, compileConvert3)
+let compileConvertAsPromiseOrReject = (~from, ~via=?, ~to) =>
+  withVia(~from, ~via, ~to, compileConvertAsync2, compileConvertAsync3)
+let compileConvertAsResult = (~from, ~via=?, ~to) =>
+  withVia(~from, ~via, ~to, compileConvertResult2, compileConvertResult3)
+let compileConvertAsResultPromise = (~from, ~via=?, ~to) =>
+  withVia(~from, ~via, ~to, compileConvertResultPromise2, compileConvertResultPromise3)
 
-// The compiled assert with a boolean answer. `assert` is a ReScript keyword,
-// so the non-throwing assert is spelled `validate`.
-@module("sury") external compileValidate: (~to: t<'value>) => 'any => bool = "inputValidator"
+// `assert` is a ReScript keyword, so the boolean-answering check keeps the JS
+// name: `isInput` asks of the wire side, `isOutput` of the value side.
+//
+// These take `~schema`, not `~to`: nothing is converted into it. The value is
+// checked AGAINST the schema and either handed back as it stands (`make*`) or
+// answered about (`is*`, `assert*`).
+@module("sury") external compileIsInput: (~schema: t<'value>) => 'any => bool = "isInput"
+@module("sury") external compileIsOutput: (~schema: t<'value>) => 'any => bool = "isOutput"
 
-// `t<'value>` names the output type, so the output-side constructor is THE
-// constructor here; the input side has no type to hand back.
+// `t<'value>` names the OUTPUT type, so the output-side make is THE make here;
+// the input side has no type to hand back. Same reason `convert*` is the name
+// for what JS spells `encode*`.
 @module("sury")
-external compileMakeOrThrow: (~schema: t<'value>) => 'value => 'value = "outputConstructor"
+external compileMakeOrThrow: (~schema: t<'value>) => 'value => 'value = "makeOutputOrThrow"
 @module("sury")
-external compileMakeAsyncOrThrow: (~schema: t<'value>) => 'value => promise<'value> =
-  "asyncOutputConstructor"
+external compileMakeAsPromiseOrReject: (~schema: t<'value>) => 'value => promise<'value> =
+  "makeOutputAsPromiseOrReject"
+@module("sury")
+external compileMakeAsResult: (~schema: t<'value>) => 'value => result<'value, error> =
+  "$makeAsResult"
+@module("sury")
+external compileMakeAsResultPromise: (
+  ~schema: t<'value>,
+) => 'value => promise<result<'value, error>> = "$makeAsResultPromise"
 
-let parseOrThrow = (any, ~to) => compileParseOrThrow(~to)(any)
-let parseAsyncOrThrow = (any, ~to) => compileParseAsyncOrThrow(~to)(any)
-let parse = (any, ~to) => safe(() => parseOrThrow(any, ~to))
-let parseAsync = (any, ~to) => safeAsync(() => parseAsyncOrThrow(any, ~to))
-@module("sury") external assertOrThrow: ('any, ~to: t<'value>) => unit = "assertInput"
+// The immediate (data-first) forms. The JS dispatch reads a leading non-schema
+// argument as the value, so these are the same imports at their other shape.
+@module("sury") external parseOrThrow: ('any, ~to: t<'value>) => 'value = "parseOrThrow"
 @module("sury")
-external assertAsyncOrThrow: ('any, ~to: t<'value>) => promise<unit> = "asyncAssertInput"
-let validate = (any, ~to) => compileValidate(~to)(any)
-let convertOrThrow = (any, ~from, ~via=?, ~to) => compileConvertOrThrow(~from, ~via?, ~to)(any)
-let convertAsyncOrThrow = (any, ~from, ~via=?, ~to) =>
-  compileConvertAsyncOrThrow(~from, ~via?, ~to)(any)
-let convert = (any, ~from, ~via=?, ~to) => safe(() => convertOrThrow(any, ~from, ~via?, ~to))
-let convertAsync = (any, ~from, ~via=?, ~to) =>
-  safeAsync(() => convertAsyncOrThrow(any, ~from, ~via?, ~to))
-let makeOrThrow = (value, ~schema) => compileMakeOrThrow(~schema)(value)
-let makeAsyncOrThrow = (value, ~schema) => compileMakeAsyncOrThrow(~schema)(value)
-let make = (value, ~schema) => safe(() => makeOrThrow(value, ~schema))
-let makeAsync = (value, ~schema) => safeAsync(() => makeAsyncOrThrow(value, ~schema))
+external parseAsPromiseOrReject: ('any, ~to: t<'value>) => promise<'value> =
+  "parseAsPromiseOrReject"
+@module("sury")
+external parseAsResult: ('any, ~to: t<'value>) => result<'value, error> = "$parseAsResult"
+@module("sury")
+external parseAsResultPromise: ('any, ~to: t<'value>) => promise<result<'value, error>> =
+  "$parseAsResultPromise"
+
+@module("sury")
+external assertInputOrThrow: ('any, ~schema: t<'value>) => unit = "assertInputOrThrow"
+@module("sury")
+external assertInputAsPromiseOrReject: ('any, ~schema: t<'value>) => promise<unit> =
+  "assertInputAsPromiseOrReject"
+@module("sury")
+external assertOutputOrThrow: ('any, ~schema: t<'value>) => unit = "assertOutputOrThrow"
+@module("sury")
+external assertOutputAsPromiseOrReject: ('any, ~schema: t<'value>) => promise<unit> =
+  "assertOutputAsPromiseOrReject"
+
+@module("sury") external isInput: ('any, ~schema: t<'value>) => bool = "isInput"
+@module("sury") external isOutput: ('any, ~schema: t<'value>) => bool = "isOutput"
+
+@module("sury") external makeOrThrow: ('value, ~schema: t<'value>) => 'value = "makeOutputOrThrow"
+@module("sury")
+external makeAsPromiseOrReject: ('value, ~schema: t<'value>) => promise<'value> =
+  "makeOutputAsPromiseOrReject"
+@module("sury")
+external makeAsResult: ('value, ~schema: t<'value>) => result<'value, error> = "$makeAsResult"
+@module("sury")
+external makeAsResultPromise: ('value, ~schema: t<'value>) => promise<result<'value, error>> =
+  "$makeAsResultPromise"
+
+let convertOrThrow = (any, ~from, ~via=?, ~to) =>
+  withViaData(any, ~from, ~via, ~to, convert2, convert3)
+let convertAsPromiseOrReject = (any, ~from, ~via=?, ~to) =>
+  withViaData(any, ~from, ~via, ~to, convertAsync2, convertAsync3)
+let convertAsResult = (any, ~from, ~via=?, ~to) =>
+  withViaData(any, ~from, ~via, ~to, convertResult2, convertResult3)
+let convertAsResultPromise = (any, ~from, ~via=?, ~to) =>
+  withViaData(any, ~from, ~via, ~to, convertResultPromise2, convertResultPromise3)
 
 @module("sury") external recursive: (string, t<'value> => t<'value>) => t<'value> = "recursive"
 
