@@ -191,8 +191,8 @@ test("jsonSchema round-trip types are omitted when they match the schema types",
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        jsonSchema.fromInputType: S.fromJSONSchema(jsonSchema.input) matches ts.input "string" — omit \`fromInputType\`.
-        jsonSchema.fromOutputType: S.fromJSONSchema(jsonSchema.output) matches ts.output "string" — omit \`fromOutputType\`.
+        jsonSchema.fromInputType: S.fromJSONSchemaOrThrow(jsonSchema.input) matches ts.input "string" — omit \`fromInputType\`.
+        jsonSchema.fromOutputType: S.fromJSONSchemaOrThrow(jsonSchema.output) matches ts.output "string" — omit \`fromOutputType\`.
         goldens stale — run \`pnpm spec check string --write\` (also formats canonically; use \`pnpm spec format\` for a formatting-only fix):
     @@ -8,9 +8,7 @@
         instantiations: 254
@@ -241,8 +241,8 @@ test("jsonSchema round-trip types are required when they diverge from the schema
   await expect(runCheck("array-minLength", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ array-minLength
-        jsonSchema.fromInputType: omitted, but S.fromJSONSchema(jsonSchema.input) infers "string[]" !== ts.input "[string, string, ...string[]]" — add \`fromInputType\`.
-        jsonSchema.fromOutputType: omitted, but S.fromJSONSchema(jsonSchema.output) infers "string[]" !== ts.output "[string, string, ...string[]]" — add \`fromOutputType\`.
+        jsonSchema.fromInputType: omitted, but S.fromJSONSchemaOrThrow(jsonSchema.input) infers "string[]" !== ts.input "[string, string, ...string[]]" — add \`fromInputType\`.
+        jsonSchema.fromOutputType: omitted, but S.fromJSONSchemaOrThrow(jsonSchema.output) infers "string[]" !== ts.output "[string, string, ...string[]]" — add \`fromOutputType\`.
         goldens stale — run \`pnpm spec check array-minLength --write\` (also formats canonically; use \`pnpm spec format\` for a formatting-only fix):
     @@ -6,7 +6,9 @@
         instantiations: 1121

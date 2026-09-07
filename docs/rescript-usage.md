@@ -69,8 +69,8 @@
   - [`reverse`](#reverse)
   - [`to`](#to)
   - [`name`](#name)
-  - [`inputExpression`](#inputexpression)
-  - [`outputExpression`](#outputexpression)
+  - [`toInputExpression`](#toinputexpression)
+  - [`toOutputExpression`](#tooutputexpression)
   - [`toString`](#tostring)
   - [`noValidation`](#novalidation)
 - [Standard Schema](#standard-schema)
@@ -172,10 +172,10 @@ makeFilm({
 // the record itself, validated
 
 // 6. Convert the schema to a JSON schema
-let filmJSONSchema = filmSchema->S.inputJSONSchema
+let filmJSONSchema = filmSchema->S.toInputJSONSchemaOrThrow
 ```
 
-> 🧠 Schemas compile to JavaScript via `eval`. Print the type they describe with [`inputExpression`](#inputexpression).
+> 🧠 Schemas compile to JavaScript via `eval`. Print the type they describe with [`toInputExpression`](#toinputexpression).
 
 ## Real-world examples
 
@@ -280,7 +280,7 @@ S.base64 // Base64, standard alphabet with canonical padding
 S.base64url // Base64url, URL-safe alphabet, no padding
 ```
 
-Each survives a round trip through `S.inputJSONSchema` and `S.fromJSONSchema`,
+Each survives a round trip through `S.toInputJSONSchemaOrThrow` and `S.fromJSONSchemaOrThrow`,
 though not all of them as a name. A format the JSON Schema vocabulary has no
 keyword for publishes its own regex as `pattern` instead, so what round-trips is
 the behavior. `S.cidrv6` is the one format with neither spelling — its address
@@ -1385,14 +1385,14 @@ let documentedStringSchema = S.string
 This can be useful for documenting fields, generating JSON, etc.
 
 ```rescript
-schema->S.inputJSONSchema
+schema->S.toInputJSONSchemaOrThrow
 // {
 //   "type": "string",
 //   "description": "A useful bit of text, if you know what to do with it."
 // }
 ```
 
-`S.outputJSONSchema` describes the other side — what the schema produces rather than what it accepts.
+`S.toOutputJSONSchemaOrThrow` describes the other side — what the schema produces rather than what it accepts.
 
 ### **`recursive`**
 
@@ -1497,7 +1497,7 @@ let mySet = itemSchema => {
       encode: Never,
     },
   )
-  ->S.meta({name: `Set.t<${S.inputExpression(itemSchema)}>`})
+  ->S.meta({name: `Set.t<${S.toInputExpression(itemSchema)}>`})
 }
 
 let intSetSchema = mySet(S.int)
@@ -1654,13 +1654,13 @@ S.Error.make(
 
 `S.t<'value>` names the output type, so operations on that side carry no prefix; the ones that look at the input side say so in their name.
 
-|           | Input side                                              | Output side                                                 | Crosses both              |
-| --------- | ------------------------------------------------------- | ----------------------------------------------------------- | ------------------------- |
-| Convert   |                                                          |                                                              | `parse*`, `convert*`      |
-| Make      |                                                          | `make*`                                                      |                           |
-| Validate  | `isInput`                                                | `isOutput`                                                   |                           |
-| Assert    | `assertInputOrThrow`, `assertInputAsPromiseOrReject`     | `assertOutputOrThrow`, `assertOutputAsPromiseOrReject`       |                           |
-| Describe  | `inputJSONSchema`, `inputExpression`                     | `outputJSONSchema`, `outputExpression`                       |                           |
+|          | Input side                                           | Output side                                            | Crosses both         |
+| -------- | ---------------------------------------------------- | ------------------------------------------------------ | -------------------- |
+| Convert  |                                                      |                                                        | `parse*`, `convert*` |
+| Make     |                                                      | `make*`                                                |                      |
+| Validate | `isInput`                                            | `isOutput`                                             |                      |
+| Assert   | `assertInputOrThrow`, `assertInputAsPromiseOrReject` | `assertOutputOrThrow`, `assertOutputAsPromiseOrReject` |                      |
+| Describe | `toInputJSONSchemaOrThrow`, `toInputExpression`      | `toOutputJSONSchemaOrThrow`, `toOutputExpression`      |                      |
 
 ### Pipelines
 
@@ -1898,15 +1898,15 @@ let schema = S.literal({"abc": 123})->S.meta({name: "Abc"})
 
 Used internally for readable error messages.
 
-### **`inputExpression`**
+### **`toInputExpression`**
 
 `(S.t<'value>) => string`
 
 ```rescript
-S.literal({"abc": 123})->S.inputExpression
+S.literal({"abc": 123})->S.toInputExpression
 // "{ "abc": 123 }"
 
-S.string->S.meta({name: "Address"})->S.inputExpression
+S.string->S.meta({name: "Address"})->S.toInputExpression
 // "Address"
 ```
 
@@ -1914,17 +1914,17 @@ Used internally for readable error messages.
 
 > 🧠 The format is subject to change
 
-### **`outputExpression`**
+### **`toOutputExpression`**
 
 `(S.t<'value>) => string`
 
 ```rescript
 let schema = S.string->S.to(S.int)
 
-schema->S.inputExpression
+schema->S.toInputExpression
 // "string"
 
-schema->S.outputExpression
+schema->S.toOutputExpression
 // "int32"
 ```
 

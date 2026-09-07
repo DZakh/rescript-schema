@@ -6,7 +6,7 @@
 // benchmark/bench.js (its `benchmarks` array), so the comparison uses their
 // schemas verbatim rather than ones picked to flatter Sury. Each case builds
 // both serializers from the same JSON Schema document — fjs via its factory,
-// Sury via `S.fromJSONSchema(...)` + `S.encodeOrThrow(schema, S.jsonString)` — and
+// Sury via `S.fromJSONSchemaOrThrow(...)` + `S.encodeOrThrow(schema, S.jsonString)` — and
 // times them in the same process with tinybench, the harness fjs uses.
 //
 // A case Sury can't build, or where the two disagree on output, is reported
@@ -64,7 +64,7 @@ for (const b of benchmarks) {
   }
   let suryFn: ((v: unknown) => string) | undefined;
   try {
-    suryFn = S.encodeOrThrow(S.fromJSONSchema(b.schema) as any, S.jsonString) as any;
+    suryFn = S.encodeOrThrow(S.fromJSONSchemaOrThrow(b.schema) as any, S.jsonString) as any;
   } catch (e) {
     note = note || `unsupported: ${(e as Error).message.split("\n")[0]}`;
   }

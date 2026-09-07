@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: S.fromJSONSchema(S.inputJSONSchema(S.utcDateTime))
+  schema: S.fromJSONSchemaOrThrow(S.toInputJSONSchemaOrThrow(S.utcDateTime))
   input: JSON
   output: JSON
   instantiations: 718

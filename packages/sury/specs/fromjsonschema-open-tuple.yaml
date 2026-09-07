@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ type: "array", items: [{ type: "string" }, { type: "number" }], additionalItems: { type: "boolean" } })'
+  schema: 'S.fromJSONSchemaOrThrow({ type: "array", items: [{ type: "string" }, { type: "number" }], additionalItems: { type: "boolean" } })'
   input: "[(string | undefined)?, (number | undefined)?, ...boolean[]]"
   output: "[(string | undefined)?, (number | undefined)?, ...boolean[]]"
   instantiations: 1165

@@ -219,14 +219,14 @@ export {
 export { jsonStringWithSpace } from "./advanced/json";
 export { list } from "./advanced/list";
 export {
-  inputJSONSchema,
-  outputJSONSchema,
-  fromJSONSchema,
+  inputJSONSchema as toInputJSONSchemaOrThrow,
+  outputJSONSchema as toOutputJSONSchemaOrThrow,
+  fromJSONSchema as fromJSONSchemaOrThrow,
   extendJSONSchema,
   enableStandardJSONSchema,
 } from "./jsonschema";
-export { inputExpression, pathToText } from "./base";
-export { outputExpression } from "./parse";
+export { inputExpression as toInputExpression, pathToText } from "./base";
+export { outputExpression as toOutputExpression } from "./parse";
 
 // ── Public JS/TS API implemented here (argument-shape adapters) ──────────────
 

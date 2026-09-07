@@ -151,8 +151,8 @@ let Metadata = {
   Id: Id
 };
 
-function fromJSONSchema(jsonSchema) {
-  return Sury.fromJSONSchema(jsonSchema);
+function fromJSONSchemaOrThrow(jsonSchema) {
+  return Sury.fromJSONSchemaOrThrow(jsonSchema);
 }
 
 export {
@@ -178,6 +178,6 @@ export {
   tuple3,
   Option,
   Metadata,
-  fromJSONSchema,
+  fromJSONSchemaOrThrow,
 }
 /*  Not a pure module */

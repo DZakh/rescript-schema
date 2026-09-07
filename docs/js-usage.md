@@ -59,8 +59,8 @@
   - [`reverse`](#reverse)
   - [`to`](#to)
   - [`name`](#name)
-  - [`inputExpression`](#inputexpression)
-  - [`outputExpression`](#outputexpression)
+  - [`toInputExpression`](#toinputexpression)
+  - [`toOutputExpression`](#tooutputexpression)
   - [`pathToText`](#pathtotext)
   - [`toString`](#tostring)
 - [Error handling](#error-handling)
@@ -192,7 +192,7 @@ S.parseOrThrow(S.reverse(userSchema), { id: 0n, name: "Dmitry" });
 
 ### JSON Schema
 
-`S.inputJSONSchema(schema, { target })` emits `"draft-07"` (default), `"draft-2020-12"`, or `"openapi-3.0"`. Properties and examples come out in the **Input** format:
+`S.toInputJSONSchemaOrThrow(schema, { target })` emits `"draft-07"` (default), `"draft-2020-12"`, or `"openapi-3.0"`. Properties and examples come out in the **Input** format:
 
 ```ts
 const documented = userSchema.with(S.meta, {
@@ -200,7 +200,7 @@ const documented = userSchema.with(S.meta, {
   examples: [{ id: 0n, name: "Dmitry" }],
 });
 
-S.inputJSONSchema(documented);
+S.toInputJSONSchemaOrThrow(documented);
 // {
 //   type: "object",
 //   properties: {
@@ -213,7 +213,7 @@ S.inputJSONSchema(documented);
 // }
 ```
 
-`S.outputJSONSchema` describes the other side — what the schema produces, and what `S.encodeOrThrow` accepts:
+`S.toOutputJSONSchemaOrThrow` describes the other side — what the schema produces, and what `S.encodeOrThrow` accepts:
 
 ```ts
 const apiUser = S.schema({
@@ -221,7 +221,7 @@ const apiUser = S.schema({
   AGE: S.string.with(S.to, S.number),
 }).with(S.shape, (input) => ({ name: input.USER_NAME, age: input.AGE }));
 
-S.outputJSONSchema(apiUser);
+S.toOutputJSONSchemaOrThrow(apiUser);
 // {
 //   type: "object",
 //   properties: { name: { type: "string" }, age: { type: "number" } },
@@ -233,11 +233,11 @@ A type JSON has no way to describe — a `bigint`, a `symbol`, a `Date` — thro
 
 The `target` decides the type of the result — `S.JSONSchema7`, `S.JSONSchema2020`, or `S.OpenAPISchema30` — so `prefixItems` is there to reach for on a draft-2020-12 result and `nullable` on an OpenAPI one, and neither is on a draft-07 one.
 
-`S.fromJSONSchema` converts in the other direction:
+`S.fromJSONSchemaOrThrow` converts in the other direction:
 
 ```ts
 S.assertInputOrThrow(
-  S.fromJSONSchema({
+  S.fromJSONSchemaOrThrow({
     type: "string",
     format: "email",
   }),
@@ -249,7 +249,7 @@ S.assertInputOrThrow(
 A document written inline is validated and typed:
 
 ```ts
-const schema = S.fromJSONSchema({
+const schema = S.fromJSONSchemaOrThrow({
   type: "object",
   properties: { id: { type: "string" }, role: { enum: ["admin", "user"] } },
   required: ["id"],
@@ -260,7 +260,7 @@ const schema = S.fromJSONSchema({
 A `$ref` pointing into the same document is followed, recursive ones included:
 
 ```ts
-const comment = S.fromJSONSchema({
+const comment = S.fromJSONSchemaOrThrow({
   $ref: "#/$defs/comment",
   $defs: {
     comment: {
@@ -316,7 +316,7 @@ schema["~standard"].jsonSchema.output({ target: "draft-2020-12" });
 // { $schema: "https://json-schema.org/draft/2020-12/schema", type: "number" }
 ```
 
-> 🧠 `jsonSchema.input(options)` equals `S.inputJSONSchema(schema, options)` and `.output(options)` equals `S.inputJSONSchema(S.reverse(schema), options)`, so the `target` option behaves the same as above. The `options` argument is required by the spec.
+> 🧠 `jsonSchema.input(options)` equals `S.toInputJSONSchemaOrThrow(schema, options)` and `.output(options)` equals `S.toInputJSONSchemaOrThrow(S.reverse(schema), options)`, so the `target` option behaves the same as above. The `options` argument is required by the spec.
 
 ## Defining schemas
 
@@ -502,15 +502,15 @@ S.base64; // Base64, standard alphabet with canonical padding
 S.base64url; // Base64url, URL-safe alphabet, no padding
 ```
 
-Each survives a round trip through `S.inputJSONSchema` and `S.fromJSONSchema`,
+Each survives a round trip through `S.toInputJSONSchemaOrThrow` and `S.fromJSONSchemaOrThrow`,
 though not all of them as a name. A format the JSON Schema vocabulary has no
 keyword for publishes its own regex as `pattern` instead, so what round-trips is
 the behavior:
 
 ```ts
-S.inputJSONSchema(S.ulid); // { type: "string", pattern: "^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$" }
-S.inputJSONSchema(S.uuidv7); // { type: "string", format: "uuid", pattern: "…-7[0-9a-fA-F]{3}-…" }
-S.inputJSONSchema(S.httpUrl); // { type: "string", format: "uri", pattern: "^[hH][tT][tT][pP][sS]?:" }
+S.toInputJSONSchemaOrThrow(S.ulid); // { type: "string", pattern: "^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$" }
+S.toInputJSONSchemaOrThrow(S.uuidv7); // { type: "string", format: "uuid", pattern: "…-7[0-9a-fA-F]{3}-…" }
+S.toInputJSONSchemaOrThrow(S.httpUrl); // { type: "string", format: "uri", pattern: "^[hH][tT][tT][pP][sS]?:" }
 ```
 
 `S.base64` and `S.base64url` emit `contentEncoding` instead. See
@@ -594,7 +594,7 @@ S.parseOrThrow(S.utcDateTime, "2020-01-01T00:00:00Z"); // pass
 S.parseOrThrow(S.utcDateTime, "2020-01-01T00:00:00+02:00"); // throws: Expected UTC date-time, received "2020-01-01T00:00:00+02:00"
 ```
 
-Both emit `format: "date-time"`. `S.utcDateTime` adds a `pattern` pinning the `Z`, so its document reads back as `S.utcDateTime` through `S.fromJSONSchema`.
+Both emit `format: "date-time"`. `S.utcDateTime` adds a `pattern` pinning the `Z`, so its document reads back as `S.utcDateTime` through `S.fromJSONSchemaOrThrow`.
 
 To decode an ISO datetime string into a `Date`, chain it with `.with(S.to, S.date)`:
 
@@ -1279,7 +1279,7 @@ This can be useful for documenting fields, generating JSON, etc.
 `examples` are written in the schema's **Output** type, the same as a default passed to `S.optional`. Both are validated and stored in the **Input** type, so `schema.examples` and `schema.default` read back in wire form and land in the JSON Schema of the input side as they are; the output side's document decodes them back.
 
 ```ts
-S.inputJSONSchema(documentedStringSchema);
+S.toInputJSONSchemaOrThrow(documentedStringSchema);
 // {
 //   "type": "string",
 //   "description": "A useful bit of text, if you know what to do with it."
@@ -1351,7 +1351,7 @@ const mySet = <T>(itemSchema: S.Schema<unknown, T>): S.Schema<unknown, Set<T>> =
         new Set([...output].map((item) => S.encodeOrThrow(itemSchema, item))),
     })
     .with(S.meta, {
-      name: `Set<${S.inputExpression(itemSchema)}>`,
+      name: `Set<${S.toInputExpression(itemSchema)}>`,
     });
 
 const numberSetSchema = mySet(S.number);
@@ -1500,13 +1500,13 @@ S.encodeOrThrow(circleSchema, { kind: "circle", radius: 1 }); //? 1
 
 Every operation names two things: the **verb** — what it does — and the **outcome** — what you get when it fails. Operations that look at one side of a schema say which side in their name; the conversions cross between the sides, so they keep their own names.
 
-|           | Input side                                                | Output side                                                  | Crosses both                              |
-| --------- | --------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------- |
-| Convert   |                                                            |                                                               | `parse`, `decode`, `encode`               |
-| Construct | `makeInput`                                                | `makeOutput`                                                  |                                           |
-| Validate  | `isInput`, `isInputAsPromise`                              | `isOutput`, `isOutputAsPromise`                               |                                           |
-| Assert    | `assertInputOrThrow`, `assertInputAsPromiseOrReject`       | `assertOutputOrThrow`, `assertOutputAsPromiseOrReject`        |                                           |
-| Describe  | `inputJSONSchema`, `inputExpression`                       | `outputJSONSchema`, `outputExpression`                        |                                           |
+|           | Input side                                           | Output side                                            | Crosses both                |
+| --------- | ---------------------------------------------------- | ------------------------------------------------------ | --------------------------- |
+| Convert   |                                                      |                                                        | `parse`, `decode`, `encode` |
+| Construct | `makeInput`                                          | `makeOutput`                                           |                             |
+| Validate  | `isInput`, `isInputAsPromise`                        | `isOutput`, `isOutputAsPromise`                        |                             |
+| Assert    | `assertInputOrThrow`, `assertInputAsPromiseOrReject` | `assertOutputOrThrow`, `assertOutputAsPromiseOrReject` |                             |
+| Describe  | `toInputJSONSchemaOrThrow`, `toInputExpression`      | `toOutputJSONSchemaOrThrow`, `toOutputExpression`      |                             |
 
 ### Outcomes
 
@@ -1835,13 +1835,13 @@ schema.name; // "Abc"
 
 Used internally for readable error messages.
 
-### **`inputExpression`**
+### **`toInputExpression`**
 
 ```ts
-S.inputExpression(S.schema({ abc: 123 }));
+S.toInputExpression(S.schema({ abc: 123 }));
 // "{ abc: 123; }"
 
-S.inputExpression(S.string.with(S.meta, { name: "Address" }));
+S.toInputExpression(S.string.with(S.meta, { name: "Address" }));
 // "Address"
 ```
 
@@ -1849,15 +1849,15 @@ Used internally for readable error messages.
 
 > 🧠 The format is subject to change
 
-### **`outputExpression`**
+### **`toOutputExpression`**
 
 ```ts
 const schema = S.to(S.string, S.number);
 
-S.inputExpression(schema);
+S.toInputExpression(schema);
 // "string"
 
-S.outputExpression(schema);
+S.toOutputExpression(schema);
 // "number"
 ```
 

@@ -812,9 +812,9 @@ let convertAsResultPromise = (any, ~from, ~via=?, ~to) =>
 
 @module("sury") external recursive: (string, t<'value> => t<'value>) => t<'value> = "recursive"
 
-@module("sury") external inputExpression: t<'value> => string = "inputExpression"
+@module("sury") external toInputExpression: t<'value> => string = "toInputExpression"
 
-@module("sury") external outputExpression: t<'value> => string = "outputExpression"
+@module("sury") external toOutputExpression: t<'value> => string = "toOutputExpression"
 
 module Schema = {
   type s = {@as("m") matches: 'value. t<'value> => 'value}
@@ -907,14 +907,16 @@ external pattern: (t<'value>, RegExp.t, ~message: string=?) => t<'value> = "patt
 
 type jsonSchemaOptions = {target?: StandardSchema.JsonSchema.target}
 @module("sury")
-external inputJSONSchema: (t<'value>, ~options: jsonSchemaOptions=?) => JSONSchema.t =
-  "inputJSONSchema"
+external toInputJSONSchemaOrThrow: (t<'value>, ~options: jsonSchemaOptions=?) => JSONSchema.t =
+  "toInputJSONSchemaOrThrow"
 @module("sury")
-external outputJSONSchema: (t<'value>, ~options: jsonSchemaOptions=?) => JSONSchema.t =
-  "outputJSONSchema"
+external toOutputJSONSchemaOrThrow: (t<'value>, ~options: jsonSchemaOptions=?) => JSONSchema.t =
+  "toOutputJSONSchemaOrThrow"
 @module("sury")
-external fromJSONSchemaDefinition: JSONSchema.definition => t<JSON.t> = "fromJSONSchema"
-let fromJSONSchema = jsonSchema => fromJSONSchemaDefinition(JSONSchema.Schema(jsonSchema))
+external fromJSONSchemaDefinitionOrThrow: JSONSchema.definition => t<JSON.t> =
+  "fromJSONSchemaOrThrow"
+let fromJSONSchemaOrThrow = jsonSchema =>
+  fromJSONSchemaDefinitionOrThrow(JSONSchema.Schema(jsonSchema))
 @module("sury")
 external extendJSONSchema: (t<'value>, JSONSchema.t) => t<'value> = "extendJSONSchema"
 // Enables `~standard.jsonSchema`; its input/output throw before this is called.

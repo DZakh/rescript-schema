@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: "S.fromJSONSchema({ contains: { const: 1 } })"
+  schema: "S.fromJSONSchemaOrThrow({ contains: { const: 1 } })"
   input: JSON
   output: JSON
   instantiations: 593

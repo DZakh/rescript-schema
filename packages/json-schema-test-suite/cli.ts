@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 // `compliance` — runs the official JSON-Schema-Test-Suite through
-// `S.fromJSONSchema` and holds the score to a committed golden.
+// `S.fromJSONSchemaOrThrow` and holds the score to a committed golden.
 //
 // The contract mirrors packages/spec: goldens are generated, never hand-edited,
 // and `check` fails on ANY drift — including tests that started passing. A fix

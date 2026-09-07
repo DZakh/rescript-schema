@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: S.fromJSONSchema(false)
+  schema: S.fromJSONSchemaOrThrow(false)
   input: never
   output: never
   instantiations: 398
