@@ -7,13 +7,16 @@
 
 **Schema for everything - faster than hand-written code.**
 
-Declare your data once, in TypeScript or ReScript. The wire it arrives on is just another schema:
+Declare your data once, in TypeScript or ReScript. The wires it travels are schemas too, and they chain:
 
 ```ts
-const signup = S.jsonString.with(S.to, S.schema({ id: S.bigint, email: S.email }));
+const Signup = S.schema({ id: S.bigint, email: S.email });
+type Signup = S.Infer<typeof Signup>;
 
-S.decoder(signup)(body); // text in, your types out
-S.encoder(signup)(value); // and back, from the same declaration
+await S.asyncDecoder(S.file.with(S.to, S.jsonString.with(S.to, S.array(Signup))))(file);
+// => [{ id: 7n, email: "a@b.co" }], reading bytes is async
+S.encoder(S.file.with(S.to, S.jsonString.with(S.to, S.array(Signup))))(signups);
+// => a File, from the same declaration
 ```
 
 `S.json`, `S.formData`, `S.base64`, `S.file` and the rest are wires too.
