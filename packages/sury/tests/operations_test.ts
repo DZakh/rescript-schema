@@ -331,7 +331,7 @@ test("the async outcomes", async () => {
   });
 });
 
-test("a promise-returning operation rejects, it never throws synchronously", () => {
+test("a promise-returning operation rejects, it never throws synchronously", async () => {
   // `OrReject` is the whole story its name tells: a value that fails its type
   // check before the first await comes back as a rejection, like one that
   // fails after it.
@@ -344,10 +344,15 @@ test("a promise-returning operation rejects, it never throws synchronously", () 
     () => S.parseAsPromiseOrReject(S.string, 1),
     () => S.assertInputAsPromiseOrReject(asyncSchema, 1),
     () => S.makeInputAsPromiseOrReject(asyncSchema, 1 as unknown as string),
-    () => S.isInputAsPromise(asyncSchema, 1),
   ]) {
-    expect(call()).toBeInstanceOf(Promise);
+    const answer = call();
+    expect(answer).toBeInstanceOf(Promise);
+    await expect(answer).rejects.toThrow(S.Error);
   }
+  // `is*AsPromise` resolves to the answer and never rejects.
+  const answered = S.isInputAsPromise(asyncSchema, 1);
+  expect(answered).toBeInstanceOf(Promise);
+  await expect(answered).resolves.toBe(false);
 });
 
 test("what an operation compiles to depends on its flag, never on call order", () => {
