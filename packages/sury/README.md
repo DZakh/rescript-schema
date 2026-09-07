@@ -57,7 +57,7 @@ parseEvent('{"type":"user.created","id":"42","tags":[]}');
 // => throws S.Error: Failed at tags: Add at least one tag
 ```
 
-Every operation says in its name what happens when it fails, so neither a call that throws nor one that swallows can hide in a diff - and the schema goes on either side of the data, or alone to get a reusable function:
+All possible ways to run your schema, with a decision required where safety matters - perfect to navigate and review agentic code:
 
 ```ts
 S.parseOrThrow(eventSchema, input); // => Event, or throws S.Error
@@ -67,6 +67,7 @@ S.parseAsResultPromise(eventSchema, input); // => Promise<Result<Event>>
 S.parseAsPromisableResult(eventSchema, input); // => Result<Event> for a sync schema, Promise<Result<Event>> for an async one
 
 S.parseAsResult(input, eventSchema); // Data first works too
+S.decodeAsResult(S.jsonString, eventSchema, '{"type":"user.deleted","id":"7","payload":null}'); // A pipeline of up to three schemas
 const safeParseEvent = S.parseAsResult(eventSchema); // Schema alone compiles the operation beforehand
 safeParseEvent(input);
 ```
