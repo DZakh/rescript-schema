@@ -18,7 +18,7 @@ const signupsFileSchema = S.file.with(S.to, S.jsonString.with(S.to, S.array(sign
 await S.asyncDecoder(signupsFileSchema)(file);
 // => [{ id: 7n, email: "a@b.co", avatar: Blob }], the avatar rode as base64
 await S.asyncEncoder(signupsFileSchema)(signups);
-// => a File, from the same declaration
+// => a File, from the same declaration - input and return strictly typed
 ```
 
 `S.json`, `S.formData`, `S.base64`, `S.file` and the rest are wires too.
