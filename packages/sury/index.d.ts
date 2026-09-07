@@ -424,27 +424,22 @@ export function schema<const T>(
 ): Schema<UnknownToInput<T>, UnknownToOutput<T>>;
 
 /**
- * `schema` for a type you already have: the type argument says what the schema
- * must produce, and the definition is checked against it.
+ * Checks a definition against a type you already have, instead of inferring a
+ * new one.
  *
  * ```ts
- * S.schemaOf<User>()({ id: S.string, createdAt: S.date })
- * //? S.Schema<{ id: string; createdAt: Date }, User>
- *
  * S.schemaOf<User>()({ id: S.string, createdAt: S.isoDateTime.with(S.to, S.date) })
  * //? S.Schema<{ id: string; createdAt: string }, User>
  * ```
  *
- * The encoded type is read off the definition, so a codec needs no second type
- * argument. Pin one with `satisfies` where it matters.
- *
- * Curried because the definition's own type has to be inferred before it can be
- * compared: a call that took both at once would have nothing to compare against
- * (TypeScript doesn't infer the type arguments a call doesn't spell), and a
- * definition merely *assignable* to the target passes checks a definition equal
- * to it fails — which is what makes `S.number` slip into a field the type
- * declares optional.
+ * Anything that doesn't line up is a type error on the field causing it. Codecs
+ * need no second type argument, since the encoded type is read off the
+ * definition.
  */
+// Curried so the definition's own type is inferred at the second call: a call
+// taking both at once would have nothing to compare against, since TypeScript
+// doesn't infer the type arguments a call doesn't spell. That comparison is the
+// whole point - see `AssertEqual` for what it catches that assignability can't.
 export function schemaOf<TOutput>(): <const TDef>(
   definition: DefinitionMatches<TDef, TOutput> extends true
     ? TDef

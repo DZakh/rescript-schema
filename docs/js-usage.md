@@ -134,7 +134,7 @@ const parseT = <T>(schema: S.Schema<unknown, T>, data: unknown): T =>
 
 ### Checking against a type you already have
 
-When the type comes first — it's generated, shared, or simply already written — `S.schemaOf` reverses the direction: the type argument says what the schema must produce, and the definition is checked against it field by field.
+When you already have the type - generated, shared, or just written by hand - `S.schemaOf` checks a definition against it instead of inferring a new one.
 
 ```ts
 type User = {
@@ -151,9 +151,9 @@ const userSchema = S.schemaOf<User>()({
 //? S.Schema<{ id: string; name: string; publishedAt?: string | undefined }, User>
 ```
 
-The encoded side is read off the definition, so a codec needs no second type argument. Anything without a fields object — a union, a recursive schema — is named by passing the schema itself.
+Anything that doesn't line up is a type error on the field causing it: a wrong type, a missing field, a field the type doesn't declare, or an optional field defined without [`S.optional`](#optionals).
 
-The empty `()` fixes the type before the definition is written, which is what lets **Sury** compare the two for *equality* rather than assignability. Writing `publishedAt: S.date` above would be a type error: it produces a `Date`, which *is* a `Date | undefined`, so it passes every check based on assignability and then builds a schema that rejects `{ id, name }` — a value the type calls valid. Mismatches are reported on the field that carries them.
+Codecs need no second type argument, since the encoded type is read off the definition. A union or a recursive schema is passed as the schema itself.
 
 ### Encoding data
 
