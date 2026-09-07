@@ -1283,15 +1283,15 @@ let schema = S.formData->S.to(
   }),
 )
 
-%raw(`new FormData()`)->S.parseOrThrow(~to=schema) // throws - Failed at name: Expected string, received undefined
+%raw(`new FormData()`)->S.parseOrThrow(~to=schema) // throws - Failed at name: Expected string.length >= 1, received undefined
 value->S.reverseConvertOrThrow(~from=schema) // a FormData with one append per field
 ```
 
 A field reads its entry as text through the same coercions `S.dict(S.string)`
 gets; `S.file` and `S.blob` take the entry as it is, and an encode omits an
 unchecked box the way a browser does. A required, non-nullable string must say
-what a blank entry means - `S.string->S.nonEmpty`, `S.string->S.minLength(0)`,
-`S.option` or `S.null` - or the operation fails to build. The type is abstract,
+what a blank entry means - `S.string->S.nonEmpty`, `S.string->S.minLength(0)`
+or `S.option` - or the operation fails to build. The type is abstract,
 since the stdlib has no `FormData` module; a value from a fetch binding is cast
 to it.
 

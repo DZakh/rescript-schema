@@ -2585,7 +2585,7 @@ test("Schema introspection tags survive on coerced and instance schemas", (t) =>
 });
 
 // `schemaOf` is checked by the type system, so half of its contract is what
-// must NOT compile — a spec snapshots a schema that exists, and can't express
+// must NOT compile - a spec snapshots a schema that exists, and can't express
 // a rejection. `object-in-object3` and `codec-string-date` carry the positive
 // half as `ts.aliases`, which is what proves the definition builds the very
 // same schema as the inferred spelling.
@@ -2641,7 +2641,7 @@ test("schemaOf: builds a schema against a type the consumer already has", (t) =>
 
   // A field the type declares optional, defined by a schema that requires it.
   // The definition's output is `number` where the type reads `number |
-  // undefined` — assignable, so only an equality check sees it.
+  // undefined` - assignable, so only an equality check sees it.
   S.schemaOf<User>()({
     id: S.string,
     name: S.string,
@@ -2688,7 +2688,7 @@ test("schemaOf: builds a schema against a type the consumer already has", (t) =>
 });
 
 test("schemaOf: definitions that aren't a plain fields object", (t) => {
-  // A whole schema as the definition — how a union, or anything else with no
+  // A whole schema as the definition - how a union, or anything else with no
   // fields object, is named.
   type Shape = { kind: "circle"; r: number } | { kind: "square"; side: number };
   const shape = S.schemaOf<Shape>()(
@@ -2779,7 +2779,7 @@ test("schemaOf: definitions that aren't a plain fields object", (t) => {
 // modifier dropped before the comparison rather than being unsatisfiable. Two
 // mechanisms do it between them: `Mutable` for arrays and tuples, and the
 // per-field walk for properties, which reads `TOutput[K]` and so never sees a
-// property modifier at all. The result names the target — `readonly` and all —
+// property modifier at all. The result names the target - `readonly` and all -
 // while the encoded side, which is what the definition actually builds, stays
 // mutable.
 test("schemaOf: a target type that declares readonly", (t) => {

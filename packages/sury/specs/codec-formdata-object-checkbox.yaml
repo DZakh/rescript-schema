@@ -89,5 +89,5 @@ operations:
         input: '{ agree: true, notify: undefined, mailing: false, seen: false, asText: "true", age: 42 }'
         output: ((f) => (f.append("agree", "on"), f.append("mailing", "false"), f.append("asText", "on"), f.append("age", "42"), f))(new FormData())
       too-young:
-        input: "{ agree: true, age: 7 }"
-        error: "Failed at seen: Expected boolean, received undefined"
+        input: '{ agree: true, notify: false, mailing: null, seen: false, asText: "true", age: 7 }'
+        error: "Failed at age: Expected number >= 18, received 7"

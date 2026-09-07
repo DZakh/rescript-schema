@@ -453,7 +453,7 @@ export function schemaOf<TOutput>(): <const TDef>(
 //
 // Two identical deferred conditionals are only assignable to each other when
 // the types they check are identical, which is what makes this exact. The one
-// distinction deliberately erased first is `readonly` — see `Mutable`.
+// distinction deliberately erased first is `readonly` - see `Mutable`.
 type AssertEqual<T, U> = (<V>() => V extends T ? 1 : 2) extends <V>() => V extends U
   ? 1
   : 2
@@ -474,9 +474,9 @@ type DefinitionMatches<TDef, TOutput> = TDef extends SchemaLike<unknown, unknown
   : AssertEqual<UnknownToOutput<TDef>, TOutput>;
 
 // Field by field, rather than building the definition's whole output type and
-// comparing that in one go. The answer is the same — Sury reads a field's
+// comparing that in one go. The answer is the same - Sury reads a field's
 // optionality off whether its type admits `undefined`, which is what a
-// per-field comparison sees — but the whole-object form pays for
+// per-field comparison sees - but the whole-object form pays for
 // `UnknownToOutput`'s optional-key split on every call, and that split is a
 // quarter of what the check costs. Arrays keep the whole-object form: `keyof`
 // a tuple carries every array method, which is not a field list.
@@ -612,8 +612,8 @@ export type FormData = typeof globalThis extends {
  * field reads its entry as text (`"42"` -> `S.number`), a boolean is a
  * checkbox, `S.array` reads every entry of the key, and `S.file` takes the
  * entry as it is. A required, non-nullable string must say what a blank input
- * means - `S.nonEmpty`, `S.minLength(0)`, `S.optional` or `S.nullable` - or
- * the operation fails to build.
+ * means - `S.nonEmpty`, `S.minLength(0)` or `S.optional` - or the operation
+ * fails to build.
  * @example S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty), agree: true, avatar: S.file }))
  */
 export const formData: Schema<FormData, FormData>;

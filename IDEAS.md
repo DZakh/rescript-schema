@@ -162,14 +162,15 @@ of a form-data story. What they were built to make cheap, roughly in order:
   The payoff is `S.file.with(S.to, S.jsonString.with(S.to, configSchema))` -
   parse an upload into a typed value, and reverse it to *build* the upload.
 - **`S.urlSearchParams` and `S.queryString`**, now that `S.formData` has shipped.
-  The codec only calls `get`/`getAll`/`append`, all of which `URLSearchParams`
-  has, so the first is the same code minus files and the second is to it what
-  `S.jsonString` is to `S.json`.
+  The codec iterates the entry list and calls `append`, both of which
+  `URLSearchParams` has, so the first is the same code minus files and the
+  second is to it what `S.jsonString` is to `S.json`.
 - **A `S.record` target for the same readers**, for a form whose keys aren't
   known ahead of time. `S.formData.with(S.to, S.record(S.string))` is rejected
   today: the codec takes the object path only when `additionalItems` is
   `"strip"`/`"strict"`, and a record's is the value schema, so the pair falls
-  through to `Can't decode FormData to { [key: string]: string; }`. Two things
+  through to `Can't decode FormData -> { [key: string]: string; }. Define
+  custom codec with S.to`. Two things
   to settle before it can be written:
   - **What a repeated key becomes.** The declared path answers `getAll` for a
     `S.array` field and `get` for every other, which a record has no field to
@@ -201,12 +202,14 @@ of a form-data story. What they were built to make cheap, roughly in order:
   rather than a var of its own. Pinned by a `FIXME:` in `formData_test.ts`,
   where `fuzz:formdata` found it; the fix belongs in the union compiler and
   moves every dispatching golden.
-- **A text union can be read from a form but not written to one.** The codec's
-  hook is consulted per target arm on the way in, so
+- **A union with a bare `string` arm can be read from a form but not written
+  to one.** The codec's hook is consulted per target arm on the way in, so
   `S.union([S.string, S.number])` and `S.union([S.string, S.file])` decode; on
   the way out `appendValue` hands the whole union to one `-> string`
-  conversion, which the union rules reject as ambiguous before the codec is
-  asked. Writing it needs a runtime dispatch per arm (`v instanceof Blob`, and
+  conversion, and the union rules reject that as ambiguous whenever a `string`
+  arm passes through untouched beside an arm that would have to convert.
+  `S.union([S.boolean, S.number])`, with no such arm, writes today. Writing
+  the rest needs a runtime dispatch per arm (`v instanceof Blob`, and
   each arm's own encoder for the rest), which is bundle the common case - a
   union of literals, which already works both ways - would carry for nothing.
   Listed in `fuzz:formdata`'s ONE_WAY, so the day it starts working the run
