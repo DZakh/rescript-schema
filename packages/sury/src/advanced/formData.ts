@@ -37,9 +37,7 @@ import {
   B_dynamicScope,
   B_embed,
   B_embedInvalidInput,
-  B_failWithArg,
   B_hoistDecl,
-  B_invalidInputBuilder,
   B_markOutput,
   B_refine,
   B_merge,
@@ -214,37 +212,39 @@ const asOptionalList = (value: unknown): unknown[] | undefined =>
 // arm would be taken as a pass-through and the hook never consulted.
 const formDataField: Internal = /* @__PURE__ */ initSchema(instanceTag, instanceDecoder, (s) => {
   s.name = "form field";
+  // Inside the initializer, not assigned at module scope: a property write is
+  // a statement esbuild keeps, and with it every bundle would carry the codec.
+  s.encoder = (input: Val, target: Internal): Val => {
+    const flag = tagFlags[target.type]!;
+    if (flag & 8) {
+      return readCheckbox(input, target);
+    }
+    if (flag & 256) {
+      // A union of text arms checks the entry once and dispatches on the value,
+      // which is what a bare enum wants and what a per-arm check would repeat.
+      // Anything else declines, so the compiler dispatches and calls this hook
+      // once per arm.
+      return target.anyOf!.every((variant) => tagFlags[variant.type]! & 2)
+        ? asText(input, target)
+        : input;
+    }
+    if (flag & (64 | 128)) {
+      // An entry is one value, so no structure fits in it. Reported from here,
+      // where the pair still names the form field - the text stage below would
+      // otherwise report a `string` the schema never mentioned.
+      return B_unsupportedDecode(input, formDataField, target);
+    }
+    // A blob takes the entry as it is, and `undefined`/`null` are the sentinels a
+    // union carries for an absent one. A string-tagged target checks the entry
+    // itself, and reads it as its own document where it is a format - a `string`
+    // stage in front would escape it into a JSON string value instead. In all
+    // three `unknown` is the source that leaves the target's own check the one
+    // that runs.
+    return takesEntry(target) || (flag & (2 | 16 | 32))
+      ? B_refine(input, unknown, U, target)
+      : asText(input, target);
+  };
 });
-formDataField.encoder = (input: Val, target: Internal): Val => {
-  const flag = tagFlags[target.type]!;
-  if (flag & 8) {
-    return readCheckbox(input, target);
-  }
-  if (flag & 256) {
-    // A union of text arms checks the entry once and dispatches on the value,
-    // which is what a bare enum wants and what a per-arm check would repeat.
-    // Anything else declines, so the compiler dispatches and calls this hook
-    // once per arm.
-    return target.anyOf!.every((variant) => tagFlags[variant.type]! & 2)
-      ? asText(input, target)
-      : input;
-  }
-  if (flag & (64 | 128)) {
-    // An entry is one value, so no structure fits in it. Reported from here,
-    // where the pair still names the form field - the text stage below would
-    // otherwise report a `string` the schema never mentioned.
-    return B_unsupportedDecode(input, formDataField, target);
-  }
-  // A blob takes the entry as it is, and `undefined`/`null` are the sentinels a
-  // union carries for an absent one. A string-tagged target checks the entry
-  // itself, and reads it as its own document where it is a format - a `string`
-  // stage in front would escape it into a JSON string value instead. In all
-  // three `unknown` is the source that leaves the target's own check the one
-  // that runs.
-  return takesEntry(target) || (flag & (2 | 16 | 32))
-    ? B_refine(input, unknown, U, target)
-    : asText(input, target);
-};
 
 // The entry checked to be a string, with the target's own decoder reading it
 // from there.

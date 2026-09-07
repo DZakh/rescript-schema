@@ -86,3 +86,16 @@ test("no public name is an alias of another binding", () => {
     );
   expect(aliases).toEqual([]);
 });
+
+// A property write at module scope (`schema.encoder = …`) is a statement, not
+// a declaration, so no annotation covers it: esbuild keeps the write and with
+// it the schema and everything its value reaches - in every bundle, whether or
+// not the schema is imported. A schema built by `initSchema` sets its hooks
+// inside the initializer callback instead.
+test("no module-scope property write on a schema", () => {
+  const writes = source
+    .split("\n")
+    .filter((line) => /^[A-Za-z_$][\w$]*\.[\w$]+ = /.test(line))
+    .filter((line) => !line.includes(".prototype = "));
+  expect(writes).toEqual([]);
+});
