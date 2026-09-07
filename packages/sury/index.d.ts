@@ -457,8 +457,8 @@ export function schemaOf<TOutput>(): <const TDef>(
 // builds then rejects a value the type calls valid. Equality is what sees it.
 //
 // Two identical deferred conditionals are only assignable to each other when
-// the types they check are identical, which is what makes this exact — down to
-// optionality and `readonly`.
+// the types they check are identical, which is what makes this exact. The one
+// distinction deliberately erased first is `readonly` — see `Mutable`.
 type AssertEqual<T, U> = (<V>() => V extends T ? 1 : 2) extends <V>() => V extends U
   ? 1
   : 2
@@ -470,17 +470,44 @@ type AssertEqual<T, U> = (<V>() => V extends T ? 1 : 2) extends <V>() => V exten
 // distinction no definition could express.
 type Mutable<T> = T extends readonly unknown[] ? { -readonly [K in keyof T]: T[K] } : T;
 
-type DefinitionMatches<TDef, TOutput> = AssertEqual<
-  UnknownToOutput<TDef>,
-  Mutable<TOutput>
->;
+type DefinitionMatches<TDef, TOutput> = TDef extends SchemaLike<unknown, unknown>
+  ? AssertEqual<UnknownToOutput<TDef>, Mutable<TOutput>>
+  : [TOutput] extends [object]
+  ? TOutput extends readonly unknown[]
+    ? AssertEqual<UnknownToOutput<TDef>, Mutable<TOutput>>
+    : DefinitionFieldsMatch<TDef, TOutput>
+  : AssertEqual<UnknownToOutput<TDef>, TOutput>;
+
+// Field by field, rather than building the definition's whole output type and
+// comparing that in one go. The answer is the same — Sury reads a field's
+// optionality off whether its type admits `undefined`, which is what a
+// per-field comparison sees — but the whole-object form pays for
+// `UnknownToOutput`'s optional-key split on every call, and that split is a
+// quarter of what the check costs. Arrays keep the whole-object form: `keyof`
+// a tuple carries every array method, which is not a field list.
+type DefinitionFieldsMatch<TDef, TOutput> =
+  | Exclude<keyof TOutput, keyof TDef>
+  | Exclude<keyof TDef, keyof TOutput> extends never
+  ? {
+      [K in keyof TDef]: K extends keyof TOutput
+        ? DefinitionMatches<TDef[K], TOutput[K]>
+        : false;
+    }[keyof TDef] extends true
+    ? true
+    : false
+  : false;
 
 // What the definition should have been, so TypeScript reports the mismatch on
 // the field that carries it rather than against the whole call. A field that
 // matches is left as it was written; one that doesn't becomes a type nothing
-// satisfies, whose name states both sides.
-// The mismatch is spelled out at each use rather than through a `Mismatch<…>`
-// alias: TypeScript prints an alias by name, so the report would read
+// satisfies, which states both sides.
+//
+// No array carve-out here, unlike `DefinitionMatches`: a mapped type over a
+// tuple maps its elements, and it is only the `keyof` comparison that would
+// drag in the array methods.
+//
+// Written out at each use rather than through a `Mismatch<…>` alias, because
+// TypeScript prints an alias by name: the report would read
 // `Mismatch<Date | undefined, Date>` and leave the reader to work out which
 // side is which. Structurally, both are labelled.
 type DefinitionMismatch<TDef, TOutput> = TDef extends SchemaLike<unknown, unknown>

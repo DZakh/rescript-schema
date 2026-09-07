@@ -2723,6 +2723,18 @@ test("schemaOf: definitions that aren't a plain fields object", (t) => {
   // @ts-expect-error - the type declares the tag "circle"
   S.schemaOf<{ kind: "circle"; r: number }>()({ kind: "square", r: S.number });
 
+  // A tuple definition is compared whole: `keyof` a tuple carries every array
+  // method, so there is no field list to walk.
+  const pair = S.schemaOf<[string, number]>()([S.string, S.number]);
+  expectTypeOf(pair).toEqualTypeOf<S.Schema<[string, number], [string, number]>>();
+  t.expect(S.parser(pair)(["a", 1])).toEqual(["a", 1]);
+
+  // @ts-expect-error - the second element is declared a number
+  S.schemaOf<[string, number]>()([S.string, S.string]);
+
+  const list = S.schemaOf<string[]>()(S.array(S.string));
+  expectTypeOf(list).toEqualTypeOf<S.Schema<string[], string[]>>();
+
   type Node = { id: string; children: Node[] };
   const node = S.schemaOf<Node>()(
     S.recursive<Node>("Node", (node) =>
