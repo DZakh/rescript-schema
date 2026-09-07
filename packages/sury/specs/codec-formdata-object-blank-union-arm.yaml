@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: 'SuryError: Failed at a: Ambiguous "" for string | number. Should a blank input be rejected, kept, or read as absent? Choose with S.nonEmpty, S.minLength(0), or S.optional'
+    creationError: 'SuryError: Failed at a: Ambiguous "" for string | number. Should a blank input be rejected, kept, or read as absent? Choose with S.nonEmpty, S.minLength(0), S.optional or S.nullable'
   decode: eq-to-parse
   encode:
     creationError: "SuryError: Failed at a: Ambiguous string | number -> string. Should number be decoded or ignored? Choose with S.to for number -> string, or S.never -> number"

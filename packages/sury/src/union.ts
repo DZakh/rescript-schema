@@ -391,8 +391,14 @@ const unionNarrowSchema = (schema: Internal): Internal => {
     // A coerced literal is narrowed by the literal itself, which reads its
     // const off the expected schema - the narrow carries none - so a string
     // source dispatches on `"1"` exactly as it does for the literal alone.
+    // The expected is handed over for that call only: the case compiles from
+    // what this produced, and would re-check the const against a narrow it
+    // took for the source.
     if (isLiteral(schema) && tagFlag & (4 | 8 | 1024)) {
       input.e = schema;
+      const output = schema.decoder(input);
+      input.e = narrow;
+      return output;
     }
     return schema.decoder(input);
   });
@@ -587,7 +593,7 @@ const unionCheckPartial = (
 ): void => {
   const other = outputSide ? target : source;
   let matched: Internal | undefined = U;
-  let unmatched = false;
+  let unmatched: Internal | undefined = U;
   for (let idx = 0; idx < variants.length; idx++) {
     const variant = variants[idx]!;
     const match = outputSide ? unionOutput(variant) : variant;
@@ -597,27 +603,12 @@ const unionCheckPartial = (
       continue;
     }
     if (unionSameType(other, match)) matched ||= variant;
-    else unmatched = true;
+    else unmatched ||= variant;
   }
-  if (matched !== U && unmatched) {
-    // The member with no same-typed counterpart is the one to decide about.
-    unionInvalid(
-      input,
-      source,
-      target,
-      variants.find((variant) => variant !== matched && variant.type !== neverTag)!,
-      outputSide,
-    );
+  if (matched !== U && unmatched !== U) {
+    unionInvalid(input, source, target, unmatched, outputSide);
   }
 };
-
-const unionUncovered = (
-  input: Val,
-  source: Internal,
-  target: Internal,
-  member: Internal,
-  onSource: boolean,
-): never => unionInvalid(input, source, target, member, onSource);
 
 // A member a conversion could pair the open one with: the first that is not a
 // sentinel, any being as good a spelling as another.
@@ -1605,7 +1596,7 @@ const unionResolveToUnion = (
       );
     }
     if (matches[s] === U) {
-      unionUncovered(input, source, target, sourceOut, true);
+      unionInvalid(input, source, target, sourceOut, true);
     }
   }
   for (let t = 0; t < targets.length; t++) {
@@ -1621,7 +1612,7 @@ const unionResolveToUnion = (
         unionOutput(targetVariant).type === neverTag ||
         !(sourceNullish & tagFlags[opposite]!))
     ) {
-      unionUncovered(input, source, target, targetVariant, false);
+      unionInvalid(input, source, target, targetVariant, false);
     }
   }
 

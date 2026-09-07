@@ -237,7 +237,7 @@ const entrySchema = (blank: boolean): Internal =>
       if (blank && !decidesBlank(target)) {
         B_invalidOperation(
           input,
-          `Ambiguous "" for ${inputExpression(target)}. Should a blank input be rejected, kept, or read as absent? Choose with S.nonEmpty, S.minLength(0), or S.optional`,
+          `Ambiguous "" for ${inputExpression(target)}. Should a blank input be rejected, kept, or read as absent? Choose with S.nonEmpty, S.minLength(0), S.optional or S.nullable`,
         );
       }
       const flag = tagFlags[target.type]!;
@@ -488,9 +488,9 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     );
     return `for(let ${iterVar}=0;${iterVar}<${arrayVar}.length;++${iterVar}){${itemCode}}`;
   }
-  if (isAbsent(schema) && presentArm(schema).type !== unknownTag) {
-    const presentSchema = presentArm(schema);
-    if (presentSchema === schema) {
+  const present = presentArm(schema);
+  if (isAbsent(schema) && present.type !== unknownTag) {
+    if (present === schema) {
       // Nothing but the sentinels, so nothing is ever written.
       return "";
     }
@@ -500,12 +500,12 @@ const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean)
     // Compiled on a chain detached from the field val, the way json.ts's
     // guardedJsonPiece does, so the conversion's own code lands inside it.
     const inputVar = val.v();
-    const detached = B_next(val, inputVar, presentSchema, presentSchema);
+    const detached = B_next(val, inputVar, present, present);
     detached.v = _var;
     detached.prev = U;
     return `if(${inputVar}!=null){${appendValue(detached, fdVar, keyText, inList)}}`;
   }
-  if (tagFlag & 1 || presentArm(schema).type === unknownTag) {
+  if (present.type === unknownTag) {
     // An entry, or nothing: `append` stringifies whatever is neither, and
     // `"[object Object]"` is not what an `unknown` field held. `undefined`
     // and `null` are what its decode reads from no entry, so they write none

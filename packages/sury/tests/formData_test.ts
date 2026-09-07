@@ -141,7 +141,7 @@ test("a nullable field reads a blank entry as null, and omits null on the way ou
 });
 
 test("a blank required string must say what it means", () => {
-  const ambiguous = ['Failed at f: Ambiguous "" for', "S.nonEmpty", "S.minLength(0)", "S.optional"];
+  const ambiguous = ['Failed at f: Ambiguous "" for', "S.nonEmpty", "S.minLength(0)", "S.optional", "S.nullable"];
   for (const schema of [S.string, S.string.with(S.maxLength, 100)]) {
     for (const fragment of ambiguous) {
       expect(() => S.decoder(S.formData.with(S.to, S.schema({ f: schema })))).toThrow(fragment);
