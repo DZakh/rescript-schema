@@ -69,7 +69,7 @@ import {
   refineInput
 } from "./modifiers";
 import {
- assertOrThrow
+ assertResult
 } from "./operations";
 import {
  __setStandardJSONSchemaConverter
@@ -896,9 +896,12 @@ const withRequired = (schema: Internal, required: string[]): Internal =>
     "Should contain every required property."
   );
 
+// Deliberately not `S.isInput`, whose compiled boolean this looks like: that
+// one rethrows anything that isn't a Sury failure, and a JSON Schema keyword
+// asking "does this value match" wants every answer to be yes or no.
 const passesSchema = (data: unknown, schema: Internal): boolean => {
   try {
-    assertOrThrow(data, schema);
+    (getOp(0, 3, unknown, schema, assertResult) as (input: unknown) => unknown)(data);
     return true;
   } catch {
     return false;

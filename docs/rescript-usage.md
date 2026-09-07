@@ -1592,7 +1592,7 @@ Each direction is one of:
 
 ```rescript
 Sync(fn)   // a coder
-Async(fn)  // a coder returning a promise, run with parseAsyncOrThrow
+Async(fn)  // a coder returning a promise, run with parseAsPromiseOrReject
 Auto       // keep the built-in conversion for this direction
 Never      // this direction is impossible, fail when an operation needs it
 Pack       // store this direction's source as a value the target holds
@@ -1654,12 +1654,13 @@ S.Error.make(
 
 `S.t<'value>` names the output type, so operations on that side carry no prefix; the ones that look at the input side say so in their name.
 
-|           | Input side                             | Output side                              | Crosses both                                    |
-| --------- | -------------------------------------- | ---------------------------------------- | ----------------------------------------------- |
-| Convert   |                                        |                                          | `parseOrThrow`, `decodeOrThrow`, `parser`, `decoder` |
-| Construct |                                        | `constructor`, `asyncConstructor`        |                                                 |
-| Assert    | `assertOrThrow`                        |                                          |                                                 |
-| Describe  | `inputJSONSchema`, `inputExpression`   | `outputJSONSchema`, `outputExpression`   |                                                 |
+|           | Input side                                              | Output side                                                 | Crosses both              |
+| --------- | ------------------------------------------------------- | ----------------------------------------------------------- | ------------------------- |
+| Convert   |                                                          |                                                              | `parse*`, `convert*`      |
+| Make      |                                                          | `make*`                                                      |                           |
+| Validate  | `isInput`                                                | `isOutput`                                                   |                           |
+| Assert    | `assertInputOrThrow`, `assertInputAsPromiseOrReject`     | `assertOutputOrThrow`, `assertOutputAsPromiseOrReject`       |                           |
+| Describe  | `inputJSONSchema`, `inputExpression`                     | `outputJSONSchema`, `outputExpression`                       |                           |
 
 ### Pipelines
 

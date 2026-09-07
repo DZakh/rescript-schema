@@ -24,7 +24,6 @@ import {
   type Builder,
   type Check,
   functionTag,
-  getOrRethrow,
   globalConfig,
   type GlobalConfigOverride,
   initialDefaultFlag,
@@ -32,11 +31,8 @@ import {
   inputExpression,
   type Internal,
   jsonName,
-  isOwnSchema,
-  isSchemaObject,
   objectTag,
   panic,
-  panicNotSchema,
   pathEmpty,
   type Path,
   stringify,
@@ -64,9 +60,6 @@ import {
   Option_getOr,
   Option_getOrWith
 } from "./modifiers";
-import {
- assertResult
-} from "./operations";
 import {
  getOutputSchema,
  reverse

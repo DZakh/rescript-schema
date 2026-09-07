@@ -1101,8 +1101,7 @@ const valueToCodeSafe = (v: unknown): string => {
   }
 };
 
-// The five outcomes, per verb. `AsPromisableResult` ships for `parse` only, so
-// the other two verbs run four apiece.
+// The five outcomes, per verb.
 const OUTCOME_FORMS = {
   parse: {
     OrThrow: S.parseOrThrow,
@@ -1116,12 +1115,14 @@ const OUTCOME_FORMS = {
     AsResult: S.decodeAsResult,
     AsPromiseOrReject: S.decodeAsPromiseOrReject,
     AsResultPromise: S.decodeAsResultPromise,
+    AsPromisableResult: S.decodeAsPromisableResult,
   },
   encode: {
     OrThrow: S.encodeOrThrow,
     AsResult: S.encodeAsResult,
     AsPromiseOrReject: S.encodeAsPromiseOrReject,
     AsResultPromise: S.encodeAsResultPromise,
+    AsPromisableResult: S.encodeAsPromisableResult,
   },
 } as const satisfies Record<OpName, Record<string, unknown>>;
 

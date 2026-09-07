@@ -176,7 +176,7 @@ test("the promisable Result mode follows the schema's own shape", async () => {
 });
 
 test("`~standard.validate` is the compiled operation, with no wrapper left", () => {
-  // The Standard Schema result shape is a tail of its own (mode bit 128), so
+  // The Standard Schema result shape is a tail of its own (mode bit 1024), so
   // there is no wrapper translating one result shape into another. It is
   // emitted by `throwTail` rather than behind the `__setTail` hook: the
   // `~standard` prototype getter can never be tree-shaken, so registering from

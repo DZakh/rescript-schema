@@ -1,7 +1,8 @@
-// The interop surface hung off the schema prototype: `toString`, the Standard
-// Schema `~standard` props, and the `safe` wrappers. Split from operations.ts
-// because both prototype installers are top-level side effects — a module that
-// reaches this one carries them, and the operations must not.
+// The interop surface hung off the schema prototype: `toString` and the
+// Standard Schema `~standard` props. Split from operations.ts because both
+// installers are top-level side effects — a module that reaches this one
+// carries them, and an operation must not drag the Standard Schema machinery
+// in with it.
 
 import {
   type Flag,
@@ -115,14 +116,14 @@ Object.defineProperty(schemaPrototype, "~standard", {
     // can't be hoisted by the consumer and would outweigh the decode.
     // `globalConfig.f` is getOp's flag source, so re-reading it is the whole
     // invalidation condition.
-    let decoderFlag: Flag | undefined = U;
+    let opFlag: Flag | undefined = U;
     let validateOp: (input: unknown) => StandardResult | Promise<StandardResult>;
     const standard: StandardProps = {
       version: 1,
       vendor,
       validate: (input: unknown): StandardResult | Promise<StandardResult> => {
         // The Standard Schema result is compiled straight into the operation
-        // (mode bit 128), promisable (32) so one compile answers for both a
+        // (mode bit 1024), promisable (512) so one compile answers for both a
         // sync and an async schema: no `try` on the valid path, no
         // sync-compile / catch / recompile-async dance, and no second object
         // to translate one result shape into the other.
@@ -130,11 +131,11 @@ Object.defineProperty(schemaPrototype, "~standard", {
         // Outside any guard on purpose: a conversion rejected at operation
         // creation fails for every input — a schema bug for the developer, not
         // an `issues` entry for whoever is filling in the form. It throws on
-        // every call, since `decoderFlag` commits only once there is an
+        // every call, since `opFlag` commits only once there is an
         // operation.
-        if (decoderFlag !== globalConfig.f) {
+        if (opFlag !== globalConfig.f) {
           validateOp = getOp(1 | 512 | 1024, 2, unknown, schema) as typeof validateOp;
-          decoderFlag = globalConfig.f;
+          opFlag = globalConfig.f;
         }
         return validateOp(input);
       },

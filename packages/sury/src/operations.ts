@@ -21,8 +21,7 @@ import {
   panicNotSchema,
   U,
   undefinedTag,
-  unknown,
-  type Val
+  unknown
 } from "./base";
 import {
  B_varWithoutAllocation,
@@ -45,10 +44,6 @@ export const assertResult: Internal = /* @__PURE__ */ initSchema(undefinedTag, l
   s.const = U;
   s.noValidation = true;
 });
-
-export const assertOrThrow = (any: unknown, schema: Internal): void => {
-  (getOp(0, 3, unknown, schema, assertResult) as (input: unknown) => unknown)(any);
-}
 
 // ── Operation tail ───────────────────────────────────────────────────────────
 //
