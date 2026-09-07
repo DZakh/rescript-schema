@@ -9,6 +9,7 @@
 - [Basic usage](#basic-usage)
   - [Parsing data](#parsing-data)
   - [Inferred types](#inferred-types)
+  - [Checking against a type you already have](#checking-against-a-type-you-already-have)
   - [Encoding data](#encoding-data)
   - [JSON Schema](#json-schema)
   - [Standard Schema](#standard-schema)
@@ -130,6 +131,29 @@ To annotate "any schema producing `T`, whatever it accepts", leave the input as 
 const parseT = <T>(schema: S.Schema<unknown, T>, data: unknown): T =>
   S.parser(schema)(data);
 ```
+
+### Checking against a type you already have
+
+When you already have the type - generated, shared, or just written by hand - `S.schemaOf` checks a definition against it instead of inferring a new one.
+
+```ts
+type User = {
+  id: string;
+  name: string;
+  publishedAt?: Date;
+};
+
+const userSchema = S.schemaOf<User>()({
+  id: S.string,
+  name: S.string,
+  publishedAt: S.optional(S.isoDateTime.with(S.to, S.date)),
+});
+//? S.Schema<{ id: string; name: string; publishedAt?: string | undefined }, User>
+```
+
+Anything that doesn't line up is a type error on the field causing it: a wrong type, a missing field, a field the type doesn't declare, or an optional field defined without [`S.optional`](#optionals).
+
+Codecs need no second type argument, since the encoded type is read off the definition. A union or a recursive schema is passed as the schema itself.
 
 ### Encoding data
 

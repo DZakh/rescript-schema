@@ -2583,3 +2583,246 @@ test("Schema introspection tags survive on coerced and instance schemas", (t) =>
   const setSchema = S.instance(Set);
   t.expect(setSchema.type === "instance" && setSchema.class === Set).toBe(true);
 });
+
+// `schemaOf` is checked by the type system, so half of its contract is what
+// must NOT compile — a spec snapshots a schema that exists, and can't express
+// a rejection. `object-in-object3` and `codec-string-date` carry the positive
+// half as `ts.aliases`, which is what proves the definition builds the very
+// same schema as the inferred spelling.
+test("schemaOf: builds a schema against a type the consumer already has", (t) => {
+  type User = {
+    id: string;
+    name: string;
+    age?: number;
+    createdAt: Date;
+    role: "admin" | "user";
+  };
+
+  const userSchema = S.schemaOf<User>()({
+    id: S.string,
+    name: S.string,
+    age: S.optional(S.number),
+    createdAt: S.date,
+    role: S.union(["admin", "user"]),
+  });
+
+  // The output side is named rather than expanded: it was checked equal to
+  // `User`, so it can be reported as `User`.
+  expectTypeOf(userSchema).toEqualTypeOf<S.Schema<User, User>>();
+
+  const user = {
+    id: "u1",
+    name: "Bob",
+    createdAt: new Date("2024-01-01T00:00:00.000Z"),
+    role: "admin" as const,
+  };
+  t.expect(S.parser(userSchema)(user)).toEqual({ ...user, age: undefined });
+
+  // The encoded side is read off the definition, so a codec needs no second
+  // type argument.
+  type UserRow = {
+    id: string;
+    name: string;
+    age?: number;
+    createdAt: string;
+    role: "admin" | "user";
+  };
+  const rowSchema = S.schemaOf<User>()({
+    id: S.string,
+    name: S.string,
+    age: S.optional(S.number),
+    createdAt: S.isoDateTime.with(S.to, S.date),
+    role: S.union(["admin", "user"]),
+  });
+  expectTypeOf(rowSchema).toEqualTypeOf<S.Schema<UserRow, User>>();
+  t.expect(
+    S.parser(rowSchema)({ ...user, createdAt: "2024-01-01T00:00:00.000Z" })
+  ).toEqual({ ...user, age: undefined });
+
+  // A field the type declares optional, defined by a schema that requires it.
+  // The definition's output is `number` where the type reads `number |
+  // undefined` — assignable, so only an equality check sees it.
+  S.schemaOf<User>()({
+    id: S.string,
+    name: S.string,
+    // @ts-expect-error - `age?: number` needs S.optional, or the schema rejects
+    // a value the type calls valid
+    age: S.number,
+    createdAt: S.date,
+    role: S.union(["admin", "user"]),
+  });
+
+  S.schemaOf<User>()({
+    // @ts-expect-error - the type declares `id` a string
+    id: S.number,
+    name: S.string,
+    age: S.optional(S.number),
+    createdAt: S.date,
+    role: S.union(["admin", "user"]),
+  });
+
+  // @ts-expect-error - `name`, `age` and `role` are missing
+  S.schemaOf<User>()({ id: S.string, createdAt: S.date });
+
+  S.schemaOf<User>()({
+    id: S.string,
+    name: S.string,
+    age: S.optional(S.number),
+    createdAt: S.date,
+    role: S.union(["admin", "user"]),
+    // @ts-expect-error - the type declares no `oops`
+    oops: S.string,
+  });
+
+  S.schemaOf<{ role: "admin" | "user" }>()({
+    // @ts-expect-error - "guest" is not one of the declared members
+    role: S.union(["admin", "guest"]),
+  });
+
+  // Narrower than declared is a rejection for the same reason as the optional
+  // case: the schema would refuse values the type admits.
+  S.schemaOf<{ id: string }>()({
+    // @ts-expect-error - the type declares `string`, not the one literal
+    id: S.schema("fixed"),
+  });
+});
+
+test("schemaOf: definitions that aren't a plain fields object", (t) => {
+  // A whole schema as the definition — how a union, or anything else with no
+  // fields object, is named.
+  type Shape = { kind: "circle"; r: number } | { kind: "square"; side: number };
+  const shape = S.schemaOf<Shape>()(
+    S.union([
+      S.schema({ kind: "circle", r: S.number }),
+      S.schema({ kind: "square", side: S.number }),
+    ])
+  );
+  expectTypeOf(shape).toEqualTypeOf<S.Schema<Shape, Shape>>();
+  t.expect(S.parser(shape)({ kind: "circle", r: 1 })).toEqual({
+    kind: "circle",
+    r: 1,
+  });
+
+  S.schemaOf<Shape>()(
+    // @ts-expect-error - `r` is a number in the declared union
+    S.union([
+      S.schema({ kind: "circle", r: S.string }),
+      S.schema({ kind: "square", side: S.number }),
+    ])
+  );
+
+  // A literal field is spelled as the value itself, same as in `S.schema`.
+  const tagged = S.schemaOf<{ kind: "circle"; r: number }>()({
+    kind: "circle",
+    r: S.number,
+  });
+  expectTypeOf(tagged).toEqualTypeOf<
+    S.Schema<{ kind: "circle"; r: number }, { kind: "circle"; r: number }>
+  >();
+
+  // @ts-expect-error - the type declares the tag "circle"
+  S.schemaOf<{ kind: "circle"; r: number }>()({ kind: "square", r: S.number });
+
+  // A tuple definition is compared whole: `keyof` a tuple carries every array
+  // method, so there is no field list to walk.
+  const pair = S.schemaOf<[string, number]>()([S.string, S.number]);
+  expectTypeOf(pair).toEqualTypeOf<S.Schema<[string, number], [string, number]>>();
+  t.expect(S.parser(pair)(["a", 1])).toEqual(["a", 1]);
+
+  // @ts-expect-error - the second element is declared a number
+  S.schemaOf<[string, number]>()([S.string, S.string]);
+
+  const list = S.schemaOf<string[]>()(S.array(S.string));
+  expectTypeOf(list).toEqualTypeOf<S.Schema<string[], string[]>>();
+
+  type Node = { id: string; children: Node[] };
+  const node = S.schemaOf<Node>()(
+    S.recursive<Node>("Node", (node) =>
+      S.schema({ id: S.string, children: S.array(node) })
+    )
+  );
+  expectTypeOf(node).toEqualTypeOf<S.Schema<Node, Node>>();
+  t.expect(S.parser(node)({ id: "a", children: [] })).toEqual({
+    id: "a",
+    children: [],
+  });
+
+  // A `readonly` array or tuple has no `readonly` schema to match it, so the
+  // comparison drops the modifier rather than asking for one.
+  type Team = {
+    name: string;
+    members: { id: string }[];
+    tags: Record<string, number>;
+    at: readonly [number, number];
+  };
+  expectTypeOf(
+    S.schemaOf<Team>()({
+      name: S.string,
+      members: S.array(S.schema({ id: S.string })),
+      tags: S.record(S.number),
+      at: S.tuple([S.number, S.number]),
+    })
+  ).toEqualTypeOf<
+    S.Schema<
+      {
+        name: string;
+        members: { id: string }[];
+        tags: Record<string, number>;
+        at: [number, number];
+      },
+      Team
+    >
+  >();
+});
+
+// No schema produces a `readonly` type, so a target that declares one has the
+// modifier dropped before the comparison rather than being unsatisfiable. Two
+// mechanisms do it between them: `Mutable` for arrays and tuples, and the
+// per-field walk for properties, which reads `TOutput[K]` and so never sees a
+// property modifier at all. The result names the target — `readonly` and all —
+// while the encoded side, which is what the definition actually builds, stays
+// mutable.
+test("schemaOf: a target type that declares readonly", (t) => {
+  type Tagged = { readonly id: string; readonly tags: readonly string[] };
+  const tagged = S.schemaOf<Tagged>()({ id: S.string, tags: S.array(S.string) });
+  expectTypeOf(tagged).toEqualTypeOf<
+    S.Schema<{ id: string; tags: string[] }, Tagged>
+  >();
+  t.expect(S.parser(tagged)({ id: "a", tags: ["x"] })).toEqual({
+    id: "a",
+    tags: ["x"],
+  });
+
+  type Wrapped = Readonly<{ id: string; nested: { readonly n: number } }>;
+  expectTypeOf(
+    S.schemaOf<Wrapped>()({ id: S.string, nested: { n: S.number } })
+  ).toEqualTypeOf<S.Schema<{ id: string; nested: { n: number } }, Wrapped>>();
+
+  type Deep = { outer: { items: readonly number[] } };
+  expectTypeOf(
+    S.schemaOf<Deep>()({ outer: { items: S.array(S.number) } })
+  ).toEqualTypeOf<S.Schema<{ outer: { items: number[] } }, Deep>>();
+
+  type Pair = readonly [string, number];
+  expectTypeOf(S.schemaOf<Pair>()([S.string, S.number])).toEqualTypeOf<
+    S.Schema<[string, number], Pair>
+  >();
+
+  // Dropping `readonly` doesn't drop the check underneath it.
+  // @ts-expect-error - the type declares `readonly string[]`, not numbers
+  S.schemaOf<Tagged>()({ id: S.string, tags: S.array(S.number) });
+});
+
+// The first call takes only a type argument, so an inferring `S.schema` call
+// can't reach `schemaOf`'s checking at all. These pin that inference is
+// untouched by it.
+test("schemaOf: leaves inference alone", () => {
+  expectTypeOf(S.schema("tuna")).toEqualTypeOf<S.Schema<"tuna", "tuna">>();
+  expectTypeOf(S.schema(12)).toEqualTypeOf<S.Schema<12, 12>>();
+  expectTypeOf(S.schema({ id: S.string })).toEqualTypeOf<
+    S.Schema<{ id: string }, { id: string }>
+  >();
+  expectTypeOf(S.schema([S.string, S.number])).toEqualTypeOf<
+    S.Schema<[string, number], [string, number]>
+  >();
+});

@@ -163,6 +163,7 @@ export const FUZZ_EXPORTS: Record<string, FuzzExport> = {
   safe: skip("operation, not a schema factory"),
   safeAsync: skip("operation, not a schema factory"),
   schema: build(),
+  schemaOf: build(),
   shape: skip("output reshape; not a union-member combinator"),
   size: modify(["instance"], (S, schema) => schema.with(S.size, 1)),
   strict: modify(["object"], (S, schema) => S.strict(schema)),
