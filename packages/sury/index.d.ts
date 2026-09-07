@@ -833,6 +833,9 @@ export function reverse<TInput, TOutput>(
 //   AsResultPromise     Promise<Result<O>>
 //   AsPromisableResult  Result<O> | Promise<Result<O>>
 //
+// There is no promisable OrThrow: two shapes to branch on is already what not
+// knowing a schema's async-ness costs, and once you have branched you know.
+//
 // Each takes any of four call forms:
 //
 //   op(s)          the compiled operation (curried / data-last)
@@ -1056,10 +1059,14 @@ export function parseAsResultPromise<TOutput>(
 ): Promise<Result<TOutput>>;
 
 /**
+ * Decodes an unknown value to the schema's Output.
+ *
  * The Result outcome without committing to a shape: a synchronous schema
  * answers with the `Result` itself, an async one with a promise of it. One
  * compiled operation covers both, so a caller that doesn't know a schema's
  * async-ness doesn't have to lift every answer into a promise to find out.
+ * There is no promisable THROWING variant: two shapes to branch on is
+ * already the cost of not knowing, and by then you know.
  */
 export function parseAsPromisableResult<TOutput>(
   schema: SchemaLike<unknown, TOutput>
@@ -1301,6 +1308,59 @@ export function decodeAsResultPromise<TInput, TOutput>(
 ): Promise<Result<TOutput>>;
 
 /**
+ * Runs the schema's decode direction: Input to Output.
+ *
+ * The Result outcome without committing to a shape: a synchronous schema
+ * answers with the `Result` itself, an async one with a promise of it. One
+ * compiled operation covers both, so a caller that doesn't know a schema's
+ * async-ness doesn't have to lift every answer into a promise to find out.
+ * There is no promisable THROWING variant: two shapes to branch on is
+ * already the cost of not knowing, and by then you know.
+ */
+export function decodeAsPromisableResult<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>
+): (data: TInput) => Promisable<Result<TOutput>>;
+export function decodeAsPromisableResult<TInput, TOutput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): (data: TInput) => Promisable<Result<TOutput>>;
+export function decodeAsPromisableResult<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: TInput
+): Promisable<Result<TOutput>>;
+export function decodeAsPromisableResult<TInput, TOutput>(
+  data: TInput,
+  schema: SchemaLike<TInput, TOutput>
+): Promisable<Result<TOutput>>;
+export function decodeAsPromisableResult<TInput, TOutput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): (data: TInput) => Promisable<Result<TOutput>>;
+export function decodeAsPromisableResult<TInput, TOutput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, TOutput>,
+  data: TInput
+): Promisable<Result<TOutput>>;
+export function decodeAsPromisableResult<TInput, TOutput>(
+  data: TInput,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): Promisable<Result<TOutput>>;
+export function decodeAsPromisableResult<TInput, TOutput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>,
+  data: TInput
+): Promisable<Result<TOutput>>;
+export function decodeAsPromisableResult<TInput, TOutput>(
+  data: TInput,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): Promisable<Result<TOutput>>;
+
+/**
  * Runs the schema's encode direction: Output back to Input. Only the first
  * schema is reversed, so a chain after it reads exactly as in `decode`.
  *
@@ -1501,6 +1561,60 @@ export function encodeAsResultPromise<TOutput, TTarget>(
 ): Promise<Result<TTarget>>;
 
 /**
+ * Runs the schema's encode direction: Output back to Input. Only the first
+ * schema is reversed, so a chain after it reads exactly as in `decode`.
+ *
+ * The Result outcome without committing to a shape: a synchronous schema
+ * answers with the `Result` itself, an async one with a promise of it. One
+ * compiled operation covers both, so a caller that doesn't know a schema's
+ * async-ness doesn't have to lift every answer into a promise to find out.
+ * There is no promisable THROWING variant: two shapes to branch on is
+ * already the cost of not knowing, and by then you know.
+ */
+export function encodeAsPromisableResult<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>
+): (data: TOutput) => Promisable<Result<TInput>>;
+export function encodeAsPromisableResult<TOutput, TTarget>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, TTarget>
+): (data: TOutput) => Promisable<Result<TTarget>>;
+export function encodeAsPromisableResult<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: TOutput
+): Promisable<Result<TInput>>;
+export function encodeAsPromisableResult<TInput, TOutput>(
+  data: TOutput,
+  schema: SchemaLike<TInput, TOutput>
+): Promisable<Result<TInput>>;
+export function encodeAsPromisableResult<TOutput, TTarget>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TTarget>
+): (data: TOutput) => Promisable<Result<TTarget>>;
+export function encodeAsPromisableResult<TOutput, TTarget>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, TTarget>,
+  data: TOutput
+): Promisable<Result<TTarget>>;
+export function encodeAsPromisableResult<TOutput, TTarget>(
+  data: TOutput,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, TTarget>
+): Promisable<Result<TTarget>>;
+export function encodeAsPromisableResult<TOutput, TTarget>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TTarget>,
+  data: TOutput
+): Promisable<Result<TTarget>>;
+export function encodeAsPromisableResult<TOutput, TTarget>(
+  data: TOutput,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TTarget>
+): Promisable<Result<TTarget>>;
+
+/**
  * Validates a value against the schema's Input and hands back the value
  * itself — checks, conversion and refinements all run, but the result is
  * discarded, so the value keeps its identity rather than becoming a decoded
@@ -1709,6 +1823,62 @@ export function makeInputAsResultPromise<TInput>(
 ): Promise<Result<TInput>>;
 
 /**
+ * Validates a value against the schema's Input and hands back the value
+ * itself — checks, conversion and refinements all run, but the result is
+ * discarded, so the value keeps its identity rather than becoming a decoded
+ * clone.
+ *
+ * The Result outcome without committing to a shape: a synchronous schema
+ * answers with the `Result` itself, an async one with a promise of it. One
+ * compiled operation covers both, so a caller that doesn't know a schema's
+ * async-ness doesn't have to lift every answer into a promise to find out.
+ * There is no promisable THROWING variant: two shapes to branch on is
+ * already the cost of not knowing, and by then you know.
+ */
+export function makeInputAsPromisableResult<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>
+): (data: Unbranded<TInput>) => Promisable<Result<TInput>>;
+export function makeInputAsPromisableResult<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>
+): (data: Unbranded<TInput>) => Promisable<Result<TInput>>;
+export function makeInputAsPromisableResult<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: Unbranded<TInput>
+): Promisable<Result<TInput>>;
+export function makeInputAsPromisableResult<TInput, TOutput>(
+  data: Unbranded<TInput>,
+  schema: SchemaLike<TInput, TOutput>
+): Promisable<Result<TInput>>;
+export function makeInputAsPromisableResult<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): (data: Unbranded<TInput>) => Promisable<Result<TInput>>;
+export function makeInputAsPromisableResult<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  data: Unbranded<TInput>
+): Promisable<Result<TInput>>;
+export function makeInputAsPromisableResult<TInput>(
+  data: Unbranded<TInput>,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>
+): Promisable<Result<TInput>>;
+export function makeInputAsPromisableResult<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>,
+  data: Unbranded<TInput>
+): Promisable<Result<TInput>>;
+export function makeInputAsPromisableResult<TInput>(
+  data: Unbranded<TInput>,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): Promisable<Result<TInput>>;
+
+/**
  * `makeInput` for the Output side.
  *
  * Throws `S.Error` on failure.
@@ -1903,6 +2073,59 @@ export function makeOutputAsResultPromise<TOutput>(
   s2: SchemaLike<unknown, unknown>,
   s3: SchemaLike<unknown, unknown>
 ): Promise<Result<TOutput>>;
+
+/**
+ * `makeInput` for the Output side.
+ *
+ * The Result outcome without committing to a shape: a synchronous schema
+ * answers with the `Result` itself, an async one with a promise of it. One
+ * compiled operation covers both, so a caller that doesn't know a schema's
+ * async-ness doesn't have to lift every answer into a promise to find out.
+ * There is no promisable THROWING variant: two shapes to branch on is
+ * already the cost of not knowing, and by then you know.
+ */
+export function makeOutputAsPromisableResult<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>
+): (data: Unbranded<TOutput>) => Promisable<Result<TOutput>>;
+export function makeOutputAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>
+): (data: Unbranded<TOutput>) => Promisable<Result<TOutput>>;
+export function makeOutputAsPromisableResult<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: Unbranded<TOutput>
+): Promisable<Result<TOutput>>;
+export function makeOutputAsPromisableResult<TInput, TOutput>(
+  data: Unbranded<TOutput>,
+  schema: SchemaLike<TInput, TOutput>
+): Promisable<Result<TOutput>>;
+export function makeOutputAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): (data: Unbranded<TOutput>) => Promisable<Result<TOutput>>;
+export function makeOutputAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  data: Unbranded<TOutput>
+): Promisable<Result<TOutput>>;
+export function makeOutputAsPromisableResult<TOutput>(
+  data: Unbranded<TOutput>,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>
+): Promisable<Result<TOutput>>;
+export function makeOutputAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>,
+  data: Unbranded<TOutput>
+): Promisable<Result<TOutput>>;
+export function makeOutputAsPromisableResult<TOutput>(
+  data: Unbranded<TOutput>,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): Promisable<Result<TOutput>>;
 
 /**
  * Whether the value is a valid Input for the schema. Never throws for a failed

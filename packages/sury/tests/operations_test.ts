@@ -377,3 +377,31 @@ test("make hands back the value it was given, even when the body rebinds it", ()
   // and the operation still reads as the identity.
   expect(S.makeInputOrThrow(S.unknown)).toBe(S.parseOrThrow(S.unknown));
 });
+
+test("every verb takes the promisable Result, and answers in the schema's shape", async () => {
+  const asyncSchema = S.string.with(S.to, S.number, {
+    decode: { async: async (v: string) => Number(v) },
+    encode: String,
+  });
+  const sync: Array<S.Result<unknown> | Promise<S.Result<unknown>>> = [
+    S.parseAsPromisableResult(user, { id: "a" }),
+    S.decodeAsPromisableResult(user, { id: "a" }),
+    S.encodeAsPromisableResult(user, { id: "a" }),
+    S.makeInputAsPromisableResult(user, { id: "a" }),
+    S.makeOutputAsPromisableResult(user, { id: "a" }),
+  ];
+  for (const answer of sync) {
+    expect(answer).not.toBeInstanceOf(Promise);
+    expect(answer).toEqual({ success: true, value: { id: "a" }, error: undefined });
+  }
+  const asyncAnswers = [
+    S.parseAsPromisableResult(asyncSchema, "1"),
+    S.decodeAsPromisableResult(asyncSchema, "1"),
+  ];
+  for (const answer of asyncAnswers) {
+    expect(answer).toBeInstanceOf(Promise);
+    expect(await answer).toEqual({ success: true, value: 1, error: undefined });
+  }
+  // There is no promisable throwing variant, in either language.
+  expect("parseAsPromisableOrThrow" in S).toBe(false);
+});

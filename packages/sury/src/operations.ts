@@ -324,6 +324,10 @@ export function decodeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?:
   return tailDispatch(arguments.length, a, b, c, d, U, U, false, 1 | 128);
 }
 
+export function decodeAsPromisableResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, U, U, false, 1 | 128 | 512);
+}
+
 // Only the first schema is reversed: `S.encodeOrThrow(a, ...rest)` starts from
 // a's Output and runs the rest of the chain forward, so a pipeline after the
 // reversed schema is written exactly as in `decode`. Compare
@@ -342,6 +346,10 @@ export function encodeAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d
 
 export function encodeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
   return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 128);
+}
+
+export function encodeAsPromisableResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 128 | 512);
 }
 
 // The make family validates and hands back the value it was given (flag 256),
@@ -363,6 +371,15 @@ export function makeInputAsResultPromise(a?: unknown, b?: unknown, c?: unknown, 
   return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 128 | 2048);
 }
 
+export function makeInputAsPromisableResult(
+  a?: unknown,
+  b?: unknown,
+  c?: unknown,
+  d?: unknown,
+): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 128 | 512 | 2048);
+}
+
 export function makeOutputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
   return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 2048);
 }
@@ -377,6 +394,15 @@ export function makeOutputAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknow
 
 export function makeOutputAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
   return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 128 | 2048);
+}
+
+export function makeOutputAsPromisableResult(
+  a?: unknown,
+  b?: unknown,
+  c?: unknown,
+  d?: unknown,
+): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 128 | 512 | 2048);
 }
 
 // ── Checks ───────────────────────────────────────────────────────────────────
@@ -463,4 +489,31 @@ export function $makeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown
 
 export function $makeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
   return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 256 | 2048);
+}
+
+export function $parseAsPromisableResult(
+  a?: unknown,
+  b?: unknown,
+  c?: unknown,
+  d?: unknown,
+): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1 | 256 | 512);
+}
+
+export function $encodeAsPromisableResult(
+  a?: unknown,
+  b?: unknown,
+  c?: unknown,
+  d?: unknown,
+): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 256 | 512);
+}
+
+export function $makeAsPromisableResult(
+  a?: unknown,
+  b?: unknown,
+  c?: unknown,
+  d?: unknown,
+): unknown {
+  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 256 | 512 | 2048);
 }

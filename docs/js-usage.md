@@ -1494,9 +1494,11 @@ A suffix names the failure mechanism only when the return type doesn't reveal it
 | `AsResult` | `S.Result<TOutput>` | `{ success, value, error }` |
 | `AsPromiseOrReject` | `Promise<TOutput>` | rejects with `S.Error` — never throws synchronously |
 | `AsResultPromise` | `Promise<S.Result<TOutput>>` | |
-| `AsPromisableResult` | `S.Result<TOutput> \| Promise<S.Result<TOutput>>` | follows the schema's own shape; `parse` only |
+| `AsPromisableResult` | `S.Result<TOutput> \| Promise<S.Result<TOutput>>` | follows the schema's own shape |
 
-`parse`, `decode`, `encode`, `makeInput` and `makeOutput` each take the first four; `parse` also takes `AsPromisableResult`.
+`parse`, `decode`, `encode`, `makeInput` and `makeOutput` each take all five.
+
+There is no promisable *throwing* variant, in either language: `Result | Promise<Result>` is already two shapes to branch on, and once you have branched you know which one you have.
 
 ```ts
 S.parseOrThrow(userSchema, data);          //? { id: string }
@@ -1592,7 +1594,7 @@ Every operation takes any of the four [call forms](#call-forms); the signatures 
 - `S.parseAsResult(schema)`: `(data: unknown) => S.Result<TOutput>`
 - `S.parseAsPromiseOrReject(schema)`: `(data: unknown) => Promise<TOutput>`
 - `S.parseAsResultPromise(schema)`: `(data: unknown) => Promise<S.Result<TOutput>>`
-- `S.parseAsPromisableResult(schema)`: `(data: unknown) => S.Result<TOutput> | Promise<S.Result<TOutput>>`
+- `S.parseAsPromisableResult(schema)`: `(data: unknown) => S.Result<TOutput> | Promise<S.Result<TOutput>>` — one compiled operation for a schema whose async-ness you don't know. A synchronous schema answers with the `Result` itself, an async one with a promise of it; `decode`, `encode`, `makeInput` and `makeOutput` take it too.
 
 **Decode** — transform a value the input type already describes. Type validations are skipped; refinements and transforms still run:
 
