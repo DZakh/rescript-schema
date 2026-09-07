@@ -50,15 +50,47 @@ const orSkip = <T extends S.Schema<unknown, unknown>>(schema: T) =>
 
 const inputDescription =
   'Source text for the input, e.g. \'"hello"\'. Hand-written; `spec check --write` fills output/error.';
+// The outcome of one spelling: a value, or the message it failed with. Same
+// two shapes an example itself takes, minus the input.
+const outcome = S.union([
+  S.schema({ output: S.string }).with(S.strict),
+  S.schema({ error: S.string }).with(S.strict),
+]);
+
+// Two spellings of one operation can legitimately disagree, and `spec check`
+// re-runs every example through all of them (see checkOperationMatrix). Both
+// divergences below are documented library behaviour, not bugs, so they are
+// recorded and ratcheted rather than left to go unnoticed.
+//
+// Declared, not refreshed — the `isAsync` rule: `--write` keeps a present
+// field's content fresh, but adding or removing one is the author's call,
+// because that is the moment a divergence appears or goes away.
+const divergences = {
+  whenAsync: S.optional(outcome).with(S.meta, {
+    description:
+      "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, " +
+      "`*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. " +
+      "Only on a sync direction — an async one's golden IS the async outcome.",
+  }),
+  whenChecked: S.optional(S.union(["passes", "fails"])).with(S.meta, {
+    description:
+      "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they " +
+      "disagree with parse. They validate without building an output, so a failure that " +
+      "only arises while building one is invisible to them. `parse` only.",
+  }),
+};
+
 const exampleOutput = S.schema({
   input: S.string.with(S.meta, { description: inputDescription }),
   output: S.string.with(S.meta, {
     description: "Expected output source text. Filled by `spec check --write`.",
   }),
+  ...divergences,
 }).with(S.strict);
 const exampleError = S.schema({
   input: S.string.with(S.meta, { description: inputDescription }),
   error: S.string.with(S.meta, { description: "Expected error message. Filled by `spec check --write`." }),
+  ...divergences,
 }).with(S.strict);
 const example = S.union([exampleOutput, exampleError]).with(S.meta, {
   description: "A named example: input plus expected output or error.",

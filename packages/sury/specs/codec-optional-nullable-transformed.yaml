@@ -19,12 +19,15 @@ operations:
       true-string:
         input: '"true"'
         output: "true"
+        whenChecked: fails
       false-string:
         input: '"false"'
         output: "false"
+        whenChecked: fails
       undefined:
         input: undefined
         output: "null"
+        whenChecked: fails
       invalid:
         input: '"abc"'
         error: Expected boolean, received "abc"

@@ -20,6 +20,7 @@ operations:
       preserved-string:
         input: '"ok"'
         output: '"ok"'
+        whenChecked: fails
   decode: eq-to-parse
   encode:
     creationError: "SuryError: Invalid operation: can't convert never | string to number | string — number has no same-type variant on the other side. Use S.to to say what you mean, or S.never to mark a variant unreachable"

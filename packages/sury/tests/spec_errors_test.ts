@@ -573,7 +573,7 @@ test("operations block omits an op the schema supports", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        schema: Failed at ["operations"]["encode"]: Expected "identity" | "eq-to-parse" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; } | { input: string; error: string; }; }; } | { creationError: string; }, received undefined
+        schema: Failed at ["operations"]["encode"]: Expected "identity" | "eq-to-parse" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; whenAsync: { output: string; } | { error: string; } | undefined; whenChecked: "passes" | "fails" | undefined; } | { input: string; error: string; whenAsync: { output: string; } | { error: string; } | undefined; whenChecked: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received undefined
         operations.encode: missing — a spec must declare parse, decode, and encode (run \`pnpm spec new\` to scaffold them, or add the block)",
       "stdout": "",
     }
@@ -587,7 +587,7 @@ test("_skip on an operation is rejected with a guiding message", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        schema: Failed at ["operations"]["parse"]: Expected "identity" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; } | { input: string; error: string; }; }; } | { creationError: string; }, received { _skip: "not-applicable"; }
+        schema: Failed at ["operations"]["parse"]: Expected "identity" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; whenAsync: { output: string; } | { error: string; } | undefined; whenChecked: "passes" | "fails" | undefined; } | { input: string; error: string; whenAsync: { output: string; } | { error: string; } | undefined; whenChecked: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received { _skip: "not-applicable"; }
     - At ["operations"]["parse"]["expression"]: Expected string | { _skip: string; }, received undefined
     - At ["operations"]["parse"]["creationError"]: Expected string, received undefined
         operations.parse: _skip is not valid on an operation — use identity, eq-to-parse, a full block with examples, or a creationError",
@@ -635,4 +635,33 @@ test("multiple simultaneous problems all get their own guiding message", async (
       "stdout": "",
     }
   `);
+});
+
+// ---- the operation matrix --------------------------------------------------
+//
+// The golden pins one spelling of one outcome; these prove the run notices when
+// another spelling answers differently, and when a recorded divergence stops
+// being true.
+
+// A spec that really does answer differently under the async flag: the encode
+// takes JSON.stringify's whole-value path there, which writes an absent value
+// as null where the compiled aggregate omits the key.
+const divergingBaseline = readSpec(listSpecFiles().find((f) => specId(f) === "jsonstring-dict")!);
+
+test("a sync/async divergence that isn't recorded is reported, with the field to add", async () => {
+  const spec = structuredClone(divergingBaseline);
+  const op = spec.operations.parse;
+  if (op !== "identity" && !isCreationError(op)) delete op.examples["undefined-value-omitted"]!.whenAsync;
+  const { stderr } = await runCheck("jsonstring-dict", serialize(spec));
+  expect(stderr).toContain("the async outcomes returned");
+  expect(stderr).toContain('add `whenAsync: {output: ""}`');
+});
+
+test("a recorded divergence that is no longer true is reported", async () => {
+  const spec = mutate((s) => {
+    const op = s.operations.parse;
+    if (op !== "identity" && !isCreationError(op)) op.examples.valid!.whenChecked = "passes";
+  });
+  const { stderr } = await runCheck("string", serialize(spec));
+  expect(stderr).toContain("whenChecked agrees with parse — remove it");
 });

@@ -276,6 +276,42 @@
                           "output": {
                             "type": "string",
                             "description": "Expected output source text. Filled by `spec check --write`."
+                          },
+                          "whenAsync": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "output": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "output"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "error": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "error"
+                                ]
+                              }
+                            ],
+                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,
@@ -294,6 +330,42 @@
                           "error": {
                             "type": "string",
                             "description": "Expected error message. Filled by `spec check --write`."
+                          },
+                          "whenAsync": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "output": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "output"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "error": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "error"
+                                ]
+                              }
+                            ],
+                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,
@@ -386,6 +458,42 @@
                           "output": {
                             "type": "string",
                             "description": "Expected output source text. Filled by `spec check --write`."
+                          },
+                          "whenAsync": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "output": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "output"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "error": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "error"
+                                ]
+                              }
+                            ],
+                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,
@@ -404,6 +512,42 @@
                           "error": {
                             "type": "string",
                             "description": "Expected error message. Filled by `spec check --write`."
+                          },
+                          "whenAsync": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "output": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "output"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "error": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "error"
+                                ]
+                              }
+                            ],
+                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,
@@ -496,6 +640,42 @@
                           "output": {
                             "type": "string",
                             "description": "Expected output source text. Filled by `spec check --write`."
+                          },
+                          "whenAsync": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "output": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "output"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "error": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "error"
+                                ]
+                              }
+                            ],
+                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,
@@ -514,6 +694,42 @@
                           "error": {
                             "type": "string",
                             "description": "Expected error message. Filled by `spec check --write`."
+                          },
+                          "whenAsync": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "output": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "output"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "error": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "required": [
+                                  "error"
+                                ]
+                              }
+                            ],
+                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,

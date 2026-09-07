@@ -19,6 +19,8 @@ operations:
       nested-document:
         input: '["{}"]'
         output: '"[\"{}\"]"'
+        whenAsync:
+          output: '"[{}]"'
       undefined-is-null:
         input: "[undefined]"
         output: '"[null]"'
@@ -31,6 +33,8 @@ operations:
       nested-document:
         input: '["{}"]'
         output: '"[\"{}\"]"'
+        whenAsync:
+          output: '"[{}]"'
       undefined-is-null:
         input: "[undefined]"
         output: '"[null]"'

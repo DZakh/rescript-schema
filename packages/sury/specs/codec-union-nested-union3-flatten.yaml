@@ -16,12 +16,15 @@ operations:
       string:
         input: '"a"'
         output: '"a"'
+        whenChecked: fails
       number:
         input: "1"
         output: "1"
+        whenChecked: fails
       boolean:
         input: "true"
         output: "true"
+        whenChecked: fails
       nan-rejected:
         input: NaN
         error: Expected string | number | boolean, received NaN

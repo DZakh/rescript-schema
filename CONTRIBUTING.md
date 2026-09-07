@@ -335,15 +335,12 @@ case the harness *should* have caught or guided better — a missing check, a we
 error message, a strictness gap that let a bad spec through — add a bullet here
 instead of silently working around it.
 
-- A spec pins one schema's codegen per direction (`parse`/`decode`/`encode`),
-  which leaves the *return mode* unspecced: `parseAsResult` compiles a different
-  body from `parseOrThrow` for the same schema — a `try` the throw path doesn't
-  have, and none at all when the raise counter says the body can't fail. The
-  same gap covers the call-form dispatch (`op(s, data)` vs `op(data, s)` vs the
-  compiled form), which is a property of the call rather than of the schema.
-  Both live in `tests/operations_test.ts` instead. An `operations.<verb>.modes`
-  block, or a per-op `resultExpression` golden beside `expression`, would put
-  them back under the ratchet.
+- A spec still pins one schema's *codegen* per direction, so the Result modes'
+  generated bodies (`parseAsResult`'s `try`, and its absence when the raise
+  counter says the body can't fail) have no golden. `spec check` now RUNS every
+  example through all of them and compares outcomes (see checkOperationMatrix),
+  which is what the gap was really about; a `resultExpression` golden beside
+  `expression` would additionally ratchet the emitted text.
 - An operation whose output holds a `Blob` or `File` (`S.blob`/`S.file`
   decoding, or the reverse of any conversion into them) can't be specced: the
   golden writer raises "cannot represent a Blob instance as spec source code",
