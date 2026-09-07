@@ -377,13 +377,14 @@ const absentArm = (schema: Internal): Internal =>
 const absentWrites = (schema: Internal): boolean =>
   absentArm(schema).to !== U || !isOptional(schema);
 
+// What runs on no entry: the absent arm's own chain, `null`, or nothing.
 const absentCode = (item: Val, schema: Internal): string => {
   const absent = absentArm(schema);
   return absent.to !== U
-    ? `else{${armCode(item, absent, absent)}}`
+    ? armCode(item, absent, absent)
     : isOptional(schema)
       ? ""
-      : `else{${item.i}=null}`;
+      : `${item.i}=null`;
 };
 
 // A field with a wrapper, each arm converted on its own. The present one
@@ -393,24 +394,25 @@ const absentCode = (item: Val, schema: Internal): string => {
 // `"undefined"`. The result continues from a val whose schema still owes the
 // wrapper's own `.to`, so the loop runs it instead of dropping it.
 //
-// `absentTest` is the read that tells an entry from none, or nothing for a
-// list, which is never absent: no entries is the empty list.
+// `folds` says whether a blank entry was read as absent, which is what lets
+// the var's own truth tell an entry from none. A list is never absent - no
+// entries is the empty list - and has no `folds` to speak of.
 const readWrapped = (
   item: Val,
   schema: Internal,
   present: Internal,
-  absentTest: string | undefined,
+  folds: boolean | undefined,
 ): Val => {
   const v = item.i;
   const presentCode = armCode(item, item.s, present);
   let code = presentCode;
-  if (absentTest !== U) {
+  if (folds !== U) {
     const absent = absentCode(item, schema);
     // An arm with nothing to run leaves no empty block behind.
     code = presentCode
-      ? `if(${absentTest}){${presentCode}}${absent}`
+      ? `if(${folds ? v : `${v}!==void 0`}){${presentCode}}${absent && `else{${absent}}`}`
       : absent
-        ? `if(!(${absentTest})){${absent.slice(5)}`
+        ? `if(${folds ? `!${v}` : `${v}===void 0`}){${absent}}`
         : "";
   }
   const output = B_next(item, v, beforeTo(schema), schema);
@@ -630,9 +632,7 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       // What "no entry" means is the reader's to say - the union rules have no
       // conversion into `undefined` or `null` to dispatch on. Everything else
       // is the field schema's own.
-      absent
-        ? readWrapped(item, schema, present, list ? U : folds ? readVar : `${readVar}!==void 0`)
-        : parse(item),
+      absent ? readWrapped(item, schema, present, list ? U : folds) : parse(item),
     );
   }
 
