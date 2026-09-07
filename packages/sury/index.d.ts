@@ -425,6 +425,114 @@ export function schema<const T>(
   value: T
 ): Schema<UnknownToInput<T>, UnknownToOutput<T>>;
 
+/**
+ * Checks a definition against a type you already have, instead of inferring a
+ * new one.
+ *
+ * ```ts
+ * S.schemaOf<User>()({ id: S.string, createdAt: S.isoDateTime.with(S.to, S.date) })
+ * //? S.Schema<{ id: string; createdAt: string }, User>
+ * ```
+ *
+ * Anything that doesn't line up is a type error on the field causing it. Codecs
+ * need no second type argument, since the encoded type is read off the
+ * definition.
+ */
+// Curried so the definition's own type is inferred at the second call: a call
+// taking both at once would have nothing to compare against, since TypeScript
+// doesn't infer the type arguments a call doesn't spell. That comparison is the
+// whole point - see `AssertEqual` for what it catches that assignability can't.
+export function schemaOf<TOutput>(): <const TDef>(
+  definition: DefinitionMatches<TDef, TOutput> extends true
+    ? TDef
+    : DefinitionMismatch<TDef, TOutput>
+) => Schema<UnknownToInput<TDef>, TOutput>;
+
+// Equality, not assignability. `S.number` in a field the type declares
+// `age?: number` produces `number` where the type reads `number | undefined`;
+// assignable, so every `satisfies`-shaped check accepts it, and the schema it
+// builds then rejects a value the type calls valid. Equality is what sees it.
+//
+// Two identical deferred conditionals are only assignable to each other when
+// the types they check are identical, which is what makes this exact. The one
+// distinction deliberately erased first is `readonly` — see `Mutable`.
+type AssertEqual<T, U> = (<V>() => V extends T ? 1 : 2) extends <V>() => V extends U
+  ? 1
+  : 2
+  ? true
+  : false;
+
+// A `readonly` tuple or array has no `readonly` schema to match it, so the
+// comparison is made against the mutable spelling rather than failing on a
+// distinction no definition could express.
+type Mutable<T> = T extends readonly unknown[] ? { -readonly [K in keyof T]: T[K] } : T;
+
+type DefinitionMatches<TDef, TOutput> = TDef extends SchemaLike<unknown, unknown>
+  ? AssertEqual<UnknownToOutput<TDef>, Mutable<TOutput>>
+  : [TOutput] extends [object]
+  ? TOutput extends readonly unknown[]
+    ? AssertEqual<UnknownToOutput<TDef>, Mutable<TOutput>>
+    : DefinitionFieldsMatch<TDef, TOutput>
+  : AssertEqual<UnknownToOutput<TDef>, TOutput>;
+
+// Field by field, rather than building the definition's whole output type and
+// comparing that in one go. The answer is the same — Sury reads a field's
+// optionality off whether its type admits `undefined`, which is what a
+// per-field comparison sees — but the whole-object form pays for
+// `UnknownToOutput`'s optional-key split on every call, and that split is a
+// quarter of what the check costs. Arrays keep the whole-object form: `keyof`
+// a tuple carries every array method, which is not a field list.
+type DefinitionFieldsMatch<TDef, TOutput> =
+  | Exclude<keyof TOutput, keyof TDef>
+  | Exclude<keyof TDef, keyof TOutput> extends never
+  ? {
+      [K in keyof TDef]: K extends keyof TOutput
+        ? DefinitionMatches<TDef[K], TOutput[K]>
+        : false;
+    }[keyof TDef] extends true
+    ? true
+    : false
+  : false;
+
+// What the definition should have been, so TypeScript reports the mismatch on
+// the field that carries it rather than against the whole call. A field that
+// matches is left as it was written; one that doesn't becomes a type nothing
+// satisfies, which states both sides.
+//
+// No array carve-out here, unlike `DefinitionMatches`: a mapped type over a
+// tuple maps its elements, and it is only the `keyof` comparison that would
+// drag in the array methods.
+//
+// Written out at each use rather than through a `Mismatch<…>` alias, because
+// TypeScript prints an alias by name: the report would read
+// `Mismatch<Date | undefined, Date>` and leave the reader to work out which
+// side is which. Structurally, both are labelled.
+type DefinitionMismatch<TDef, TOutput> = TDef extends SchemaLike<unknown, unknown>
+  ? { "types do not match": { expected: TOutput; received: UnknownToOutput<TDef> } }
+  : [TOutput] extends [object]
+  ? {
+      [K in keyof TDef]: K extends keyof TOutput
+        ? DefinitionMatches<TDef[K], TOutput[K]> extends true
+          ? TDef[K]
+          : {
+              "types do not match": {
+                expected: Mutable<TOutput[K]>;
+                received: UnknownToOutput<TDef[K]>;
+              };
+            }
+        : {
+            "types do not match": {
+              expected: never;
+              received: UnknownToOutput<TDef[K]>;
+            };
+          };
+    } & {
+      [K in Exclude<keyof TOutput, keyof TDef>]: {
+        "types do not match": { expected: TOutput[K]; received: never };
+      };
+    }
+  : { "types do not match": { expected: TOutput; received: UnknownToOutput<TDef> } };
+
 export function literal<const T>(
   value: T
 ): Schema<UnknownToInput<T>, UnknownToOutput<T>>;
