@@ -681,26 +681,23 @@ external compileParseAsResult: (~to: t<'value>) => 'any => result<'value, error>
 external compileParseAsResultPromise: (~to: t<'value>) => 'any => promise<result<'value, error>> =
   "$parseAsResultPromise"
 
-let compileConvertOrThrow = (~from, ~via=?, ~to) =>
-  switch via {
-  | None => convert2(from, to)
-  | Some(via) => convert3(from, castToUnknown(via), to)
-  }
+// One dispatch on `~via` for the four convert outcomes: an optional labeled
+// argument can't be handed to a positional JS call (`undefined` in a counted
+// slot reads as a hole), so each arity is its own external.
+%%private(
+  let withVia = (~from, ~via, ~to, two, three) =>
+    switch via {
+    | None => two(from, to)
+    | Some(via) => three(from, castToUnknown(via), to)
+    }
+)
+let compileConvertOrThrow = (~from, ~via=?, ~to) => withVia(~from, ~via, ~to, convert2, convert3)
 let compileConvertAsPromiseOrReject = (~from, ~via=?, ~to) =>
-  switch via {
-  | None => convertAsync2(from, to)
-  | Some(via) => convertAsync3(from, castToUnknown(via), to)
-  }
+  withVia(~from, ~via, ~to, convertAsync2, convertAsync3)
 let compileConvertAsResult = (~from, ~via=?, ~to) =>
-  switch via {
-  | None => convertResult2(from, to)
-  | Some(via) => convertResult3(from, castToUnknown(via), to)
-  }
+  withVia(~from, ~via, ~to, convertResult2, convertResult3)
 let compileConvertAsResultPromise = (~from, ~via=?, ~to) =>
-  switch via {
-  | None => convertResultPromise2(from, to)
-  | Some(via) => convertResultPromise3(from, castToUnknown(via), to)
-  }
+  withVia(~from, ~via, ~to, convertResultPromise2, convertResultPromise3)
 
 // `assert` is a ReScript keyword, so the boolean-answering check keeps the JS
 // name: `isInput` asks of the wire side, `isOutput` of the value side.

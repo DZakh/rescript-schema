@@ -1721,7 +1721,7 @@ Asserting has the two throwing outcomes, `assertInputOrThrow` and `assertInputAs
 
 ReScript has no overloads, so where the JS surface reads the call shape at runtime, the binding names it: the `compile*` form is the data-last one, and the bare name applies it.
 
-The `compile` prefix returns the operation as a function to call repeatedly — the fastest way to run one schema many times. Every outcome has one, the result outcomes included: the `result` is emitted into the operation's own body rather than wrapped around it, so it costs the object and nothing else.
+The `compile` prefix returns the operation as a function to call repeatedly — the fastest way to run one schema many times. Every outcome has one.
 
 There is no promisable outcome here, though JS has one (`S.parseAsPromisableResult`): telling `result` from `promise<result>` needs a runtime probe that ReScript's untagged variants can't express over a variant payload, and a boxed `Sync | Async` would cost the allocation the outcome exists to avoid.
 
@@ -1801,7 +1801,7 @@ S.assertOutputOrThrow: ('any, ~to: S.t<'value>) => ()
 S.assertOutputAsPromiseOrReject: ('any, ~to: S.t<'value>) => promise<()>
 ```
 
-**Validating** is the non-throwing assert. `assert` is a ReScript keyword, so the boolean-returning flavor takes the JS name — and with it the direction, which is a free parameter here:
+**Validating** is the non-throwing assert, spelled `is*` (see above) — and with the JS name comes the direction, which is a free parameter here:
 
 ```
 S.isInput: ('any, ~to: S.t<'value>) => bool
@@ -1842,7 +1842,7 @@ try true->S.parseOrThrow(~to=schema) catch {
 }
 ```
 
-The bare names give the same failure as a `result`. Only a Sury failure becomes `Error`; any other exception propagates. Use `S.Error.classify` to match on the error's details.
+The bare names give the same failure as a `result`. Every failure of the value becomes `Error` — a refine or coder that throws is wrapped as `InvalidConversion` with the exception as its `cause`. Use `S.Error.classify` to match on the error's details.
 
 ### **`reverse`**
 

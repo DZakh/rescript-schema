@@ -29,14 +29,19 @@ export type Flag = number;
 // rather than its output (`makeInput`/`makeOutput`), 4096 answer a boolean
 // (`isInput`/`isOutput`).
 //
-// An async operation (1) also rejects rather than throwing when its value fails
-// before the first await — decided by `throwTail`, from whether the compile is
-// nested, not by a flag of its own.
+// Bit 1 permits async, it does not assert it: an operation carrying it is
+// compiled without it first (parse.ts `compileDecoder`), so `g.o & 1` reads as
+// "this schema IS async" wherever codegen branches on it. An async operation
+// also rejects rather than throwing when its value fails before the first
+// await — decided by the operation tail (operations.ts), from whether the
+// compile is nested, not by a flag of its own.
 //
 // The split at 128 is load-bearing: a nested operation compiled inside another
 // (recursive.ts) masks with `& 127`, because generated code consumes its result
 // and a return mode inherited from the outer operation would have the inner one
 // answering `false` — or a Result object — into the middle of a value.
+// 8192 is recursive.ts's memo-key bit for such a nested async node, which no
+// operation flag ever carries.
 //
 // The modes ride the op flag the operation memo keys on, which is what makes
 // each of them compile and cache as its own operation and leaves the throw
@@ -493,6 +498,10 @@ export type BGlobal = {
   // generated code, so a builder can bracket a stretch of emission and learn
   // whether what it produced can throw. Read the difference, never the value.
   t: number;
+  // @as("r") — set by the one builder that assigns to the operation's own
+  // parameter (union dispatch), so a `make*` tail knows the parameter no
+  // longer holds the value it was given.
+  r?: boolean;
   // @as("js") — the operation's asJsonString embed accessor, cached by
   // B_embedJsonStr (advanced/json.ts) on first use.
   js?: string;
@@ -802,8 +811,10 @@ SelfReverseSchema.prototype = selfReversePrototype;
 // both are `Object.create(null)`-rooted, so no plain object and no
 // `JSON.parse` result can match — `JSON.parse` makes `__proto__` an own
 // property, never a prototype.
+// The `typeof` guard is for the data argument: `Object.getPrototypeOf` of a
+// primitive boxes it, which is most of an immediate call's dispatch cost.
 export const isOwnSchema = (value: unknown): boolean => {
-  const proto = value && Object.getPrototypeOf(value as object);
+  const proto = typeof value === objectTag && value && Object.getPrototypeOf(value);
   return proto === schemaPrototype || proto === selfReversePrototype;
 };
 

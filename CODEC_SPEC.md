@@ -250,16 +250,16 @@ next variant. Only when none is left does the union throw, aggregating the
 per-variant reasons under one error. This is the uniform rule for plain
 validation unions and for every conversion rule above.
 
-A variant that throws something that isn't a Sury error propagates it instead.
-That exception is a bug in the code that raised it — a `TypeError` from a
-predicate that assumed the wrong type, say — not a statement about whether the
-value matches, and treating it as "try the next variant" would let a later
-catch-all turn the bug into a silently successful parse:
+A variant's own code throwing — a coder, or a refinement predicate that hit a
+`TypeError` on a value it was never written for — is that variant failing, and
+passes the value on like any other failure. What propagates instead is an
+exception nothing in the schema owns: a getter on the input, say. That one is a
+bug in the value's environment, not a statement about whether the value
+matches, so it surfaces rather than being tried past:
 
 ```ts
-S.union([S.string.with(S.refine, (v) => v.trim().length > 0), S.string]);
-// a non-string never reaches the predicate — but if one did, the TypeError
-// surfaces rather than falling through to the catch-all
+S.union([S.string.with(S.refine, (v) => { throw new TypeError("x") }), S.string]);
+// the predicate's throw fails the first variant; the catch-all takes the value
 ```
 
 Two consequences:
@@ -374,7 +374,7 @@ changed when the implementation landed:
 | `codec-union3-union2-extra-source`    | 4    | rejected — `boolean` has no target member                            |
 | `codec-union3-union2-json`            | 4    | rejected — `json` is not the exact `string`/`number` type             |
 | `codec-union-refined-fallback`         | —    | new: a refined member falls through to a same-type catch-all          |
-| `union2-refine-throws`                 | —    | new: a foreign exception propagates instead of matching the catch-all |
+| `union2-refine-throws`                 | —    | new: a throwing refine fails its variant, so the catch-all matches    |
 | `optional-object`                      | —    | new: an array is not an object, in the `X \| undefined` dispatch too   |
 | `union2-object-number`                 | —    | new: the same, for an object member sharing a union with another tag  |
 | `object1`, `object5-optional`          | —    | an array is not an object at the top level either, in every mode      |

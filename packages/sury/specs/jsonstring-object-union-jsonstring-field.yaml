@@ -31,8 +31,6 @@ operations:
       infinity:
         input: "{ f: Infinity }"
         error: "Failed at f: Expected JSON, received Infinity"
-        whenAsync:
-          output: '"{\"f\":null}"'
   decode:
     expression: i=>{let v0=i["f"];for(;;){if(typeof v0==="string"){try{JSON.parse(v0)}catch(t){e[0](v0)}v0=e[1](v0);break}if(typeof v0==="number"&&v0===v0){v0=(Number.isFinite(v0)?""+v0:e[2](v0));break}e[3](v0)}return "{\"f\":"+v0+"}"}
     examples:

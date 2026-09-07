@@ -22,8 +22,6 @@ operations:
       not-a-date-is-trusted-as-is:
         input: '{ d: { toISOString: () => "a\"b" } }'
         output: '"{\"d\":\"a\"b\"}"'
-        whenAsync:
-          output: '"{\"d\":\"a\\\"b\"}"'
   decode:
     expression: i=>{return "{\"d\":\""+i["d"].toISOString()+"\"}"}
     examples:

@@ -23,7 +23,8 @@ import {
   undefinedTag,
   unknown,
   updateOutput,
-  type Val
+  type Val,
+  type Path,
 } from "./base";
 import {
   _var,
@@ -38,6 +39,8 @@ import {
   B_nextConst,
   B_refine,
   B_unsupportedDecode,
+  B_throw,
+  B_makeInvalidConversionDetails,
 } from "./builder";
 import {
   objectDecoder
@@ -204,12 +207,23 @@ export const refine = (
   schema: Internal,
   refineCheck: (value: unknown) => boolean,
   error?: string,
-  path?: string[]
+  path?: Path
 ): Internal => {
   const message = error !== U ? error : "Refinement failed";
   const extraPath = path !== U ? path : pathEmpty;
   return internalRefine(schema, (_) => (input) => {
-    const embeddedCheck = B_embed(input, refineCheck);
+    // Whatever the check throws is that refinement failing, the same way a
+    // coder's throw is its conversion failing (`B_conversion`): a `TypeError` it
+    // hit on a value it was never written for is not a bug in the caller's
+    // `.catch`. Wrapped in the embedded function rather than in a generated
+    // `try`, which would catch the refinement's own failure raise too.
+    const embeddedCheck = B_embed(input, (value: unknown) => {
+      try {
+        return refineCheck(value);
+      } catch (cause) {
+        B_throw(B_makeInvalidConversionDetails(input, input.s, cause));
+      }
+    });
     return [
       {
         c: (inputVar) => `${embeddedCheck}(${inputVar})`,

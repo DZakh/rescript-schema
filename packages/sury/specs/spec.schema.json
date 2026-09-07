@@ -277,35 +277,6 @@
                             "type": "string",
                             "description": "Expected output source text. Filled by `spec check --write`."
                           },
-                          "whenAsync": {
-                            "anyOf": [
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "output": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "output"
-                                ]
-                              },
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "error": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "error"
-                                ]
-                              }
-                            ],
-                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
-                          },
                           "whenChecked": {
                             "enum": [
                               "passes",
@@ -330,35 +301,6 @@
                           "error": {
                             "type": "string",
                             "description": "Expected error message. Filled by `spec check --write`."
-                          },
-                          "whenAsync": {
-                            "anyOf": [
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "output": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "output"
-                                ]
-                              },
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "error": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "error"
-                                ]
-                              }
-                            ],
-                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
                           },
                           "whenChecked": {
                             "enum": [
@@ -459,35 +401,6 @@
                             "type": "string",
                             "description": "Expected output source text. Filled by `spec check --write`."
                           },
-                          "whenAsync": {
-                            "anyOf": [
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "output": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "output"
-                                ]
-                              },
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "error": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "error"
-                                ]
-                              }
-                            ],
-                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
-                          },
                           "whenChecked": {
                             "enum": [
                               "passes",
@@ -512,35 +425,6 @@
                           "error": {
                             "type": "string",
                             "description": "Expected error message. Filled by `spec check --write`."
-                          },
-                          "whenAsync": {
-                            "anyOf": [
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "output": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "output"
-                                ]
-                              },
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "error": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "error"
-                                ]
-                              }
-                            ],
-                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
                           },
                           "whenChecked": {
                             "enum": [
@@ -641,35 +525,6 @@
                             "type": "string",
                             "description": "Expected output source text. Filled by `spec check --write`."
                           },
-                          "whenAsync": {
-                            "anyOf": [
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "output": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "output"
-                                ]
-                              },
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "error": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "error"
-                                ]
-                              }
-                            ],
-                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
-                          },
                           "whenChecked": {
                             "enum": [
                               "passes",
@@ -694,35 +549,6 @@
                           "error": {
                             "type": "string",
                             "description": "Expected error message. Filled by `spec check --write`."
-                          },
-                          "whenAsync": {
-                            "anyOf": [
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "output": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "output"
-                                ]
-                              },
-                              {
-                                "type": "object",
-                                "properties": {
-                                  "error": {
-                                    "type": "string"
-                                  }
-                                },
-                                "additionalProperties": false,
-                                "required": [
-                                  "error"
-                                ]
-                              }
-                            ],
-                            "description": "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, `*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. Only on a sync direction — an async one's golden IS the async outcome."
                           },
                           "whenChecked": {
                             "enum": [

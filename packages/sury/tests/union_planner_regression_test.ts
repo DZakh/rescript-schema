@@ -209,26 +209,22 @@ test("built-in JSON validation failures remain eligible for fallback", (t) => {
 });
 
 test("foreign exceptions escape a union without trying a fallback", (t) => {
-  const foreignError = new RangeError("foreign refinement failure");
+  // A refine's own throw is that refinement failing (the same as a coder's
+  // throw), so it hands the value to the next case rather than escaping.
   let fallbackCalls = 0;
   const schema = S.union([
     S.string.with(S.refine, () => {
-      throw foreignError;
+      throw new RangeError("foreign refinement failure");
     }),
     S.string.with(S.refine, () => {
       fallbackCalls++;
       return true;
     }),
   ]);
+  t.expect(S.parseOrThrow(schema)("value")).toBe("value");
+  t.expect(fallbackCalls).toBe(1);
 
-  try {
-    S.parseOrThrow(schema)("value");
-    t.expect.fail("the foreign exception should escape");
-  } catch (error) {
-    t.expect(error).toBe(foreignError);
-  }
-  t.expect(fallbackCalls).toBe(0);
-
+  // What nothing in the schema catches — a getter — is foreign, and escapes.
   const getterError = new TypeError("foreign property access failure");
   const throwingObject = Object.defineProperty({}, "value", {
     get() {
@@ -412,7 +408,7 @@ test("recursive transform exceptions fall through across compile order", (t) => 
   verify("PlannerRecursiveUnionFirst", true);
 });
 
-test("a non-transparent nested union falls through but foreign errors escape", (t) => {
+test("a non-transparent nested union falls through, a throwing refine included", (t) => {
   let rejectionCalls = 0;
   const rejectingInner = S.union([S.string, S.number]).with(
     S.refine,
@@ -427,10 +423,9 @@ test("a non-transparent nested union falls through but foreign errors escape", (
   t.expect(parse("fallback")).toBe("fallback");
   t.expect(rejectionCalls).toBe(1);
 
-  const foreign = new RangeError("nested union foreign error");
   let fallbackCalls = 0;
   const throwingInner = S.union([S.string, S.number]).with(S.refine, () => {
-    throw foreign;
+    throw new RangeError("nested union refine throw");
   });
   const parseForeign = S.parseOrThrow(
     S.union([
@@ -442,13 +437,8 @@ test("a non-transparent nested union falls through but foreign errors escape", (
     ]),
   );
 
-  try {
-    parseForeign("value");
-    t.expect.fail("the nested foreign exception should escape");
-  } catch (error) {
-    t.expect(error).toBe(foreign);
-  }
-  t.expect(fallbackCalls).toBe(0);
+  t.expect(parseForeign("value")).toBe("value");
+  t.expect(fallbackCalls).toBe(1);
 });
 
 test("function schemas remain explicit deoptimization boundaries", (t) => {

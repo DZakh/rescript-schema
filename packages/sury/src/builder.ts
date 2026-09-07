@@ -244,6 +244,27 @@ export const B_markThrow = (b: Val): void => {
 }
 
 
+// A coder's or refiner's own throw as `invalid_conversion`. Split from the
+// Sury-cause branch below so an operation tail (every bundle) carries only
+// this half.
+const B_foreignDetails = (input: Val, to: Internal, cause: unknown): ErrorDetails => {
+  let reason: string;
+  if (cause instanceof Error) {
+    reason = "" + cause;
+    if (reason.startsWith("Error: ")) reason = reason.slice(7);
+  } else {
+    reason = stringify(cause);
+  }
+  return {
+    code: "invalid_conversion",
+    from: input.s,
+    to,
+    cause,
+    path: input.path,
+    reason,
+  };
+};
+
 export const B_makeInvalidConversionDetails = (input: Val, to: Internal, cause: unknown): ErrorDetails => {
   if (cause && (cause as { s?: symbol }).s === s) {
     const error = cause as unknown as SuryErrorRecord;
@@ -260,22 +281,23 @@ export const B_makeInvalidConversionDetails = (input: Val, to: Internal, cause: 
       input.path.length ? { ...error, path: pathConcat(input.path, error.path) } : error
     ) as unknown as ErrorDetails;
   }
-  let reason: string;
-  if (cause instanceof Error) {
-    reason = "" + cause;
-    if (reason.startsWith("Error: ")) reason = reason.slice(7);
-  } else {
-    reason = stringify(cause);
-  }
-  return {
-    code: "invalid_conversion",
-    from: input.s,
-    to,
-    cause,
-    path: input.path,
-    reason,
-  };
+  return B_foreignDetails(input, to, cause);
 }
+
+// The error an operation answers with when it answers rather than throws
+// (Result, boolean, Standard Schema): a Sury failure as it is, anything else —
+// a getter, a coder or refiner hit on a value it was never written for —
+// wrapped, so every outcome shape holds a SuryError and a consumer never has to
+// tell a validation failure from an exception by inspecting it. Not the
+// throwing outcomes: there the exception is the answer, and it stays raw.
+export const B_errorOf =
+  (input: Val) =>
+  (e: unknown): SuryErrorRecord =>
+    e && (e as { s?: symbol }).s === s
+      ? (e as SuryErrorRecord)
+      : (new SuryError(B_foreignDetails(input, input.e, e)) as unknown as SuryErrorRecord);
+
+export const B_embedErrorOf = (input: Val): string => B_embedPure(input, B_errorOf(input));
 
 export const B_makeInvalidInputDetails = (
   expected: Internal,

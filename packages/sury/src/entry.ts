@@ -23,7 +23,6 @@ import { schemaFactory } from "./factory";
 import {
   baseSchema,
   type Builder,
-  type Check,
   functionTag,
   globalConfig,
   type GlobalConfigOverride,
@@ -34,7 +33,6 @@ import {
   jsonName,
   objectTag,
   panic,
-  pathEmpty,
   type Path,
   stringify,
   stringTag,
@@ -45,8 +43,6 @@ import {
 import {
   B_contentDiffers,
   B_conversion,
-  B_embed,
-  B_invalidInputBuilder,
   B_invalidOperation,
   B_neverSlot
 } from "./builder";
@@ -56,10 +52,10 @@ import {
 } from "./composites";
 import {
   codecTo,
-  internalRefine,
   nullAsUnit,
   Option_getOr,
-  Option_getOrWith
+  Option_getOrWith,
+  refine as refineCore,
 } from "./modifiers";
 import {
  getOutputSchema,
@@ -384,19 +380,7 @@ export const refine = (
   schema: Internal,
   refineCheck: (value: unknown) => boolean,
   refineOptions?: { error?: string; path?: Path },
-) => {
-  const message = refineOptions?.error ?? "Refinement failed";
-  const extraPath = refineOptions?.path !== U ? refineOptions.path : pathEmpty;
-  return internalRefine(schema, (_: Internal) => (input: Val): Check[] => {
-    const embeddedCheck = B_embed(input, refineCheck);
-    return [
-      {
-        c: (inputVar: string) => `${embeddedCheck}(${inputVar})`,
-        f: B_invalidInputBuilder(U, extraPath, message),
-      },
-    ];
-  });
-};
+) => refineCore(schema, refineCheck, refineOptions?.error, refineOptions?.path);
 
 // @__NO_SIDE_EFFECTS__
 export const optional = (definition: unknown, maybeOr: unknown): Internal => {

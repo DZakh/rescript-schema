@@ -28,8 +28,6 @@ operations:
       undefined-value-omitted:
         input: '{ a: "1", b: undefined }'
         output: '"{\"a\":\"1\"}"'
-        whenAsync:
-          output: '"{\"a\":\"1\",\"b\":null}"'
       escaped-key:
         input: '{ "quote\"key": "v" }'
         output: '"{\"quote\\\"key\":\"v\"}"'

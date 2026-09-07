@@ -28,6 +28,14 @@
 //     without re-verifying against the full, real specSchema, not a toy schema.
 import * as S from "sury-published";
 
+// The pinned release predates the operation rename (`parser` → `parseOrThrow`,
+// `is` → `isInput`); either spelling serves, so bumping the pin is not a
+// tooling outage.
+const parse = (schema: unknown): ((data: unknown) => any) =>
+  ((S as any).parseOrThrow ?? (S as any).parser)(schema);
+const is = (schema: unknown, data: unknown): boolean =>
+  ((S as any).isInput ?? (S as any).is)(schema, data);
+
 // A dimension that isn't asserted must say so explicitly, with a reason:
 // one of SKIP_REASONS, or `todo(#…)` for a not-yet-built dimension. The CLI
 // lints the reason string (harness.ts's isValidSkipReason) and the schema
@@ -58,20 +66,14 @@ const outcome = S.union([
 ]);
 
 // Two spellings of one operation can legitimately disagree, and `spec check`
-// re-runs every example through all of them (see checkOperationMatrix). Both
-// divergences below are documented library behaviour, not bugs, so they are
+// re-runs every example through all of them (see checkOperationMatrix). The
+// divergence below is documented library behaviour, not a bug, so it is
 // recorded and ratcheted rather than left to go unnoticed.
 //
 // Declared, not refreshed — the `isAsync` rule: `--write` keeps a present
 // field's content fresh, but adding or removing one is the author's call,
 // because that is the moment a divergence appears or goes away.
 const divergences = {
-  whenAsync: S.optional(outcome).with(S.meta, {
-    description:
-      "The outcome of this example through the async outcomes (`*AsPromiseOrReject`, " +
-      "`*AsResultPromise`, `*AsPromisableResult`), when it differs from the sync one. " +
-      "Only on a sync direction — an async one's golden IS the async outcome.",
-  }),
   whenChecked: S.optional(S.union(["passes", "fails"])).with(S.meta, {
     description:
       "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they " +
@@ -346,15 +348,15 @@ export const JSON_SCHEMA_KEY_ORDER = keyOrder<Spec["jsonSchema"]>({
   "openapi-3.0": true,
 });
 
-export const isSkip = (v: unknown): v is Skip => S.is(skip, v);
+export const isSkip = (v: unknown): v is Skip => is(skip, v);
 
 // The overwrite form of `vs.zod` — distinguished from a bare string (Zod
 // source) and from `{_skip}` by carrying its own `schema` key.
-export const isZodOverwrite = (v: unknown): v is ZodOverwrite => S.is(zodOverwrite, v);
+export const isZodOverwrite = (v: unknown): v is ZodOverwrite => is(zodOverwrite, v);
 
 // The creation-error operation block — distinguished from an `{expression,
 // examples}` block and the string shorthands by carrying `creationError`.
-export const isCreationError = (v: unknown): v is CreationError => S.is(operationCreationError, v);
+export const isCreationError = (v: unknown): v is CreationError => is(operationCreationError, v);
 
 // Parse, don't validate: return the parsed Spec itself, not just a pass/fail
 // flag, so callers work from the value Sury actually confirmed matches the
@@ -363,7 +365,7 @@ export const validate = (
   obj: unknown,
 ): { ok: true; value: Spec } | { ok: false; error: string } => {
   try {
-    return { ok: true, value: S.parser(specSchema)(obj) };
+    return { ok: true, value: parse(specSchema)(obj) };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
@@ -404,7 +406,7 @@ export const validateBundleSize = (
   obj: unknown,
 ): { ok: true; value: BundleSize } | { ok: false; error: string } => {
   try {
-    return { ok: true, value: S.parser(bundleSizeSchema)(obj) };
+    return { ok: true, value: parse(bundleSizeSchema)(obj) };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
@@ -441,7 +443,7 @@ export const validateScenarios = (
   obj: unknown,
 ): { ok: true; value: Scenarios } | { ok: false; error: string } => {
   try {
-    return { ok: true, value: S.parser(scenariosSchema)(obj) };
+    return { ok: true, value: parse(scenariosSchema)(obj) };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }

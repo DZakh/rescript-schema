@@ -36,7 +36,10 @@ asyncTest("makeAsync returns a promise of a result", async t => {
   t->Assert.deepEqual(await 1.->S.makeAsResultPromise(~to=schema), Ok(1.))
 })
 
-test("A non-Sury exception is not turned into Error", t => {
+test("A refine that throws is that refinement failing, so the exception comes back as an Error", t => {
   let throwing = S.string->S.refine(_ => throw(Not_found))
-  t->Assert.throws(() => "x"->S.parseAsResult(~to=throwing))
+  switch "x"->S.parseAsResult(~to=throwing) {
+  | Ok(_) => t->Assert.fail("Expected an Error")
+  | Error(error) => t->Assert.is(error.reason->String.includes("Not_found"), true)
+  }
 })

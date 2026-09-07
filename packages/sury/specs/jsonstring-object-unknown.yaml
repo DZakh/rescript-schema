@@ -25,8 +25,6 @@ operations:
       absent:
         input: '{ b: "B" }'
         output: '"{\"b\":\"B\"}"'
-        whenAsync:
-          error: "Failed at a: Expected JSON, received undefined"
       string-value-escapes:
         input: '{ a: "s", b: "B" }'
         output: '"{\"a\":\"s\",\"b\":\"B\"}"'
@@ -36,8 +34,6 @@ operations:
       object-value:
         input: '{ a: { x: 1 }, b: "B" }'
         output: '"{\"a\":{\"x\":1},\"b\":\"B\"}"'
-        whenAsync:
-          output: '"{\"b\":\"B\",\"a\":{\"x\":1}}"'
       absent:
         input: '{ b: "B" }'
         output: '"{\"b\":\"B\"}"'

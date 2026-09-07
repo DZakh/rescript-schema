@@ -27,8 +27,6 @@ operations:
       non-finite-rejected:
         input: "{ a: Infinity }"
         error: "Failed at a: Expected JSON, received Infinity"
-        whenAsync:
-          output: '"{\"a\":null}"'
   decode:
     expression: i=>{let v2="";for(let v1 of Object.keys(i)){try{let v3=i[v1];v2+=(v2?",":"")+e[0](v1)+":"+(Number.isFinite(v3)?v3:e[1](v3))}catch(v4){v4.path=[v1,...v4.path];throw v4}}return "{"+v2+"}"}
     examples:

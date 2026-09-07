@@ -59,7 +59,8 @@ import {
   B_scope,
   B_throw,
   failInvalidType,
-  type HoistCond
+  type HoistCond,
+  operationArgVar,
 } from "./builder";
 import { nestedLoc, never_, parse, typeCheckCond } from "./parse";
 
@@ -765,7 +766,7 @@ const unionPlan = (members: UnionMember[]): UnionGroup[] => {
     //
     // Two things make a member observable despite passing its value through:
     //
-    //   - It can raise a *foreign* error (`f & 2`) — a user refiner, a getter.
+    //   - It can raise a *foreign* error (`f & 2`) — a getter the walk can't see.
     //     That escapes the union rather than reading as "this one didn't match",
     //     so running it is the observable part, not what it returns.
     //   - A member that *does* change the value accepts one of the same types. It
@@ -1087,6 +1088,9 @@ const unionEmit = (
       const itemVar = target.v();
       if (async || caseOut.i !== itemVar) {
         body += `${itemVar}=${async && awaitAsync ? "await " : ""}${caseOut.i}`;
+        // The one assignment into the operation's own parameter; `make*`
+        // reads this to know the parameter is no longer the value it was given.
+        if (itemVar === operationArgVar) input.g.r = true;
       }
     }
     if (trustedD !== U) {

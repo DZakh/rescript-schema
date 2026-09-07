@@ -1541,6 +1541,8 @@ S.parseAsResult(S.schema({ id: S.unknown }).with(S.noValidation, true)).toString
 
 Both branches of a `Result` carry the same keys in the same order, so `const { value, error } = result` narrows and a consumer's `.success` read stays monomorphic.
 
+Every failure of the value comes back in the outcome's own shape, exceptions included: a refine or coder that throws is wrapped as `invalid_conversion` with the exception as its `cause`, and so is anything else the value raises on its way through (a getter, say). Only a defect — a schema wired wrong, which fails for every input — throws out of every outcome, at the point the operation is created.
+
 ### Call forms
 
 Every operation takes any of four call forms, told apart by how many arguments you pass and which of them are schemas:
@@ -1656,13 +1658,6 @@ const users = records.filter(isUser);
 
 Only the immediate call forms narrow: TypeScript resolves an assertion signature only through a name with an explicit type annotation, so the compiled form is typed as a plain `(data: unknown) => void`.
 
-Both accept `(schema, data)` and `(data, schema)`, so there's no order to memorize — especially handy for AI assistants:
-
-```ts
-S.assertInputOrThrow(data, S.string);
-S.assertInputOrThrow(S.string, data); // equivalent
-```
-
 ### Constructing entities
 
 When you already hold a value of the schema's type — one you built in code rather than received from the wire — a constructor validates it and hands it straight back, so the value keeps its identity instead of becoming a decoded clone:
@@ -1678,13 +1673,7 @@ makeUser({ id: "1", email: "not-an-address" });
 // throws S.Error: Failed at email: Expected email, received "not-an-address"
 ```
 
-| Operation                 | Interface                                                      | Description                                     |
-| ------------------------- | -------------------------------------------------------------- | ------------------------------------------------- |
-| S.makeOutputOrThrow       | `(Schema<TInput, TOutput>) => (TOutput) => TOutput`               | Validates a value of the schema's output type   |
-| S.makeOutputAsResult      | `(Schema<TInput, TOutput>) => (TOutput) => S.Result<TOutput>`     | The Result outcome of the same          |
-| S.makeOutputAsPromiseOrReject  | `(Schema<TInput, TOutput>) => (TOutput) => Promise<TOutput>`      | The same for a schema with async transformations |
-| S.makeInputOrThrow        | `(Schema<TInput, TOutput>) => (TInput) => TInput`                 | Validates a value of the schema's input type    |
-| S.makeInputAsPromiseOrReject   | `(Schema<TInput, TOutput>) => (TInput) => Promise<TInput>`        | The same for a schema with async transformations |
+`S.makeOutput*` validates a value of the schema's output type, `S.makeInput*` one of its input type. Each comes in all five outcomes (`OrThrow`, `AsResult`, `AsPromiseOrReject`, `AsResultPromise`, `AsPromisableResult` — see [Outcomes](#outcomes)) and takes every [call form](#call-forms); the compiled form is `(Schema<TInput, TOutput>) => (TOutput) => TOutput` for the output side and `(TInput) => TInput` for the input side, with the outcome's return wrapper.
 
 Every check the schema carries runs — types, refinements, and the conversion itself — so an entity the schema has no way to encode is rejected at construction rather than at the point it's sent:
 

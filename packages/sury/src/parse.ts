@@ -36,6 +36,8 @@ import {
 } from "./base";
 import {
   B_embedInvalidInput,
+  B_embedPure,
+  B_errorOf,
   B_contentDiffers,
   B_contentNode,
   B_inlineConst,
@@ -170,22 +172,27 @@ export type Tail = (
 // behind the hook (operations.ts).
 export const throwTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
   if (flag & 1024) {
-    const e = B_varWithoutAllocation(input.g);
     // `path` is omitted at the root, which is what Standard Schema consumers
-    // expect; `s` is the Sury marker symbol, the generated function's second
-    // parameter, so anything else in flight keeps going up. The same guard is
-    // `rethrowUnlessSury` in operations.ts — spelled twice on purpose, since a
-    // shared helper here would ship in every throw-only bundle.
-    const issues = `{issues:[{message:${e}.reason,path:${e}.path.length?${e}.path:void 0}]}`;
+    // expect. Built by an embedded function rather than inline: the failure
+    // path reads the error three times, and the same closure serves the
+    // sync catch and the promise's rejection handler.
+    const errorOf = B_errorOf(input);
+    const issues = B_embedPure(input, (e: unknown) => {
+      const error = errorOf(e);
+      return { issues: [{ message: error.reason, path: error.path.length ? error.path : U }] };
+    });
     const v = isAsync ? B_varWithoutAllocation(input.g) : "";
     const body = isAsync
-      ? `${code}return ${out}.then(${v}=>({value:${v}}),${e}=>{if(${e}&&${e}.s===s)return ${issues};throw ${e}})`
+      ? `${code}return ${out}.then(${v}=>({value:${v}}),${issues})`
       : `${code}return {value:${out}}`;
-    // An async operation answers with a promise either way, so a failure the
-    // sync phase raises comes back in the same shape as one after the await.
-    return `try{${body}}catch(${e}){if(${e}&&${e}.s===s)return ${
-      isAsync ? `Promise.resolve(${issues})` : issues
-    };throw ${e}}`;
+    // The raise counter: when nothing merged can throw, no `try`. An async
+    // operation answers with a promise either way, so a failure the sync
+    // phase raises comes back in the same shape as one after the await.
+    if (!input.g.t) return body;
+    const e = B_varWithoutAllocation(input.g);
+    return `try{${body}}catch(${e}){return ${
+      isAsync ? `Promise.resolve(${issues}(${e}))` : `${issues}(${e})`
+    }}`;
   }
   return code === "" && out === operationArgVar && !(flag & 1)
     ? U
@@ -197,13 +204,36 @@ export const __setTail = (fn: Tail): void => {
   emitTail = fn;
 };
 
+// Bit 1 of the operation flag permits async, it does not assert it: the first
+// attempt compiles without it, so a schema that is sync keeps every sync-only
+// codegen (json.ts's fused aggregate reads `g.o & 1` as "an item may be a
+// promise") and answers the same value under every outcome. Only a schema that
+// reaches an async stage (`B_markAsync`) is compiled again with the bit. Any
+// other compile failure fails the same way twice, and the second throw is the
+// one the developer sees. The tail still gets the full flag: the promise lift
+// is the outcome's, not the schema's.
 export const compileDecoder = (
   schema: Internal,
   expected: Internal,
   flag: Flag,
   defs: Record<string, Internal> | undefined
 ): (input: unknown) => unknown => {
-  const input = B_operationArg(isLiteral(schema) ? unknown : schema, expected, flag, defs);
+  if (flag & 1) {
+    try {
+      return compileWith(schema, expected, flag & ~1, flag, defs);
+    } catch {}
+  }
+  return compileWith(schema, expected, flag, flag, defs);
+};
+
+const compileWith = (
+  schema: Internal,
+  expected: Internal,
+  compileFlag: Flag,
+  flag: Flag,
+  defs: Record<string, Internal> | undefined
+): (input: unknown) => unknown => {
+  const input = B_operationArg(isLiteral(schema) ? unknown : schema, expected, compileFlag, defs);
 
   const output = parse(input);
   const code = B_merge(output);

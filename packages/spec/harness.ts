@@ -84,23 +84,6 @@ const NON_SPEC_FILES = new Set([
 
 const HEADER = "# yaml-language-server: $schema=./spec.schema.json";
 
-const OP_BUILDER: Record<OpName, (schema: any) => (input: any) => any> = {
-  parse: S.parseOrThrow,
-  decode: S.decodeOrThrow,
-  encode: S.encodeOrThrow,
-};
-
-// A schema carrying an async transform or refine compiles only through these:
-// the sync builders reject it at operation creation ("Encountered unexpected
-// async transform or refine"), and they wrap a sync direction in
-// `Promise.resolve(...)`, so which builder an op uses is part of its codegen —
-// hence a declared `isAsync`, checked against the schema, rather than a guess.
-const ASYNC_OP_BUILDER: Record<OpName, (schema: any) => (input: any) => Promise<any>> = {
-  parse: S.parseAsPromiseOrReject,
-  decode: S.decodeAsPromiseOrReject,
-  encode: S.encodeAsPromiseOrReject,
-};
-
 const SKIP_REASON_SET = new Set<string>(SKIP_REASONS);
 export const isValidSkipReason = (r: unknown): boolean =>
   typeof r === "string" && (SKIP_REASON_SET.has(r) || /^todo\(#.+\)$/.test(r));
@@ -202,9 +185,6 @@ export const stripTypes = (tsSource: string): string =>
     compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
   }).outputText.trim().replace(/;$/, "");
 
-export const evalSchema = (tsSource: string): any =>
-  new Function("S", `return ${stripTypes(tsSource)};`)(S);
-
 // A re-runnable evaluator for one source string, transpiled once. The matrix
 // runs an example through a dozen spellings and hands each its OWN value: an
 // operation that mutates what it was given would otherwise have every spelling
@@ -213,6 +193,8 @@ export const valueEvaluator = (tsSource: string): (() => any) => {
   const fn = new Function("S", `return ${stripTypes(tsSource)};`);
   return () => fn(S);
 };
+
+export const evalSchema = (tsSource: string): any => valueEvaluator(tsSource)();
 
 // A scenario's `prepare` is statements, not an expression, so it goes through
 // transpileModule directly — stripTypes' parenthesization exists only to keep
@@ -542,14 +524,9 @@ const reformatIfEvaluable = (text: string): string => {
 // Individual named examples are never `_skip` — only the enclosing operation
 // block is (the format schema has no `orSkip` on the examples map's values).
 const canonExample = (ex: Example): Example => {
-  const o = order(ex, ["input", "output", "error", "whenAsync", "whenChecked"]) as Example;
+  const o = order(ex, ["input", "output", "error", "whenChecked"]) as Example;
   o.input = reformatIfEvaluable(o.input);
   if ("output" in o) o.output = reformatIfEvaluable(o.output);
-  if (o.whenAsync !== undefined) {
-    const w = order(o.whenAsync as Record<string, unknown>, ["output", "error"]) as typeof o.whenAsync;
-    if ("output" in w!) w!.output = reformatIfEvaluable(w!.output);
-    o.whenAsync = w;
-  }
   return o;
 };
 
@@ -1126,10 +1103,26 @@ const OUTCOME_FORMS = {
   },
 } as const satisfies Record<OpName, Record<string, unknown>>;
 
+// The golden builders: the throwing outcome of each verb, and — for a schema
+// carrying an async transform or refine, which the sync builders reject at
+// operation creation and which wraps a sync direction in `Promise.resolve(...)`,
+// so which builder an op uses is part of its codegen, hence a declared
+// `isAsync` checked against the schema — the rejecting one.
+const OP_BUILDER: Record<OpName, (schema: any) => (input: any) => any> = {
+  parse: OUTCOME_FORMS.parse.OrThrow,
+  decode: OUTCOME_FORMS.decode.OrThrow,
+  encode: OUTCOME_FORMS.encode.OrThrow,
+};
+const ASYNC_OP_BUILDER: Record<OpName, (schema: any) => (input: any) => Promise<any>> = {
+  parse: OUTCOME_FORMS.parse.AsPromiseOrReject,
+  decode: OUTCOME_FORMS.decode.AsPromiseOrReject,
+  encode: OUTCOME_FORMS.encode.AsPromiseOrReject,
+};
+
 // What a Result carries: a failure OF THE VALUE it was handed (index.d.ts,
-// `DataError`). Everything else throws out of every outcome — a `DefectError`
-// describes the schema and fails for every input, and a foreign exception from
-// user code was never Sury's to report.
+// `DataError`) — a foreign exception from user code included, wrapped as
+// `invalid_conversion`. Only a `DefectError` throws out of every outcome: it
+// describes the schema and fails for every input.
 const DATA_CODES = new Set(["invalid_input", "unrecognized_key", "invalid_conversion"]);
 
 // Whether an outcome answers a failure with a value instead of an exception —
@@ -1151,6 +1144,8 @@ const CALL_FORMS = [
 // `assert`/`is`/`make` always validate, so a decode example that is
 // deliberately ill-typed diverges by design. Parse is where both sides do the
 // same work, and where a divergence is a bug.
+// Wrapped, not bare: each check is nine overloads, and a union of those has no
+// signature TypeScript will call.
 const CHECK_FORMS = {
   sync: {
     assertInputOrThrow: (schema: any, data: unknown) => S.assertInputOrThrow(schema, data),
@@ -1165,18 +1160,6 @@ const CHECK_FORMS = {
       S.makeInputAsPromiseOrReject(schema, data),
   },
 } as const;
-
-// The outcome of an example through the async outcomes. They differ from the
-// sync ones only by carrying the async flag, and the flag is what a schema can
-// branch on (advanced/json.ts takes JSON.stringify's whole-value path under it),
-// so one spelling answers for all three.
-const asyncOutcomeOf = async (opName: OpName, schema: any, data: unknown): Promise<Ref> => {
-  try {
-    return { value: await (OUTCOME_FORMS[opName].AsPromiseOrReject as any)(schema, data) };
-  } catch (e) {
-    return { message: (e as Error).message };
-  }
-};
 
 // What each check answers for this value. They are meant to agree with each
 // other; a disagreement has no spelling in the format and is reported instead.
@@ -1213,15 +1196,11 @@ const refreshDivergences = async (
   isAsync: boolean,
   schema: any,
   ex: Example,
-): Promise<{ whenAsync?: Example["whenAsync"]; whenChecked?: Example["whenChecked"] }> => {
-  const out: { whenAsync?: Example["whenAsync"]; whenChecked?: Example["whenChecked"] } = {};
-  if (ex.whenAsync === undefined && ex.whenChecked === undefined) return out;
+): Promise<{ whenChecked?: Example["whenChecked"] }> => {
+  const out: { whenChecked?: Example["whenChecked"] } = {};
+  if (ex.whenChecked === undefined) return out;
   const nextData = valueEvaluator(ex.input);
-  if (ex.whenAsync !== undefined) {
-    const r = await asyncOutcomeOf(opName, schema, nextData());
-    out.whenAsync = "message" in r ? { error: r.message } : { output: valueToCode(r.value) };
-  }
-  if (ex.whenChecked !== undefined) {
+  {
     const verdicts = await checkVerdicts(schema, nextData, isAsync);
     out.whenChecked = verdicts[0]!.passed ? "passes" : "fails";
   }
@@ -1247,34 +1226,22 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
         continue; // an unevaluatable golden is reported by the checks above
       }
 
-      // An async direction's golden IS its async outcome, so there is no second
-      // one to record.
-      if (isAsync && ex.whenAsync !== undefined)
-        errs.push(`${where}: whenAsync on an async direction — its golden is already the async outcome, so remove it`);
       if (opName !== "parse" && ex.whenChecked !== undefined)
         errs.push(`${where}: whenChecked is \`parse\` only — decode and encode trust their input, so a check disagreeing with them is by design`);
-
-      // The async spellings answer `whenAsync` when it is recorded, the golden
-      // otherwise.
-      const expectedAsync: Ref =
-        ex.whenAsync === undefined
-          ? golden
-          : "error" in ex.whenAsync
-            ? { message: ex.whenAsync.error }
-            : { value: evalSchema(ex.whenAsync.output) };
 
       // `op(data, schema)` reads two schemas as a chain — the one call form a
       // Sury schema in the data slot can't take (see index.d.ts). Documented,
       // not a finding.
       const skipDataFirst = isUsableSchema(nextData());
 
-      let reportedAsyncSplit = false;
       for (const [outcome, factory] of Object.entries(OUTCOME_FORMS[opName])) {
         // A sync direction runs all five; an async one only the outcomes that
         // carry the async flag — the rest are rejected at operation creation,
         // which `asyncViolations` already covers.
         if (isAsync && !ASYNC_OUTCOMES.has(outcome)) continue;
-        const expected = ASYNC_OUTCOMES.has(outcome) && !isAsync ? expectedAsync : golden;
+        // Every spelling answers the golden: the async outcomes of a sync
+        // direction compile the same body and lift it into a promise.
+        const expected = golden;
         for (const [form, call] of CALL_FORMS) {
           if (skipDataFirst && form === "op(data, schema)") continue;
           const spelling = `${opName}${outcome} as ${form}`;
@@ -1292,10 +1259,9 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
               actual = { value: raw };
             }
           } catch (e) {
-            // Only a data failure belongs in a Result. A defect (the schema is
-            // wired wrong, so every input fails) and a foreign exception from
-            // user code both throw out of every outcome — one is the
-            // developer's bug, the other was never Sury's to report.
+            // Only a defect (the schema is wired wrong, so every input fails)
+            // throws out of a Result outcome; a data failure — a foreign
+            // exception from user code included — is its return value.
             if (RESULT_SHAPED.has(outcome) && DATA_CODES.has((e as { code?: string }).code!)) {
               errs.push(
                 `${where}: ${spelling} threw ${JSON.stringify((e as Error).message)} — a Result ` +
@@ -1306,27 +1272,11 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
             actual = { message: (e as Error).message };
           }
           if (sameOutcome(expected, actual)) continue;
-          // A sync/async split that isn't recorded yet reads as ONE missing
-          // `whenAsync`, not as nine unrelated mismatches.
-          if (ASYNC_OUTCOMES.has(outcome) && !isAsync && ex.whenAsync === undefined) {
-            if (!reportedAsyncSplit) {
-              reportedAsyncSplit = true;
-              errs.push(
-                `${where}: the async outcomes ${describeRef(actual)} where the sync ones ` +
-                  `${describeRef(golden)} — add \`whenAsync: {${"message" in actual ? "error" : "output"}: ""}\` ` +
-                  "and `--write` fills it in",
-              );
-            }
-            continue;
-          }
           errs.push(
             `${where}: ${spelling} ${describeRef(actual)}, but the golden ${describeRef(expected)}`,
           );
         }
       }
-      if (ex.whenAsync !== undefined && !isAsync && sameOutcome(golden, await asyncOutcomeOf(opName, schema, nextData())))
-        errs.push(`${where}: whenAsync records the same outcome as the sync one — remove it`);
-
       // Whether the checks agree that this value passes. Only that — `assert`
       // and `is` build no output, and `make` hands the value back rather than a
       // decoded clone, so there is no output to compare. `parse` only: `decode`

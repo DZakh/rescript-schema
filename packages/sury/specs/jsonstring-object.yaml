@@ -40,8 +40,6 @@ operations:
       non-finite:
         input: '{ id: Infinity, name: "a", tag: "x", flag: true }'
         error: "Failed at id: Expected JSON, received Infinity"
-        whenAsync:
-          output: '"{\"id\":null,\"name\":\"a\",\"tag\":\"x\",\"flag\":true}"'
         whenChecked: passes
   decode:
     expression: i=>{let v0=i["id"];return "{\"id\":"+(Number.isFinite(v0)?v0:e[0](v0))+",\"name\":"+e[1](i["name"])+",\"tag\":\"x\",\"flag\":"+i["flag"]+"}"}

@@ -81,7 +81,7 @@ test("a hole and a foreign Standard Schema are named, not read as data", () => {
 
 test("the Result tail is compiled into the operation, not wrapped around it", () => {
   expect(S.parseAsResult(S.string).toString()).toMatchInlineSnapshot(
-    `"i=>{try{typeof i==="string"||e[0](i);return {success:true,value:i,error:void 0}}catch(v0){if(v0&&v0.s===s)return {success:false,value:void 0,error:v0};throw v0}}"`,
+    `"i=>{try{typeof i==="string"||e[0](i);return {success:true,value:i,error:void 0}}catch(v0){return {success:false,value:void 0,error:e[1](v0)}}}"`,
   );
 });
 
@@ -125,7 +125,7 @@ test("a Result destructures and narrows", () => {
   expect(failure.error?.path).toEqual(["id"]);
 });
 
-test("a foreign exception from user code is rethrown, not returned", () => {
+test("a foreign exception from user code is a failure of the value, in the outcome's own shape", async () => {
   const boom = new TypeError("boom");
   const schema = S.string.with(S.to, S.number, {
     decode: () => {
@@ -139,11 +139,27 @@ test("a foreign exception from user code is rethrown, not returned", () => {
   expect(result.error?.code).toBe("invalid_conversion");
   expect((result.error as { cause?: unknown } | undefined)?.cause).toBe(boom);
 
-  // Nothing else is caught: a refinement that throws outright escapes.
+  // A refinement that throws is that refinement failing, the same way.
   const throwing = S.string.with(S.refine, () => {
     throw boom;
   });
-  expect(() => S.parseAsResult(throwing, "1")).toThrow(boom);
+  expect(S.parseAsResult(throwing, "1").error?.code).toBe("invalid_conversion");
+  expect(() => S.parseOrThrow(throwing, "1")).toThrow(S.Error);
+
+  // What nothing in the schema catches — a getter — still comes back as a
+  // SuryError wherever the operation answers rather than throws, so a
+  // consumer never tells a failure from an exception by inspecting it. The
+  // shape is the outcome's: a Result, `false`, or a promise of either — never
+  // a synchronous throw from a promise-returning operation.
+  const evil = new Proxy({}, { get() { throw boom; } });
+  const user = S.schema({ id: S.string });
+  expect(S.parseAsResult(user, evil).error?.code).toBe("invalid_conversion");
+  expect(S.isInput(user, evil)).toBe(false);
+  expect((await S.parseAsResultPromise(user, evil)).error?.code).toBe("invalid_conversion");
+  expect(await S.isInputAsPromise(user, evil)).toBe(false);
+  await expect(S.parseAsPromiseOrReject(user, evil)).rejects.toBe(boom);
+  // The throwing outcome is the exception itself.
+  expect(() => S.parseOrThrow(user, evil)).toThrow(boom);
 });
 
 test("a defect throws instead of becoming a Result", () => {
@@ -272,7 +288,7 @@ test("make validates and hands back the value it was given", () => {
 
 test("make compiles to the checks plus the value, with no wrapper", () => {
   expect(S.makeInputOrThrow(user).toString()).toMatchInlineSnapshot(
-    `"i=>{let v1=i;typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i["id"];typeof v0==="string"||e[0](v0);return v1}"`,
+    `"i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i["id"];typeof v0==="string"||e[0](v0);return i}"`,
   );
   // Nothing to check: the operation is the identity itself.
   expect(S.makeInputOrThrow(S.unknown)).toBe(S.parseOrThrow(S.unknown));
@@ -284,7 +300,7 @@ test("is answers a boolean from one compiled operation", () => {
   expect(S.isOutput(strToNum, 1)).toBe(true);
   expect(S.isOutput(strToNum, "1")).toBe(false);
   expect(S.isInput(user).toString()).toMatchInlineSnapshot(
-    `"i=>{try{typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i["id"];typeof v0==="string"||e[0](v0);return true}catch(v1){if(v1&&v1.s===s)return false;throw v1}}"`,
+    `"i=>{try{typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i["id"];typeof v0==="string"||e[0](v0);return true}catch(v1){return false}}"`,
   );
   // Nothing can fail, so there is nothing to catch.
   expect(S.isInput(S.unknown).toString()).toMatchInlineSnapshot(`"i=>{return true}"`);

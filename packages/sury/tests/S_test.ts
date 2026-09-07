@@ -754,7 +754,7 @@ test("Standard schema", (t) => {
   >();
 });
 
-// getDecoder answers a repeated call from a per-operation node cache on the
+// getOp answers a repeated call from a per-operation node cache on the
 // schema (see OpNode in parse.ts), and
 // `~standard.validate` holds its compiled decoder in a closure. Both are keyed
 // on the arguments and the global flag, so anything that picks a different
@@ -857,13 +857,18 @@ test("~standard.validate returns a promise for a schema with an async codec", as
 // a second `try` that turns the rethrow into a rejection. A test file rather
 // than a spec: what's under test is an order dependency between two
 // operations, which a per-schema golden can't express.
-test("~standard.validate rethrows a foreign exception regardless of which operation compiled first", (t) => {
+// A foreign exception — a getter here — is a failure of THIS value, so it is
+// an issue rather than a throw, and the same issue whichever operation was
+// compiled first (the Result emitter is registered on first use).
+test("~standard.validate answers a foreign exception as an issue regardless of which operation compiled first", (t) => {
   const foreign = new Proxy({}, { get() { throw new Error("foreign"); } });
-  t.expect(() => S.schema({ id: S.string })["~standard"].validate(foreign)).toThrow("foreign");
+  t.expect(S.schema({ id: S.string })["~standard"].validate(foreign)).toEqual({
+    issues: [{ message: "foreign", path: undefined }],
+  });
   S.parseAsResult(S.string, "a");
-  t.expect(() => S.schema({ id: S.string, n: S.number })["~standard"].validate(foreign)).toThrow(
-    "foreign"
-  );
+  t.expect(S.schema({ id: S.string, n: S.number })["~standard"].validate(foreign)).toEqual({
+    issues: [{ message: "foreign", path: undefined }],
+  });
 });
 
 // A symbol is a valid `PropertyKey` segment of a Standard Schema issue path,
@@ -891,12 +896,13 @@ test("A conversion rejected at operation creation throws from S.isInput, rather 
   t.expect(isValid(null)).toBe(false);
   t.expect(isValid(undefined)).toBe(false);
 
-  // Only a Sury validation failure becomes `false` — a user refinement that
-  // throws something else still propagates.
+  // A refinement that throws is that refinement failing (the same as a coder's
+  // throw), so the value is not valid — and a schema wired wrong still throws.
   const boom = S.string.with(S.refine, () => {
     throw new RangeError("boom");
   });
-  t.expect(() => S.isInput(boom)("x")).toThrow("boom");
+  t.expect(S.isInput(boom)("x")).toBe(false);
+  t.expect(() => S.parseOrThrow(boom, "x")).toThrow("RangeError: boom");
 });
 
 // A recursive def marks itself in-progress in the operation cache before

@@ -40,20 +40,27 @@ export const recursiveDecoder: Builder = (input) => {
   // answering `false` or a `{success}` object into the middle of a value.
   // Masking also lets the modes share one node per def.
   const flag = input.g.o & 127;
+  // The memo key. A sync nested operation is byte-for-byte the top-level
+  // `parseOrThrow(def)`, so the two share a node. An async one is not: nested,
+  // it stays throwing where the top-level one lifts to a promise and rejects,
+  // so it is keyed apart (8192, a bit no operation flag carries) — or a
+  // `parseAsPromiseOrReject(def)` compiled through the wrapper would answer
+  // a bare value, and its failure a synchronous throw.
+  const key = flag & 1 ? flag | 8192 : flag;
 
   const inputSchema = input.s.seq === expectedSchema.seq ? def : input.s;
 
   let recOperation = "";
 
-  // The def's operations live in the same node cache getDecoder uses (see
-  // OpNode in parse.ts), stored on `def`; getDecoder stores on its newest-seq
-  // argument, so the two sides find each other's work whenever `def` is the
-  // newer of the pair — otherwise the pair just compiles twice. `v === 0`
+  // The def's operations live in the same node cache `getOp` uses (see OpNode
+  // in parse.ts), stored on `def`; `getOp` stores on its newest-seq argument,
+  // so the two sides find each other's work whenever `def` is the newer of the
+  // pair — otherwise the pair just compiles twice. `v === 0`
   // means this def is mid-compilation — a circular reference — and the NODE
   // is what gets embedded: it exists before the function it will hold, so
   // generated code calls `.v` at runtime and every recompile lands there for
   // free.
-  const existing = findOpNode(def, inputSchema, def, flag);
+  const existing = findOpNode(def, inputSchema, def, key);
   if (existing) {
     recOperation =
       existing.v === 0 ? B_embed(input, existing) + ".v" : B_embed(input, existing.v);
@@ -62,7 +69,7 @@ export const recursiveDecoder: Builder = (input) => {
     let assumedHasTransform = !!def.hasTransform;
     let assumedIsAsync = !!def.isAsync;
     let compileNeeded = true;
-    const node = addOpNode(def, [inputSchema, def], flag, 0);
+    const node = addOpNode(def, [inputSchema, def], key, 0);
 
     try {
       while (compileNeeded) {

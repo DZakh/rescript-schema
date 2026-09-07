@@ -24,6 +24,7 @@ import {
   unknown
 } from "./base";
 import {
+ B_embedErrorOf,
  B_varWithoutAllocation,
  operationArgVar
 } from "./builder";
@@ -76,27 +77,27 @@ const errResult = (flag: Flag, e: string): string =>
       ? `{success:false,value:void 0,error:${e}}`
       : "false";
 
-// `s` is the Sury marker symbol, the generated function's second parameter:
-// anything else in flight is somebody else's exception and keeps going up.
-const rethrowUnlessSury = (e: string, result: string): string =>
-  `if(${e}&&${e}.s===s)return ${result};throw ${e}`;
-
 const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
-  // 2048 (`makeInput`/`makeOutput`) hands back the value it was given, and the
-  // operation's parameter is not that value once the body has run: a union
-  // rebinds it while dispatching, so `return i` would answer with the encoded
-  // form. Bound before the body instead — except when there is no body, where
-  // the parameter is still the value and the extra `let` would only make an
-  // identity operation stop looking like one.
+  // 2048 (`makeInput`/`makeOutput`) hands back the value it was given. The
+  // operation's parameter still is that value unless the body assigned to it
+  // (`g.r`: a union rebinds it while dispatching, and `return i` would answer
+  // with the encoded form), in which case it is bound before the body.
   let value = out;
   if (flag & 2048) {
-    if (code === "") {
-      value = operationArgVar;
-    } else {
+    if (input.g.r) {
       value = B_varWithoutAllocation(input.g);
       code = `let ${value}=${operationArgVar};${code}`;
+    } else {
+      value = operationArgVar;
     }
   }
+  // A promise is only produced for the async flag; the promisable mode (512)
+  // asks for the value's own shape instead. `hasDefs` says the compile is
+  // NESTED (recursive.ts is the only caller that passes defs), and a nested
+  // operation stays throwing: the generated code around it prepends the path
+  // on the way out, and has to reach the value's failure before the promise
+  // does.
+  const toPromise = !!(flag & 1) && !(flag & 512) && !hasDefs;
   // No answer of its own for a failure — the exception still is the answer, so
   // `throwTail` still decides the identity case and the promise lift.
   if (!(flag & (128 | 256 | 4096))) {
@@ -111,39 +112,29 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
     // A promise-returning operation must not throw synchronously: a value that
     // fails its type check before the first await rejects the same way one
     // that fails after it does, so `OrReject` is the whole story its name
-    // tells.
+    // tells. The raise counter says whether anything merged can throw at all.
     //
     // Safe to decide here rather than from a flag bit, even though the tail is
     // registered globally: EVERY operation carrying the async flag goes through
     // `tailDispatch`, so none of them can be compiled before this emitter is in
-    // place. `hasDefs` is what says the compile is NESTED (recursive.ts is the
-    // only caller that passes defs), and a nested operation stays throwing —
-    // the generated code around it prepends the path on the way out, and has to
-    // reach the value's failure before the promise does.
-    //
-    // The promisable mode (512) is excluded: it answers in the value's own
-    // shape. It is the bit to test for the Standard Schema tail too — 1024 is
-    // only ever compiled with 512 (standard.ts) — where `throwTail` already
-    // emitted the `try` that rethrows a foreign exception, and a second wrap
-    // here would turn that rethrow into a rejection. Only once this emitter is
-    // registered, so `~standard.validate` of a sync schema would throw or
-    // reject depending on which operation ran first.
-    if (!body || !(flag & 1) || flag & 512 || hasDefs || !input.g.t) return body;
+    // place. 512 is also the bit that keeps the Standard Schema tail out —
+    // 1024 is only ever compiled with 512 (standard.ts) — where `throwTail`
+    // already emitted its own `try`.
+    if (!body || !toPromise || !input.g.t) return body;
     const e = B_varWithoutAllocation(input.g);
     return `try{${body}}catch(${e}){return Promise.reject(${e})}`;
   }
-  // A promise is only produced for the async flag; the promisable mode (512)
-  // asks for the value's own shape instead.
-  const toPromise = !!(flag & 1) && !(flag & 512) && !hasDefs;
   const errVar = B_varWithoutAllocation(input.g);
   // 4096 (`isInput`/`isOutput`) answers `true`; 2048 already picked its value.
   const valueVar = isAsync ? B_varWithoutAllocation(input.g) : value;
   const success = okResult(flag, flag & 4096 ? "true" : flag & 2048 ? value : valueVar);
-  const failure = errResult(flag, errVar);
+  // Every failure comes back as a SuryError (`B_errorOf`), so the Result's
+  // `error` is one shape; `is` only needs the fact of it.
+  const failure = errResult(flag, flag & 4096 ? "" : `${B_embedErrorOf(input)}(${errVar})`);
   const body = isAsync
     ? // Inlined into the promise chain the operation already builds, rather
       // than wrapped around it.
-      `${code}return ${out}.then(${valueVar}=>(${success}),${errVar}=>{${rethrowUnlessSury(errVar, failure)}})`
+      `${code}return ${out}.then(${valueVar}=>(${success}),${errVar}=>(${failure}))`
     : `${code}return ${toPromise ? `Promise.resolve(${success})` : success}`;
   // The raise counter: when nothing merged can throw, the operation needs no
   // `try` at all — the decision a `safe(() => ...)` wrapper can never make.
@@ -152,10 +143,9 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
   // consumer sees one shape whether the value died before the first await or
   // after it.
   return input.g.t
-    ? `try{${body}}catch(${errVar}){${rethrowUnlessSury(
-        errVar,
-        isAsync || toPromise ? `Promise.resolve(${failure})` : failure,
-      )}}`
+    ? `try{${body}}catch(${errVar}){return ${
+        isAsync || toPromise ? `Promise.resolve(${failure})` : failure
+      }}`
     : body;
 };
 
@@ -180,10 +170,13 @@ const compile = (
   s1?: unknown,
   s2?: unknown,
 ): ((data: unknown) => unknown) => {
-  // A foreign Standard Schema in a schema slot is named, not silently read as
-  // the data to validate; so is a hole.
-  if (!isOwnSchema(s0) || (n > 1 && !isOwnSchema(s1)) || (n > 2 && !isOwnSchema(s2))) {
-    panicNotSchema();
+  // `dispatch` has already proved `s0`. The slots after it hold a schema or
+  // nothing: a foreign Standard Schema is named rather than silently read as
+  // the data to validate, and so is a hole — or a value in the middle
+  // (`op(s, data, s)`), which is the one misplacement the argument count
+  // can't tell apart from a hole.
+  if ((n > 1 && !isOwnSchema(s1)) || (n > 2 && !isOwnSchema(s2))) {
+    panic("Expected a Sury schema. The data goes first or last");
   }
   const first = (rev ? reverse(s0 as Internal) : s0) as Internal;
   // The chain, in order: head, the caller's schemas, tail. `getOp` reads
@@ -219,8 +212,11 @@ const compile = (
 // Accepted and documented: `op(s1, s2)` always reads as a chain, so parsing a
 // Sury schema *as data* is only available compiled — `S.parseOrThrow(Meta)(s)`.
 // No argument order makes both reachable. The data is only ever the first or
-// the last argument, so only those two are tested; a hole in the middle
-// (`op(s, data, s)`) is a schema slot and fails in `compile`.
+// the last argument, so those are the slots tested here — each exactly once,
+// since `compile` trusts its first slot and checks the rest.
+const panicArity = (): never =>
+  panic("Expected at most 3 schemas and a value. Use .with(S.to, ...) for a longer chain");
+
 const dispatch = (
   n: number,
   a: unknown,
@@ -234,27 +230,33 @@ const dispatch = (
 ): unknown => {
   switch (n) {
     case 1:
-      return compile(head, tail, rev, flag, 1, a);
+      return isOwnSchema(a) ? compile(head, tail, rev, flag, 1, a) : panicNotSchema();
     case 2:
       return isOwnSchema(a)
         ? isOwnSchema(b)
           ? compile(head, tail, rev, flag, 2, a, b)
           : compile(head, tail, rev, flag, 1, a)(b)
-        : compile(head, tail, rev, flag, 1, b)(a);
+        : isOwnSchema(b)
+          ? compile(head, tail, rev, flag, 1, b)(a)
+          : panicNotSchema();
     case 3:
       return isOwnSchema(a)
         ? isOwnSchema(c)
           ? compile(head, tail, rev, flag, 3, a, b, c)
           : compile(head, tail, rev, flag, 2, a, b)(c)
-        : compile(head, tail, rev, flag, 2, b, c)(a);
+        : isOwnSchema(b)
+          ? compile(head, tail, rev, flag, 2, b, c)(a)
+          : panicNotSchema();
     case 4:
       return isOwnSchema(a)
-        ? compile(head, tail, rev, flag, 3, a, b, c)(d)
-        : compile(head, tail, rev, flag, 3, b, c, d)(a);
+        ? isOwnSchema(d)
+          ? panicArity()
+          : compile(head, tail, rev, flag, 3, a, b, c)(d)
+        : isOwnSchema(b)
+          ? compile(head, tail, rev, flag, 3, b, c, d)(a)
+          : panicNotSchema();
     default:
-      return n > 4
-        ? panic("Expected at most 3 schemas and a value. Use .with(S.to, ...) for a longer chain")
-        : panicNotSchema();
+      return n > 4 ? panicArity() : panicNotSchema();
   }
 };
 
@@ -288,6 +290,8 @@ const tailDispatch = (
 //
 // One declaration each, never `export const parseAsResult = makeOp(...)`: a
 // factory call at the top level is a side effect that no bundler will shake.
+// And `function`, not an arrow, against the house style: the call form is
+// read off `arguments.length`, which an arrow doesn't have.
 //
 // The flag literals are the return modes documented in base.ts. Outcome:
 // 0 OrThrow · 128 AsResult (256 for the ReScript shape) · 1 AsPromiseOrReject ·
@@ -418,8 +422,8 @@ export function makeOutputAsPromisableResult(
 // ── Checks ───────────────────────────────────────────────────────────────────
 //
 // Direction is a free parameter here — there is no value to read it off — so
-// it is spelled out and mandatory. `is*` answers a boolean and never throws for a failed check; `is*AsPromise` resolves to one and never
-// rejects.
+// it is spelled out and mandatory. `is*` answers a boolean and never throws;
+// `is*AsPromise` resolves to one and never rejects.
 
 export function isInput(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
   return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 4096);
@@ -499,5 +503,3 @@ export function $makeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown
 export function $makeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
   return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 256 | 2048);
 }
-
-
