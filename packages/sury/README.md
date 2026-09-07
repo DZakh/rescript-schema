@@ -13,9 +13,11 @@ Declare your data once, in TypeScript or ReScript. The wires it travels are sche
 const Signup = S.schema({ id: S.bigint, email: S.email, avatar: S.blob });
 type Signup = S.Infer<typeof Signup>;
 
-await S.asyncDecoder(S.file.with(S.to, S.jsonString.with(S.to, S.array(Signup))))(file);
+const signupsFileSchema = S.file.with(S.to, S.jsonString.with(S.to, S.array(Signup)));
+
+await S.asyncDecoder(signupsFileSchema)(file);
 // => [{ id: 7n, email: "a@b.co", avatar: Blob }], the avatar rode as base64
-await S.asyncEncoder(S.file.with(S.to, S.jsonString.with(S.to, S.array(Signup))))(signups);
+await S.asyncEncoder(signupsFileSchema)(signups);
 // => a File, from the same declaration
 ```
 
