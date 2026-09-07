@@ -247,23 +247,14 @@ export const B_markThrow = (b: Val): void => {
 // A coder's or refiner's own throw as `invalid_conversion`. Split from the
 // Sury-cause branch below so an operation tail (every bundle) carries only
 // this half.
-const B_foreignDetails = (input: Val, to: Internal, cause: unknown): ErrorDetails => {
-  let reason: string;
-  if (cause instanceof Error) {
-    reason = "" + cause;
-    if (reason.startsWith("Error: ")) reason = reason.slice(7);
-  } else {
-    reason = stringify(cause);
-  }
-  return {
-    code: "invalid_conversion",
-    from: input.s,
-    to,
-    cause,
-    path: input.path,
-    reason,
-  };
-};
+const B_foreignDetails = (input: Val, to: Internal, cause: unknown): ErrorDetails => ({
+  code: "invalid_conversion",
+  from: input.s,
+  to,
+  cause,
+  path: input.path,
+  reason: cause instanceof Error ? ("" + cause).replace(/^Error: /, "") : stringify(cause),
+});
 
 export const B_makeInvalidConversionDetails = (input: Val, to: Internal, cause: unknown): ErrorDetails => {
   if (cause && (cause as { s?: symbol }).s === s) {
