@@ -143,7 +143,7 @@ type User = {
   createdAt: Date;
 };
 
-const userSchema = S.schemaOf<User>({
+const userSchema = S.schemaOf<User>()({
   id: S.string,
   name: S.string,
   createdAt: S.date,
@@ -151,45 +151,57 @@ const userSchema = S.schemaOf<User>({
 //? S.Schema<User, User>
 ```
 
-A field with the wrong type, and a field the type doesn't declare, are each reported where they're written:
+The encoded side is read off the definition, so a codec needs no second type argument:
 
 ```ts
-S.schemaOf<User>({ id: S.number, name: S.string, createdAt: S.date });
-// Type 'Schema<number, number>' is not assignable to type 'string | SchemaLike<string, string>'
+const rowSchema = S.schemaOf<User>()({
+  id: S.string,
+  name: S.string,
+  createdAt: S.isoDateTime.with(S.to, S.date),
+});
+//? S.Schema<{ id: string; name: string; createdAt: string }, User>
+```
 
-S.schemaOf<User>({ id: S.string, name: S.string, createdAt: S.date, nickname: S.string });
-// Object literal may only specify known properties, and 'nickname' does not exist in type ...
+The empty `()` is what makes the checking possible: it fixes the type before the definition is written, so **Sury** compares the two for *equality* rather than assignability. That's what catches a definition which merely happens to fit — a field the type declares optional, defined by a schema that requires it:
+
+```ts
+type Draft = { title: string; publishedAt?: Date };
+
+S.schemaOf<Draft>()({ title: S.string, publishedAt: S.date });
+// Type 'Schema<Date, Date>' is not assignable to type
+// '{ "types do not match": { expected: Date | undefined; received: Date } }'
+```
+
+`S.date` produces a `Date`, which *is* a `Date | undefined` — so every check based on assignability accepts it, and the schema it builds then rejects `{ title: "…" }`, a value the type calls valid. The fix is [`S.optional`](#optional):
+
+```ts
+S.schemaOf<Draft>()({ title: S.string, publishedAt: S.optional(S.date) });
+```
+
+The same equality catches a schema narrower than the type declares — `S.schema("fixed")` where the type says `string` would refuse values the type admits. A wrong field type, and a field the type doesn't declare, are each reported where they're written:
+
+```ts
+S.schemaOf<User>()({ id: S.number, name: S.string, createdAt: S.date });
+// '{ "types do not match": { expected: string; received: number } }'
+
+S.schemaOf<User>()({ id: S.string, name: S.string, createdAt: S.date, nickname: S.string });
+// '{ "types do not match": { expected: never; received: string } }'
 ```
 
 A missing field is reported against the call, listing every one of them:
 
 ```ts
-S.schemaOf<User>({ id: S.string });
-// Type '{ id: Schema<string, string>; }' is missing the following properties from type
-// '{ id: ...; name: ...; createdAt: ...; }': name, createdAt
+S.schemaOf<User>()({ id: S.string });
+// Type '{ id: Schema<string, string>; }' is not assignable to
+// '{ id: … } & { name: …; createdAt: … }'
 ```
-
-One type argument pins the encoded side to the decoded one, so `S.schemaOf<User>` describes a schema that validates without transforming. Name both types to check a codec — and to keep the encoded type:
-
-```ts
-type UserRow = { id: string; name: string; createdAt: string };
-
-const rowSchema = S.schemaOf<UserRow, User>({
-  id: S.string,
-  name: S.string,
-  createdAt: S.isoDateTime.with(S.to, S.date),
-});
-//? S.Schema<UserRow, User>
-```
-
-Leave the encoded side as `unknown` for a schema that's only ever parsed: `S.schemaOf<unknown, User>({ ... })`.
 
 Anything without a fields object — a union, a recursive schema — is named by passing the schema itself:
 
 ```ts
 type Shape = { kind: "circle"; r: number } | { kind: "square"; side: number };
 
-S.schemaOf<Shape>(
+S.schemaOf<Shape>()(
   S.union([
     S.schema({ kind: "circle", r: S.number }),
     S.schema({ kind: "square", side: S.number }),
@@ -197,7 +209,7 @@ S.schemaOf<Shape>(
 );
 ```
 
-> 🧠 A field the type declares optional is spelled `S.optional(...)`, but writing the bare schema instead is **not** caught: `S.schemaOf<{ age?: number }>({ age: S.number })` type-checks, and the schema it builds requires `age`. TypeScript compares a definition's output covariantly, so "must also accept a missing value" isn't expressible.
+> 🧠 A `readonly` array or tuple in the type is matched by an ordinary [`S.array`](#array) or [`S.tuple`](#tuple) — there's no `readonly` schema to ask for, so the modifier is dropped for the comparison. It's dropped from the encoded side of the result too.
 
 ### Encoding data
 

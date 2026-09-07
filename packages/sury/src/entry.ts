@@ -19,6 +19,7 @@
 // (index.d.ts is the curated surface) and tree-shake when unused like any
 // other export.
 
+import { schemaFactory } from "./factory";
 import {
   baseSchema,
   type Builder,
@@ -151,12 +152,7 @@ export {
 // ── Public JS/TS API (names match index.d.ts) ────────────────────────────────
 
 export { getDecoder as decoder, reverse, instance } from "./parse";
-export {
-  schemaFactory as schema,
-  schemaFactory as literal,
-  schemaFactory as schemaOf,
-  enum,
-} from "./factory";
+export { schemaFactory as schema, schemaFactory as literal, enum } from "./factory";
 export {
   recursive,
 } from "./advanced/recursive";
@@ -216,6 +212,12 @@ export { outputExpression } from "./parse";
 // Spreading the own rest param straight through (`getDecoder(unknown,
 // ...args)`) is a shape engines already optimize — an arity fast path here
 // measured nothing, so these stay generic.
+// Curried so the definition's type is inferred at the second call, which is
+// what index.d.ts compares against the type argument. The type argument is
+// erased, so the first call has nothing to do but hand back the factory.
+// @__NO_SIDE_EFFECTS__
+export const schemaOf = () => schemaFactory;
+
 // @__NO_SIDE_EFFECTS__
 export const parser = (...args: unknown[]) => getDecoder(unknown, ...args);
 

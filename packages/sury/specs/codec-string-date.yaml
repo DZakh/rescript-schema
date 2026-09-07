@@ -3,7 +3,7 @@ ts:
   schema: S.string.with(S.to, S.date)
   aliases:
     - S.to(S.string, S.date)
-    - S.schemaOf<string, Date>(S.string.with(S.to, S.date))
+    - S.schemaOf<Date>()(S.string.with(S.to, S.date))
   input: string
   output: Date
   instantiations: 4419

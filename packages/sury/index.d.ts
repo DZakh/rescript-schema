@@ -424,57 +424,90 @@ export function schema<const T>(
 ): Schema<UnknownToInput<T>, UnknownToOutput<T>>;
 
 /**
- * `schema` for a type you already have: the type argument drives the check
- * instead of being inferred from the definition.
+ * `schema` for a type you already have: the type argument says what the schema
+ * must produce, and the definition is checked against it.
  *
  * ```ts
- * S.schemaOf<User>({ id: S.string, createdAt: S.date })
- * S.schemaOf<UserRow, User>({ id: S.string, createdAt: S.isoDateTime.with(S.to, S.date) })
+ * S.schemaOf<User>()({ id: S.string, createdAt: S.date })
+ * //? S.Schema<{ id: string; createdAt: Date }, User>
+ *
+ * S.schemaOf<User>()({ id: S.string, createdAt: S.isoDateTime.with(S.to, S.date) })
+ * //? S.Schema<{ id: string; createdAt: string }, User>
  * ```
  *
- * One type argument pins both sides, so the definition may not transform. Name
- * the encoded type as well to check (and keep) a codec's input.
+ * The encoded type is read off the definition, so a codec needs no second type
+ * argument. Pin one with `satisfies` where it matters.
+ *
+ * Curried because the definition's own type has to be inferred before it can be
+ * compared: a call that took both at once would have nothing to compare against
+ * (TypeScript doesn't infer the type arguments a call doesn't spell), and a
+ * definition merely *assignable* to the target passes checks a definition equal
+ * to it fails — which is what makes `S.number` slip into a field the type
+ * declares optional.
  */
-export function schemaOf<TInput, TOutput = TInput>(
-  definition: Definition<TInput, TOutput>
-): Schema<TInput, TOutput>;
+export function schemaOf<TOutput>(): <const TDef>(
+  definition: DefinitionMatches<TDef, TOutput> extends true
+    ? TDef
+    : DefinitionMismatch<TDef, TOutput>
+) => Schema<UnknownToInput<TDef>, TOutput>;
 
-// The definition `schemaOf` demands, derived from the target type rather than
-// inferred from an argument: that is what reports a mismatch on the offending
-// field, and what lets an object literal's excess-property check catch a field
-// the type never declared.
+// Equality, not assignability. `S.number` in a field the type declares
+// `age?: number` produces `number` where the type reads `number | undefined`;
+// assignable, so every `satisfies`-shaped check accepts it, and the schema it
+// builds then rejects a value the type calls valid. Equality is what sees it.
 //
-// Deliberately NOT an overload of `schema` — resolving one would report every
-// other overload as a losing candidate, so a wrong field arrives buried under
-// `(value: TOutput)` with the target type expanded member by member.
-type Definition<TInput, TOutput> = unknown extends TOutput
-  ? never
-  : SchemaLike<TInput, TOutput> | DefinitionValue<TInput, TOutput>;
+// Two identical deferred conditionals are only assignable to each other when
+// the types they check are identical, which is what makes this exact — down to
+// optionality and `readonly`.
+type AssertEqual<T, U> = (<V>() => V extends T ? 1 : 2) extends <V>() => V extends U
+  ? 1
+  : 2
+  ? true
+  : false;
 
-type DefinitionValue<TInput, TOutput> = TOutput extends DefinitionOpaque
-  ? never
-  : TOutput extends readonly unknown[]
-  ? { -readonly [K in keyof TOutput]: Definition<DefinitionAt<TInput, K>, TOutput[K]> }
-  : TOutput extends object
-  ? { [K in keyof TOutput]-?: Definition<DefinitionAt<TInput, K>, TOutput[K]> }
-  : TOutput;
+// A `readonly` tuple or array has no `readonly` schema to match it, so the
+// comparison is made against the mutable spelling rather than failing on a
+// distinction no definition could express.
+type Mutable<T> = T extends readonly unknown[] ? { -readonly [K in keyof T]: T[K] } : T;
 
-// A definition reaches these through a schema — mapping over their members
-// would ask for a definition per method.
-type DefinitionOpaque =
-  | Date
-  | RegExp
-  | Error
-  | Promise<unknown>
-  | Map<unknown, unknown>
-  | Set<unknown>
-  | ArrayBuffer
-  | ArrayBufferView
-  | ((...args: never[]) => unknown);
+type DefinitionMatches<TDef, TOutput> = AssertEqual<
+  UnknownToOutput<TDef>,
+  Mutable<TOutput>
+>;
 
-// `TInput` and `TOutput` are walked in lockstep, so a field the encoded type
-// doesn't declare leaves its input unconstrained rather than `never`.
-type DefinitionAt<TInput, K> = K extends keyof TInput ? TInput[K] : unknown;
+// What the definition should have been, so TypeScript reports the mismatch on
+// the field that carries it rather than against the whole call. A field that
+// matches is left as it was written; one that doesn't becomes a type nothing
+// satisfies, whose name states both sides.
+// The mismatch is spelled out at each use rather than through a `Mismatch<…>`
+// alias: TypeScript prints an alias by name, so the report would read
+// `Mismatch<Date | undefined, Date>` and leave the reader to work out which
+// side is which. Structurally, both are labelled.
+type DefinitionMismatch<TDef, TOutput> = TDef extends SchemaLike<unknown, unknown>
+  ? { "types do not match": { expected: TOutput; received: UnknownToOutput<TDef> } }
+  : [TOutput] extends [object]
+  ? {
+      [K in keyof TDef]: K extends keyof TOutput
+        ? DefinitionMatches<TDef[K], TOutput[K]> extends true
+          ? TDef[K]
+          : {
+              "types do not match": {
+                expected: Mutable<TOutput[K]>;
+                received: UnknownToOutput<TDef[K]>;
+              };
+            }
+        : {
+            "types do not match": {
+              expected: never;
+              received: UnknownToOutput<TDef[K]>;
+            };
+          };
+    } & {
+      [K in Exclude<keyof TOutput, keyof TDef>]: {
+        "types do not match": { expected: TOutput[K]; received: never };
+      };
+    }
+  : { "types do not match": { expected: TOutput; received: UnknownToOutput<TDef> } };
 
 export function literal<const T>(
   value: T
