@@ -29,12 +29,11 @@ export type Flag = number;
 // rather than its output (`makeInput`/`makeOutput`), 4096 answer a boolean
 // (`isInput`/`isOutput`).
 //
-// Bit 1 permits async, it does not assert it: an operation carrying it is
-// compiled without it first (parse.ts `compileDecoder`), so `g.o & 1` reads as
-// "this schema IS async" wherever codegen branches on it. An async operation
-// also rejects rather than throwing when its value fails before the first
-// await — decided by the operation tail (operations.ts), from whether the
-// compile is nested, not by a flag of its own.
+// Bit 1 permits async, it does not assert it: codegen may read `g.o & 1` as
+// "a promise MAY appear here" (json.ts declines to fuse), never as "one will".
+// An async operation also rejects rather than throwing when its value fails
+// before the first await — decided by the operation tail (operations.ts), from
+// whether the compile is nested, not by a flag of its own.
 //
 // The split at 128 is load-bearing: a nested operation compiled inside another
 // (recursive.ts) masks with `& 127`, because generated code consumes its result

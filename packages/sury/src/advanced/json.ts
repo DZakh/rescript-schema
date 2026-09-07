@@ -465,8 +465,13 @@ export const jsonString = /* @__PURE__ */ (() => {
     setContent(s, json);
     // Only an unknown-typed source has validation pending — a typed source
     // (decode direction) has nothing to fuse, and marking it would make the
-    // aggregate re-validate trusted input. A pretty-printed or async document
-    // goes through JSON.stringify whole. Dynamic items JSON.stringify already
+    // aggregate re-validate trusted input. A pretty-printed document goes
+    // through JSON.stringify whole. Fusion is a sync-operation optimization:
+    // the aggregate compiles the raw fields itself, so a field's async codec
+    // would leave a promise in the concat, and whether one will is unknowable
+    // before the fields are compiled — an operation permitting async (`g.o &
+    // 1`) leaves the container to its decoder, which resolves the fields
+    // before the aggregate renders them. Dynamic items JSON.stringify already
     // serializes byte-identically (strings, booleans, null) stay on the
     // whole-value path, where a per-item loop can't beat the native call. A
     // fixed container is left to the aggregate unless it carries a refiner
@@ -760,6 +765,18 @@ export const jsonString = /* @__PURE__ */ (() => {
     let code = "";
     const entries: { p: Val; g?: string }[] = [];
     let hasOpt = false;
+    // The pieces that are promises — a field's async codec, or the dynamic
+    // chunk of a loop with one. Rendered the way `completeObjectVal` builds an
+    // object with async fields: each keeps its var name, and the concat is the
+    // same text inside `Promise.all([...]).then(([...])=>...)`, where the names
+    // rebind to the resolved values.
+    const asyncNames: string[] = [];
+    const resolved = (expr: string, body = ""): string => {
+      const fn = `${asyncNames.length > 1 ? `([${asyncNames}])` : asyncNames[0]}=>${
+        body ? `{${body}return ${expr}}` : expr
+      }`;
+      return asyncNames.length > 1 ? `Promise.all([${asyncNames}]).then(${fn})` : `${asyncNames[0]}.then(${fn})`;
+    };
 
     for (let idx = 0; idx < fixedLen; idx++) {
       const location = isArr ? "" + idx : keys![idx]!;
@@ -776,6 +793,9 @@ export const jsonString = /* @__PURE__ */ (() => {
       if (g !== U) {
         hasOpt = true;
       }
+      // Named before the merge locks its code, so the piece reads as a plain
+      // identifier the `.then` can rebind (as B_addObjectField does).
+      if (p.f & 1) asyncNames.push(p.v());
       code = code + B_merge(p);
       entries.push({ p, g });
     }
@@ -842,27 +862,49 @@ export const jsonString = /* @__PURE__ */ (() => {
           }
         }
         const { p, g } = piece !== U ? piece : fieldPiece(parseDynamic(itemInput), isArr, U, true);
-        const appendCode = isArr
-          ? `${dynAcc}+=${
-              fixedLen ? `","` : `(${iterVar}?",":"")`
-            }+${foldStringCoercion(p.i)}`
-          : `${dynAcc}+=(${dynAcc}?",":"")+${keyEmbed}(${iterVar})+":"+${foldStringCoercion(p.i)}`;
+        // An async item can't be appended as it arrives: the loop collects each
+        // item's text as a promise instead, and the chunk is their join. Read
+        // lazily — `B_mergeWithPathPrepend` rewrites an async piece's inline
+        // to carry the path `.catch` first.
+        const itemAsync = !!(p.f & 1);
+        const itemVar = itemAsync ? B_varWithoutAllocation(input.g) : "";
+        const appendCode = (): string =>
+          itemAsync
+            ? `${dynAcc}.push(${p.i}.then(${itemVar}=>${
+                isArr ? itemVar : `${keyEmbed}(${iterVar})+":"+${itemVar}`
+              }))`
+            : isArr
+              ? `${dynAcc}+=${
+                  fixedLen ? `","` : `(${iterVar}?",":"")`
+                }+${foldStringCoercion(p.i)}`
+              : `${dynAcc}+=(${dynAcc}?",":"")+${keyEmbed}(${iterVar})+":"+${foldStringCoercion(p.i)}`;
         const itemCode = B_mergeWithPathPrepend(
           p,
           input,
           iterVar,
-          () => (g !== U ? `if(${g}!==void 0){${appendCode}}` : appendCode),
+          () => (g !== U ? `if(${g}!==void 0){${appendCode()}}` : appendCode()),
           raiseCountBefore,
         );
         // `Object.keys`, not `for...in`: the latter walks the prototype chain,
         // so an inherited enumerable key would be serialized where
         // JSON.stringify (and the whole-value path this replaced) emits own
         // keys only.
-        loopCode = `let ${dynAcc}="";for(let ${iterVar}${
+        loopCode = `let ${dynAcc}=${itemAsync ? "[]" : `""`};for(let ${iterVar}${
           isArr
             ? `=${fixedLen};${iterVar}<${inputVar}.length;++${iterVar}`
             : ` of Object.keys(${inputVar})`
         }){${itemCode}}`;
+        if (itemAsync) {
+          const partsVar = B_varWithoutAllocation(input.g);
+          const joined = B_varWithoutAllocation(input.g);
+          // A tuple's rest items follow its fixed ones, so the chunk owns its
+          // leading comma, as the sync append does.
+          loopCode += `let ${joined}=Promise.all(${dynAcc}).then(${partsVar}=>${
+            isArr && fixedLen ? `${partsVar}.length?","+${partsVar}.join(","):""` : `${partsVar}.join(",")`
+          });`;
+          dynAcc = joined;
+          asyncNames.push(joined);
+        }
       }
 
       chunk = isArr ? "[" : "{";
@@ -874,8 +916,15 @@ export const jsonString = /* @__PURE__ */ (() => {
       }
       chunk = chunk + (isArr ? "]" : "}");
       flush();
-      const output = B_next(input, mergeStrLits(expr), expectedSchema, expectedSchema);
+      const text = mergeStrLits(expr);
+      const output = B_next(
+        input,
+        asyncNames.length ? resolved(text) : text,
+        expectedSchema,
+        expectedSchema,
+      );
       output.cp = code + mergeStrLits(loopCode);
+      if (asyncNames.length) output.f |= 1;
       return output;
     }
 
@@ -927,14 +976,18 @@ export const jsonString = /* @__PURE__ */ (() => {
       }
     }
     flushRun();
+    const text = braceSeeded ? `${accVar}+"}"` : `"{"+${accVar}+"}"`;
+    const build = mergeStrLits(`let ${accVar}=${accInit !== U ? accInit : `""`};` + stmts);
     const output = B_next(
       input,
-      braceSeeded ? `${accVar}+"}"` : `"{"+${accVar}+"}"`,
+      asyncNames.length ? resolved(text, build) : text,
       expectedSchema,
       expectedSchema,
     );
-    output.cp =
-      code + mergeStrLits(`let ${accVar}=${accInit !== U ? accInit : `""`};` + stmts);
+    // The accumulator reads the resolved pieces, so it is built inside the
+    // `.then` when there are any.
+    output.cp = code + (asyncNames.length ? "" : build);
+    if (asyncNames.length) output.f |= 1;
     return output;
   };
 
@@ -1033,8 +1086,10 @@ export const jsonString = /* @__PURE__ */ (() => {
       );
     } else if ((inputTagFlag & (64 | 128))) {
       const additionalItems = input.s.additionalItems;
-      // Pretty-printing and async fields keep the whole-value JSON.stringify
-      // path — inlined aggregation supports neither indentation nor promises.
+      // Pretty-printing keeps the whole-value JSON.stringify path — inlined
+      // aggregation has no indentation. (Promises never reach the aggregate:
+      // the container's decoder resolves async fields ahead of its `.to`
+      // continuation, and a fused container is sync by construction — `fz`.)
       // So does a dict or array whose dynamic values JSON.stringify already
       // serializes byte-identically (strings — nested json-format ones escape
       // as strings too — booleans, null): a per-item loop built from JS string
@@ -1044,7 +1099,6 @@ export const jsonString = /* @__PURE__ */ (() => {
       // which the whole-value call would ignore.
       if (
         (expectedSchema.space !== U && expectedSchema.space !== 0) ||
-        (input.g.o & 1) ||
         // `!uv`: a fused container skipped upstream validation, and the
         // whole-value paths don't validate — only the aggregate loop does.
         (!input.s.uv &&

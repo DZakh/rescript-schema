@@ -204,36 +204,13 @@ export const __setTail = (fn: Tail): void => {
   emitTail = fn;
 };
 
-// Bit 1 of the operation flag permits async, it does not assert it: the first
-// attempt compiles without it, so a schema that is sync keeps every sync-only
-// codegen (json.ts's fused aggregate reads `g.o & 1` as "an item may be a
-// promise") and answers the same value under every outcome. Only a schema that
-// reaches an async stage (`B_markAsync`) is compiled again with the bit. Any
-// other compile failure fails the same way twice, and the second throw is the
-// one the developer sees. The tail still gets the full flag: the promise lift
-// is the outcome's, not the schema's.
 export const compileDecoder = (
   schema: Internal,
   expected: Internal,
   flag: Flag,
   defs: Record<string, Internal> | undefined
 ): (input: unknown) => unknown => {
-  if (flag & 1) {
-    try {
-      return compileWith(schema, expected, flag & ~1, flag, defs);
-    } catch {}
-  }
-  return compileWith(schema, expected, flag, flag, defs);
-};
-
-const compileWith = (
-  schema: Internal,
-  expected: Internal,
-  compileFlag: Flag,
-  flag: Flag,
-  defs: Record<string, Internal> | undefined
-): (input: unknown) => unknown => {
-  const input = B_operationArg(isLiteral(schema) ? unknown : schema, expected, compileFlag, defs);
+  const input = B_operationArg(isLiteral(schema) ? unknown : schema, expected, flag, defs);
 
   const output = parse(input);
   const code = B_merge(output);
