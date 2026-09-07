@@ -5,9 +5,18 @@
 
 # Sury 🧬
 
-**Next-gen schemas, faster than hand-written code.**
+**Schema for everything - faster than hand-written code.**
 
-Declare your data model once, in TypeScript or ReScript. Decoders and encoders are pipelines of schemas - a wire schema on one side, the types you work with on the other - each JIT-specialized into a function written for exactly your shape.
+Declare your data once, in TypeScript or ReScript. The wire it arrives on is just another schema:
+
+```ts
+const signup = S.jsonString.with(S.to, S.schema({ id: S.bigint, email: S.email }));
+
+S.decoder(signup)(body); // text in, your types out
+S.encoder(signup)(value); // and back, from the same declaration
+```
+
+`S.json`, `S.formData`, `S.base64`, `S.file` and the rest are wires too.
 
 ```sh
 npm install sury
