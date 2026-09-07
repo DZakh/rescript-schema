@@ -56,7 +56,7 @@ parseEvent('{"type":"user.created","id":"42","tags":[]}');
 
 ### Every operation says what it does when it fails
 
-A flexible API that forces an explicit decision where safety matters - best for reviewing AI-written code. `S.parseOrThrow` throws, `S.parseAsResult` doesn't, and the name is the contract, so neither a call that throws nor one that swallows can hide in a diff:
+A flexible API that forces an explicit decision where safety matters - best for reviewing AI-written code. `S.parseOrThrow` throws and `S.parseAsResult` doesn't, so neither a call that throws nor one that swallows can hide in a diff:
 
 ```ts
 const { value, error } = S.parseAsResult(eventSchema, input);
@@ -64,21 +64,7 @@ if (error) error.message;
 // => 'Failed at id: Expected string, received undefined'
 ```
 
-Five suffixes, on every verb - `OrThrow`, `AsResult`, `AsPromiseOrReject`, `AsResultPromise`, `AsPromisableResult`. One only names the failure where the return type doesn't already carry it. And the schema goes on either side of the data, so there's no argument order to memorize:
-
-```ts
-S.parseOrThrow(eventSchema, input);
-S.parseOrThrow(input, eventSchema); // the same call
-```
-
-The Result is compiled into the operation rather than wrapped around it, so a schema that provably can't fail emits no `try` at all:
-
-```js
-S.parseAsResult(S.schema({ id: S.unknown }).with(S.noValidation, true)).toString();
-// => (i) => { return { success: true, value: { id: i["id"] }, error: void 0 } }
-```
-
-A schema wired wrong is the one thing a `Result` never carries: that fails for every input, so it's your bug, not the value's - it throws where the operation is created, and `error` stays the kind of failure you can hand back to whoever sent the data.
+Every verb takes the same five suffixes - `OrThrow`, `AsResult`, `AsPromiseOrReject`, `AsResultPromise`, `AsPromisableResult` - and the schema goes on either side of the data, so there's no argument order to memorize. The Result is compiled into the operation rather than wrapped around it, so a schema that provably can't fail emits no `try` at all.
 
 Need a different wire? Wrap the same model in base64url. The pipeline knows both of its ends, so `S.encodeOrThrow` and `S.decodeOrThrow` take just the schema:
 
