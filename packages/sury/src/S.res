@@ -705,22 +705,22 @@ let compileConvertAsResultPromise = (~from, ~via=?, ~to) =>
 // `assert` is a ReScript keyword, so the boolean-answering check keeps the JS
 // name: `isInput` asks of the wire side, `isOutput` of the value side.
 @module("sury") external compileIsInput: (~to: t<'value>) => 'any => bool = "isInput"
-@module("sury") external compileIsOutput: (~schema: t<'value>) => 'any => bool = "isOutput"
+@module("sury") external compileIsOutput: (~to: t<'value>) => 'any => bool = "isOutput"
 
 // `t<'value>` names the OUTPUT type, so the output-side make is THE make here;
 // the input side has no type to hand back. Same reason `convert*` is the name
 // for what JS spells `encode*`.
 @module("sury")
-external compileMakeOrThrow: (~schema: t<'value>) => 'value => 'value = "makeOutputOrThrow"
+external compileMakeOrThrow: (~to: t<'value>) => 'value => 'value = "makeOutputOrThrow"
 @module("sury")
-external compileMakeAsPromiseOrReject: (~schema: t<'value>) => 'value => promise<'value> =
+external compileMakeAsPromiseOrReject: (~to: t<'value>) => 'value => promise<'value> =
   "makeOutputAsPromiseOrReject"
 @module("sury")
-external compileMakeAsResult: (~schema: t<'value>) => 'value => result<'value, error> =
+external compileMakeAsResult: (~to: t<'value>) => 'value => result<'value, error> =
   "$makeAsResult"
 @module("sury")
 external compileMakeAsResultPromise: (
-  ~schema: t<'value>,
+  ~to: t<'value>,
 ) => 'value => promise<result<'value, error>> = "$makeAsResultPromise"
 
 let parseOrThrow = (any, ~to) => compileParseOrThrow(~to)(any)
@@ -733,13 +733,13 @@ let parseAsResultPromise = (any, ~to) => compileParseAsResultPromise(~to)(any)
 external assertInputAsPromiseOrReject: ('any, ~to: t<'value>) => promise<unit> =
   "assertInputAsPromiseOrReject"
 @module("sury")
-external assertOutputOrThrow: ('any, ~schema: t<'value>) => unit = "assertOutputOrThrow"
+external assertOutputOrThrow: ('any, ~to: t<'value>) => unit = "assertOutputOrThrow"
 @module("sury")
-external assertOutputAsPromiseOrReject: ('any, ~schema: t<'value>) => promise<unit> =
+external assertOutputAsPromiseOrReject: ('any, ~to: t<'value>) => promise<unit> =
   "assertOutputAsPromiseOrReject"
 
 let isInput = (any, ~to) => compileIsInput(~to)(any)
-let isOutput = (any, ~schema) => compileIsOutput(~schema)(any)
+let isOutput = (any, ~to) => compileIsOutput(~to)(any)
 
 let convertOrThrow = (any, ~from, ~via=?, ~to) => compileConvertOrThrow(~from, ~via?, ~to)(any)
 let convertAsPromiseOrReject = (any, ~from, ~via=?, ~to) =>
@@ -748,10 +748,10 @@ let convertAsResult = (any, ~from, ~via=?, ~to) => compileConvertAsResult(~from,
 let convertAsResultPromise = (any, ~from, ~via=?, ~to) =>
   compileConvertAsResultPromise(~from, ~via?, ~to)(any)
 
-let makeOrThrow = (value, ~schema) => compileMakeOrThrow(~schema)(value)
-let makeAsPromiseOrReject = (value, ~schema) => compileMakeAsPromiseOrReject(~schema)(value)
-let makeAsResult = (value, ~schema) => compileMakeAsResult(~schema)(value)
-let makeAsResultPromise = (value, ~schema) => compileMakeAsResultPromise(~schema)(value)
+let makeOrThrow = (value, ~to) => compileMakeOrThrow(~to)(value)
+let makeAsPromiseOrReject = (value, ~to) => compileMakeAsPromiseOrReject(~to)(value)
+let makeAsResult = (value, ~to) => compileMakeAsResult(~to)(value)
+let makeAsResultPromise = (value, ~to) => compileMakeAsResultPromise(~to)(value)
 
 @module("sury") external recursive: (string, t<'value> => t<'value>) => t<'value> = "recursive"
 

@@ -161,7 +161,7 @@ let filmSchema = S.object(s => {
 // }
 
 // 5. Build a value in code, checked by the same schema
-let makeFilm = S.compileMakeOrThrow(~schema=filmSchema)
+let makeFilm = S.compileMakeOrThrow(~to=filmSchema)
 makeFilm({
   id: 3.,
   title: "Shorts",
@@ -1797,27 +1797,27 @@ Also, you can use `S.noValidation` helper to turn off type validations for the s
 ```
 S.assertInputOrThrow: ('any, ~to: S.t<'value>) => ()
 S.assertInputAsPromiseOrReject: ('any, ~to: S.t<'value>) => promise<()>
-S.assertOutputOrThrow: ('any, ~schema: S.t<'value>) => ()
-S.assertOutputAsPromiseOrReject: ('any, ~schema: S.t<'value>) => promise<()>
+S.assertOutputOrThrow: ('any, ~to: S.t<'value>) => ()
+S.assertOutputAsPromiseOrReject: ('any, ~to: S.t<'value>) => promise<()>
 ```
 
 **Validating** is the non-throwing assert. `assert` is a ReScript keyword, so the boolean-returning flavor takes the JS name — and with it the direction, which is a free parameter here:
 
 ```
 S.isInput: ('any, ~to: S.t<'value>) => bool
-S.isOutput: ('any, ~schema: S.t<'value>) => bool
+S.isOutput: ('any, ~to: S.t<'value>) => bool
 S.compileIsInput: (~to: S.t<'value>) => 'any => bool
-S.compileIsOutput: (~schema: S.t<'value>) => 'any => bool
+S.compileIsOutput: (~to: S.t<'value>) => 'any => bool
 ```
 
 **Making** checks a value you built in code rather than received from the wire. Every check the schema carries runs — types, the conversion, refinements — and the value itself comes back, not a decoded copy, so an entity the schema has no way to encode fails at construction rather than at the point it's sent. `S.t<'value>` names the output type, so this is the JS `makeOutputOrThrow`:
 
 ```
-S.makeOrThrow: ('value, ~schema: S.t<'value>) => 'value
-S.makeAsResult: ('value, ~schema: S.t<'value>) => result<'value, S.error>
-S.makeAsPromiseOrReject: ('value, ~schema: S.t<'value>) => promise<'value>
-S.makeAsResultPromise: ('value, ~schema: S.t<'value>) => promise<result<'value, S.error>>
-S.compileMakeOrThrow: (~schema: S.t<'value>) => 'value => 'value
+S.makeOrThrow: ('value, ~to: S.t<'value>) => 'value
+S.makeAsResult: ('value, ~to: S.t<'value>) => result<'value, S.error>
+S.makeAsPromiseOrReject: ('value, ~to: S.t<'value>) => promise<'value>
+S.makeAsResultPromise: ('value, ~to: S.t<'value>) => promise<result<'value, S.error>>
+S.compileMakeOrThrow: (~to: S.t<'value>) => 'value => 'value
 ```
 
 ```rescript
@@ -1825,7 +1825,7 @@ let userSchema = S.object(s => {
   id: s.field("id", S.string),
   email: s.field("email", S.email),
 })
-let makeUser = S.compileMakeOrThrow(~schema=userSchema)
+let makeUser = S.compileMakeOrThrow(~to=userSchema)
 
 makeUser({id: "1", email: "billie@example.com"})
 // returns the very record it was given

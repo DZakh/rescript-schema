@@ -106,8 +106,8 @@ function isInput(any, to) {
   return Sury.isInput(to)(any);
 }
 
-function isOutput(any, schema) {
-  return Sury.isOutput(schema)(any);
+function isOutput(any, to) {
+  return Sury.isOutput(to)(any);
 }
 
 function convertOrThrow(any, from, via, to) {
@@ -126,20 +126,20 @@ function convertAsResultPromise(any, from, via, to) {
   return compileConvertAsResultPromise(from, via, to)(any);
 }
 
-function makeOrThrow(value, schema) {
-  return Sury.makeOutputOrThrow(schema)(value);
+function makeOrThrow(value, to) {
+  return Sury.makeOutputOrThrow(to)(value);
 }
 
-function makeAsPromiseOrReject(value, schema) {
-  return Sury.makeOutputAsPromiseOrReject(schema)(value);
+function makeAsPromiseOrReject(value, to) {
+  return Sury.makeOutputAsPromiseOrReject(to)(value);
 }
 
-function makeAsResult(value, schema) {
-  return Sury.$makeAsResult(schema)(value);
+function makeAsResult(value, to) {
+  return Sury.$makeAsResult(to)(value);
 }
 
-function makeAsResultPromise(value, schema) {
-  return Sury.$makeAsResultPromise(schema)(value);
+function makeAsResultPromise(value, to) {
+  return Sury.$makeAsResultPromise(to)(value);
 }
 
 let Schema = {};
