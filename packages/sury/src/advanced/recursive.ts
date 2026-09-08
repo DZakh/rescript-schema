@@ -60,14 +60,16 @@ export const recursiveDecoder: Builder = (input) => {
   // is what gets embedded: it exists before the function it will hold, so
   // generated code calls `.v` at runtime and every recompile lands there for
   // free.
-  const existing = findOpNode(def, inputSchema, def, key);
-  if (existing) {
+  let opNode = findOpNode(def, inputSchema, def, key);
+  if (opNode) {
     recOperation =
-      existing.v === 0 ? B_embed(input, existing) + ".v" : B_embed(input, existing.v);
+      opNode.v === 0 ? B_embed(input, opNode) + ".v" : B_embed(input, opNode.v);
   } else {
-    // Optimistic compilation with recompile if assumptions were wrong
-    let assumedHasTransform = !!def.hasTransform;
-    let assumedIsAsync = !!def.isAsync;
+    // Optimistic compilation with recompile if assumptions were wrong.
+    // Annotated: without it the assignment to `node.t` below narrows the field,
+    // and inferring these from it back through `node.t` is circular.
+    let assumedHasTransform: boolean = false;
+    let assumedIsAsync: boolean = false;
     let compileNeeded = true;
     const node = addOpNode(def, [inputSchema, def], key, 0);
 
@@ -75,32 +77,23 @@ export const recursiveDecoder: Builder = (input) => {
       while (compileNeeded) {
         compileNeeded = false;
 
-        // Set optimistic values on def before compiling (if not already set)
-        // Inner circular references will read these values
-        if (def.hasTransform === U) {
-          def.hasTransform = assumedHasTransform;
-        }
-        if (def.isAsync === U) {
-          def.isAsync = assumedIsAsync;
-        }
+        // The assumption goes on the node, which is what an inner circular
+        // reference finds (`findOpNode` above) — so the two ends of the cycle
+        // agree on the shape of the call before either is compiled.
+        node.t = assumedHasTransform;
+        node.y = assumedIsAsync;
 
         // Back to in-progress: a recompile's inner circular references must
         // route through the node, not a stale function from the failed attempt.
         node.v = 0;
 
-        node.v = compileDecoder(inputSchema, def, flag, defs);
+        // `compileDecoder` overwrites both with what it actually built.
+        node.v = compileDecoder(inputSchema, def, flag, defs, node);
 
-        // Check if actual values differ from assumed
-        const actualHasTransform = def.hasTransform!;
-        const actualIsAsync = def.isAsync!;
-
-        if (
-          actualHasTransform !== assumedHasTransform ||
-          actualIsAsync !== assumedIsAsync
-        ) {
+        if (node.t !== assumedHasTransform || node.y !== assumedIsAsync) {
           // Wrong assumption - update and recompile
-          assumedHasTransform = actualHasTransform;
-          assumedIsAsync = actualIsAsync;
+          assumedHasTransform = node.t!;
+          assumedIsAsync = node.y!;
           compileNeeded = true;
         }
       }
@@ -113,10 +106,11 @@ export const recursiveDecoder: Builder = (input) => {
 
     // Embed only the final compiled function to avoid wasting embed slots on recompiles
     recOperation = B_embed(input, node.v);
+    opNode = node;
   }
 
-  const hasTransform = def.hasTransform === true;
-  const isAsync = def.isAsync!;
+  const hasTransform = opNode.t === true;
+  const isAsync = opNode.y!;
 
   // Result var decl, prepended after the re-merge below so it sits outside the
   // try/catch mergeWithPathPrepend may wrap the assignment in (stays in scope).

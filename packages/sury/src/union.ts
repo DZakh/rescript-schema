@@ -113,16 +113,15 @@ const unionNeverLink = (schema: Internal): boolean => {
 // "Nothing of its own" is a field count, not a list of interesting fields, so an
 // unknown field reads as "carries something" and keeps the union whole — the
 // conservative direction. The 6 are exactly what `unionFactory` sets: `type` and
-// `seq` from `baseSchema`, then `anyOf`, `decoder`, `encoder`, `has`. `isAsync`
-// and `hasTransform` are excluded because the parse loop writes them onto a live
-// schema in place. Changing `unionFactory`'s field set without changing this
-// count stops every union from flattening, which the nested-union goldens catch.
+// `seq` from `baseSchema`, then `anyOf`, `decoder`, `encoder`, `has`. Changing
+// `unionFactory`'s field set without changing this count stops every union from
+// flattening, which the nested-union goldens catch. Nothing may write an
+// enumerable field onto a live schema — which is why a compiled operation's
+// `isAsync`/`hasTransform` live on its cache node instead of on its target.
 const unionIsTransparent = (schema: Internal): boolean => {
   if (schema.type !== anyOfTag) return false;
   let fields = 0;
-  for (const key in schema) {
-    if (key !== "isAsync" && key !== "hasTransform") fields++;
-  }
+  for (const _key in schema) fields++;
   return fields === 6;
 };
 

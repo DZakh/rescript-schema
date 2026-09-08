@@ -459,8 +459,6 @@ export type Internal = {
   // clears them. Nothing derives them without compiling, so there is no probe
   // to ask a schema whether it is async — an operation reports that by
   // rejecting.
-  isAsync?: boolean;
-  hasTransform?: boolean;
   "~standard"?: unknown;
   // Overrides how inputExpression renders this schema. Only for a schema whose
   // expression its tag can't produce — compactColumns, whose columns live on

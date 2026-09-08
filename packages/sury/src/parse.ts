@@ -208,15 +208,18 @@ export const compileDecoder = (
   schema: Internal,
   expected: Internal,
   flag: Flag,
-  defs: Record<string, Internal> | undefined
+  defs: Record<string, Internal> | undefined,
+  node?: OpNode
 ): (input: unknown) => unknown => {
   const input = B_operationArg(isLiteral(schema) ? unknown : schema, expected, flag, defs);
 
   const output = parse(input);
   const code = B_merge(output);
   const isAsync = !!(output.f & 1);
-  expected.isAsync = isAsync;
-  expected.hasTransform = output.t === true;
+  if (node) {
+    node.y = isAsync;
+    node.t = output.t === true;
+  }
 
   const body = emitTail(input, code, output.i, isAsync, flag, !!defs);
   if (!body) return noopOperation;
@@ -346,6 +349,14 @@ export type OpNode = {
   f: Flag;
   v: ((from: unknown) => unknown) | 0;
   n: OpNode | undefined; // next (older) node
+  // @as("t") — hasTransform, @as("y") — isAsync. Facts about the compiled
+  // operation, not about any schema in it: one schema is transforming under
+  // one flag and not another, and two operations sharing a chain must not
+  // overwrite each other's answer. `recursiveDecoder` is the only reader, and
+  // it needs them mid-compile — which is why they live on the node its
+  // circular reference already finds rather than being returned.
+  t?: boolean;
+  y?: boolean;
 };
 const memoKey = "c";
 
@@ -362,6 +373,11 @@ export const addOpNode = (
     f,
     v,
     n: (schema as unknown as Record<string, OpNode | undefined>)[memoKey],
+    // Listed even though only `recursiveDecoder` ever fills them, so every node
+    // is allocated with one shape — the same reason `B_operationArg` writes out
+    // a canonical `Val`.
+    t: U,
+    y: U,
   };
   (configurableValueOptions as Record<string, unknown>)[valKey] = created;
   Object.defineProperty(schema, memoKey, configurableValueOptions as PropertyDescriptor);
