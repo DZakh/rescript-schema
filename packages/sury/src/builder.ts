@@ -841,10 +841,15 @@ export const B_contentNode = (schema: Internal): Internal =>
 // source's value in the target, or open the source and hand its payload over.
 // The other half, a `.to` on the target picking the second (rule 3), stays with
 // each caller, along with the `B_contentNode` walk that finds a marker on a
-// union arm. Compiling can't tell the two readings apart,
-// because reversing a chain turns a payload declaration into just another link,
-// so the reading is settled where the link is made — and what to say about it
-// differs by where that was, so the message stays with the caller too.
+// union arm. Compiling can't tell the two readings apart, because reversing a
+// chain turns a payload declaration into just another link: on encode,
+// `S.base64.with(S.to, S.jsonString.with(S.to, obj))` presents exactly the shape
+// an unsettled base64/jsonString pair does, and rule 3 has already been spent.
+// So the reading is settled where the link is made — and what to say about it
+// differs by where that was, so the message stays with the caller too. Moving
+// this into the payload schemas' own decoders would be worth ~149 gz, most of it
+// on `to`, `trim`, `list`, `optional` and `nullable`, which carry it for pairs
+// they cannot form; that is what it costs.
 export const B_contentDiffers = (from?: Internal, to?: Internal): boolean =>
   from !== U && to !== U && from !== to && !(from.bc && to.bc);
 
