@@ -39,7 +39,7 @@ operations:
         input: ((f) => (f.append("tags", "a"), f.append("tags", "b"), f.append("picks", "a"), f.append("ids", "1"), f.append("ids", "2"), f.append("extra", "x"), f))(new FormData())
         output: '{ tags: ["a", "b"], ids: [1, 2], picks: ["a"], extra: ["x"] }'
   encode:
-    expression: i=>{let v0=i["tags"],v4=i["ids"],v6=i["picks"],v14=i["extra"];for(let v1=0;v1<v0.length;++v1){try{let v2=v0[v1];v2.length>0||e[0](v2);}catch(v3){v3.path=["tags",v1,...v3.path];throw v3}}let v8=new e[1]();for(let v9=0;v9<v0.length;++v9){v8.append("tags",v0[v9]);}for(let v10=0;v10<v4.length;++v10){v8.append("ids",""+v4[v10]);}for(let v11=0;v11<v6.length;++v11){try{let v12=v6[v11];typeof v12==="string"&&(v12==="a"||v12==="b")||e[2](v12);v8.append("picks",v12);}catch(v13){v13.path=["picks",v11,...v13.path];throw v13}}if(v14!=null){for(let v15=0;v15<v14.length;++v15){v8.append("extra",v14[v15]);}}return v8}
+    expression: i=>{let v0=i["tags"],v4=i["ids"],v6=i["picks"],v13=i["extra"];for(let v1=0;v1<v0.length;++v1){try{let v2=v0[v1];v2.length>0||e[0](v2);}catch(v3){v3.path=["tags",v1,...v3.path];throw v3}}let v8=new e[1]();for(let v9=0;v9<v0.length;++v9){v8.append("tags",v0[v9]);}for(let v10=0;v10<v4.length;++v10){v8.append("ids",""+v4[v10]);}for(let v11=0;v11<v6.length;++v11){let v12=v6[v11];typeof v12==="string"&&(v12==="a"||v12==="b")||e[2](v12);v8.append("picks",v12);}if(v13!=null){for(let v14=0;v14<v13.length;++v14){v8.append("extra",v13[v14]);}}return v8}
     examples:
       built:
         input: '{ tags: ["a", "b"], ids: [1, 2], picks: ["a"], extra: undefined }'

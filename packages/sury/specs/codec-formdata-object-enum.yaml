@@ -36,7 +36,7 @@ operations:
         input: ((f) => (f.append("role", "admin"), f.append("plan", "pro"), f))(new FormData())
         output: '{ role: "admin", plan: "pro" }'
   encode:
-    expression: i=>{let v1=i["role"],v2=i["plan"];let v0=new e[0]();typeof v1==="string"&&(v1==="admin"||v1==="user")||e[1](v1);v0.append("role",v1);if(v2!=null){typeof v2==="string"&&(v2==="free"||v2==="pro")||e[2](v2);v0.append("plan",v2);}return v0}
+    expression: i=>{let v2=i["plan"];let v0=new e[0]();let v1=i["role"];typeof v1==="string"&&(v1==="admin"||v1==="user")||e[1](v1);v0.append("role",v1);if(v2!=null){let v3=v2;typeof v3==="string"&&(v3==="free"||v3==="pro")||e[2](v3);v0.append("plan",v3);}return v0}
     examples:
       built:
         input: '{ role: "admin", plan: "pro" }'

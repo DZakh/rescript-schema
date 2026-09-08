@@ -181,11 +181,7 @@ const KNOWN: Record<string, string> = {
   "nullable-array/* <- null": "the same, with `null` for the absence",
 };
 
-// Where an encode writes into the value it was handed.
-const MUTATES: Record<string, string> = {
-  "tuple/union-checkbox":
-    "a union dispatch assigns its result back into the slot it read, and a tuple slot is an index into the caller's array. Not this codec's doing - `S.schema([union]).with(S.to, S.schema([S.string]))` does it with no form in sight (see IDEAS)",
-};
+const MUTATES: Record<string, string> = {};
 
 // The key that covers a case: its own, or one naming `*` for the wrapper or
 // the leaf. Returned rather than the reason, so two entries that share a

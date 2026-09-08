@@ -35,7 +35,7 @@ operations:
         input: ((f) => (f.append("s", ""), f.append("n", ""), f.append("tag", ""), f))(new FormData())
         output: "{ s: null, n: null, tag: null }"
   encode:
-    expression: i=>{let v1=i["s"],v2=i["n"],v3=i["tag"];let v0=new e[0]();if(v1!=null){v0.append("s",v1);}if(v2!=null){v0.append("n",""+v2);}if(v3!=null){typeof v3==="string"&&(v3==="yes"||v3==="no")||e[1](v3);v0.append("tag",v3);}return v0}
+    expression: i=>{let v1=i["s"],v2=i["n"],v3=i["tag"];let v0=new e[0]();if(v1!=null){v0.append("s",v1);}if(v2!=null){v0.append("n",""+v2);}if(v3!=null){let v4=v3;typeof v4==="string"&&(v4==="yes"||v4==="no")||e[1](v4);v0.append("tag",v4);}return v0}
     examples:
       built:
         input: '{ s: "x", n: 1, tag: "yes" }'

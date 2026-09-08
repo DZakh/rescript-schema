@@ -36,7 +36,7 @@ operations:
         input: ((f) => (f.append("a", "on"), f))(new FormData())
         output: "{ a: true }"
   encode:
-    expression: i=>{let v1=i["a"];let v0=new e[0]();for(;;){if(typeof v1==="boolean"){v1=""+i["a"];break}if(typeof v1==="number"&&v1===v1){v1=""+v1;break}e[1](v1)}v0.append("a",v1);return v0}
+    expression: i=>{let v0=new e[0]();let v1=i["a"];for(;;){if(typeof v1==="boolean"){v1=""+v1;break}if(typeof v1==="number"&&v1===v1){v1=""+v1;break}e[1](v1)}v0.append("a",v1);return v0}
     examples:
       built:
         input: "{ a: true }"

@@ -978,7 +978,7 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
         // could be *run* but never written down as a result.
         op.examples[name] = clean({
           input: ex.input,
-          output: out === value ? ex.input : valueToCode(out),
+          output: out === value ? ex.input : valueToCode(out, new WeakSet(), bytes),
           ...(await refreshDivergences(opName, op.isAsync === true, schema, ex)),
         });
       } catch (e) {

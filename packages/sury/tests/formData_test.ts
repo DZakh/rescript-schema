@@ -370,23 +370,11 @@ test("a checkbox defaulting to true cannot round-trip, because the wire disagree
   expect(S.decodeOrThrow(schema)(S.encodeOrThrow(schema)({ a: false }))).toEqual({ a: true });
 });
 
-test("FIXME: encoding a tuple of unions writes into the caller's array", () => {
-  // Not this codec's doing - a union dispatch assigns its result back into the
-  // slot it read, and a tuple slot is an index into the input. `S.formData` is
-  // just where it shows: the same schema pair does it with no form in sight.
-  // Pinned so the fix shows up here. Found by `fuzz:formdata`.
+test("encoding a tuple of unions does not write into the caller's array", () => {
   const schema = S.formData.with(S.to, S.schema({ a: S.schema([S.union([S.boolean, S.number])]) }));
   const input = { a: [true] as [boolean | number] };
   S.encodeOrThrow(schema)(input);
-  expect(input).toEqual({ a: ["true"] });
-
-  const noForm = S.schema({ a: S.schema([S.union([S.boolean, S.number])]) }).with(
-    S.to,
-    S.schema({ a: S.schema([S.string]) }),
-  );
-  const plain = { a: ["true"] as [string] };
-  S.encodeOrThrow(noForm)(plain);
-  expect(plain).toEqual({ a: [true] });
+  expect(input).toEqual({ a: [true] });
 });
 
 test("a repeated key reaching a field declared once is reported, not resolved", () => {
