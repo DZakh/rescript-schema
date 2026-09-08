@@ -451,14 +451,6 @@ export type Internal = {
   tr?: boolean;
   "$ref"?: string;
   "$defs"?: Record<string, Internal>;
-  // Written by compileDecoder onto the schema it compiled against, read back by
-  // `S.recursive`: a recursive definition compiles optimistically, and these
-  // two are what its inner circular references assume and what the fixpoint
-  // compares to decide whether to recompile. Absent means "this schema has not
-  // been compiled against yet", which is why `codecTo` deletes rather than
-  // clears them. Nothing derives them without compiling, so there is no probe
-  // to ask a schema whether it is async — an operation reports that by
-  // rejecting.
   "~standard"?: unknown;
   // Overrides how inputExpression renders this schema. Only for a schema whose
   // expression its tag can't produce — compactColumns, whose columns live on
