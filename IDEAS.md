@@ -343,26 +343,46 @@ which is what `packages/sury/specs/<format>.yaml` examples are drawn from.
   that is the thing to measure before writing any of it. The runtime side gives
   no separate reason to: a pipeline lookup would trade one list walk for
   another, and `decode-pipeline-lookup` is already unchanged against main.
-- **`content` names two things, and that is what keeps the content axis on
-  name comparisons.** It is both the payload *kind* — the identity
-  `B_contentDiffers` compares, which is why `S.uint8Array`, `S.file` and
-  `S.blob` all point at the one base64 text node — and the *rendering* a JSON
-  document stores the value as, which is why `S.base64` and `S.base64url` need
-  separate nodes and `B_contentDiffers` needs its `!(from.bc && to.bc)`
-  carve-out to put them back in one family. The overload is also why three
-  sites ask `name === jsonName` (`codecTo`'s ambiguity branch, `to`'s reading
-  validation, the `noValidation` carve-out in `parse`) instead of asking the
-  property they mean, "is its own payload rather than a rendering of one".
-  That property is spelled `content === schema` and it *almost* works — it
-  holds for `S.json` and for both bytes-text nodes — but `copySchema` points a
-  copy's `content` at the original, so it is false for every copy, and
-  reversal copies. Re-pointing it in `copySchema` is not the fix: identity is
-  how the kind is compared, so a copy of `S.json` would then read as a
-  different payload from `S.json`. Splitting the two meanings — `content` for
-  the kind, the rendering derived from it — retires the `bc` carve-out and the
-  three name checks together, and is the prerequisite for moving rule 4 off
-  `name` at all. Tried and reverted at the `content === schema` step;
-  `jsonstring-novalidation` is the spec that catches it.
+- **`Object.defineProperty` is ~230ns, and that is the whole cost of a hidden
+  slot.** The interned-link list `S.to` hangs on a schema has to be invisible to
+  `Object.keys`, `unionIsTransparent`'s `for...in` and the `JSON.stringify` every
+  embedded error runs — a plain key needs `defineProperty` for that, and it made
+  a miss cost 254ns against a 93ns `S.to`: 73 of the 74 `create` rows regressed,
+  the worst at +206%. A symbol key gets the same three exclusions for a ~5ns
+  write. Two things it does not get: `Object.assign` copies symbols, so
+  `copySchema` hands a store's list to every copy, and a link-then-derive loop
+  grew one node per turn (measured: 200 after 200 turns). Clearing it in
+  `copySchema` fixes that but costs +12gz on **all 161 export rows**, because
+  `copySchema` ships in every bundle. Dropping an inherited head inside `linkTo`
+  costs two comparisons in a module only `S.to` reaches: growth bounded at 1,
+  `create` back to 97.6ns, +15gz on the `to` row and nothing anywhere else.
+  A `WeakMap` was 3.4x *worse* than `defineProperty` (1188ns): the keys are the
+  short-lived schemas, so it pays hash growth and weak-ref collection for
+  entries that a property would have let die with the object.
+
+- **`content` names two things, and the cheaper spelling of the second one won.**
+  It is both the payload *kind* — the identity `B_contentDiffers` compares,
+  which is why `S.uint8Array`, `S.file` and `S.blob` all point at the one base64
+  text node — and the *rendering* a JSON document stores the value as, which is
+  why `S.base64` and `S.base64url` need separate nodes and `B_contentDiffers`
+  needs its `!(from.bc && to.bc)` carve-out to put them back in one family.
+  Splitting them was built and measured: a non-enumerable `ck` on the base64url
+  content node naming base64's as its kind, so `B_contentDiffers` becomes a
+  plain `(from.ck || from) !== (to.ck || to)`. Every golden passes either way —
+  it buys no behavior — and it costs `total` +15gz with **all 161 export rows
+  larger**: +106 on `base64url`, which now has to import `base64Content` to
+  point at it, and +4..+10 everywhere else, because `B_contentDiffers` ships in
+  every export and the carve-out gzips better than a second property name. The
+  `bc` presence test is not a hack around the overload, it is the kind
+  comparison written without a field: two bytes renderings are one kind, and
+  builder.ts learns that without importing either format. Keep it. Deriving the
+  rendering from a kind field instead is strictly worse — the rendering rides
+  `copySchema` and `S.trim`, where `ck` rides neither.
+  What the split did surface: `B_contentDiffers` only means "different kind"
+  when *both* arguments are content markers. `bytesTextFormat`'s `differs`
+  passed the format's own schema, which carries `bc` too, so the carve-out
+  absorbed it; it passes `content` now, and the invariant is on the `bc`
+  declaration in base.ts.
 - The ordering question behind the `S.uri.with(S.to, S.url)` encode bug is
   settled for the two instance codecs but not in general. A check emits against
   its val's *prev* var, so a val carrying its own transform expression is the
