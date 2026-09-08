@@ -425,7 +425,7 @@ export const B_merge = (val: Val, out?: HoistCond): string => {
       // else the lifted check runs before that producer (the
       // str->to(option(int)) "v0 is not defined" bug class).
       if (out && (!val.t || !val.prev!.t && val.cp === "")) {
-        const inputVar = current!.v();
+        const inputVar = (current || val).v();
         const checks = val.vc;
         let hoisted = "";
         for (let i = 0; i < checks.length; i++) {
@@ -445,7 +445,9 @@ export const B_merge = (val: Val, out?: HoistCond): string => {
           out.h.unshift({ v: val, i: inputVar, c: hoisted });
         }
       } else if (val.e.noValidation !== true) {
-        currentCode = B_emitChecks(val, current!.v());
+        // No prev means this is the operation argument itself, and its own var
+        // already holds the value the checks are about.
+        currentCode = B_emitChecks(val, (current || val).v());
       }
     }
 
@@ -539,23 +541,22 @@ export const B_pushCheck = (val: Val, check: Check): void => {
   (val.vc ??= []).push(check);
 }
 
-// Applies both refiners. Input checks push onto valInput.checks
-// (emit at pre-transform slot); output checks wrap val via refine.
-// When valInput.prev is None, input checks fold into the output
-// wrap so emit has a prev.var(). Sets isOutput on the result.
+// Applies both refiners. Output checks wrap `val` via refine; input checks push
+// onto `valInput.vc`, which emits ahead of the decoder body — they have to read
+// what the decoder was *handed*. A schema that narrows leaves nothing else to
+// read it from: a union assigns its result over the operation argument, so an
+// `allOf` refinement placed after it looks for keys the object arm just
+// stripped. Sets isOutput on the result.
 //
 // The parse loop applies refiners itself only for primitive decoders, so every
 // decoder that sets isOutput — object, array, tuple, union, recursive — has to
 // call this. Not calling it silently drops the user's S.refine.
 export const B_markOutput = (val: Val, valInput: Val): Val => {
-  let inC: Check[] | undefined, outC: Check[] | undefined;
+  let outC: Check[] | undefined;
   const ir = valInput.e.inputRefiner;
   if (ir) {
     const c = ir(valInput);
-    if (c.length) {
-      if (valInput.prev) (valInput.vc ??= []).push(...c);
-      else inC = c;
-    }
+    if (c.length) (valInput.vc ??= []).push(...c);
   }
   const rf = val.e.refiner;
   if (rf) {
@@ -566,11 +567,9 @@ export const B_markOutput = (val: Val, valInput: Val): Val => {
   // is: inside a `.then`, the way the parse loop continues an async val.
   if (outC && (val.f & 1)) {
     const v = val.v();
-    val.i = `${v}.then(${v}=>{${B_merge(
-      B_refine(B_scope(val), U, inC ? inC.concat(outC) : outC),
-    )}return ${v}})`;
+    val.i = `${v}.then(${v}=>{${B_merge(B_refine(B_scope(val), U, outC))}return ${v}})`;
     val.v = _notVar;
-  } else val = inC ? B_refine(val, U, outC ? inC.concat(outC) : inC) : outC ? B_refine(val, U, outC) : val;
+  } else if (outC) val = B_refine(val, U, outC);
   val.io = true;
   return val;
 }

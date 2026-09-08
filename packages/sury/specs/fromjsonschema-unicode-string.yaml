@@ -26,13 +26,13 @@ operations:
         input: '"éab"'
         error: Should have a code-point length within the JSON Schema bounds.
   decode:
-    expression: i=>{e[0](i)||e[2](i);e[1].test(i)||e[3](i);return i}
+    expression: i=>{e[0](i)||e[3](i);e[1].test(i)||e[2](i);return i}
     examples:
       astral-letters:
         input: '"𐐀𐐁"'
         output: '"𐐀𐐁"'
   encode:
-    expression: i=>{e[0].test(i)||e[2](i);e[1](i)||e[3](i);return i}
+    expression: i=>{e[0].test(i)||e[3](i);e[1](i)||e[2](i);return i}
     examples:
       astral-letters:
         input: '"𐐀𐐁"'
