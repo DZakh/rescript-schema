@@ -244,6 +244,18 @@ export const B_markThrow = (b: Val): void => {
 }
 
 
+// A coder's or refiner's own throw as `invalid_conversion`. Split from the
+// Sury-cause branch below so an operation tail (every bundle) carries only
+// this half.
+const B_foreignDetails = (input: Val, to: Internal, cause: unknown): ErrorDetails => ({
+  code: "invalid_conversion",
+  from: input.s,
+  to,
+  cause,
+  path: input.path,
+  reason: cause instanceof Error ? ("" + cause).replace(/^Error: /, "") : stringify(cause),
+});
+
 export const B_makeInvalidConversionDetails = (input: Val, to: Internal, cause: unknown): ErrorDetails => {
   if (cause && (cause as { s?: symbol }).s === s) {
     const error = cause as unknown as SuryErrorRecord;
@@ -260,22 +272,27 @@ export const B_makeInvalidConversionDetails = (input: Val, to: Internal, cause: 
       input.path.length ? { ...error, path: pathConcat(input.path, error.path) } : error
     ) as unknown as ErrorDetails;
   }
-  let reason: string;
-  if (cause instanceof Error) {
-    reason = "" + cause;
-    if (reason.startsWith("Error: ")) reason = reason.slice(7);
-  } else {
-    reason = stringify(cause);
-  }
-  return {
-    code: "invalid_conversion",
-    from: input.s,
-    to,
-    cause,
-    path: input.path,
-    reason,
-  };
+  return B_foreignDetails(input, to, cause);
 }
+
+// The error an operation answers with when it answers rather than throws
+// (Result, boolean, Standard Schema): a Sury failure as it is, anything else -
+// a getter, a coder or refiner hit on a value it was never written for -
+// wrapped, so every outcome shape holds a SuryError and a consumer never has to
+// tell a validation failure from an exception by inspecting it. Not the
+// throwing outcomes: there the exception is the answer, and it stays raw.
+// `to` is the chain's last schema, the one the caller named: the operation
+// arg's own `e` is the private chain-head copy `compileChain` builds.
+export const B_errorOf = (input: Val): ((e: unknown) => SuryErrorRecord) => {
+  let to = input.e;
+  while (to.to) to = to.to;
+  return (e) =>
+    e && (e as { s?: symbol }).s === s
+      ? (e as SuryErrorRecord)
+      : (new SuryError(B_foreignDetails(input, to, e)) as unknown as SuryErrorRecord);
+};
+
+export const B_embedErrorOf = (input: Val): string => B_embedPure(input, B_errorOf(input));
 
 export const B_makeInvalidInputDetails = (
   expected: Internal,
@@ -729,7 +746,7 @@ export const B_scope = (val: Val): Val => {
 //    the wrong thing is caught there.
 //  - otherwise (the ReScript adapter's decodeToOutput / encodeFromOutput):
 //    the result claims the target itself, so the loop only runs what a typed
-//    decode would, the same deal `S.decoder` gives a caller who declares the
+//    decode would, the same deal `S.decodeOrThrow` gives a caller who declares the
 //    input's schema. The ReScript compiler has already checked the coder's
 //    signature, so the skipped work is provably redundant.
 //
@@ -769,9 +786,9 @@ export const B_conversion = (
     // Whatever the coder throws - a `SuryError` it raised on purpose or a
     // TypeError it hit on a value it was never written for - is that
     // conversion failing, so in a union it is what hands the value to the
-    // next case rather than aborting the operation (#347). The foreign
-    // errors that do escape a union are a refiner's or a getter's, which
-    // never enter this try.
+    // next case rather than aborting the operation (#347); a refiner's throw
+    // is wrapped the same way (modifiers.ts `refine`). The foreign errors that
+    // do escape a union are a getter's, which never enter this try.
     const failure = B_failWithArg(
       output,
       (e: unknown) => B_makeInvalidConversionDetails(input, target, e),

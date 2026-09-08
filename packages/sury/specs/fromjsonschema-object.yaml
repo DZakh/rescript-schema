@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ type: "object", properties: { id: { type: "string" }, role: { enum: ["admin", "user"] }, tags: { type: "array", items: { type: "string" } } }, required: ["id", "role"] })'
+  schema: 'S.fromJSONSchemaOrThrow({ type: "object", properties: { id: { type: "string" }, role: { enum: ["admin", "user"] }, tags: { type: "array", items: { type: "string" } } }, required: ["id", "role"] })'
   input: '{ id: string; role: "admin" | "user"; tags?: string[] | undefined; }'
   output: '{ id: string; role: "admin" | "user"; tags?: string[] | undefined; }'
   instantiations: 2652

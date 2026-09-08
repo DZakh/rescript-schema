@@ -17,9 +17,11 @@ operations:
       string:
         input: '"abc"'
         output: '"abc"'
+        whenChecked: fails
       undefined-same-type-wins:
         input: undefined
         output: undefined
+        whenChecked: fails
   decode: eq-to-parse
   encode:
     expression: i=>{for(;;){if(typeof i==="string")break;if(i===null){i=void 0;break}if(i===void 0)break;e[0](i)}return i}

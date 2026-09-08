@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ type: "array", prefixItems: [{ type: "string" }, { type: "number" }], items: false })'
+  schema: 'S.fromJSONSchemaOrThrow({ type: "array", prefixItems: [{ type: "string" }, { type: "number" }], items: false })'
   input: "[(string | undefined)?, (number | undefined)?, ...never[]]"
   output: "[(string | undefined)?, (number | undefined)?, ...never[]]"
   instantiations: 1107

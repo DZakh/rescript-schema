@@ -1,7 +1,7 @@
 # json-schema-test-suite
 
 Runs the official [JSON-Schema-Test-Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite)
-against `S.fromJSONSchema` and holds the score to a committed golden, so a
+against `S.fromJSONSchemaOrThrow` and holds the score to a committed golden, so a
 change in JSON Schema coverage shows up as a reviewable diff.
 
 ```bash
@@ -9,7 +9,7 @@ pnpm compliance                                  # check against goldens/ (what 
 pnpm compliance --update                         # re-baseline after a change
 pnpm compliance report draft2020-12              # per-file breakdown
 pnpm compliance report draft7 --failures         # every failing test id
-pnpm compliance report draft7 --divergent        # where S.inputValidator disagrees with S.parser
+pnpm compliance report draft7 --divergent        # where S.isInput disagrees with S.parseOrThrow
 pnpm compliance report draft7 --mutated          # valid inputs changed by parsing
 pnpm compliance report draft7 --optional         # include optional/ (formats, bignum, content)
 ```
@@ -23,14 +23,14 @@ pinned in `suite-ref.json` into a gitignored `.suite/`. Bumping that commit is
 a deliberate PR; regenerate the goldens in the same commit so the diff shows
 what the new tests changed.
 
-Each suite assertion is run as `S.fromJSONSchema(schema)` followed by
-`S.parser(schema)(data)`, and a test passes when the parse outcome matches the
+Each suite assertion is run as `S.fromJSONSchemaOrThrow(schema)` followed by
+`S.parseOrThrow(schema)(data)`, and a test passes when the parse outcome matches the
 suite's `valid`. Every valid example that parses also has an output-identity
 assertion: because JSON Schema only validates, parsing must return deeply equal
 data. A schema that throws at conversion or compile time marks its whole case
 as `errored`.
 
-`S.inputValidator` is scored over the same corpus in parallel. The two operations
+`S.isInput` is scored over the same corpus in parallel. The two operations
 disagreeing is always a Sury bug rather than a JSON Schema gap, so that delta is
 a standing bug detector; the count is tracked in each golden and the ids are
 available via `report --divergent`.
@@ -51,7 +51,7 @@ question rather than a bug.
 ## What the score is measuring
 
 Sury is not a JSON Schema validator; the suite measures how faithfully
-`S.fromJSONSchema` reproduces JSON Schema semantics. Unsupported assertion
+`S.fromJSONSchemaOrThrow` reproduces JSON Schema semantics. Unsupported assertion
 keywords fail conversion instead of silently widening the schema. Remaining
 conversion gaps are `unevaluatedProperties` / `unevaluatedItems`, and anything
 that needs resource or dynamic scope.

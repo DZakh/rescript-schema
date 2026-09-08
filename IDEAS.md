@@ -239,7 +239,7 @@ of a form-data story. What they were built to make cheap, roughly in order:
 
 - **The ReScript codec seam trusts more than the ReScript type proves.** A
   `~custom` coder's result compiles as a typed decode: the target's refiners
-  run, its decoder does not, which is the same deal `S.decoder` gives a caller
+  run, its decoder does not, which is the same deal `S.decodeOrThrow` gives a caller
   who declares the input's schema, and it's why the surface costs nothing on a
   structural target (it skips a full walk plus the object rebuild, not just a
   `typeof`). Two carve-outs exist. Literals, since a type says `string` and
@@ -252,7 +252,7 @@ of a form-data story. What they were built to make cheap, roughly in order:
   `S.string->S.to(S.float, ~custom={decode: Sync(_ => Float.Constants.nan), encode: Never})`
   returns `NaN` where the JS surface rejects it, and any `Obj.magic` upstream
   turns the tag itself into a claim rather than a proof. Tightening this inside
-  the codec alone would make a coder stricter than `S.decoder(~from=S.float)`,
+  the codec alone would make a coder stricter than `S.decodeOrThrow(~from=S.float)`,
   which accepts the same `NaN`, so both want one shared answer: a single
   predicate for "constraints a tag does not imply", consulted by the
   typed-decode entry and by `B_conversion`. Cheap interim step: route the
@@ -297,12 +297,12 @@ of a form-data story. What they were built to make cheap, roughly in order:
 ### Known bugs left over from the validation refactor (`val.validation: array<validationCheck>`)
 
 - **`err.received` is `unknown` for refine-chain vals on type failures.**
-  `S.parser(S.string.with(S.minLength, 2))(1)` reports `expected: string` but
+  `S.parseOrThrow(S.string.with(S.minLength, 2))(1)` reports `expected: string` but
   `received: unknown` - `failInvalidType` reads the val's own schema, and a
   refined val's is the refinement's, not the source's. User-visible reason text
   is unaffected (it uses `input->stringify`), but programmatic consumers
   reading `err.received` get nothing usable where the unrefined
-  `S.parser(S.string)(1)` reports the input's type. Fix: have the fail function
+  `S.parseOrThrow(S.string)(1)` reports the input's type. Fix: have the fail function
   reach through `val.prev.schema` (with a comment on the invariant that
   validation-owning vals always have a prev).
 
@@ -311,7 +311,7 @@ of a form-data story. What they were built to make cheap, roughly in order:
 - **`required` on an object schema is not what its name says, and no two
   producers agree.** `S.schema`, `S.object`, `S.shape` and `S.merge` set it to
   every declared key, optional or not (`S.schema({a: S.optional(S.string)}).required`
-  is `["a"]`); `fromJSONSchema` alone filters to the non-optional keys, and the
+  is `["a"]`); `fromJSONSchemaOrThrow` alone filters to the non-optional keys, and the
   comment at that producer (`src/jsonschema.ts`) claims the others already do.
   Parse, inferred types and the emitted JSON Schema are all right
   (`specs/merge-optional.yaml`) - the emitter recomputes from the properties -
@@ -320,7 +320,7 @@ of a form-data story. What they were built to make cheap, roughly in order:
   more docs drifts: it inherits `additionalItems` from its *first* argument
   where `docs/js-usage.md` says the second, and the docs say shared keys throw
   where `specs/merge-overwrite.yaml` pins that the second schema's field wins.
-- **ReDoS risk in `fromJSONSchema` patterns.** `new RegExp(jsonSchema.pattern)`
+- **ReDoS risk in `fromJSONSchemaOrThrow` patterns.** `new RegExp(jsonSchema.pattern)`
   compiles untrusted patterns directly; a hostile JSON Schema can supply a
   catastrophic-backtracking pattern.
 - **Homomorphic tuple-mapped types don't map variadic tuple elements.**
@@ -372,12 +372,12 @@ which is what `packages/sury/specs/<format>.yaml` examples are drawn from.
   it describes. JSON Schema `pattern` has no flag syntax, so the fix is either
   to desugar `i` into the pattern source or to reject flagged regexes that
   cannot be represented.
-- `fromJSONSchema` only reaches the format schemas through the
+- `fromJSONSchemaOrThrow` only reaches the format schemas through the
   `type === "string"` branch, so a bare `{"format": "date"}` - which is exactly
   how the JSON-Schema-Test-Suite and most real documents write it - converts to
   an unconstrained schema and validates nothing. Pre-existing (the same gate
   held for `email`/`uri`/`uuid`/`date-time` before the vocabulary landed), but
-  it is now the main thing between the format work and real `fromJSONSchema`
+  it is now the main thing between the format work and real `fromJSONSchemaOrThrow`
   coverage: `packages/json-schema-test-suite` scores `optional/format/date.json`
   at 22/75 where the schemas themselves are 69/69 on the same strings. Faithful
   handling means a string-or-anything-else schema, since `format` is
@@ -460,9 +460,9 @@ s.fn(s.arg(0, S.string))
 - S.mutator
 - Check only number of fields for strict object schema when fields are not optional (bad idea since it's not possible to create a good error message, so we still need to have the loop)
 
-## `fromJSONSchema` type inference follow-ups
+## `fromJSONSchemaOrThrow` type inference follow-ups
 
-- **Corpus-wide round-trip dimension (phase 3)** - derive a `fromJSONSchema`
+- **Corpus-wide round-trip dimension (phase 3)** - derive a `fromJSONSchemaOrThrow`
   check in the spec harness from each spec's existing `jsonSchema.input`
   golden (~126 cases): pin the inferred type + instantiations next to the
   emitter's output so a runtime branch gaining support without a matching
@@ -481,7 +481,7 @@ s.fn(s.arg(0, S.string))
 
 ## Articles
 
-- Write an article about creating an AI-friendly JS library (how the API design, type overloads like `S.assertInput` accepting both arg orders, and error messages make Sury easy for both humans and LLMs to use)
+- Write an article about creating an AI-friendly JS library (how the API design, type overloads like `S.assertInputOrThrow` accepting both arg orders, and error messages make Sury easy for both humans and LLMs to use)
 
 ```
 

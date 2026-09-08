@@ -23,9 +23,7 @@ import { schemaFactory } from "./factory";
 import {
   baseSchema,
   type Builder,
-  type Check,
   functionTag,
-  getOrRethrow,
   globalConfig,
   type GlobalConfigOverride,
   initialDefaultFlag,
@@ -33,10 +31,8 @@ import {
   inputExpression,
   type Internal,
   jsonName,
-  isSchemaObject,
   objectTag,
   panic,
-  pathEmpty,
   type Path,
   stringify,
   stringTag,
@@ -47,8 +43,6 @@ import {
 import {
   B_contentDiffers,
   B_conversion,
-  B_embed,
-  B_invalidInputBuilder,
   B_invalidOperation,
   B_neverSlot
 } from "./builder";
@@ -58,16 +52,12 @@ import {
 } from "./composites";
 import {
   codecTo,
-  internalRefine,
   nullAsUnit,
   Option_getOr,
-  Option_getOrWith
+  Option_getOrWith,
+  refine as refineCore,
 } from "./modifiers";
 import {
- assertResult
-} from "./operations";
-import {
- getDecoder,
  getOutputSchema,
  reverse
 } from "./parse";
@@ -152,7 +142,7 @@ export {
 
 // ── Public JS/TS API (names match index.d.ts) ────────────────────────────────
 
-export { getDecoder as decoder, reverse, instance } from "./parse";
+export { reverse, instance } from "./parse";
 export { schemaFactory as schema, schemaFactory as literal, enum } from "./factory";
 export {
   recursive,
@@ -165,8 +155,39 @@ export {
   noValidation,
 } from "./modifiers";
 export {
-  safe,
-  safeAsync,
+  parseOrThrow,
+  parseAsResult,
+  parseAsPromiseOrReject,
+  parseAsResultPromise,
+  parseAsPromisableResult,
+  decodeOrThrow,
+  decodeAsResult,
+  decodeAsPromiseOrReject,
+  decodeAsResultPromise,
+  decodeAsPromisableResult,
+  encodeOrThrow,
+  encodeAsResult,
+  encodeAsPromiseOrReject,
+  encodeAsResultPromise,
+  encodeAsPromisableResult,
+  makeInputOrThrow,
+  makeInputAsResult,
+  makeInputAsPromiseOrReject,
+  makeInputAsResultPromise,
+  makeInputAsPromisableResult,
+  makeOutputOrThrow,
+  makeOutputAsResult,
+  makeOutputAsPromiseOrReject,
+  makeOutputAsResultPromise,
+  makeOutputAsPromisableResult,
+  isInput,
+  isOutput,
+  isInputAsPromise,
+  isOutputAsPromise,
+  assertInputOrThrow,
+  assertOutputOrThrow,
+  assertInputAsPromiseOrReject,
+  assertOutputAsPromiseOrReject,
 } from "./operations";
 export { array, dict as record } from "./composites";
 export { schemaObject as object, schemaShape as shape, schemaTuple as tuple } from "./factory";
@@ -199,127 +220,22 @@ export {
 export { jsonStringWithSpace } from "./advanced/json";
 export { list } from "./advanced/list";
 export {
-  inputJSONSchema,
-  outputJSONSchema,
-  fromJSONSchema,
+  inputJSONSchema as toInputJSONSchemaOrThrow,
+  outputJSONSchema as toOutputJSONSchemaOrThrow,
+  fromJSONSchema as fromJSONSchemaOrThrow,
   extendJSONSchema,
   enableStandardJSONSchema,
 } from "./jsonschema";
-export { inputExpression, pathToText } from "./base";
-export { outputExpression } from "./parse";
+export { inputExpression as toInputExpression, pathToText } from "./base";
+export { outputExpression as toOutputExpression } from "./parse";
 
 // ── Public JS/TS API implemented here (argument-shape adapters) ──────────────
 
-// Spreading the own rest param straight through (`getDecoder(unknown,
-// ...args)`) is a shape engines already optimize - an arity fast path here
-// measured nothing, so these stay generic.
 // Curried so the definition's type is inferred at the second call, which is
 // what index.d.ts compares against the type argument. The type argument is
 // erased, so the first call has nothing to do but hand back the factory.
 // @__NO_SIDE_EFFECTS__
 export const schemaOf = () => schemaFactory;
-
-// @__NO_SIDE_EFFECTS__
-export const parser = (...args: unknown[]) => getDecoder(unknown, ...args);
-
-// @__NO_SIDE_EFFECTS__
-export const asyncParser = (...args: unknown[]) => getDecoder(unknown, ...args, 1);
-
-// @__NO_SIDE_EFFECTS__
-export const asyncDecoder = (...args: unknown[]) => getDecoder(...args, 1);
-
-// Only the first schema is reversed: `S.encoder(a, ...rest)` starts from a's
-// Output and then runs the rest of the chain forward, so a pipeline after the
-// reversed schema is written the same way as in `S.decoder`. Compare
-// `S.decoder(S.reverse(a), ...rest)`, which is its exact spelling.
-// @__NO_SIDE_EFFECTS__
-export const encoder = (a: unknown, ...rest: unknown[]) =>
-  getDecoder(reverse(a as Internal), ...rest);
-
-// @__NO_SIDE_EFFECTS__
-export const asyncEncoder = (a: unknown, ...rest: unknown[]) =>
-  getDecoder(reverse(a as Internal), ...rest, 1);
-
-// The asserts accept both `(schema, data)` and `(data, schema)`, told apart
-// by the Standard Schema marker. The truthiness guard keeps falsy data from
-// throwing on the marker access, routing it to the data slot so validation
-// fails with a proper Sury error.
-export const assertInput = (a: unknown, b: unknown): unknown => {
-  const aIsSchema = !!a && isSchemaObject(a);
-  const schema = (aIsSchema ? a : b) as Internal;
-  return getDecoder(unknown, schema, assertResult)(aIsSchema ? b : a);
-};
-
-export const assertOutput = (a: unknown, b: unknown): unknown => {
-  const aIsSchema = !!a && isSchemaObject(a);
-  const schema = reverse((aIsSchema ? a : b) as Internal);
-  return getDecoder(unknown, schema, assertResult)(aIsSchema ? b : a);
-};
-
-export const asyncAssertInput = (a: unknown, b: unknown): unknown => {
-  const aIsSchema = !!a && isSchemaObject(a);
-  const schema = (aIsSchema ? a : b) as Internal;
-  return getDecoder(unknown, schema, assertResult, 1)(aIsSchema ? b : a);
-};
-
-export const asyncAssertOutput = (a: unknown, b: unknown): unknown => {
-  const aIsSchema = !!a && isSchemaObject(a);
-  const schema = reverse((aIsSchema ? a : b) as Internal);
-  return getDecoder(unknown, schema, assertResult, 1)(aIsSchema ? b : a);
-};
-
-const validatorRun = (operation: (data: unknown) => unknown, data: unknown): boolean => {
-  try {
-    operation(data);
-    return true;
-  } catch (exn) {
-    // Rethrow anything that isn't a Sury validation failure.
-    getOrRethrow(exn);
-    return false;
-  }
-};
-
-const validator = (schema: Internal): ((data: unknown) => boolean) => {
-  // Compiled outside the returned closure: a conversion rejected at operation
-  // creation means the schema can't check any value, so creating the validator
-  // throws rather than every answer reading as `false` - the same split
-  // `~standard.validate` makes.
-  const operation = getDecoder(unknown, schema, assertResult) as (data: unknown) => unknown;
-  return (data) => validatorRun(operation, data);
-};
-
-// @__NO_SIDE_EFFECTS__
-export const inputValidator = (schema: Internal) => validator(schema);
-
-// @__NO_SIDE_EFFECTS__
-export const outputValidator = (schema: Internal) => validator(reverse(schema));
-
-// The compiled operation is `assert`'s: the value runs the whole pipeline -
-// type checks, conversion, refinements - and the result is dropped, so what
-// comes back is the value handed in rather than a decoded clone of it.
-const construct = (schema: Internal): ((data: unknown) => unknown) => {
-  const operation = getDecoder(unknown, schema, assertResult) as (data: unknown) => unknown;
-  return (data) => (operation(data), data);
-};
-
-const constructAsync = (schema: Internal): ((data: unknown) => Promise<unknown>) => {
-  const operation = getDecoder(unknown, schema, assertResult, 1) as (
-    data: unknown
-  ) => Promise<unknown>;
-  return (data) => operation(data).then(() => data);
-};
-
-// @__NO_SIDE_EFFECTS__
-export const inputConstructor = (schema: Internal) => construct(schema);
-
-// @__NO_SIDE_EFFECTS__
-export const outputConstructor = (schema: Internal) => construct(reverse(schema));
-
-// @__NO_SIDE_EFFECTS__
-export const asyncInputConstructor = (schema: Internal) => constructAsync(schema);
-
-// @__NO_SIDE_EFFECTS__
-export const asyncOutputConstructor = (schema: Internal) => constructAsync(reverse(schema));
 
 // @__NO_SIDE_EFFECTS__
 export const union = (values: unknown[]) => unionFactory(values.map(definitionToSchema));
@@ -467,19 +383,7 @@ export const refine = (
   schema: Internal,
   refineCheck: (value: unknown) => boolean,
   refineOptions?: { error?: string; path?: Path },
-) => {
-  const message = refineOptions?.error ?? "Refinement failed";
-  const extraPath = refineOptions?.path !== U ? refineOptions.path : pathEmpty;
-  return internalRefine(schema, (_: Internal) => (input: Val): Check[] => {
-    const embeddedCheck = B_embed(input, refineCheck);
-    return [
-      {
-        c: (inputVar: string) => `${embeddedCheck}(${inputVar})`,
-        f: B_invalidInputBuilder(U, extraPath, message),
-      },
-    ];
-  });
-};
+) => refineCore(schema, refineCheck, refineOptions?.error, refineOptions?.path);
 
 // @__NO_SIDE_EFFECTS__
 export const optional = (definition: unknown, maybeOr: unknown): Internal => {
@@ -555,7 +459,14 @@ export const global = (override: GlobalConfigOverride): void => {
 // marks the exports as ReScript-binding internals while staying a valid JS
 // identifier, which is all ReScript externals accept as names.
 
-export { safeResult as $safe, safeAsyncResult as $safeAsync } from "./operations";
+export {
+  $parseAsResult,
+  $parseAsResultPromise,
+  $encodeAsResult,
+  $encodeAsResultPromise,
+  $makeAsResult,
+  $makeAsResultPromise,
+} from "./operations";
 export {
   Option_getOr as $Option_getOr,
   Option_getOrWith as $Option_getOrWith,

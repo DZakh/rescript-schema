@@ -10,9 +10,9 @@ test("one definition builds two working schemas", () => {
   const first = S.array(definition);
   const second = S.record(definition);
 
-  expect(S.parser(first)([{ tag: "a", n: 1 }])).toEqual([{ tag: "a", n: 1 }]);
-  expect(S.parser(second)({ k: { tag: "a", n: 1 } })).toEqual({
+  expect(S.parseOrThrow(first)([{ tag: "a", n: 1 }])).toEqual([{ tag: "a", n: 1 }]);
+  expect(S.parseOrThrow(second)({ k: { tag: "a", n: 1 } })).toEqual({
     k: { tag: "a", n: 1 },
   });
-  expect(() => S.parser(first)([{ tag: "b", n: 1 }])).toThrow();
+  expect(() => S.parseOrThrow(first)([{ tag: "b", n: 1 }])).toThrow();
 });

@@ -7,7 +7,6 @@ import {
   type Flag,
   getOrRethrow,
   globalConfig,
-  immutableEmptyArray,
   initSchema,
   inputExpression,
   instanceTag,
@@ -37,6 +36,8 @@ import {
 } from "./base";
 import {
   B_embedInvalidInput,
+  B_embedPure,
+  B_errorOf,
   B_contentDiffers,
   B_contentNode,
   B_inlineConst,
@@ -47,6 +48,7 @@ import {
   B_refine,
   B_scope,
   B_unsupportedDecode,
+  B_varWithoutAllocation,
   failInvalidType,
   noopOperation,
   operationArgVar
@@ -92,12 +94,12 @@ export const parse = (input: Val): Val => {
               operationOutput.e,
             )
           : B_refine(loopInput, operationOutput.s, U, operationOutput.e);
-      result.f |= 1; // 1
+      result.f |= 1;
       result.io = true;
     } else if (loopInput.io) {
       // It's guaranteed that to is not undefined, because it's checked in the while condition
       const to = loopInput.e.to!;
-      result = loopInput.e.parser !== U ? loopInput.e.parser(loopInput) : B_refine(result, U, U, to);
+      result = loopInput.e.parser ? loopInput.e.parser(loopInput) : B_refine(result, U, U, to);
     } else {
       const maybeEncoder = loopInput.s.encoder;
       if (
@@ -107,7 +109,7 @@ export const parse = (input: Val): Val => {
         loopInput.e.type !== unknownTag &&
         // A `noValidation` target takes the value as it stands when it is a
         // whole document (`S.json`, whose parse is the only check it has) or
-        // when the operation discards it anyway (S.assertInput's `undefined` result
+        // when the operation discards it anyway (S.assertInputOrThrow's `undefined` result
         // sentinel). Every other such target still gets its conversion:
         // `noValidation` drops the checks, not the re-representation.
         !(loopInput.e.noValidation && (loopInput.e.name === jsonName || loopInput.e.type === undefinedTag))
@@ -143,6 +145,65 @@ export const parseDynamic = (input: Val): Val => {
   }
 }
 
+// How a compiled operation's body ends. `undefined` means "no body at all" -
+// the operation is the identity, and the caller hands back `noopOperation`.
+//
+// A mutable binding rather than a branch on the flag: `compileDecoder` is in
+// every bundle, and the Result modes' emitter (operations.ts) must not be. The
+// throw tail below is the default, and reaching a Result operation is what
+// swaps in the emitter that knows both. Registration happens inside that
+// operation, not at its module's top level, which would be a side effect that
+// survives the same shaking.
+export type Tail = (
+  input: Val,
+  code: string,
+  out: string,
+  isAsync: boolean,
+  flag: Flag,
+  hasDefs: boolean,
+) => string | undefined;
+
+// Throw mode, plus the Standard Schema tail (mode bit 1024). The Standard
+// Schema arm is here rather than behind the `__setTail` hook because the
+// `~standard` prototype getter can never be tree-shaken (standard.ts), so a
+// registration from it would drag the whole emitter into every consumer bundle
+// - the very thing the hook exists to prevent. Keeping the one shape that
+// getter needs here costs a branch; the JS and ReScript Result shapes stay
+// behind the hook (operations.ts).
+export const throwTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
+  if (flag & 1024) {
+    // `path` is omitted at the root, which is what Standard Schema consumers
+    // expect. Built by an embedded function rather than inline: the failure
+    // path reads the error three times, and the same closure serves the
+    // sync catch and the promise's rejection handler.
+    const errorOf = B_errorOf(input);
+    const issues = B_embedPure(input, (e: unknown) => {
+      const error = errorOf(e);
+      return { issues: [{ message: error.reason, path: error.path.length ? error.path : U }] };
+    });
+    const v = isAsync ? B_varWithoutAllocation(input.g) : "";
+    const body = isAsync
+      ? `${code}return ${out}.then(${v}=>({value:${v}}),${issues})`
+      : `${code}return {value:${out}}`;
+    // The raise counter: when nothing merged can throw, no `try`. An async
+    // operation answers with a promise either way, so a failure the sync
+    // phase raises comes back in the same shape as one after the await.
+    if (!input.g.t) return body;
+    const e = B_varWithoutAllocation(input.g);
+    return `try{${body}}catch(${e}){return ${
+      isAsync ? `Promise.resolve(${issues}(${e}))` : `${issues}(${e})`
+    }}`;
+  }
+  return code === "" && out === operationArgVar && !(flag & 1)
+    ? U
+    : `${code}return ${(flag & 1) && !isAsync && !hasDefs ? `Promise.resolve(${out})` : out}`;
+};
+
+let emitTail: Tail = throwTail;
+export const __setTail = (fn: Tail): void => {
+  emitTail = fn;
+};
+
 export const compileDecoder = (
   schema: Internal,
   expected: Internal,
@@ -153,19 +214,13 @@ export const compileDecoder = (
 
   const output = parse(input);
   const code = B_merge(output);
-  const isAsync = !!(output.f & 1); // 1
+  const isAsync = !!(output.f & 1);
   expected.isAsync = isAsync;
   expected.hasTransform = output.t === true;
 
-  if (code === "" && (output === input || output.i === input.i) && !(flag & 1)) {
-    return noopOperation;
-  }
-  let inlinedOutput = output.i;
-  if ((flag & 1) && !isAsync && !defs) inlinedOutput = `Promise.resolve(${inlinedOutput})`;
-  const fn = new Function("e", "s", `return ${operationArgVar}=>{${code}return ${inlinedOutput}}`)(
-    input.g.e,
-    s,
-  );
+  const body = emitTail(input, code, output.i, isAsync, flag, !!defs);
+  if (!body) return noopOperation;
+  const fn = new Function("e", "s", `return ${operationArgVar}=>{${body}}`)(input.g.e, s);
   fn.embedded = input.g.e;
   return fn;
 }
@@ -283,7 +338,7 @@ export const outputExpression = (schema: Internal): string =>
 // is why `v` admits 0: a def mid-compilation holds the sentinel so inner
 // circular references embed the NODE and call `.v` at runtime - the node
 // exists before the function it will hold, and a recompile under corrected
-// assumptions overwrites `v` in place. getDecoder never observes the sentinel:
+// assumptions overwrites `v` in place. getOp never observes the sentinel:
 // a def is only mid-compilation inside a synchronous recursiveDecoder pass,
 // and a pass that throws unlinks its node (removeOpNode) on the way out.
 export type OpNode = {
@@ -328,9 +383,8 @@ export const removeOpNode = (schema: Internal, node: OpNode): void => {
   }
 };
 
-// recursiveDecoder's lookup - always exactly two schemas. getDecoder keeps
-// its own inline walk: passing its `arguments` alias out would force the
-// allocation this cache exists to avoid.
+// recursiveDecoder's lookup - always exactly two schemas, and a plain read
+// rather than `getOp`: a hit must not compile a missing node into existence.
 export const findOpNode = (
   schema: Internal,
   s0: Internal,
@@ -346,51 +400,18 @@ export const findOpNode = (
   return U;
 };
 
-// A plain (non-arrow, to keep `arguments`) function so call sites can pass
-// getDecoder(s1, s2[, s3][, flag]) with any number of schemas plus an
-// optional trailing flag - the body reads `arguments` directly; the declared
-// rest param (unused, hence `_`) exists only to make that call shape typecheck.
-// @__NO_SIDE_EFFECTS__
-export function getDecoder(..._args: unknown[]): (from: unknown) => unknown {
-  const args = arguments as unknown as unknown[];
-  let idx = 0;
-  let flag: Flag | undefined = U;
-  let maxSeq = 0;
-  let cacheTarget: Internal | undefined = U;
-
-  while (flag === U) {
-    const arg = args[idx];
-    if (!arg) {
-      flag = globalConfig.f;
-    } else if (typeof arg === numberTag) {
-      flag = (arg as Flag) | globalConfig.f;
-    } else {
-      const schema: Internal = arg as Internal;
-      const seq = schema.seq!;
-      if (seq > maxSeq) {
-        maxSeq = seq;
-        cacheTarget = schema;
-      }
-      idx++;
-    }
-  }
-
-  if (cacheTarget === U) return panic("No schema provided for decoder.");
-  let node = (cacheTarget as unknown as Record<string, OpNode | undefined>)[memoKey];
-  while (node) {
-    const a = node.a;
-    if (node.f === flag && a.length === idx) {
-      let i = idx;
-      while (i-- !== 0 && a[i] === args[i]) {}
-      if (i < 0) return node.v as (from: unknown) => unknown;
-    }
-    node = node.n;
-  }
-
-  let schema: Internal = args[idx - 1] as Internal;
-  for (let i = idx - 2; i >= 0; i--) {
+// Builds and memoizes the operation for a chain of schema arguments. Called
+// only on a cache miss, so everything it allocates is paid once per distinct
+// (args, flag) operation.
+const compileChain = (
+  cacheTarget: Internal,
+  args: Internal[],
+  flag: Flag
+): (from: unknown) => unknown => {
+  let schema: Internal = args[args.length - 1]!;
+  for (let i = args.length - 2; i >= 0; i--) {
     const to = schema;
-    schema = updateOutput(args[i] as Internal, (mut) => {
+    schema = updateOutput(args[i]!, (mut) => {
       mut.to = to;
       // Only this direction: an operation compiles the chain the way it runs
       // it, so the encode side is a chain of its own, built from the reversed
@@ -399,21 +420,69 @@ export function getDecoder(..._args: unknown[]): (from: unknown) => unknown {
       // custom coder is what answers it.
       if (
         B_contentDiffers(B_contentNode(mut).content, B_contentNode(to).content) &&
-        to.to === U
+        !to.to
       ) {
         mut.parser = (input: Val) => B_unsupportedDecode(input, mut, to);
       }
     });
   }
-  const f = compileDecoder(schema, schema, flag!, U) as (from: unknown) => unknown;
-  addOpNode(
-    cacheTarget,
-    immutableEmptyArray.slice.call(args, 0, idx) as Internal[],
-    flag!,
-    f,
-  );
+  const f = compileDecoder(schema, schema, flag, U) as (from: unknown) => unknown;
+  addOpNode(cacheTarget, args, flag, f);
   return f;
-}
+};
+
+// THE operation lookup: `n` (1 to 5) says how many schema slots are filled, so
+// the memo walk is straight-line and nothing is allocated on a hit. Arity-
+// specialised on purpose - the variadic form this replaced read its
+// `arguments`, which V8 must materialize the moment the object is aliased to a
+// variable, and that was measurably the bulk of an operation lookup.
+// @__NO_SIDE_EFFECTS__
+export const getOp = (
+  opFlag: Flag,
+  n: number,
+  a0: Internal,
+  a1?: Internal,
+  a2?: Internal,
+  a3?: Internal,
+  a4?: Internal
+): (from: unknown) => unknown => {
+  const flag = opFlag | globalConfig.f;
+  // The cache lives on the newest-seq argument: the one schema every node for
+  // this operation is reachable from.
+  let cacheTarget = a0;
+  let seq = a0.seq!;
+  if (n > 1) {
+    if (a1!.seq! > seq) (seq = a1!.seq!), (cacheTarget = a1!);
+    if (n > 2) {
+      if (a2!.seq! > seq) (seq = a2!.seq!), (cacheTarget = a2!);
+      if (n > 3) {
+        if (a3!.seq! > seq) (seq = a3!.seq!), (cacheTarget = a3!);
+        if (n > 4 && a4!.seq! > seq) cacheTarget = a4!;
+      }
+    }
+  }
+
+  let node = (cacheTarget as unknown as Record<string, OpNode | undefined>)[memoKey];
+  while (node) {
+    const a = node.a;
+    if (
+      node.f === flag &&
+      a.length === n &&
+      a[0] === a0 &&
+      (n < 2 || a[1] === a1) &&
+      (n < 3 || a[2] === a2) &&
+      (n < 4 || a[3] === a3) &&
+      (n < 5 || a[4] === a4)
+    ) {
+      return node.v as (from: unknown) => unknown;
+    }
+    node = node.n;
+  }
+
+  // The one allocation, on the miss path only: a compile dwarfs the spare
+  // array a `slice` copies out of.
+  return compileChain(cacheTarget, [a0, a1!, a2!, a3!, a4!].slice(0, n), flag);
+};
 
 export const nestedLoc = "BS_PRIVATE_NESTED_SOME_NONE";
 

@@ -191,8 +191,8 @@ test("jsonSchema round-trip types are omitted when they match the schema types",
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        jsonSchema.fromInputType: S.fromJSONSchema(jsonSchema.input) matches ts.input "string" - omit \`fromInputType\`.
-        jsonSchema.fromOutputType: S.fromJSONSchema(jsonSchema.output) matches ts.output "string" - omit \`fromOutputType\`.
+        jsonSchema.fromInputType: S.fromJSONSchemaOrThrow(jsonSchema.input) matches ts.input "string" - omit \`fromInputType\`.
+        jsonSchema.fromOutputType: S.fromJSONSchemaOrThrow(jsonSchema.output) matches ts.output "string" - omit \`fromOutputType\`.
         goldens stale - run \`pnpm spec check string --write\` (also formats canonically; use \`pnpm spec format\` for a formatting-only fix):
     @@ -8,9 +8,7 @@
         instantiations: 254
@@ -241,8 +241,8 @@ test("jsonSchema round-trip types are required when they diverge from the schema
   await expect(runCheck("array-minLength", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ array-minLength
-        jsonSchema.fromInputType: omitted, but S.fromJSONSchema(jsonSchema.input) infers "string[]" !== ts.input "[string, string, ...string[]]" - add \`fromInputType\`.
-        jsonSchema.fromOutputType: omitted, but S.fromJSONSchema(jsonSchema.output) infers "string[]" !== ts.output "[string, string, ...string[]]" - add \`fromOutputType\`.
+        jsonSchema.fromInputType: omitted, but S.fromJSONSchemaOrThrow(jsonSchema.input) infers "string[]" !== ts.input "[string, string, ...string[]]" - add \`fromInputType\`.
+        jsonSchema.fromOutputType: omitted, but S.fromJSONSchemaOrThrow(jsonSchema.output) infers "string[]" !== ts.output "[string, string, ...string[]]" - add \`fromOutputType\`.
         goldens stale - run \`pnpm spec check array-minLength --write\` (also formats canonically; use \`pnpm spec format\` for a formatting-only fix):
     @@ -6,7 +6,9 @@
         instantiations: 1121
@@ -506,7 +506,7 @@ test("an async operation left unmarked", async () => {
   await expect(runCheck("async-assert", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ async-assert
-        operations.parse: is async (the schema has an async transform or refine) - add \`isAsync: true\`, which builds it with S.asyncParser/asyncDecoder/asyncEncoder and awaits every example",
+        operations.parse: is async (the schema has an async transform or refine) - add \`isAsync: true\`, which builds it with the AsPromiseOrReject operations and awaits every example",
       "stdout": "",
     }
   `);
@@ -573,7 +573,7 @@ test("operations block omits an op the schema supports", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        schema: Failed at ["operations"]["encode"]: Expected "identity" | "eq-to-parse" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; } | { input: string; error: string; }; }; } | { creationError: string; }, received undefined
+        schema: Failed at ["operations"]["encode"]: Expected "identity" | "eq-to-parse" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received undefined
         operations.encode: missing - a spec must declare parse, decode, and encode (run \`pnpm spec new\` to scaffold them, or add the block)",
       "stdout": "",
     }
@@ -587,7 +587,7 @@ test("_skip on an operation is rejected with a guiding message", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        schema: Failed at ["operations"]["parse"]: Expected "identity" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; } | { input: string; error: string; }; }; } | { creationError: string; }, received { _skip: "not-applicable"; }
+        schema: Failed at ["operations"]["parse"]: Expected "identity" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received { _skip: "not-applicable"; }
     - At ["operations"]["parse"]["expression"]: Expected string | { _skip: string; }, received undefined
     - At ["operations"]["parse"]["creationError"]: Expected string, received undefined
         operations.parse: _skip is not valid on an operation - use identity, eq-to-parse, a full block with examples, or a creationError",
@@ -635,4 +635,19 @@ test("multiple simultaneous problems all get their own guiding message", async (
       "stdout": "",
     }
   `);
+});
+
+// ---- the operation matrix --------------------------------------------------
+//
+// The golden pins one spelling of one outcome; these prove the run notices when
+// another spelling answers differently, and when a recorded divergence stops
+// being true.
+
+test("a recorded divergence that is no longer true is reported", async () => {
+  const spec = mutate((s) => {
+    const op = s.operations.parse;
+    if (op !== "identity" && !isCreationError(op)) op.examples.valid!.whenChecked = "passes";
+  });
+  const { stderr } = await runCheck("string", serialize(spec));
+  expect(stderr).toContain("whenChecked agrees with parse - remove it");
 });

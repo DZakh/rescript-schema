@@ -92,15 +92,15 @@ function getCompiledCodeString(schema, op) {
     } else if (op === "Assert") {
       return S.compileConvertOrThrow(Sury.unknown, undefined, S.to(schema, Sury.noValidation(Sury.literal(), true), undefined));
     } else if (op === "EncodeAsync") {
-      return S.compileConvertAsyncOrThrow(schema, undefined, Sury.unknown);
+      return S.compileConvertAsPromiseOrReject(schema, undefined, Sury.unknown);
     } else if (op === "ReverseParse") {
       return S.compileConvertOrThrow(Sury.unknown, undefined, Sury.reverse(schema));
     } else if (op === "ConvertAsync") {
-      return S.compileConvertAsyncOrThrow(Sury.reverse(schema), undefined, Sury.unknown);
+      return S.compileConvertAsPromiseOrReject(Sury.reverse(schema), undefined, Sury.unknown);
     } else if (op === "Encode") {
       return S.compileConvertOrThrow(schema, undefined, Sury.unknown);
     } else {
-      return S.compileConvertAsyncOrThrow(Sury.unknown, undefined, schema);
+      return S.compileConvertAsPromiseOrReject(Sury.unknown, undefined, schema);
     }
   };
   let fn = toFn(schema);
@@ -166,7 +166,7 @@ function assertCompiledCodeIsNoop(t, schema, op, message) {
 }
 
 function assertReverseParsesBack(t, schema, value) {
-  Vitest.Assert.unsafeDeepEqual(t, S.parseOrThrow(S.convertOrThrow(value, schema, undefined, Sury.unknown), schema), value, undefined);
+  Vitest.Assert.unsafeDeepEqual(t, Sury.parseOrThrow(S.convertOrThrow(value, schema, undefined, Sury.unknown), schema), value, undefined);
 }
 
 function assertReverseReversesBack(t, schema) {

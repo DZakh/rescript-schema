@@ -30,7 +30,7 @@ asyncTest("Parses with an async decode to another type", async t => {
     },
   )
 
-  t->Assert.deepEqual(await 123->S.parseAsyncOrThrow(~to=schema), 123.)
+  t->Assert.deepEqual(await 123->S.parseAsPromiseOrReject(~to=schema), 123.)
 })
 
 test("A never decode rejects the parse operation at creation", t => {
@@ -251,7 +251,7 @@ asyncTest("Successfully parses async decode using parseAsyncOrThrow", t => {
     S.string->S.to(S.any, ~custom={decode: Async(value => Promise.resolve(value)), encode: Never})
 
   %raw(`"Hello world!"`)
-  ->S.parseAsyncOrThrow(~to=schema)
+  ->S.parseAsPromiseOrReject(~to=schema)
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(result, %raw(`"Hello world!"`))
   })
@@ -262,7 +262,7 @@ asyncTest("Fails to parse async decode with user error", t => {
     S.string->S.to(S.any, ~custom={decode: Async(_ => U.fail("User error")), encode: Never})
 
   t->U.asyncAssertThrowsMessage(
-    () => %raw(`"Hello world!"`)->S.parseAsyncOrThrow(~to=schema),
+    () => %raw(`"Hello world!"`)->S.parseAsPromiseOrReject(~to=schema),
     `User error`,
   )
 })
@@ -284,7 +284,7 @@ asyncTest("An async encode compiles through the reversed chain", async t => {
     () => "abc"->S.convertOrThrow(~from=schema, ~to=S.unknown),
     `Invalid async during sync operation`,
   )
-  t->Assert.deepEqual(await "abc"->S.convertAsyncOrThrow(~from=schema, ~to=S.unknown), %raw(`"abc"`))
+  t->Assert.deepEqual(await "abc"->S.convertAsPromiseOrReject(~from=schema, ~to=S.unknown), %raw(`"abc"`))
 })
 
 asyncTest("Can apply other actions after async decode", t => {
@@ -296,7 +296,7 @@ asyncTest("Can apply other actions after async decode", t => {
     ->S.to(S.any, ~custom={decode: Async(value => Promise.resolve(value)), encode: Never})
 
   %raw(`"    Hello world!"`)
-  ->S.parseAsyncOrThrow(~to=schema)
+  ->S.parseAsPromiseOrReject(~to=schema)
   ->Promise.thenResolve(result => {
     t->Assert.deepEqual(result, %raw(`"Hello world!"`))
   })
@@ -328,7 +328,7 @@ test("Compiled async parse code snapshot", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ParseAsync,
-    `i=>{typeof i==="number"&&i<=2147483647&&i>=-2147483648&&i%1===0||e[2](i);let v0;try{v0=e[0](i).catch(x=>e[1](x))}catch(x){e[1](x)}return v0}`,
+    `i=>{try{typeof i==="number"&&i<=2147483647&&i>=-2147483648&&i%1===0||e[2](i);let v0;try{v0=e[0](i).catch(x=>e[1](x))}catch(x){e[1](x)}return v0}catch(v1){return Promise.reject(v1)}}`,
   )
 })
 

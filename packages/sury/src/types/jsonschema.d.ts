@@ -76,7 +76,7 @@ export type JSONSchemaDefinition = JSONSchema | boolean;
  *
  * This is the type to author against (`{ ... } satisfies S.JSONSchema`) and what
  * `extendJSONSchema` accepts. It carries every keyword of every supported
- * dialect, including a few `fromJSONSchema` cannot model and rejects when it
+ * dialect, including a few `fromJSONSchemaOrThrow` cannot model and rejects when it
  * builds the schema.
  *
  * Draft-04 and unknown metaschemas use legacy `$ref` sibling semantics. Nested
@@ -173,7 +173,7 @@ export interface JSONSchema {
 export type JSONSchema7Definition = JSONSchema7 | boolean;
 
 /**
- * JSON Schema draft-07 - what `inputJSONSchema` emits by default.
+ * JSON Schema draft-07 - what `toInputJSONSchemaOrThrow` emits by default.
  *
  * @see https://tools.ietf.org/html/draft-handrews-json-schema-validation-01
  */
@@ -244,7 +244,7 @@ export interface JSONSchema7 {
 export type JSONSchema2020Definition = JSONSchema2020 | boolean;
 
 /**
- * JSON Schema draft-2020-12 - `inputJSONSchema(schema, { target: "draft-2020-12" })`.
+ * JSON Schema draft-2020-12 - `toInputJSONSchemaOrThrow(schema, { target: "draft-2020-12" })`.
  *
  * @see https://json-schema.org/draft/2020-12/schema
  */
@@ -322,7 +322,7 @@ export interface JSONSchema2020 {
 export type OpenAPISchema30Definition = OpenAPISchema30;
 
 /**
- * The OpenAPI 3.0 Schema Object - `inputJSONSchema(schema, { target: "openapi-3.0" })`.
+ * The OpenAPI 3.0 Schema Object - `toInputJSONSchemaOrThrow(schema, { target: "openapi-3.0" })`.
  *
  * A restricted, partly divergent draft-04: no `const`, no `null` type name, no
  * tuples, no `if`/`then`/`else`, and `nullable` in place of a union with null.

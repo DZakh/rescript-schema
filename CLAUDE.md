@@ -33,11 +33,16 @@ stopped being true; delete those yourself.
 
 ```
 base → builder → primitives → parse → union → composites → factory
-     → modifiers → refinements → operations → advanced/* → jsonschema → entry
+     → modifiers → refinements → operations → standard → advanced/* → jsonschema → entry
 ```
 
-- Only type-only imports may point "up"; `operations → jsonschema` is the one
-  real exception.
+- Only type-only imports may point "up".
+- `operations.ts` holds the operation surface and must stay free of top-level
+  side effects; `standard.ts` holds the schema-prototype interop getters
+  (`toString`, `~standard`), which ARE top-level side effects. A bundle that
+  reaches a module carries its top-level statements, so an operation must not
+  reach the Standard Schema machinery - that is the whole reason they are two
+  modules.
 - `base.ts` takes **no** outgoing imports. A constant two modules recognise by
   name lives there rather than with its schema.
 - `src/advanced/` is one file per schema nothing else builds on; a schema other
@@ -110,16 +115,18 @@ dispatch order mirrors the runtime chain in `src/jsonschema.ts` and they move
 together.
 
 Each must stay assignable to the wide `JSONSchema` - that is what lets a
-`toJSONSchema` result feed `fromJSONSchema` or `extendJSONSchema` uncast - so a
+`toJSONSchema` result feed `fromJSONSchemaOrThrow` or `extendJSONSchema` uncast - so a
 keyword added to one belongs on `JSONSchema` too, and in the other two spellings
 of the keyword set (`JSONSchemaT` in `src/jsonschema.ts`, `JSONSchema.res`).
 
 ## Tree-shaking
 
 - Every public pure factory carries `// @__NO_SIDE_EFFECTS__` on the line above
-  its declaration - except exports whose point *is* the effect (`assert`, `is`,
-  `safe`, `safeAsync`, `asyncAssertInput`, `asyncAssertOutput`, `global`,
-  `enableStandardJSONSchema`, `$setExnId`).
+  its declaration - except exports whose point *is* the effect: every operation
+  (`parse*`, `decode*`, `encode*`, `make*`, `is*`, `assert*`, the `$`-prefixed
+  ReScript ones - their immediate call forms validate, and an annotated call
+  whose result is discarded gets dropped), `global`, `enableStandardJSONSchema`,
+  `$setExnId`. `tests/treeShaking_test.ts`'s `EFFECTFUL` is the list.
 - **Never publish a factory through an alias** (`export const object = schemaObject`):
   the annotation counts only on the declaration that *is* the function. Re-export
   instead - `export { schemaObject as object } from "./factory"`.

@@ -222,7 +222,7 @@ asyncTest("Async field schema", async t => {
   )
 
   t->Assert.deepEqual(
-    await %raw(`[["a", "b"], [0, 1]]`)->S.parseAsyncOrThrow(~to=schema),
+    await %raw(`[["a", "b"], [0, 1]]`)->S.parseAsPromiseOrReject(~to=schema),
     %raw(`[{"foo": "a", "bar": 0}, {"foo": "b", "bar": 1}]`),
   )
 })

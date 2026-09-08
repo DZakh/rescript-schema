@@ -1344,8 +1344,8 @@ asyncTest("Converts union nested in object into an async target (per member)", a
     ),
   )
 
-  t->Assert.deepEqual(await %raw(`{f: 123}`)->S.parseAsyncOrThrow(~to=schema), {"f": "123"})
-  t->Assert.deepEqual(await %raw(`{f: "abc"}`)->S.parseAsyncOrThrow(~to=schema), {"f": "abc"})
+  t->Assert.deepEqual(await %raw(`{f: 123}`)->S.parseAsPromiseOrReject(~to=schema), {"f": "123"})
+  t->Assert.deepEqual(await %raw(`{f: "abc"}`)->S.parseAsPromiseOrReject(~to=schema), {"f": "abc"})
 })
 
 test("Union variant with a transformed field - parse and encode roundtrip", t => {

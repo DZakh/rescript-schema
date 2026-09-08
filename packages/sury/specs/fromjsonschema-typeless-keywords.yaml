@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: "S.fromJSONSchema({ minLength: 2 })"
+  schema: "S.fromJSONSchemaOrThrow({ minLength: 2 })"
   input: JSON
   output: JSON
   instantiations: 593

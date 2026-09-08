@@ -48,9 +48,11 @@ module Result = {
 
   // What `validate` answers: the spec lets a library return a promise, which
   // Sury does for a schema with an async codec and never otherwise. Untagged,
-  // so the runtime value is the result object or the promise itself.
+  // so the runtime value is the result object or the promise itself. Same shape
+  // as `S.promisableResult`, over this module's own `t` rather than the
+  // stdlib's `result` - the spec defines its own success/failure object.
   @unboxed
-  type maybeAsync<'output> = Sync(t<'output>) | Async(promise<t<'output>>)
+  type promisable<'output> = Sync(t<'output>) | Async(promise<t<'output>>)
 
   let classify = (t: t<'output>): result<success<'output>, failure> =>
     if %raw(`t.issues`) {
@@ -97,7 +99,7 @@ module JsonSchema = {
 type props<'input, 'output> = {
   version: int,
   vendor: string,
-  validate: 'any. 'any => Result.maybeAsync<'output>,
+  validate: 'any. 'any => Result.promisable<'output>,
   jsonSchema?: JsonSchema.converter,
 }
 

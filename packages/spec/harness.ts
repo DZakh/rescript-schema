@@ -10,6 +10,7 @@
 // module, so drift in any dimension is exercised by a real Vitest run without
 // ever materializing a generated .ts file per spec.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { isDeepStrictEqual } from "node:util";
 import { join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -82,23 +83,6 @@ const NON_SPEC_FILES = new Set([
 ]);
 
 const HEADER = "# yaml-language-server: $schema=./spec.schema.json";
-
-const OP_BUILDER: Record<OpName, (schema: any) => (input: any) => any> = {
-  parse: S.parser,
-  decode: S.decoder,
-  encode: S.encoder,
-};
-
-// A schema carrying an async transform or refine compiles only through these:
-// the sync builders reject it at operation creation ("Encountered unexpected
-// async transform or refine"), and they wrap a sync direction in
-// `Promise.resolve(...)`, so which builder an op uses is part of its codegen -
-// hence a declared `isAsync`, checked against the schema, rather than a guess.
-const ASYNC_OP_BUILDER: Record<OpName, (schema: any) => (input: any) => Promise<any>> = {
-  parse: S.asyncParser,
-  decode: S.asyncDecoder,
-  encode: S.asyncEncoder,
-};
 
 const SKIP_REASON_SET = new Set<string>(SKIP_REASONS);
 export const isValidSkipReason = (r: unknown): boolean =>
@@ -263,8 +247,16 @@ export const stripTypes = (tsSource: string): string =>
     compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
   }).outputText.trim().replace(/;$/, "");
 
-export const evalSchema = (tsSource: string): any =>
-  new Function("S", `return ${stripTypes(tsSource)};`)(S);
+// A re-runnable evaluator for one source string, transpiled once. The matrix
+// runs an example through a dozen spellings and hands each its OWN value: an
+// operation that mutates what it was given would otherwise have every spelling
+// after the first measuring the aftermath instead of the operation.
+export const valueEvaluator = (tsSource: string): (() => any) => {
+  const fn = new Function("S", `return ${stripTypes(tsSource)};`);
+  return () => fn(S);
+};
+
+export const evalSchema = (tsSource: string): any => valueEvaluator(tsSource)();
 
 // A scenario's `prepare` is statements, not an expression, so it goes through
 // transpileModule directly - stripTypes' parenthesization exists only to keep
@@ -354,7 +346,7 @@ export const asyncViolations = (schema: any, spec: Spec): string[] => {
     if (isAsync && op.isAsync !== true)
       out.push(
         `operations.${opName}: is async (the schema has an async transform or refine) - add \`isAsync: true\`, ` +
-          "which builds it with S.asyncParser/asyncDecoder/asyncEncoder and awaits every example",
+          "which builds it with the AsPromiseOrReject operations and awaits every example",
       );
     else if (!isAsync && op.isAsync === true)
       out.push(
@@ -394,8 +386,8 @@ const deriveJsonSchemaSide = (fn: () => unknown): JsonSchemaSide => {
 };
 
 const deriveJsonSchemaSides = (schema: any): JsonSchemaSides => ({
-  input: deriveJsonSchemaSide(() => S.inputJSONSchema(schema)),
-  output: deriveJsonSchemaSide(() => S.outputJSONSchema(schema)),
+  input: deriveJsonSchemaSide(() => S.toInputJSONSchemaOrThrow(schema)),
+  output: deriveJsonSchemaSide(() => S.toOutputJSONSchemaOrThrow(schema)),
 });
 
 const withoutDollarSchema = (value: unknown): unknown => {
@@ -427,8 +419,8 @@ const deriveJsonSchemaTarget = async (
   defaultSides: JsonSchemaSides,
   defaultTypes: { fromInput?: string; fromOutput?: string },
 ): Promise<JsonSchemaDialect | undefined> => {
-  const input = deriveJsonSchemaSide(() => S.inputJSONSchema(schema, { target }));
-  const output = deriveJsonSchemaSide(() => S.inputJSONSchema(S.reverse(schema), { target }));
+  const input = deriveJsonSchemaSide(() => S.toInputJSONSchemaOrThrow(schema, { target }));
+  const output = deriveJsonSchemaSide(() => S.toInputJSONSchemaOrThrow(S.reverse(schema), { target }));
   const inputDiffers = jsonSchemaSourceDiffers(defaultSides.input.schema, input.schema);
   const outputDiffers = jsonSchemaSourceDiffers(defaultSides.output.schema, output.schema);
   if (!inputDiffers && !outputDiffers) return undefined;
@@ -594,7 +586,7 @@ const reformatIfEvaluable = (text: string): string => {
 // Individual named examples are never `_skip` - only the enclosing operation
 // block is (the format schema has no `orSkip` on the examples map's values).
 const canonExample = (ex: Example): Example => {
-  const o = order(ex, ["input", "output", "error"]) as Example;
+  const o = order(ex, ["input", "output", "error", "whenChecked"]) as Example;
   o.input = reformatIfEvaluable(o.input);
   if ("output" in o) o.output = reformatIfEvaluable(o.output);
   return o;
@@ -965,8 +957,9 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
     }
     if (!isSkip(op.expression)) op.expression = fn.toString();
     for (const [name, ex] of Object.entries(op.examples)) {
+      let value: unknown;
       try {
-        const value = evalSchema(ex.input);
+        value = evalSchema(ex.input);
         // `await` on a sync operation's result is a no-op, so both kinds run
         // through one path. An async operation can still throw synchronously
         // (the top-level type check runs before the first await), which the
@@ -985,11 +978,16 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
         // could be *run* but never written down as a result.
         op.examples[name] = clean({
           input: ex.input,
-          output: out === value ? ex.input : valueToCode(out, new WeakSet(), bytes),
+          output: out === value ? ex.input : valueToCode(out),
+          ...(await refreshDivergences(opName, op.isAsync === true, schema, ex)),
         });
       } catch (e) {
         if (e instanceof Error && e.message.startsWith("cannot represent ")) throw e;
-        op.examples[name] = clean({ input: ex.input, error: (e as Error).message });
+        op.examples[name] = clean({
+          input: ex.input,
+          error: (e as Error).message,
+          ...(await refreshDivergences(opName, op.isAsync === true, schema, ex)),
+        });
       }
     }
   }
@@ -1011,7 +1009,7 @@ const jsonSchemaTypePresenceViolations = (spec: Spec, expected: Spec): string[] 
       try {
         evalSchema(expected.jsonSchema[side]);
         errs.push(
-          `jsonSchema.${field}: S.fromJSONSchema(jsonSchema.${side}) matches ts.${side} ` +
+          `jsonSchema.${field}: S.fromJSONSchemaOrThrow(jsonSchema.${side}) matches ts.${side} ` +
             `${JSON.stringify(schemaType)} - omit \`${field}\`.`,
         );
       } catch {
@@ -1021,7 +1019,7 @@ const jsonSchemaTypePresenceViolations = (spec: Spec, expected: Spec): string[] 
       }
     } else if (currentType === undefined && expectedType !== undefined)
       errs.push(
-        `jsonSchema.${field}: omitted, but S.fromJSONSchema(jsonSchema.${side}) infers ` +
+        `jsonSchema.${field}: omitted, but S.fromJSONSchemaOrThrow(jsonSchema.${side}) infers ` +
           `${JSON.stringify(expectedType)} !== ts.${side} ${JSON.stringify(schemaType)} - add \`${field}\`.`,
       );
   }
@@ -1178,6 +1176,286 @@ export const checkAliases = async (spec: Spec): Promise<string[]> => {
   return errs;
 };
 
+// ---- operation matrix ------------------------------------------------------
+//
+// A spec pins ONE spelling of each direction: the compiled, data-last, throwing
+// form, `S.parseOrThrow(schema)(data)`. Which spelling a caller writes is a
+// property of the CALL, not of the schema, so no golden notices when
+// `op(data, schema)` reads the schema as the data, or when `AsResult` reports a
+// success the throwing form rejects. Every example is therefore re-run through
+// every equivalent spelling and has to land on the outcome the golden records.
+//
+// Live, like checkAliases and checkVs: nothing new is written down, because
+// there is nothing here the golden doesn't already say.
+
+// A `Ref` is what one spelling answered: a value, or the message it failed
+// with. How it failed (a throw, a rejection, a `{success: false}`) is the
+// spelling's own business - that is what makes the outcomes comparable.
+type Ref = { value: unknown } | { message: string };
+
+const sameOutcome = (a: Ref, b: Ref): boolean =>
+  "message" in a
+    ? "message" in b && a.message === b.message
+    : !("message" in b) && isDeepStrictEqual(a.value, b.value);
+
+const describeRef = (r: Ref): string =>
+  "message" in r ? `failed with ${JSON.stringify(r.message)}` : `returned ${valueToCodeSafe(r.value)}`;
+
+// The matrix runs on values a spec chose, which includes ones the golden
+// serializer can't write down (a Blob's bytes are only readable
+// asynchronously). Only the failure message needs them, so a value it can't
+// render is described by its type rather than aborting the check.
+const valueToCodeSafe = (v: unknown): string => {
+  try {
+    return valueToCode(v);
+  } catch {
+    return Object.prototype.toString.call(v);
+  }
+};
+
+// The five outcomes, per verb.
+const OUTCOME_FORMS = {
+  parse: {
+    OrThrow: S.parseOrThrow,
+    AsResult: S.parseAsResult,
+    AsPromiseOrReject: S.parseAsPromiseOrReject,
+    AsResultPromise: S.parseAsResultPromise,
+    AsPromisableResult: S.parseAsPromisableResult,
+  },
+  decode: {
+    OrThrow: S.decodeOrThrow,
+    AsResult: S.decodeAsResult,
+    AsPromiseOrReject: S.decodeAsPromiseOrReject,
+    AsResultPromise: S.decodeAsResultPromise,
+    AsPromisableResult: S.decodeAsPromisableResult,
+  },
+  encode: {
+    OrThrow: S.encodeOrThrow,
+    AsResult: S.encodeAsResult,
+    AsPromiseOrReject: S.encodeAsPromiseOrReject,
+    AsResultPromise: S.encodeAsResultPromise,
+    AsPromisableResult: S.encodeAsPromisableResult,
+  },
+} as const satisfies Record<OpName, Record<string, unknown>>;
+
+// The golden builders: the throwing outcome of each verb, and - for a schema
+// carrying an async transform or refine, which the sync builders reject at
+// operation creation and which wraps a sync direction in `Promise.resolve(...)`,
+// so which builder an op uses is part of its codegen, hence a declared
+// `isAsync` checked against the schema - the rejecting one.
+const OP_BUILDER: Record<OpName, (schema: any) => (input: any) => any> = {
+  parse: OUTCOME_FORMS.parse.OrThrow,
+  decode: OUTCOME_FORMS.decode.OrThrow,
+  encode: OUTCOME_FORMS.encode.OrThrow,
+};
+const ASYNC_OP_BUILDER: Record<OpName, (schema: any) => (input: any) => Promise<any>> = {
+  parse: OUTCOME_FORMS.parse.AsPromiseOrReject,
+  decode: OUTCOME_FORMS.decode.AsPromiseOrReject,
+  encode: OUTCOME_FORMS.encode.AsPromiseOrReject,
+};
+
+// What a Result carries: a failure OF THE VALUE it was handed (index.d.ts,
+// `DataError`) - a foreign exception from user code included, wrapped as
+// `invalid_conversion`. Only a `DefectError` throws out of every outcome: it
+// describes the schema and fails for every input.
+const DATA_CODES = new Set(["invalid_input", "unrecognized_key", "invalid_conversion"]);
+
+// Whether an outcome answers a failure with a value instead of an exception -
+// which is also whether a throw out of it is itself a finding.
+const RESULT_SHAPED = new Set(["AsResult", "AsResultPromise", "AsPromisableResult"]);
+// An async direction compiles only through the outcomes that carry the async
+// flag; the other two are rejected at operation creation, which
+// `asyncViolations` already covers.
+const ASYNC_OUTCOMES = new Set(["AsPromiseOrReject", "AsResultPromise", "AsPromisableResult"]);
+
+const CALL_FORMS = [
+  ["op(schema)(data)", (op: any, schema: any, data: unknown) => op(schema)(data)],
+  ["op(schema, data)", (op: any, schema: any, data: unknown) => op(schema, data)],
+  ["op(data, schema)", (op: any, schema: any, data: unknown) => op(data, schema)],
+] as const;
+
+// The checks, which answer only "did it pass". Run against `parse` alone:
+// `decode` and `encode` TRUST their input (no type validation), while
+// `assert`/`is`/`make` always validate, so a decode example that is
+// deliberately ill-typed diverges by design. Parse is where both sides do the
+// same work, and where a divergence is a bug.
+// Wrapped, not bare: each check is nine overloads, and a union of those has no
+// signature TypeScript will call.
+const CHECK_FORMS = {
+  sync: {
+    assertInputOrThrow: (schema: any, data: unknown) => S.assertInputOrThrow(schema, data),
+    isInput: (schema: any, data: unknown) => S.isInput(schema, data),
+    makeInputOrThrow: (schema: any, data: unknown) => S.makeInputOrThrow(schema, data),
+  },
+  async: {
+    assertInputAsPromiseOrReject: (schema: any, data: unknown) =>
+      S.assertInputAsPromiseOrReject(schema, data),
+    isInputAsPromise: (schema: any, data: unknown) => S.isInputAsPromise(schema, data),
+    makeInputAsPromiseOrReject: (schema: any, data: unknown) =>
+      S.makeInputAsPromiseOrReject(schema, data),
+  },
+} as const;
+
+// What each check answers for this value. They are meant to agree with each
+// other; a disagreement has no spelling in the format and is reported instead.
+const checkVerdicts = async (
+  schema: any,
+  nextData: () => unknown,
+  isAsync: boolean,
+): Promise<{ name: string; passed: boolean; detail: string; answer?: unknown; given?: unknown }[]> =>
+  Promise.all(
+    Object.entries(CHECK_FORMS[isAsync ? "async" : "sync"]).map(async ([name, run]) => {
+      const given = nextData();
+      try {
+        const answer = await run(schema, given);
+        // `is*` answers a boolean; the others answer by not throwing.
+        return {
+          name,
+          passed: name.startsWith("is") ? answer === true : true,
+          detail: "",
+          answer,
+          given,
+        };
+      } catch (e) {
+        return { name, passed: false, detail: `: ${(e as Error).message}` };
+      }
+    }),
+  );
+
+// `--write`'s half: a divergence field that is already there is kept fresh, the
+// way `creationError` is. Adding or removing one stays the author's call - that
+// is the moment a divergence appears or goes away, and it should be read by a
+// person, not written by a tool.
+const refreshDivergences = async (
+  opName: OpName,
+  isAsync: boolean,
+  schema: any,
+  ex: Example,
+): Promise<{ whenChecked?: Example["whenChecked"] }> => {
+  const out: { whenChecked?: Example["whenChecked"] } = {};
+  if (ex.whenChecked === undefined) return out;
+  const nextData = valueEvaluator(ex.input);
+  {
+    const verdicts = await checkVerdicts(schema, nextData, isAsync);
+    out.whenChecked = verdicts[0]!.passed ? "passes" : "fails";
+  }
+  return out;
+};
+
+export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<string[]> => {
+  const errs: string[] = [];
+  for (const opName of OP_ORDER) {
+    const op = spec.operations?.[opName];
+    if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) continue;
+    const isAsync = op.isAsync === true;
+    for (const [exName, ex] of Object.entries(op.examples)) {
+      if (isSkip(ex)) continue;
+      const where = `operations.${opName}.examples.${exName}`;
+      let nextData: () => unknown;
+      let golden: Ref;
+      try {
+        nextData = valueEvaluator(ex.input);
+        nextData();
+        golden = "error" in ex ? { message: ex.error } : { value: evalSchema(ex.output) };
+      } catch {
+        continue; // an unevaluatable golden is reported by the checks above
+      }
+
+      if (opName !== "parse" && ex.whenChecked !== undefined)
+        errs.push(`${where}: whenChecked is \`parse\` only - decode and encode trust their input, so a check disagreeing with them is by design`);
+
+      // `op(data, schema)` reads two schemas as a chain - the one call form a
+      // Sury schema in the data slot can't take (see index.d.ts). Documented,
+      // not a finding.
+      const skipDataFirst = isUsableSchema(nextData());
+
+      for (const [outcome, factory] of Object.entries(OUTCOME_FORMS[opName])) {
+        // A sync direction runs all five; an async one only the outcomes that
+        // carry the async flag - the rest are rejected at operation creation,
+        // which `asyncViolations` already covers.
+        if (isAsync && !ASYNC_OUTCOMES.has(outcome)) continue;
+        // Every spelling answers the golden: the async outcomes of a sync
+        // direction compile the same body and lift it into a promise.
+        const expected = golden;
+        for (const [form, call] of CALL_FORMS) {
+          if (skipDataFirst && form === "op(data, schema)") continue;
+          const spelling = `${opName}${outcome} as ${form}`;
+          let actual: Ref;
+          try {
+            const raw = await call(factory, schema, nextData());
+            if (RESULT_SHAPED.has(outcome)) {
+              if (raw === null || typeof raw !== "object" || typeof (raw as any).success !== "boolean") {
+                errs.push(`${where}: ${spelling} answered ${valueToCodeSafe(raw)}, not a Result`);
+                continue;
+              }
+              const r = raw as { success: boolean; value: unknown; error?: { message: string } };
+              actual = r.success ? { value: r.value } : { message: r.error!.message };
+            } else {
+              actual = { value: raw };
+            }
+          } catch (e) {
+            // Only a defect (the schema is wired wrong, so every input fails)
+            // throws out of a Result outcome; a data failure - a foreign
+            // exception from user code included - is its return value.
+            if (RESULT_SHAPED.has(outcome) && DATA_CODES.has((e as { code?: string }).code!)) {
+              errs.push(
+                `${where}: ${spelling} threw ${JSON.stringify((e as Error).message)} - a Result ` +
+                  "outcome reports a failure of the value in its return type, and only a defect throws",
+              );
+              continue;
+            }
+            actual = { message: (e as Error).message };
+          }
+          if (sameOutcome(expected, actual)) continue;
+          errs.push(
+            `${where}: ${spelling} ${describeRef(actual)}, but the golden ${describeRef(expected)}`,
+          );
+        }
+      }
+      // Whether the checks agree that this value passes. Only that - `assert`
+      // and `is` build no output, and `make` hands the value back rather than a
+      // decoded clone, so there is no output to compare. `parse` only: `decode`
+      // and `encode` TRUST their input, while the checks always validate, so a
+      // deliberately ill-typed decode example diverges by design.
+      if (opName !== "parse") continue;
+      const verdicts = await checkVerdicts(schema, nextData, isAsync);
+      const disagreeing = verdicts.filter((v) => v.passed !== verdicts[0]!.passed);
+      if (disagreeing.length) {
+        errs.push(
+          `${where}: the checks disagree with each other - ${verdicts
+            .map((v) => `S.${v.name} ${v.passed ? "passed" : `failed${v.detail}`}`)
+            .join(", ")}`,
+        );
+        continue;
+      }
+      const passed = verdicts[0]!.passed;
+      const expectPass = ex.whenChecked !== undefined ? ex.whenChecked === "passes" : !("error" in ex);
+      if (passed !== expectPass) {
+        const verdict = passed ? "passes" : "fails";
+        errs.push(
+          ex.whenChecked === undefined
+            ? `${where}: the checks ${verdicts[0]!.passed ? "passed" : `failed${verdicts[0]!.detail}`}, but parse ` +
+              `${"error" in ex ? `failed with ${JSON.stringify(ex.error)}` : "succeeded"} - ` +
+              `add \`whenChecked: ${verdict}\``
+            : `${where}: whenChecked says \`${ex.whenChecked}\` but the checks ${verdict}`,
+        );
+        continue;
+      }
+      if (ex.whenChecked !== undefined && passed === !("error" in ex))
+        errs.push(`${where}: whenChecked agrees with parse - remove it`);
+      // `make` hands the value back rather than decoding it. `Object.is`, not
+      // `!==`: a spec whose example is NaN is exactly the case that matters.
+      const made = verdicts.find((v) => v.name.startsWith("make"));
+      if (made?.passed && !Object.is(await made.answer, made.given))
+        errs.push(
+          `${where}: S.${made.name} returned a different value than the one it was given - ` +
+            "make validates and hands the value back, it does not decode it",
+        );
+    }
+  }
+  return errs;
+};
+
 // Cross-checks a spec's `vs` equivalent against its recorded inferred types,
 // live like checkAliases (no golden of its own). Strict string equality -
 // both sides printed with the same InTypeAlias formatting - so the author
@@ -1298,11 +1576,13 @@ export const checkSpec = async (
       // (which builder a direction uses is derived from the schema, so the
       // recomputed goldens are right either way) - only the marker needs the
       // author's hand.
-      errs.push(...asyncViolations(schema, spec));
+      const asyncErrs = asyncViolations(schema, spec);
+      errs.push(...asyncErrs);
       const recomputed = knownFresh === undefined ? await recomputeGoldens(spec) : undefined;
       if (recomputed) errs.push(...jsonSchemaTypePresenceViolations(spec, recomputed));
       const fresh = knownFresh ?? serialize(recomputed!, comments);
-      if (fresh !== canon)
+      const stale = fresh !== canon;
+      if (stale)
         errs.push(
           (violations.length
             ? `goldens stale - resolve the identity mismatch above first, then \`pnpm spec check ${id} --write\` can fix it (also formats canonically; use \`pnpm spec format\` for a formatting-only fix)`
@@ -1311,6 +1591,12 @@ export const checkSpec = async (
         );
       errs.push(...(await checkAliases(spec)));
       errs.push(...(await checkVs(spec)));
+      // The matrix asks whether every spelling agrees with the golden, which is
+      // not a question worth answering against a golden already known to be
+      // wrong - it would report the same staleness a dozen more times. A wrong
+      // `isAsync` is the same: the marker is what says which outcomes a
+      // direction can even be built through.
+      if (!stale && !asyncErrs.length) errs.push(...(await checkOperationMatrix(spec, schema)));
     } catch (e) {
       errs.push(`goldens could not be computed: ${(e as Error).message}`);
     }

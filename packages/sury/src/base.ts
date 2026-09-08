@@ -14,10 +14,37 @@ export type Encoder = (input: Val, target: Internal) => Val;
 
 export type Flag = number;
 
-// Bit-flag literals (esbuild does not inline named consts). Compile (`g.o` /
-// op flag): 0 none, 1 async, 2 disableNaN, 4 union-transform-context (custom
+// Bit-flag literals (esbuild does not inline named consts).
+//
+// Compile semantics (`g.o` / op flag), 127 and below - what the generated code
+// itself does: 0 none, 1 async, 2 disableNaN, 4 union-transform-context (custom
 // transform inside a union case preserves the original exception so dispatch
 // can distinguish Sury failures from foreign ones), 64 flatten.
+//
+// Return modes, 128 and above - what the operation hands back, read only by the
+// operation tail (parse.ts, operations.ts): 128 JS Result
+// (`{success, value, error}`), 256 ReScript Result (`{TAG, _0}`), 512
+// promisable (1 without lifting a synchronous result into a promise), 1024
+// Standard Schema (`{value}` / `{issues}`), 2048 yield the operation's input
+// rather than its output (`makeInput`/`makeOutput`), 4096 answer a boolean
+// (`isInput`/`isOutput`).
+//
+// Bit 1 permits async, it does not assert it: codegen may read `g.o & 1` as
+// "a promise MAY appear here" (json.ts declines to fuse), never as "one will".
+// An async operation also rejects rather than throwing when its value fails
+// before the first await - decided by the operation tail (operations.ts), from
+// whether the compile is nested, not by a flag of its own.
+//
+// The split at 128 is load-bearing: a nested operation compiled inside another
+// (recursive.ts) masks with `& 127`, because generated code consumes its result
+// and a return mode inherited from the outer operation would have the inner one
+// answering `false` - or a Result object - into the middle of a value.
+// 8192 is recursive.ts's memo-key bit for such a nested async node, which no
+// operation flag ever carries.
+//
+// The modes ride the op flag the operation memo keys on, which is what makes
+// each of them compile and cache as its own operation and leaves the throw
+// path's generated code untouched.
 // Val (`Val.f`): 0 none, 1 async.
 
 // ── path ──────────────────────────────────────────────────────────────────────
@@ -470,6 +497,10 @@ export type BGlobal = {
   // generated code, so a builder can bracket a stretch of emission and learn
   // whether what it produced can throw. Read the difference, never the value.
   t: number;
+  // @as("r") - set by the one builder that assigns to the operation's own
+  // parameter (union dispatch), so a `make*` tail knows the parameter no
+  // longer holds the value it was given.
+  r?: boolean;
   // @as("js") - the operation's asJsonString embed accessor, cached by
   // B_embedJsonStr (advanced/json.ts) on first use.
   js?: string;
@@ -727,6 +758,10 @@ export const inputExpression = (schema: Internal, skipOverride?: boolean): strin
 // ── schema ────────────────────────────────────────────────────────────────────
 
 export function Schema(this: Internal): void {}
+// One of exactly two schema prototypes, both rooted at `Object.create(null)`.
+// `isOwnSchema` (below) recognises a Sury schema by identity against these two,
+// which is what keeps operation dispatch from reading a payload as a schema -
+// adding a third prototype breaks every operation's argument dispatch.
 export const schemaPrototype: Record<string, unknown> = Object.create(null);
 // A plain (non-enumerable) method, not a getter returning a closure: the
 // getter form allocated a fresh arrow on every `.with` access, and `.with` is
@@ -755,6 +790,7 @@ Schema.prototype = schemaPrototype;
 // field names on hot objects survive minification (CLAUDE.md).
 export const reversedKey = "r";
 function SelfReverseSchema(this: Internal): void {}
+// The second (and last) schema prototype - see `isOwnSchema`.
 const selfReversePrototype: Record<string, unknown> = Object.create(schemaPrototype);
 Object.defineProperty(selfReversePrototype, reversedKey, {
   get() {
@@ -763,6 +799,28 @@ Object.defineProperty(selfReversePrototype, reversedKey, {
 });
 Object.defineProperty(selfReversePrototype, "sr", { value: true });
 SelfReverseSchema.prototype = selfReversePrototype;
+
+// The dispatch predicate: is this argument one of OUR schemas?
+//
+// Distinct from `isSchemaObject` above on purpose. That one duck-types on the
+// Standard Schema marker, which is right where foreign Standard Schemas are
+// legitimate (definition parsing) and wrong wherever an argument slot holds
+// either a schema or untrusted data: `{"~standard":1}` from a JSON body would
+// be read as the schema. Only the two prototypes above are Sury schemas, and
+// both are `Object.create(null)`-rooted, so no plain object and no
+// `JSON.parse` result can match - `JSON.parse` makes `__proto__` an own
+// property, never a prototype.
+// The `typeof` guard is for the data argument: `Object.getPrototypeOf` of a
+// primitive boxes it, which is most of an immediate call's dispatch cost.
+export const isOwnSchema = (value: unknown): boolean => {
+  const proto = typeof value === objectTag && value && Object.getPrototypeOf(value);
+  return proto === schemaPrototype || proto === selfReversePrototype;
+};
+
+// What every operation says when no argument in a schema slot is one. Shared so
+// the sentence exists once: a foreign Standard Schema handed to an operation
+// gets this rather than being silently read as the data to validate.
+export const panicNotSchema = (): never => panic("Expected a Sury schema");
 
 let seq = 1;
 
@@ -857,7 +915,7 @@ export const noopDecoder: Builder = (input: Val) => input;
 // Every built-in singleton schema must be a module-level const initialized by
 // a single `/* @__PURE__ */ initSchema(...)` expression: the module system is
 // what guarantees one instance per schema (the compiled-decoder cache in
-// getDecoder is keyed by `seq` and stored on the instance, so a fresh copy
+// getOp is keyed by `seq` and stored on the instance, so a fresh copy
 // per use would recompile every time), and the single pure expression is what
 // lets a consumer's bundler drop the unused ones.
 // @__NO_SIDE_EFFECTS__

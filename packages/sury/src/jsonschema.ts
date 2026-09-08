@@ -69,11 +69,13 @@ import {
   refineInput
 } from "./modifiers";
 import {
- __setStandardJSONSchemaConverter,
- assertOrThrow
+ assertResult
 } from "./operations";
 import {
- getDecoder,
+ __setStandardJSONSchemaConverter
+} from "./standard";
+import {
+ getOp,
  never_,
  parse,
  reverse
@@ -344,7 +346,7 @@ const applyMetadataOverlay = (
     if (original.examples !== U) {
       try {
         jsonSchema.examples = original.examples.map(
-          getDecoder(original) as (v: unknown) => unknown,
+          getOp(0, 1, original) as (v: unknown) => unknown,
         );
       } catch (_exn) {}
     }
@@ -894,9 +896,12 @@ const withRequired = (schema: Internal, required: string[]): Internal =>
     "Should contain every required property."
   );
 
+// Deliberately not `S.isInput`, whose compiled boolean this looks like: an
+// `is*` operation registers the Result emitter (operations.ts `tailDispatch`),
+// which would ship in every JSON Schema bundle for one keyword's yes/no.
 const passesSchema = (data: unknown, schema: Internal): boolean => {
   try {
-    assertOrThrow(data, schema);
+    (getOp(0, 3, unknown, schema, assertResult) as (input: unknown) => unknown)(data);
     return true;
   } catch {
     return false;

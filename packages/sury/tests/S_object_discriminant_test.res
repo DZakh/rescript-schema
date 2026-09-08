@@ -112,7 +112,7 @@ module Positive = {
     ),
   ]->Array.forEach(testData => {
     test(
-      `Successfully parses object with discriminant "${testData.discriminantSchema->S.inputExpression}"${testData.testNamePostfix}`,
+      `Successfully parses object with discriminant "${testData.discriminantSchema->S.toInputExpression}"${testData.testNamePostfix}`,
       t => {
         let schema = S.object(
           s => {
@@ -134,7 +134,7 @@ module Positive = {
     )
 
     test(
-      `Successfully serializes object with discriminant "${testData.discriminantSchema->S.inputExpression}"${testData.testNamePostfix}`,
+      `Successfully serializes object with discriminant "${testData.discriminantSchema->S.toInputExpression}"${testData.testNamePostfix}`,
       t => {
         let schema = S.object(
           s => {
@@ -172,7 +172,7 @@ module Negative = {
       ~discriminantData: 'any,
       ~description as maybeDescription=?,
       ~path=S.Path.empty,
-      ~missingInputExpression=discriminantSchema->S.inputExpression,
+      ~missingInputExpression=discriminantSchema->S.toInputExpression,
     ) => {
       discriminantSchema: discriminantSchema->Obj.magic,
       discriminantData: discriminantData->Obj.magic,
@@ -215,7 +215,7 @@ module Negative = {
     ),
   ]->Array.forEach(testData => {
     test(
-      `Successfully parses object with discriminant that we don't know how to serialize "${testData.discriminantSchema->S.inputExpression}"${testData.testNamePostfix}`,
+      `Successfully parses object with discriminant that we don't know how to serialize "${testData.discriminantSchema->S.toInputExpression}"${testData.testNamePostfix}`,
       t => {
         let schema = S.object(
           s => {
@@ -237,7 +237,7 @@ module Negative = {
     )
 
     test(
-      `Fails to serialize object with discriminant that we don't know how to serialize "${testData.discriminantSchema->S.inputExpression}"${testData.testNamePostfix}`,
+      `Fails to serialize object with discriminant that we don't know how to serialize "${testData.discriminantSchema->S.toInputExpression}"${testData.testNamePostfix}`,
       t => {
         let schema = S.object(
           s => {

@@ -305,9 +305,9 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
       continue;
     }
     const schema = S.formData.with(S.to, S.schema({ a: field.schema as never }) as never);
-    const decode = compile(() => S.decoder(schema));
-    const encode = compile(() => S.encoder(schema));
-    const valid = compile(() => S.outputValidator(schema));
+    const decode = compile(() => S.decodeOrThrow(schema));
+    const encode = compile(() => S.encodeOrThrow(schema));
+    const valid = compile(() => S.isOutput(schema));
 
     for (const [direction, result] of [
       ["decode", decode],
@@ -394,10 +394,10 @@ for (const [wrapperName, wrap] of Object.entries(WRAPPERS)) {
 }
 
 const combined = S.formData.with(S.to, S.schema(together as never) as never);
-const combinedDecode = compile(() => S.decoder(combined));
+const combinedDecode = compile(() => S.decodeOrThrow(combined));
 for (const [direction, result] of [
   ["decode", combinedDecode],
-  ["encode", compile(() => S.encoder(combined))],
+  ["encode", compile(() => S.encodeOrThrow(combined))],
 ] as const) {
   if (result.crash) {
     findings.push(`all ${Object.keys(together).length} fields in one schema: ${direction} - ${result.crash}`);

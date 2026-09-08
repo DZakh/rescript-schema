@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ allOf: [{ enum: ["a", "b"] }, { enum: ["b", "c"] }] })'
+  schema: 'S.fromJSONSchemaOrThrow({ allOf: [{ enum: ["a", "b"] }, { enum: ["b", "c"] }] })'
   input: '"b"'
   output: '"b"'
   instantiations: 1031

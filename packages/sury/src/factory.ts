@@ -55,7 +55,7 @@ import {
   valGet,
 } from "./composites";
 import { type TupleCtx } from "./modifiers";
-import { getDecoder, getOutputSchema, parse, reverse } from "./parse";
+import { getOp, getOutputSchema, parse, reverse } from "./parse";
 import { Literal_parse, unit } from "./primitives";
 import { unionFactory } from "./union";
 
@@ -117,7 +117,7 @@ const fieldOrSchema = (schema: Internal, or: unknown): Internal => {
     mut.to = schema;
   }
   try {
-    (getDecoder(unknown, item) as (input: unknown) => unknown)(or);
+    (getOp(0, 2, unknown, item) as (input: unknown) => unknown)(or);
   } catch (exn) {
     const error = getOrRethrow(exn);
     panic(
@@ -127,7 +127,7 @@ const fieldOrSchema = (schema: Internal, or: unknown): Internal => {
     );
   }
   try {
-    mut.default = (getDecoder(reverse(schema)) as (input: unknown) => unknown)(or);
+    mut.default = (getOp(0, 1, reverse(schema)) as (input: unknown) => unknown)(or);
   } catch (_exn) {}
 
   const parseAs = copySchema(schema);

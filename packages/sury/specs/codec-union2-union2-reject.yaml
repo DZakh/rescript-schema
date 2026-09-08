@@ -20,6 +20,7 @@ operations:
       preserved-string:
         input: '"ok"'
         output: '"ok"'
+        whenChecked: fails
   decode: eq-to-parse
   encode:
     creationError: "SuryError: Ambiguous never | string -> number | string. Should number be decoded or ignored? Choose with S.to for string -> number, or S.never -> number"

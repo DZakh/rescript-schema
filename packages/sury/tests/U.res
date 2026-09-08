@@ -78,6 +78,17 @@ let asyncAssertThrowsMessage = async (t, cb, errorMessage, ~message=?) => {
   }
 }
 
+// The operation a def compiled to, read off the def's own memo (OpNode in
+// parse.ts: `c` is the node list, `a` the schema arguments, `v` the function).
+// A def is only ever compiled nested - cold, it has no `$defs` to resolve - so
+// the node is the one place its code exists. Newest first, so the most recent
+// operation's nested node answers.
+let defOperationCode: S.t<'a> => option<string> = %raw(`(def) => {
+  for (let node = def.c; node; node = node.n) {
+    if (node.a.length === 2 && node.a[1] === def && node.v) return node.v.toString()
+  }
+}`)
+
 let getCompiledCodeString = (
   schema,
   ~op: [
@@ -100,13 +111,13 @@ let getCompiledCodeString = (
       let fn = S.compileConvertOrThrow(~from=S.unknown, ~to=schema)
       fn->magic
     | #ParseAsync =>
-      let fn = S.compileConvertAsyncOrThrow(~from=S.unknown, ~to=schema)
+      let fn = S.compileConvertAsPromiseOrReject(~from=S.unknown, ~to=schema)
       fn->magic
     | #Convert =>
       let fn = S.compileConvertOrThrow(~from=schema->S.reverse, ~to=S.unknown)
       fn->magic
     | #ConvertAsync =>
-      let fn = S.compileConvertAsyncOrThrow(~from=schema->S.reverse, ~to=S.unknown)
+      let fn = S.compileConvertAsPromiseOrReject(~from=schema->S.reverse, ~to=S.unknown)
       fn->magic
     | #Assert =>
       let fn = S.compileConvertOrThrow(~from=S.unknown, ~to=schema->S.to(S.literal()->S.noValidation(true)))
@@ -120,7 +131,7 @@ let getCompiledCodeString = (
         fn->magic
       }
     | #EncodeAsync => {
-        let fn = S.compileConvertAsyncOrThrow(~from=schema, ~to=S.unknown)
+        let fn = S.compileConvertAsPromiseOrReject(~from=schema, ~to=S.unknown)
         fn->magic
       }
     | #EncodeToJson => {
@@ -141,11 +152,9 @@ let getCompiledCodeString = (
     switch (schema->S.untag).defs {
     | Some(defs) if code.contents !== noopOpCode =>
       defs->Dict.forEachWithKey((schema, key) =>
-        try {
-          let defFn = schema->toFn
-          code := code.contents ++ "\n" ++ `${key}: ${defFn["toString"]()}`
-        } catch {
-        | _exn => ()
+        switch schema->defOperationCode {
+        | Some(defCode) => code := code.contents ++ "\n" ++ `${key}: ${defCode}`
+        | None => ()
         }
       )
     | _ => ()

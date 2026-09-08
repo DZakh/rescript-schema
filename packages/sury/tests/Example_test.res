@@ -106,7 +106,7 @@ test("Custom schema", t => {
         encode: Never,
       },
     )
-    ->S.meta({name: `Set.t<${S.inputExpression(itemSchema)}>`})
+    ->S.meta({name: `Set.t<${S.toInputExpression(itemSchema)}>`})
   }
 
   let intSetSchema = mySet(S.int)

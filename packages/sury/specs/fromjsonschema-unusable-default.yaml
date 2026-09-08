@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ type: "object", properties: { count: { type: "integer", default: "" } } })'
+  schema: 'S.fromJSONSchemaOrThrow({ type: "object", properties: { count: { type: "integer", default: "" } } })'
   input: "{ count?: number | undefined; }"
   output: "{ count?: number | undefined; }"
   instantiations: 3299

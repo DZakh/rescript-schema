@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ nullable: true, type: "string", enum: ["a", "b"] })'
+  schema: 'S.fromJSONSchemaOrThrow({ nullable: true, type: "string", enum: ["a", "b"] })'
   input: '"a" | "b" | null'
   output: '"a" | "b" | null'
   instantiations: 564

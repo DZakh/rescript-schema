@@ -116,7 +116,7 @@ test("a browser submission decodes field by field", () => {
       colr: S.string.with(S.pattern, /^#[0-9a-f]{6}$/),
     }),
   );
-  expect(S.decoder(schema)(submitted())).toEqual({
+  expect(S.decodeOrThrow(schema)(submitted())).toEqual({
     name: "Ann",
     // `S.minLength(0)` is how the schema says the empty entry is a value.
     blank: "",
@@ -142,23 +142,23 @@ test("a blank entry is absent for an optional field, and its own value otherwise
     S.to,
     S.schema({ blank: S.optional(S.string), blankNumber: S.optional(S.number, 7) }),
   );
-  expect(S.decoder(optional)(submitted())).toEqual({ blank: undefined, blankNumber: 7 });
+  expect(S.decodeOrThrow(optional)(submitted())).toEqual({ blank: undefined, blankNumber: 7 });
 
   // A required string must say which it means, and each spelling then answers
   // for itself.
-  expect(() => S.decoder(S.formData.with(S.to, S.schema({ blank: S.string })))).toThrow(
+  expect(() => S.decodeOrThrow(S.formData.with(S.to, S.schema({ blank: S.string })))).toThrow(
     'Failed at blank: Ambiguous "" for string.',
   );
   expect(
-    S.decoder(S.formData.with(S.to, S.schema({ blank: S.string.with(S.minLength, 0) })))(
+    S.decodeOrThrow(S.formData.with(S.to, S.schema({ blank: S.string.with(S.minLength, 0) })))(
       submitted(),
     ),
   ).toEqual({ blank: "" });
   expect(() =>
-    S.decoder(S.formData.with(S.to, S.schema({ blank: S.string.with(S.nonEmpty) })))(submitted()),
+    S.decodeOrThrow(S.formData.with(S.to, S.schema({ blank: S.string.with(S.nonEmpty) })))(submitted()),
   ).toThrow('Failed at blank: Expected string.length >= 1, received ""');
   expect(() =>
-    S.decoder(S.formData.with(S.to, S.schema({ blankNumber: S.number })))(submitted()),
+    S.decodeOrThrow(S.formData.with(S.to, S.schema({ blankNumber: S.number })))(submitted()),
   ).toThrow('Failed at blankNumber: Expected number, received ""');
 });
 
@@ -167,10 +167,10 @@ test("a file input with nothing chosen reads as absent, not as an empty file", (
   // `application/octet-stream`, and no bytes. Handing that to a schema as a
   // real upload is what every form library treats as a bug.
   const optional = S.formData.with(S.to, S.schema({ avatar: S.optional(S.file) }));
-  expect(S.decoder(optional)(submitted())).toEqual({ avatar: undefined });
+  expect(S.decodeOrThrow(optional)(submitted())).toEqual({ avatar: undefined });
 
   const required = S.formData.with(S.to, S.schema({ avatar: S.file }));
-  expect(() => S.decoder(required)(submitted())).toThrow(
+  expect(() => S.decodeOrThrow(required)(submitted())).toThrow(
     "Failed at avatar: Expected File, received undefined",
   );
 
@@ -178,23 +178,23 @@ test("a file input with nothing chosen reads as absent, not as an empty file", (
   const chosen = new FormData();
   const picked = new File(["hi"], "a.txt", { type: "text/plain" });
   chosen.append("avatar", picked);
-  expect(S.decoder(required)(chosen)).toEqual({ avatar: picked });
+  expect(S.decodeOrThrow(required)(chosen)).toEqual({ avatar: picked });
 });
 
 test("a checkbox with a value attribute is not a boolean", () => {
   // "yes" is a legal checkbox value, and the boolean read does not guess at it
   // - the schema says what the value is.
   expect(() =>
-    S.decoder(S.formData.with(S.to, S.schema({ valued: S.boolean })))(submitted()),
+    S.decodeOrThrow(S.formData.with(S.to, S.schema({ valued: S.boolean })))(submitted()),
   ).toThrow('Failed at valued: Expected boolean, received "yes"');
   expect(
-    S.decoder(S.formData.with(S.to, S.schema({ valued: S.union(["yes"]) })))(submitted()),
+    S.decodeOrThrow(S.formData.with(S.to, S.schema({ valued: S.union(["yes"]) })))(submitted()),
   ).toEqual({ valued: "yes" });
 
   // A checked box whose value is "" is indistinguishable from an unchecked one
   // on this wire, and reads as unchecked.
   expect(
-    S.decoder(S.formData.with(S.to, S.schema({ emptyValued: S.boolean })))(submitted()),
+    S.decodeOrThrow(S.formData.with(S.to, S.schema({ emptyValued: S.boolean })))(submitted()),
   ).toEqual({ emptyValued: false });
 });
 
@@ -204,12 +204,12 @@ test("a browser adds entries the schema never declared, so S.strict cannot hold"
   // schema, so "no entries but these" is not a thing a form can promise.
   expect(SUBMISSION.map(([key]) => key)).toContain("_charset_");
   expect(() =>
-    S.decoder(
+    S.decodeOrThrow(
       S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty) }).with(S.strict)),
     ),
   ).toThrow("with S.strict");
   // Stripping is the supported mode, and it reads the same submission fine.
   expect(
-    S.decoder(S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty) })))(submitted()),
+    S.decodeOrThrow(S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty) })))(submitted()),
   ).toEqual({ name: "Ann" });
 });

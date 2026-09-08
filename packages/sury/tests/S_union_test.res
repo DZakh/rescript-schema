@@ -511,21 +511,21 @@ asyncTest("Compiled async parse code snapshot", async t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ParseAsync,
-    `i=>{if(typeof i==="number"&&i===i){for(;;){if(i===0){let v0=e[0](i);i=v0;break}if(i===1)break;e[1](i)}}else{e[2](i)}return Promise.resolve(i)}`,
+    `i=>{try{if(typeof i==="number"&&i===i){for(;;){if(i===0){let v0=e[0](i);i=v0;break}if(i===1)break;e[1](i)}}else{e[2](i)}return Promise.resolve(i)}catch(v1){return Promise.reject(v1)}}`,
   )
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ConvertAsync,
-    `i=>{if(typeof i==="number"&&i===i){for(;;){if(i===0){let v0=e[0](i);i=v0;break}if(i===1)break;e[1](i)}}else{e[2](i)}return Promise.resolve(i)}`,
+    `i=>{try{if(typeof i==="number"&&i===i){for(;;){if(i===0){let v0=e[0](i);i=v0;break}if(i===1)break;e[1](i)}}else{e[2](i)}return Promise.resolve(i)}catch(v1){return Promise.reject(v1)}}`,
   )
 
-  t->Assert.deepEqual(await 1->S.parseAsyncOrThrow(~to=schema), 1)
-  t->Assert.throws(
-    () => 2->S.parseAsyncOrThrow(~to=schema),
-    ~expectations={
-      message: "Expected 0 | 1, received 2",
-    },
-  )
+  t->Assert.deepEqual(await 1->S.parseAsPromiseOrReject(~to=schema), 1)
+  // The value fails its type check before the first await, and the operation
+  // still rejects rather than throwing: `OrReject` is the whole story.
+  switch await 2->S.parseAsResultPromise(~to=schema) {
+  | Ok(_) => t->Assert.fail("Expected Error")
+  | Error(error) => t->Assert.is(error.message, "Expected 0 | 1, received 2")
+  }
 })
 
 test("Union with nested variant", t => {

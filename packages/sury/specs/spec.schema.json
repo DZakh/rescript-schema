@@ -96,19 +96,19 @@
       "properties": {
         "input": {
           "type": "string",
-          "description": "S.inputJSONSchema(schema), as source text, or its conversion error."
+          "description": "S.toInputJSONSchemaOrThrow(schema), as source text, or its conversion error."
         },
         "fromInputType": {
           "type": "string",
-          "description": "The type inferred by S.fromJSONSchema(input), only when it differs from ts.input; omit when equal or when input is a conversion error."
+          "description": "The type inferred by S.fromJSONSchemaOrThrow(input), only when it differs from ts.input; omit when equal or when input is a conversion error."
         },
         "output": {
           "type": "string",
-          "description": "S.outputJSONSchema(schema), as source text, or its conversion error."
+          "description": "S.toOutputJSONSchemaOrThrow(schema), as source text, or its conversion error."
         },
         "fromOutputType": {
           "type": "string",
-          "description": "The type inferred by S.fromJSONSchema(output), only when it differs from ts.output; omit when equal or when output is a conversion error."
+          "description": "The type inferred by S.fromJSONSchemaOrThrow(output), only when it differs from ts.output; omit when equal or when output is a conversion error."
         },
         "draft-2020-12": {
           "type": "object",
@@ -119,7 +119,7 @@
             },
             "fromInputType": {
               "type": "string",
-              "description": "The type inferred by S.fromJSONSchema of this dialect's input document, only when it differs from ts.input; omit when equal or when input is a conversion error."
+              "description": "The type inferred by S.fromJSONSchemaOrThrow of this dialect's input document, only when it differs from ts.input; omit when equal or when input is a conversion error."
             },
             "output": {
               "type": "string",
@@ -127,7 +127,7 @@
             },
             "fromOutputType": {
               "type": "string",
-              "description": "The type inferred by S.fromJSONSchema of this dialect's output document, only when it differs from ts.output; omit when equal or when output is a conversion error."
+              "description": "The type inferred by S.fromJSONSchemaOrThrow of this dialect's output document, only when it differs from ts.output; omit when equal or when output is a conversion error."
             }
           },
           "additionalProperties": false,
@@ -142,7 +142,7 @@
             },
             "fromInputType": {
               "type": "string",
-              "description": "The type inferred by S.fromJSONSchema of this dialect's input document, only when it differs from ts.input; omit when equal or when input is a conversion error."
+              "description": "The type inferred by S.fromJSONSchemaOrThrow of this dialect's input document, only when it differs from ts.input; omit when equal or when input is a conversion error."
             },
             "output": {
               "type": "string",
@@ -150,7 +150,7 @@
             },
             "fromOutputType": {
               "type": "string",
-              "description": "The type inferred by S.fromJSONSchema of this dialect's output document, only when it differs from ts.output; omit when equal or when output is a conversion error."
+              "description": "The type inferred by S.fromJSONSchemaOrThrow of this dialect's output document, only when it differs from ts.output; omit when equal or when output is a conversion error."
             }
           },
           "additionalProperties": false,
@@ -162,7 +162,7 @@
         "input",
         "output"
       ],
-      "description": "The JSON Schema of both directions, as one-line source text, plus any divergent output type inferred by S.fromJSONSchema for each generated document. Matching types are omitted; if a direction can't be represented, no round-trip type is recorded. Dialect keys record only the fields that differ from this default after ignoring $schema. Filled by `spec check --write`."
+      "description": "The JSON Schema of both directions, as one-line source text, plus any divergent output type inferred by S.fromJSONSchemaOrThrow for each generated document. Matching types are omitted; if a direction can't be represented, no round-trip type is recorded. Dialect keys record only the fields that differ from this default after ignoring $schema. Filled by `spec check --write`."
     },
     "vs": {
       "type": "object",
@@ -238,7 +238,7 @@
                 "isAsync": {
                   "type": "boolean",
                   "const": true,
-                  "description": "`true` if this direction is async (built with S.asyncParser/asyncDecoder/asyncEncoder, examples awaited). Written when the block is first created; `spec check` errors when it disagrees with the schema. Omit when sync."
+                  "description": "`true` if this direction is async (built with the AsPromiseOrReject operations, examples awaited). Written when the block is first created; `spec check` errors when it disagrees with the schema. Omit when sync."
                 },
                 "expression": {
                   "anyOf": [
@@ -276,6 +276,13 @@
                           "output": {
                             "type": "string",
                             "description": "Expected output source text. Filled by `spec check --write`."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,
@@ -294,6 +301,13 @@
                           "error": {
                             "type": "string",
                             "description": "Expected error message. Filled by `spec check --write`."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,
@@ -348,7 +362,7 @@
                 "isAsync": {
                   "type": "boolean",
                   "const": true,
-                  "description": "`true` if this direction is async (built with S.asyncParser/asyncDecoder/asyncEncoder, examples awaited). Written when the block is first created; `spec check` errors when it disagrees with the schema. Omit when sync."
+                  "description": "`true` if this direction is async (built with the AsPromiseOrReject operations, examples awaited). Written when the block is first created; `spec check` errors when it disagrees with the schema. Omit when sync."
                 },
                 "expression": {
                   "anyOf": [
@@ -386,6 +400,13 @@
                           "output": {
                             "type": "string",
                             "description": "Expected output source text. Filled by `spec check --write`."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,
@@ -404,6 +425,13 @@
                           "error": {
                             "type": "string",
                             "description": "Expected error message. Filled by `spec check --write`."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,
@@ -458,7 +486,7 @@
                 "isAsync": {
                   "type": "boolean",
                   "const": true,
-                  "description": "`true` if this direction is async (built with S.asyncParser/asyncDecoder/asyncEncoder, examples awaited). Written when the block is first created; `spec check` errors when it disagrees with the schema. Omit when sync."
+                  "description": "`true` if this direction is async (built with the AsPromiseOrReject operations, examples awaited). Written when the block is first created; `spec check` errors when it disagrees with the schema. Omit when sync."
                 },
                 "expression": {
                   "anyOf": [
@@ -496,6 +524,13 @@
                           "output": {
                             "type": "string",
                             "description": "Expected output source text. Filled by `spec check --write`."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,
@@ -514,6 +549,13 @@
                           "error": {
                             "type": "string",
                             "description": "Expected error message. Filled by `spec check --write`."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
                           }
                         },
                         "additionalProperties": false,
