@@ -94,7 +94,7 @@ test("Ensures parsing order with unknown schema", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{for(;;){let r;if(typeof i==="string"){try{e[0](i)===2||e[1](i);break}catch(x){(r||(r=[])).push(e[4](x))}}if(typeof i==="boolean")break;try{let v0;try{v0=e[2](i)}catch(x){e[3](x)}i=v0;break}catch(x){(r||(r=[])).push(e[4](x))}if(typeof i==="number"&&i===i)break;if(typeof i==="bigint")break;e[5](i,...(r||[]))}return i}`,
+    `i=>{for(;;){let r;if(typeof i==="string"){try{i.length===2||e[0](i);break}catch(x){(r||(r=[])).push(e[3](x))}}if(typeof i==="boolean")break;try{let v0;try{v0=e[1](i)}catch(x){e[2](x)}i=v0;break}catch(x){(r||(r=[])).push(e[3](x))}if(typeof i==="number"&&i===i)break;if(typeof i==="bigint")break;e[4](i,...(r||[]))}return i}`,
   )
 })
 
