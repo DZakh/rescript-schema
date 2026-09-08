@@ -461,8 +461,14 @@ export type Internal = {
   // `copySchema` of it; `content === schema` fails for the same reason (a copy
   // points at the original); and both `name` and `$ref` are forgeable — a user
   // can set the name through `S.meta`, and `S.recursive("JSON", …)` builds the
-  // same `$ref`. This one is enumerable so `Object.assign` carries it onto a
-  // copy, and nothing public writes it.
+  // same `$ref`. Nor can it be the decoder's identity, which would need no
+  // field at all: `parse`, `composites` and `modifiers` all read this and all
+  // sit above `advanced/json`, whose `S.json` is built at module init from
+  // `dictFactory` — inverting that import is a cycle that leaves the factory in
+  // TDZ, not a style question.
+  // This one is enumerable so `Object.assign` carries it onto a copy, and
+  // nothing public writes it.
+  // Short: spelling it `isJson` costs ~5 gz on 158 of the 161 export rows.
   jn?: boolean;
   "~standard"?: unknown;
   // Overrides how inputExpression renders this schema. Only for a schema whose
