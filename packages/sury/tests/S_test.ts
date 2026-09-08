@@ -887,7 +887,7 @@ test("~standard.validate forwards a symbol path segment", (t) => {
 test("A conversion rejected at operation creation throws from S.isInput, rather than reading as false", (t) => {
   const rejected = S.boolean.with(S.to, S.number);
   t.expect(() => S.isInput(rejected)).toThrow(
-    "Can't decode boolean to number. Use S.to to define a custom decoder"
+    "Can't decode boolean -> number. Define custom codec with S.to"
   );
 
   const isValid = S.isInput(S.schema({ id: S.string }));
@@ -918,7 +918,7 @@ test("A failed recursive compile reports the same error on retry, not a poisoned
       S.schema({ bad: S.boolean.with(S.to, S.number) }),
     ),
   });
-  const message = "Can't decode boolean to number. Use S.to to define a custom decoder";
+  const message = "Failed at bad: Can't decode boolean -> number. Define custom codec with S.to";
   t.expect(() => S.parseOrThrow(schema)).toThrow(message);
   t.expect(() => S.parseOrThrow(schema)({ node: { bad: true } })).toThrow(message);
 });
@@ -1115,7 +1115,7 @@ test("OutputConstructor rejects a value the schema can't encode", (t) => {
   });
 
   t.expect(() => S.makeOutputOrThrow(schema)({ n: 1 })).toThrow(
-    "Can't decode number to string. The conversion is marked as never"
+    "Failed at n: Nothing decodes number -> string. It is marked with S.never"
   );
 });
 
@@ -1750,10 +1750,10 @@ test("fromJSONSchemaOrThrow: assertion-only schemas preserve valid JSON", (t) =>
     minLength: 2,
     maxLength: 2,
   });
-  t.expect(S.parseOrThrow(unicode)("\u{10400}\u{10401}")).toBe("\u{10400}\u{10401}");
-  t.expect(() => S.parseOrThrow(unicode)("😀")).toThrow(
-    "Should have a code-point length within the JSON Schema bounds."
+  t.expect(() => S.parseOrThrow(unicode)("\u{10400}\u{10401}")).toThrow(
+    'Expected string.length == 2, received "𐐀𐐁"',
   );
+  t.expect(S.parseOrThrow(unicode)("😀")).toBe("😀");
 
   const legacyPattern = S.fromJSONSchemaOrThrow({
     type: "string",
