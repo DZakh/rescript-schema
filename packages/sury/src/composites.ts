@@ -547,10 +547,9 @@ export const objectDecoder = (unknownInput: Val): Val => {
     //     `v===null`, JSON having no undefined,
     //   - but `i[key]` for a missing key returns undefined, so the rewritten
     //     arm would reject `{}` for `{foo: option<...>}`.
-    // FIXME: the sniff is what a shared JSON option representation would
-    // remove — an arm that accepts both spellings of empty, so nothing has to
-    // patch the read. Two things stand in the way, and neither is the
-    // detection (which is a marker now, not a name):
+    // FIXME: a shared JSON option representation would remove the sniff — an arm
+    // that accepts both spellings of empty, so nothing has to patch the read.
+    // Two things stand in the way:
     //   - adding an `undefined` arm beside the `null` one makes ENCODE
     //     ambiguous, since both produce the same output and only `null` is
     //     writable to a document — which is why this rewrites rather than adds;
@@ -559,11 +558,7 @@ export const objectDecoder = (unknownInput: Val): Val => {
     //     narrow stands in for its members' checks (see the cross-module
     //     contract on `typeCheckCond`), so a case would start accepting more
     //     than its acceptance mask claims.
-    // Ten JSON-sourced option shapes were checked against the current code —
-    // object, nested object, array, dict, tuple, optional-nullable,
-    // defaulted, deeply nested, and an optional union — and all decode
-    // correctly, so this is a generality claim rather than a live defect.
-    const isJsonParent = isItemSchema(inputAdditionalItems) && inputAdditionalItems.jn === true;
+    const isJsonParent = isItemSchema(inputAdditionalItems) && inputAdditionalItems.jn;
 
     for (let idx = 0; idx < keysCount; idx++) {
       const key = keys[idx]!;

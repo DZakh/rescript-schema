@@ -79,10 +79,9 @@ export const parse = (input: Val): Val => {
     // have been "and there is something to wrap", which is not knowable before
     // parsing the remainder — so the decision lives below, where the recursive
     // parse has already answered it, and an empty remainder refines instead of
-    // wrapping. Instrumented across the spec corpus (3205 compiled operations)
-    // plus nine hand-written async shapes: the branch fires rarely, and the
-    // no-wrap arm is reached by exactly one shape, `S.file.with(S.to,
-    // S.uint8Array)`, where reading the file IS the whole operation.
+    // wrapping. Across the spec corpus the no-wrap arm is reached by exactly one
+    // shape, `S.file.with(S.to, S.uint8Array)`, where reading the file IS the
+    // whole operation.
     if (loopInput.f & 1) {
       const operationInputVar = loopInput.v();
       const operationInput = B_scope(loopInput);
