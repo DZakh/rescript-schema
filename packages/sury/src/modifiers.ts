@@ -8,6 +8,7 @@ import {
   baseSchema,
   type Builder,
   type Check,
+  configurableValueOptions,
   copySchema,
   functionTag,
   getOrRethrow,
@@ -23,6 +24,7 @@ import {
   unknown,
   updateOutput,
   type Val,
+  valKey,
   type Path,
 } from "./base";
 import {
@@ -303,14 +305,7 @@ type LinkNode = {
   r: Internal;
   n: LinkNode | undefined;
 };
-
-
-// A symbol, not a name: `JSON.stringify` (which every embedded error runs),
-// `Object.keys` and the `for...in` in `unionIsTransparent` all skip it. A plain
-// key would need `Object.defineProperty` for that, and that costs ~230ns per
-// link against ~5ns for this write — on `S.to` itself, where it is 70% of the
-// call.
-const linkKey: unique symbol = /* @__PURE__ */ Symbol() as never;
+const linkKey = "l";
 
 export const codecTo = (
   schema: Internal,
@@ -400,14 +395,7 @@ export const linkTo = (
   encode?: boolean
 ): Internal => {
   const store = schema.seq! > target.seq! ? schema : target;
-  // A node is always stored on one of its own two ends, so a head that is on
-  // neither came from `copySchema`'s `Object.assign`, which carries the symbol.
-  // Its entries stay true, but nothing can ask this copy for them again, and
-  // prepending onto them is what makes a link-then-derive loop grow one node per
-  // turn. Dropped here rather than in `copySchema`, which every bundle ships.
-  let head = (store as unknown as Record<symbol, LinkNode | undefined>)[linkKey];
-  if (head && head.s !== store && head.t !== store) head = U;
-  let node = head;
+  let node = (store as unknown as Record<string, LinkNode | undefined>)[linkKey];
   while (node) {
     if (node.s === schema && node.t === target && node.k === reading) return node.r;
     node = node.n;
@@ -418,9 +406,10 @@ export const linkTo = (
     t: target,
     k: reading,
     r: root,
-    n: head,
+    n: (store as unknown as Record<string, LinkNode | undefined>)[linkKey],
   };
-  (store as unknown as Record<symbol, LinkNode>)[linkKey] = created;
+  (configurableValueOptions as Record<string, unknown>)[valKey] = created;
+  Object.defineProperty(store, linkKey, configurableValueOptions as PropertyDescriptor);
   return root;
 };
 
