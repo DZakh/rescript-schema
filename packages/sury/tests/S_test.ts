@@ -172,13 +172,18 @@ test("A slotless S.to is shared, so an inline pipeline compiles once", (t) => {
   t.expect(S.parseOrThrow(S.jsonString.with(S.to, item))('{"id":"a"}')).toEqual({ id: "a" });
 });
 
+// The interned-link list `S.to` hangs on a schema, counted here. It is keyed by
+// a symbol, so this is how a test reaches it without the internal module
+// exporting one for it; nothing else puts a symbol on a schema.
+const linkNodes = (schema: unknown) => {
+  let n = 0;
+  const [key] = Object.getOwnPropertySymbols(schema as object);
+  let node = key && (schema as Record<symbol, { n?: unknown } | undefined>)[key];
+  while (node) (n++, (node = node.n as { n?: unknown } | undefined));
+  return n;
+};
+
 test("A reading joins the link key; a coder opts out", (t) => {
-  const nodes = (schema: unknown) => {
-    let n = 0;
-    let node = (schema as { l?: { n?: unknown } }).l;
-    while (node) (n++, (node = node.n as { n?: unknown } | undefined));
-    return n;
-  };
   const make = () => S.string.with(S.to, S.number, { decode: Number, encode: String });
 
   // A reading is a string primitive, so it is bounded by construction: at most
@@ -195,7 +200,7 @@ test("A reading joins the link key; a coder opts out", (t) => {
   // pair of singletons that never dies.
   t.expect(make()).not.toBe(make());
   for (let i = 0; i < 20; i++) S.string.with(S.to, S.number, { decode: Number, encode: String });
-  t.expect(nodes(S.number)).toBe(0);
+  t.expect(linkNodes(S.number)).toBe(0);
 
   // `S.trim` reshapes its own result after building it, so it stays unshared
   // for a second reason — and the content marker it stamps onto its tail must
@@ -205,12 +210,6 @@ test("A reading joins the link key; a coder opts out", (t) => {
 });
 
 test("The link cache lands on the argument that dies first", (t) => {
-  const nodes = (schema: unknown) => {
-    let n = 0;
-    let node = (schema as { l?: { n?: unknown } }).l;
-    while (node) (n++, (node = node.n as { n?: unknown } | undefined));
-    return n;
-  };
   // Both long-lived schemas are this test's own: asserting a node count on a
   // shared singleton couples the result to whatever else the suite linked to it.
   const longLived = S.schema({ id: S.string });
@@ -221,18 +220,32 @@ test("The link cache lands on the argument that dies first", (t) => {
   // accumulates anything, which is what makes an unbounded cache safe.
   for (let i = 0; i < 20; i++) S.to(longLived, S.schema({ n: S.literal(i) }));
   for (let i = 0; i < 20; i++) S.to(S.schema({ n: S.literal(i) }), longLivedTarget);
-  t.expect(nodes(longLived)).toBe(0);
-  t.expect(nodes(longLivedTarget)).toBe(0);
+  t.expect(linkNodes(longLived)).toBe(0);
+  t.expect(linkNodes(longLivedTarget)).toBe(0);
 
   // A repeated pair is one node, however many times it is asked for.
   for (let i = 0; i < 20; i++) S.to(longLived, S.unknown);
-  t.expect(nodes(longLived)).toBe(1);
+  t.expect(linkNodes(longLived)).toBe(1);
 
-  // Invisible to everything that walks a schema: `copySchema`'s Object.assign,
-  // `unionIsTransparent`'s field count, and JSON.stringify of an error.
-  t.expect(Object.keys(longLived)).not.toContain("l");
-  t.expect("l" in S.meta(longLived, { title: "t" })).toBe(false);
+  // Invisible to everything that walks a schema: `Object.keys`,
+  // `unionIsTransparent`'s field count, and JSON.stringify of an error — the
+  // last of which would otherwise throw on the cycle a node's `r` closes.
+  const unlinked = S.schema({ id: S.string });
+  t.expect(Object.keys(longLived)).toEqual(Object.keys(unlinked));
+  let fields = 0;
+  for (const _key in longLived) fields++;
+  t.expect(fields).toBe(Object.keys(unlinked).length);
   t.expect(typeof JSON.stringify(S.to(longLived, S.unknown))).toBe("string");
+
+  // `Object.assign` carries the symbol, so a copy of a store starts life holding
+  // its source's list. What must not happen is accumulation: linking a schema
+  // and then deriving from it, in a loop, stays at one node however long it runs.
+  let derived = S.schema({ id: S.string });
+  for (let i = 0; i < 50; i++) {
+    S.to(derived, S.unknown);
+    derived = S.meta(derived, { title: `t${i}` });
+  }
+  t.expect(linkNodes(derived)).toBe(1);
 });
 
 test("Deriving from a shared link leaves the shared instance alone", (t) => {
