@@ -349,7 +349,7 @@ test("identity claimed but the operation doesn't actually compile to identity", 
       operations:
         parse:
     -     expression: i=>{typeof i==="string"||e[0](i);return i}
-    +     expression: i=>{typeof i==="string"||e[2](i);i.length>5||e[0](i)>2||e[1](i);return i}
+    +     expression: i=>{typeof i==="string"||e[1](i);i.length>2||e[0](i);return i}
           examples:
             valid:
               input: '"hello"'
@@ -431,7 +431,7 @@ test("eq-to-parse claimed but the operation doesn't actually compile to the same
       operations:
         parse:
     -     expression: i=>{e[0](i);return i}
-    +     expression: i=>{typeof i==="string"||e[2](i);i.length>5||e[0](i)>2||e[1](i);return i}
+    +     expression: i=>{typeof i==="string"||e[1](i);i.length>2||e[0](i);return i}
           examples:
             invalid-string:
               input: '"anything"'
