@@ -343,22 +343,47 @@ which is what `packages/sury/specs/<format>.yaml` examples are drawn from.
   that is the thing to measure before writing any of it. The runtime side gives
   no separate reason to: a pipeline lookup would trade one list walk for
   another, and `decode-pipeline-lookup` is already unchanged against main.
-- **`Object.defineProperty` is ~230ns, and that is the whole cost of a hidden
-  slot.** The interned-link list `S.to` hangs on a schema has to be invisible to
-  `Object.keys`, `unionIsTransparent`'s `for...in` and the `JSON.stringify` every
-  embedded error runs — a plain key needs `defineProperty` for that, and it made
-  a miss cost 254ns against a 93ns `S.to`: 73 of the 74 `create` rows regressed,
-  the worst at +206%. A symbol key gets the same three exclusions for a ~5ns
-  write. Two things it does not get: `Object.assign` copies symbols, so
-  `copySchema` hands a store's list to every copy, and a link-then-derive loop
-  grew one node per turn (measured: 200 after 200 turns). Clearing it in
-  `copySchema` fixes that but costs +12gz on **all 161 export rows**, because
-  `copySchema` ships in every bundle. Dropping an inherited head inside `linkTo`
-  costs two comparisons in a module only `S.to` reaches: growth bounded at 1,
-  `create` back to 97.6ns, +15gz on the `to` row and nothing anywhere else.
-  A `WeakMap` was 3.4x *worse* than `defineProperty` (1188ns): the keys are the
-  short-lived schemas, so it pays hash growth and weak-ref collection for
-  entries that a property would have let die with the object.
+- **A symbol key is 10x cheaper than a hidden property, and costs the console
+  log to get it.** The interned-link list `S.to` hangs on a schema has to be
+  invisible to `Object.keys`, `unionIsTransparent`'s `for...in` and the
+  `JSON.stringify` every embedded error runs. `Object.defineProperty` buys all
+  three at ~190ns — measured against a 93ns `S.to`, and every descriptor shape is
+  the same price (shared and mutated, shared plus `writable`, a fresh literal:
+  192/200/203ns). A symbol write is 18ns and skips the same three. It was built,
+  measured (`create` 347ns -> 97.6ns, turning 73 regressed `create` rows into 2
+  at the noise floor) and **reverted**: `util.inspect` shows own *enumerable*
+  symbols, so `console.log(schema)` printed the whole link list, a `[Circular
+  *1]` back to the schema and the derived chain — on any schema that had been an
+  `S.to` argument, and inside every error that embeds one. DX outranks
+  performance, and 190ns is paid once per schema definition.
+  Two other things that experiment settled: `Object.assign` copies symbols, so
+  a copy of a store inherits its list and a link-then-derive loop grows one node
+  per turn (200 after 200) unless the head is dropped — a hidden property has no
+  such problem, since `Object.assign` skips it. And a `WeakMap` is 3.4x *worse*
+  than `defineProperty` (1188ns): its keys are the short-lived schemas, so it
+  pays hash growth and weak-ref collection for entries a property lets die with
+  the object.
+  What is left untried: store on the *older* of the pair — a singleton in
+  practice, so `defineProperty` runs once per process rather than once per link
+  — with the list capped so the throwaway partners it would then hold cannot
+  accumulate. That trades the current memory story (the node dies with the
+  argument that dies first) for a cap, and would need `alternating-lookup` to
+  show the cap does not thrash.
+
+- **`inputRefiner` checks must emit at the operation argument, not after the
+  decoder.** `B_markOutput` pushed them onto `valInput.vc` only when
+  `valInput.prev` existed, and folded them into the *output* wrap otherwise,
+  because `B_merge` emitted `vc` against `prev.v()` and a root val has no prev.
+  A schema that narrows leaves nothing for the folded checks to read: a union
+  assigns its result over the operation argument, so an `allOf` refinement ran
+  against an object its own base schema had already stripped. The synthetic
+  `S.unknown` head hid this on the parse path — it supplied the `prev` — so the
+  bug was only visible on `decode`, where `S.fromJSONSchemaOrThrow` of
+  `allOf` with a base schema rejected the value `parse` had just produced.
+  `B_merge` now falls back to the val's own var when there is no prev (a root
+  val's var *is* the input), so the placement is unconditional. Fixes decode,
+  makes parse agree with it, and retires the `codec-custom-async-union-refine`
+  FIXME where a reversed union ran its refine over the member's encoded output.
 
 - **`content` names two things, and the cheaper spelling of the second one won.**
   It is both the payload *kind* — the identity `B_contentDiffers` compares,
