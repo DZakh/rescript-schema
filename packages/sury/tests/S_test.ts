@@ -76,6 +76,40 @@ test("A return mode does not leak into a nested compile", (t) => {
   t.expect(() => S.assertInputOrThrow(Node, bad)).toThrow();
 });
 
+// `docs/js-usage.md`: encoding is decoding the reversed schema. Nothing pinned
+// that, and it is the invariant any change to how a link's direction is decided
+// has to preserve — so it is the gate for moving the content axis's reading
+// rules around. Verified to hold across all 434 spec schemas when written
+// (395 identical codegen, 39 rejected identically, 0 asymmetric); these are the
+// shapes where reversal does real work.
+test("Encoding is decoding the reversed schema", (t) => {
+  const shapes: Record<string, S.Schema<unknown, unknown>> = {
+    codec: S.string.with(S.to, S.number),
+    "codec with coders": S.string.with(S.to, S.number, { decode: Number, encode: String }),
+    "object with a codec field": S.schema({ n: S.number.with(S.to, S.string) }),
+    "array of codecs": S.array(S.string.with(S.to, S.number)),
+    "refined codec": S.string.with(S.to, S.number).with(S.gt, 0),
+    "codec then codec": S.string.with(S.to, S.number).with(S.to, S.string),
+    union: S.union([S.string.with(S.to, S.number), S.boolean]),
+    optional: S.optional(S.string.with(S.to, S.number)),
+    "content payload": S.base64.with(S.to, S.jsonString.with(S.to, S.string)),
+    "content reading": S.to(S.base64, S.jsonString, "unpack"),
+    "bytes transfer": S.base64.with(S.to, S.uint8Array),
+    "json document": S.jsonString.with(S.to, S.schema({ id: S.string })),
+    "unsupported pair": S.boolean.with(S.to, S.number),
+    "ambiguous pair": S.base64.with(S.to, S.jsonString),
+  };
+  for (const [name, schema] of Object.entries(shapes)) {
+    const encode = (): string => String(S.encodeOrThrow(schema));
+    const decodeReversed = (): string => String(S.decodeOrThrow(S.reverse(schema)));
+    let encoded: string | undefined, encodeError: string | undefined;
+    try { encoded = encode(); } catch (e) { encodeError = (e as Error).message; }
+    let decoded: string | undefined, decodeError: string | undefined;
+    try { decoded = decodeReversed(); } catch (e) { decodeError = (e as Error).message; }
+    t.expect({ [name]: encoded, error: encodeError }).toEqual({ [name]: decoded, error: decodeError });
+  }
+});
+
 test("A parse and a decode of one schema stay separate compiled operations", (t) => {
   const schema = S.schema({ id: S.string });
 
@@ -145,15 +179,18 @@ test("The link cache lands on the argument that dies first", (t) => {
     while (node) (n++, (node = node.n as { n?: unknown } | undefined));
     return n;
   };
+  // Both long-lived schemas are this test's own: asserting a node count on a
+  // shared singleton couples the result to whatever else the suite linked to it.
   const longLived = S.schema({ id: S.string });
+  const longLivedTarget = S.schema({ tag: S.string });
 
   // `seq` is monotonic, so a fresh partner is always the newer of the pair and
   // takes the node with it. Neither a long-lived source nor a long-lived target
   // accumulates anything, which is what makes an unbounded cache safe.
   for (let i = 0; i < 20; i++) S.to(longLived, S.schema({ n: S.literal(i) }));
-  for (let i = 0; i < 20; i++) S.to(S.schema({ n: S.literal(i) }), S.jsonString);
+  for (let i = 0; i < 20; i++) S.to(S.schema({ n: S.literal(i) }), longLivedTarget);
   t.expect(nodes(longLived)).toBe(0);
-  t.expect(nodes(S.jsonString)).toBe(0);
+  t.expect(nodes(longLivedTarget)).toBe(0);
 
   // A repeated pair is one node, however many times it is asked for.
   for (let i = 0; i < 20; i++) S.to(longLived, S.unknown);
