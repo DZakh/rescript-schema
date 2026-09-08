@@ -373,8 +373,12 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
       `The target already converts. Chain S.to instead of passing a custom codec`,
     );
   }
-  return decode === U && encode === U
-    ? linkTo(schema, target)
+  // Interned when the third argument is bounded by construction — absent, or
+  // one of the two reading strings. A coder is not: `{decode, encode}` and an
+  // inline function are fresh objects, so keying on them would miss every time
+  // and grow the list without bound.
+  return custom === U || typeof custom === stringTag
+    ? linkTo(schema, target, custom, decode as boolean, encode as boolean)
     : codecTo(schema, target, decode, encode);
 };
 

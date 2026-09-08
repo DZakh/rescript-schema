@@ -106,16 +106,35 @@ test("A slotless S.to is shared, so an inline pipeline compiles once", (t) => {
   t.expect(S.parseOrThrow(S.jsonString.with(S.to, item))('{"id":"a"}')).toEqual({ id: "a" });
 });
 
-test("A coder slot opts out of link sharing", (t) => {
+test("A reading joins the link key; a coder opts out", (t) => {
+  const nodes = (schema: unknown) => {
+    let n = 0;
+    let node = (schema as { l?: { n?: unknown } }).l;
+    while (node) (n++, (node = node.n as { n?: unknown } | undefined));
+    return n;
+  };
   const make = () => S.string.with(S.to, S.number, { decode: Number, encode: String });
 
-  // Two calls with the same arguments build two chains: the argument is a fresh
-  // object each time, and `S.trim` reshapes its own result after building it.
-  t.expect(make()).not.toBe(make());
-  t.expect(S.base64.with(S.trim)).not.toBe(S.base64.with(S.trim));
+  // A reading is a string primitive, so it is bounded by construction: at most
+  // three entries per pair, and the two readings do not collide.
+  t.expect(S.to(S.base64, S.jsonString, "unpack")).toBe(
+    S.to(S.base64, S.jsonString, "unpack")
+  );
+  t.expect(S.to(S.base64, S.jsonString, "unpack")).not.toBe(
+    S.to(S.base64, S.jsonString, "pack")
+  );
 
-  // The content marker `trim` stamps onto its tail must not reach the shared
-  // `string` singleton. `content` is internal, hence the cast.
+  // A coder is a fresh object every call, so it must NOT join the key — keying
+  // on it would miss every time and add a node it can never hit again, on a
+  // pair of singletons that never dies.
+  t.expect(make()).not.toBe(make());
+  for (let i = 0; i < 20; i++) S.string.with(S.to, S.number, { decode: Number, encode: String });
+  t.expect(nodes(S.number)).toBe(0);
+
+  // `S.trim` reshapes its own result after building it, so it stays unshared
+  // for a second reason — and the content marker it stamps onto its tail must
+  // not reach the shared `string` singleton. `content` is internal, hence the cast.
+  t.expect(S.base64.with(S.trim)).not.toBe(S.base64.with(S.trim));
   t.expect((S.string as unknown as { content?: unknown }).content).toBe(undefined);
 });
 

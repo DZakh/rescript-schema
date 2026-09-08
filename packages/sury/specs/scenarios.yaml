@@ -104,6 +104,14 @@ inline-pipeline-lookup:
   # rebuild; without that the whole schema recompiles per call.
   run: S.parseOrThrow(S.jsonString.with(S.to, item))(data)
 
+inline-reading-lookup:
+  prepare: |
+    const data = "eyJhIjoxfQ==";
+  # A content reading written inline, the shape `S.to(a, b, "unpack")` takes in
+  # a handler. The reading joins the link key, so this is a lookup rather than a
+  # chain rebuild and a recompile.
+  run: S.parseOrThrow(S.to(S.base64, S.jsonString, "unpack"))(data)
+
 base64-pack:
   prepare: |
     const encode = S.encodeOrThrow(S.schema({ payload: S.uint8Array }), S.jsonString);

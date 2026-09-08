@@ -302,6 +302,7 @@ export const getMutErrorMessage = (mut: Internal): SchemaErrorMessage => {
 type LinkNode = {
   s: Internal;
   t: Internal;
+  k: unknown; // the `S.to` reading this link was written with
   r: Internal;
   n: LinkNode | undefined;
 };
@@ -376,23 +377,35 @@ export const codecTo = (
   return root;
 };
 
-// The slotless link, interned. Kept apart from `codecTo` so the three callers
-// that always pass slots — `trim`, `list`, `Option_getOr` — carry none of this:
-// they cannot be interned anyway (each reshapes its own result afterwards), and
-// sharing one function made them pay up to 60 gzipped bytes for a cache they
-// never reach.
+// The interned link. Kept apart from `codecTo` so the three callers that always
+// pass slots — `trim`, `list`, `Option_getOr` — carry none of this: they cannot
+// be interned anyway (each reshapes its own result afterwards), and sharing one
+// function made them pay up to 60 gzipped bytes for a cache they never reach.
+//
+// `reading` is the third argument `S.to` was written with, and it joins the
+// key. Only a value bounded by construction may: `undefined` and the two
+// reading strings give three entries per pair, where a coder object or an
+// inline function is fresh on every call and would add a node it can never hit
+// again — on a schema that, for a pair of singletons, never dies.
 // @__NO_SIDE_EFFECTS__
-export const linkTo = (schema: Internal, target: Internal): Internal => {
+export const linkTo = (
+  schema: Internal,
+  target: Internal,
+  reading?: unknown,
+  decode?: boolean,
+  encode?: boolean
+): Internal => {
   const store = schema.seq! > target.seq! ? schema : target;
   let node = (store as unknown as Record<string, LinkNode | undefined>)[linkKey];
   while (node) {
-    if (node.s === schema && node.t === target) return node.r;
+    if (node.s === schema && node.t === target && node.k === reading) return node.r;
     node = node.n;
   }
-  const root = codecTo(schema, target);
+  const root = codecTo(schema, target, decode, encode);
   const created: LinkNode = {
     s: schema,
     t: target,
+    k: reading,
     r: root,
     n: (store as unknown as Record<string, LinkNode | undefined>)[linkKey],
   };
