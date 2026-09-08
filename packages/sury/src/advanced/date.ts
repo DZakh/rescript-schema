@@ -45,7 +45,7 @@ const dateTimeString: Internal = /* @__PURE__ */ initSchema(
   (s) => {
     s.format = "date-time";
     // `toISOString()` emits only digits, `-:.TZ` and a sign.
-    s.formatFlag = 3;
+    s.formatFlag = 1;
   },
 );
 
