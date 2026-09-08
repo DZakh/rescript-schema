@@ -362,9 +362,12 @@ export type Internal = {
   content?: Internal;
   // Bytes-as-text codec on a format singleton (`S.base64`, `S.base64url`).
   // Presence is the payload *kind* `B_contentDiffers` uses, so the two alphabets
-  // are one family without importing either format into builder.ts. Always read
-  // Carriers look it up off `content.bc`. Copies of a format keep `bc` so
-  // alphabet recoding still sees it. `S.trim` targets `string`, which has none.
+  // are one family without importing either format into builder.ts — which holds
+  // only while both sides of that comparison are content markers: a format's own
+  // schema also carries `bc`, so passing one there reads as "same kind" against
+  // any bytes marker. Carriers look it up off `content.bc`. Copies of a format
+  // keep `bc` so alphabet recoding still sees it. `S.trim` targets `string`,
+  // which has none.
   // Short: this name is in `B_contentDiffers`, which ships in every export.
   bc?: BytesCodec;
   // Which reading of a content link the caller wrote, when they wrote one.

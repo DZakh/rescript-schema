@@ -1226,7 +1226,7 @@ const bytesTextFormat = (
 ): Internal => {
   const schema = copySchema(content);
 
-  const differs = (other: Internal): boolean => B_contentDiffers(other.content, schema);
+  const differs = (other: Internal): boolean => B_contentDiffers(other.content, content);
 
   schema.decoder = (input) => {
     const src = codecOf(input.s);
