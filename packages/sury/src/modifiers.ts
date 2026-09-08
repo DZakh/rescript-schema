@@ -282,31 +282,6 @@ export const getMutErrorMessage = (mut: Internal): SchemaErrorMessage => {
 // direction converts into, which is what makes reversal swap those too. `U`
 // means no slot, i.e. the built-in conversion — or, where `B_contentDiffers`
 // says the pair has two readings, the rejection built below.
-// A slotless link is a pure function of its two arguments, so the chain it
-// builds is shared rather than rebuilt. Written inline in a hot path —
-// `S.parseOrThrow(S.jsonString.with(S.to, userSchema))(body)`, once per request
-// — a fresh chain per call is also a fresh operation-cache target, so the
-// schema recompiled on every call: 16.2us against 68ns for the hoisted
-// spelling.
-//
-// Sharing is only sound because a compiled operation no longer writes anything
-// back onto the schema it compiled (see `OpNode`). A slotted link is excluded
-// for a second reason as well: two of the three internal callers reshape the
-// result afterwards (`trim` stamps a content marker onto its tail).
-//
-// Stored on the newer of the pair and non-enumerable, exactly as `addOpNode`
-// stores an operation: `seq` is monotonic, so the node lands on the argument
-// that dies first, and a long-lived schema paired with a throwaway keeps
-// nothing alive.
-type LinkNode = {
-  s: Internal;
-  t: Internal;
-  k: unknown; // the `S.to` reading this link was written with
-  r: Internal;
-  n: LinkNode | undefined;
-};
-const linkKey = "l";
-
 export const codecTo = (
   schema: Internal,
   target: Internal,
@@ -376,16 +351,37 @@ export const codecTo = (
   return root;
 };
 
-// The interned link. Kept apart from `codecTo` so the three callers that always
-// pass slots — `trim`, `list`, `Option_getOr` — carry none of this: they cannot
-// be interned anyway (each reshapes its own result afterwards), and sharing one
-// function made them pay up to 60 gzipped bytes for a cache they never reach.
+type LinkNode = {
+  s: Internal;
+  t: Internal;
+  k: unknown; // the `S.to` reading this link was written with
+  r: Internal;
+  n: LinkNode | undefined;
+};
+const linkKey = "l";
+
+// A slotless link is a pure function of its two arguments, so the chain it
+// builds is shared rather than rebuilt: written inline in a hot path —
+// `S.parseOrThrow(S.jsonString.with(S.to, userSchema))(body)`, once per request
+// — a fresh chain is also a fresh operation-cache target, so the schema
+// recompiled every call. 7.2us against 293ns. Sound only because a compiled
+// operation no longer writes anything back onto the schema it compiled
+// (`OpNode`).
 //
-// `reading` is the third argument `S.to` was written with, and it joins the
-// key. Only a value bounded by construction may: `undefined` and the two
-// reading strings give three entries per pair, where a coder object or an
-// inline function is fresh on every call and would add a node it can never hit
-// again — on a schema that, for a pair of singletons, never dies.
+// Kept apart from `codecTo` so the three callers that always pass slots —
+// `trim`, `list`, `Option_getOr` — carry none of it: each reshapes its own
+// result afterwards, so none could be interned anyway, and sharing one function
+// made them pay up to 60 gzipped bytes for a cache they never reach.
+//
+// `reading` joins the key, because it is bounded by construction: absent or one
+// of two strings, so three entries per pair. A coder object or an inline
+// function is fresh every call and would add a node it can never hit again — on
+// a pair of singletons, which never dies.
+//
+// The node goes on the newer of the pair, non-enumerable, exactly as
+// `addOpNode` stores an operation: `seq` is monotonic, so it lands on the
+// argument that dies first and a long-lived schema paired with throwaways keeps
+// nothing alive.
 // @__NO_SIDE_EFFECTS__
 export const linkTo = (
   schema: Internal,

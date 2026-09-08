@@ -456,19 +456,16 @@ export type Internal = {
   "$defs"?: Record<string, Internal>;
   // `S.json` and every copy of one: the marker that answers "is this the whole
   // document rather than a rendering of one", which several structural
-  // decisions turn on. A marker rather than the three things that look like
-  // they would do: identity fails because a chain node that IS json is a
-  // `copySchema` of it; `content === schema` fails for the same reason (a copy
-  // points at the original); and both `name` and `$ref` are forgeable — a user
-  // can set the name through `S.meta`, and `S.recursive("JSON", …)` builds the
-  // same `$ref`. Nor can it be the decoder's identity, which would need no
-  // field at all: `parse`, `composites` and `modifiers` all read this and all
-  // sit above `advanced/json`, whose `S.json` is built at module init from
-  // `dictFactory` — inverting that import is a cycle that leaves the factory in
-  // TDZ, not a style question.
-  // This one is enumerable so `Object.assign` carries it onto a copy, and
-  // nothing public writes it.
-  // Short: spelling it `isJson` costs ~5 gz on 158 of the 161 export rows.
+  // decisions turn on. Nothing already on the schema answers it. Identity and
+  // `content === schema` both fail because a chain node that IS json is a
+  // `copySchema` of it; `name` and `$ref` are forgeable, since
+  // `S.recursive("JSON", …)` builds the same `$ref`; and the decoder's
+  // identity, which would need no field at all, is unreachable from `parse`,
+  // `composites` and `modifiers` — all three read this and all three sit above
+  // `advanced/json`, whose `S.json` is built at module init from `dictFactory`,
+  // so inverting that import leaves the factory in TDZ.
+  // Enumerable, so `Object.assign` carries it onto a copy; nothing public
+  // writes it. Short: `isJson` costs ~5 gz on 158 of the 161 export rows.
   jn?: boolean;
   "~standard"?: unknown;
   // Overrides how inputExpression renders this schema. Only for a schema whose

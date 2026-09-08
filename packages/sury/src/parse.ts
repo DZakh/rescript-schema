@@ -355,9 +355,11 @@ export type OpNode = {
   // @as("t") — hasTransform, @as("y") — isAsync. Facts about the compiled
   // operation, not about any schema in it: one schema is transforming under
   // one flag and not under another, and two operations sharing a chain must
-  // not overwrite each other's answer. `recursiveDecoder` is the only reader,
-  // and it needs them mid-compile — which is why they live on the node its
-  // circular reference already finds rather than being returned.
+  // not overwrite each other's answer. `recursiveDecoder` writes and reads
+  // them, and needs them mid-compile — which is why they live on the node its
+  // circular reference already finds rather than being returned. Left off the
+  // literal in `addOpNode`: the lookup walk never reads them, so the shape a
+  // recursive compile adds them to is not one it has to stay off.
   t?: boolean;
   y?: boolean;
 };
@@ -376,11 +378,6 @@ export const addOpNode = (
     f,
     v,
     n: (schema as unknown as Record<string, OpNode | undefined>)[memoKey],
-    // Listed even though only `recursiveDecoder` ever fills them, so every node
-    // is allocated with one shape — the same reason `B_operationArg` writes out
-    // a canonical `Val`.
-    t: U,
-    y: U,
   };
   (configurableValueOptions as Record<string, unknown>)[valKey] = created;
   Object.defineProperty(schema, memoKey, configurableValueOptions as PropertyDescriptor);
