@@ -283,6 +283,8 @@ S.assertInputOrThrow(comment, { text: "hi", replies: [{ text: 1 }] });
 
 A `$ref` leading outside the document — a URL, a `urn:`, an `$anchor`, a `$id` base — throws instead of silently accepting anything, so bundle first.
 
+A keyword it cannot model — an unsupported `type`, an unparseable `pattern`, a `$ref` cycle with no content — throws too, rather than widening to `S.json`.
+
 To also have TypeScript check the schema document itself, annotate it with `satisfies S.JSONSchema` — that catches a misspelled keyword while leaving `x-` vendor extensions open. The annotation widens literals (e.g. `required`, `enum`), so the inferred type gets wider too — every property becomes optional.
 
 A schema read from a file or an API needs no cast: a non-literal argument — `unknown`, `S.JSON`, or one of the dialect types — falls back to `S.Schema<S.JSON, S.JSON>`, so pair it with `S.to` when you need a narrower type.

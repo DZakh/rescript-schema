@@ -1394,6 +1394,8 @@ schema->S.toInputJSONSchemaOrThrow
 
 `S.toOutputJSONSchemaOrThrow` describes the other side — what the schema produces rather than what it accepts.
 
+A type JSON has no way to describe — a `bigint`, a `Date` — throws on the side it appears, whichever direction that is.
+
 ### **`recursive`**
 
 `(string, t<'value> => t<'value>) => t<'value>`
