@@ -1385,7 +1385,7 @@ let documentedStringSchema = S.string
 This can be useful for documenting fields, generating JSON, etc.
 
 ```rescript
-schema->S.toInputJSONSchemaOrThrow
+documentedStringSchema->S.toInputJSONSchemaOrThrow
 // {
 //   "type": "string",
 //   "description": "A useful bit of text, if you know what to do with it."
