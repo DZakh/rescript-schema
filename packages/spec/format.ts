@@ -253,7 +253,7 @@ const jsonSchemaDialect = S.schema({
   }),
   fromInputType: S.optional(S.string).with(S.meta, {
     description:
-      "The type inferred by S.fromJSONSchema of this dialect's input document, only when it differs from ts.input; omit when equal or when input is a conversion error.",
+      "The type inferred by S.fromJSONSchemaOrThrow of this dialect's input document, only when it differs from ts.input; omit when equal or when input is a conversion error.",
   }),
   output: S.optional(S.string).with(S.meta, {
     description:
@@ -261,7 +261,7 @@ const jsonSchemaDialect = S.schema({
   }),
   fromOutputType: S.optional(S.string).with(S.meta, {
     description:
-      "The type inferred by S.fromJSONSchema of this dialect's output document, only when it differs from ts.output; omit when equal or when output is a conversion error.",
+      "The type inferred by S.fromJSONSchemaOrThrow of this dialect's output document, only when it differs from ts.output; omit when equal or when output is a conversion error.",
   }),
 })
   .with(S.strict)
@@ -272,18 +272,18 @@ export const specSchema = S.schema({
   ts,
   jsonSchema: S.schema({
     input: S.string.with(S.meta, {
-      description: "S.inputJSONSchema(schema), as source text, or its conversion error.",
+      description: "S.toInputJSONSchemaOrThrow(schema), as source text, or its conversion error.",
     }),
     fromInputType: S.optional(S.string).with(S.meta, {
       description:
-        "The type inferred by S.fromJSONSchema(input), only when it differs from ts.input; omit when equal or when input is a conversion error.",
+        "The type inferred by S.fromJSONSchemaOrThrow(input), only when it differs from ts.input; omit when equal or when input is a conversion error.",
     }),
     output: S.string.with(S.meta, {
-      description: "S.outputJSONSchema(schema), as source text, or its conversion error.",
+      description: "S.toOutputJSONSchemaOrThrow(schema), as source text, or its conversion error.",
     }),
     fromOutputType: S.optional(S.string).with(S.meta, {
       description:
-        "The type inferred by S.fromJSONSchema(output), only when it differs from ts.output; omit when equal or when output is a conversion error.",
+        "The type inferred by S.fromJSONSchemaOrThrow(output), only when it differs from ts.output; omit when equal or when output is a conversion error.",
     }),
     "draft-2020-12": S.optional(jsonSchemaDialect).with(S.meta, {
       description: jsonSchemaDialectDescription,
@@ -296,7 +296,7 @@ export const specSchema = S.schema({
     .with(S.meta, {
       description:
         "The JSON Schema of both directions, as one-line source text, plus any divergent " +
-        "output type inferred by S.fromJSONSchema for each generated document. Matching types are " +
+        "output type inferred by S.fromJSONSchemaOrThrow for each generated document. Matching types are " +
         "omitted; if a direction can't be represented, no round-trip type is recorded. " +
         "Dialect keys record only the fields that differ from this default after ignoring $schema. " +
         "Filled by `spec check --write`.",

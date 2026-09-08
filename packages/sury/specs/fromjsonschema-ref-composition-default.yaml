@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ "$ref": "#/$defs/base", allOf: [{ minLength: 2 }], not: { const: "bad" }, "$defs": { base: { type: "string" } } })'
+  schema: 'S.fromJSONSchemaOrThrow({ "$ref": "#/$defs/base", allOf: [{ minLength: 2 }], not: { const: "bad" }, "$defs": { base: { type: "string" } } })'
   input: string
   output: string
   instantiations: 815

@@ -100,7 +100,7 @@ dispatch order mirrors the runtime chain in `src/jsonschema.ts` and they move
 together.
 
 Each must stay assignable to the wide `JSONSchema` — that is what lets a
-`toJSONSchema` result feed `fromJSONSchema` or `extendJSONSchema` uncast — so a
+`toJSONSchema` result feed `fromJSONSchemaOrThrow` or `extendJSONSchema` uncast — so a
 keyword added to one belongs on `JSONSchema` too, and in the other two spellings
 of the keyword set (`JSONSchemaT` in `src/jsonschema.ts`, `JSONSchema.res`).
 

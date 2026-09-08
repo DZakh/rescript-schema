@@ -81,9 +81,9 @@ test("a length rejects values that are not counts", () => {
   // compiled into a check no value can fail. Pinned in specs/string-minLength-zero
   // and specs/file-minSize-zero; asserted here too because it's the boundary
   // the loop above stops one short of.
-  expect(S.inputExpression(S.string.with(S.minLength, 0))).toBe("string");
-  expect(S.inputExpression(S.file.with(S.minSize, 0))).toBe("File");
-  expect(S.inputExpression(S.array(S.string).with(S.minLength, 0))).toBe("string[]");
+  expect(S.toInputExpression(S.string.with(S.minLength, 0))).toBe("string");
+  expect(S.toInputExpression(S.file.with(S.minSize, 0))).toBe("File");
+  expect(S.toInputExpression(S.array(S.string).with(S.minLength, 0))).toBe("string[]");
 });
 
 test("a size is only applied to an instance", () => {
@@ -102,7 +102,7 @@ test("a size is only applied to an instance", () => {
     size = 4;
   }
   expect(S.parseOrThrow(S.instance(Chunk).with(S.minSize, 4))(new Chunk())).toBeInstanceOf(Chunk);
-  expect(S.inputExpression(S.blob.with(S.size, 2))).toBe("Blob.size == 2");
+  expect(S.toInputExpression(S.blob.with(S.size, 2))).toBe("Blob.size == 2");
 });
 
 test("values that are safe to inline still round-trip through codegen", () => {

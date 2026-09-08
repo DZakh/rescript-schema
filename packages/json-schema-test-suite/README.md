@@ -1,7 +1,7 @@
 # json-schema-test-suite
 
 Runs the official [JSON-Schema-Test-Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite)
-against `S.fromJSONSchema` and holds the score to a committed golden, so a
+against `S.fromJSONSchemaOrThrow` and holds the score to a committed golden, so a
 change in JSON Schema coverage shows up as a reviewable diff.
 
 ```bash
@@ -23,7 +23,7 @@ pinned in `suite-ref.json` into a gitignored `.suite/`. Bumping that commit is
 a deliberate PR; regenerate the goldens in the same commit so the diff shows
 what the new tests changed.
 
-Each suite assertion is run as `S.fromJSONSchema(schema)` followed by
+Each suite assertion is run as `S.fromJSONSchemaOrThrow(schema)` followed by
 `S.parseOrThrow(schema)(data)`, and a test passes when the parse outcome matches the
 suite's `valid`. Every valid example that parses also has an output-identity
 assertion: because JSON Schema only validates, parsing must return deeply equal
@@ -51,7 +51,7 @@ question rather than a bug.
 ## What the score is measuring
 
 Sury is not a JSON Schema validator; the suite measures how faithfully
-`S.fromJSONSchema` reproduces JSON Schema semantics. Unsupported assertion
+`S.fromJSONSchemaOrThrow` reproduces JSON Schema semantics. Unsupported assertion
 keywords fail conversion instead of silently widening the schema. Remaining
 conversion gaps are `unevaluatedProperties` / `unevaluatedItems`, and anything
 that needs resource or dynamic scope.

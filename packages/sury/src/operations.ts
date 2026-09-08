@@ -438,11 +438,6 @@ export function isOutputAsPromise(a?: unknown, b?: unknown, c?: unknown, d?: unk
   return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8 | 4096);
 }
 
-// `assert` keeps `OrThrow` against the rule that a suffix names the failure
-// mechanism only when the return type hides it: `assert` doesn't unambiguously
-// mean "throws" in JS (`console.assert` logs and continues), `S.res` already
-// ships `assertOrThrow`, and the async form returns `Promise<void>` — which
-// reveals nothing — so it needs `OrReject` regardless.
 export function assertInputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
   return dispatch(arguments.length, a, b, c, d, assertResult, false, 8);
 }
