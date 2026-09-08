@@ -118,6 +118,14 @@ const unionNeverLink = (schema: Internal): boolean => {
 // flattening, which the nested-union goldens catch. Nothing may write an
 // enumerable field onto a live schema — which is why a compiled operation's
 // `isAsync`/`hasTransform` live on its cache node instead of on its target.
+//
+// The count cannot be replaced by a marker `unionFactory` stamps. This asks
+// whether a union carries anything of its OWN, which has to stay true of a
+// copy: a reversed union is `copySchema`d node by node and still carries
+// exactly these 6, so it is transparent and must remain so. A marker answers
+// provenance instead — and a non-enumerable one (the only kind that would not
+// itself change the count) is dropped by `copySchema`, which would make every
+// reversed union opaque.
 const unionIsTransparent = (schema: Internal): boolean => {
   if (schema.type !== anyOfTag) return false;
   let fields = 0;
