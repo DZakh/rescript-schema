@@ -81,6 +81,14 @@ alternating-lookup:
   # single-slot cache is most at risk of making slower than no cache at all.
   run: (S.parseOrThrow(schema), S.decodeOrThrow(schema))
 
+decode-pipeline-lookup:
+  prepare: |
+    const schema = S.schema({ id: S.string, age: S.number });
+  # A two-schema pipeline, unhoisted. The lookup walks the same memo list as
+  # `parse-lookup` but matches a longer key, so the two together show what the
+  # key's width costs.
+  run: S.decodeOrThrow(S.jsonString, schema)
+
 encode-lookup:
   prepare: |
     const schema = S.schema({ id: S.string, age: S.number.with(S.to, S.string) });

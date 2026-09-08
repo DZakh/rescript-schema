@@ -51,6 +51,42 @@ const expectSchemaType = <TSchema extends S.Schema<unknown, unknown>>(
 // Can use genType schema
 // expectSchemaType(stringSchema).toBe<unknown, string>();
 
+// The spec format has no pipeline operation (`operations` is parse/decode/encode
+// on one schema), so the multi-argument entry points are tested here — see
+// CONTRIBUTING.md's Spec Harness Suggestions.
+// Bit 8 ("the source is `S.unknown`") rides through the `& 127` mask that keeps
+// a nested recursive compile from inheriting the outer operation's return mode.
+// These are the shapes that mask exists for; they must stay unaffected by it.
+test("A return mode does not leak into a nested compile", (t) => {
+  t.expect(S.isInput(S.json)(function () {})).toBe(false);
+  t.expect(S.isInput(S.json)({ a: [1, "x"] })).toBe(true);
+  t.expect(S.parseAsResult(S.json, function () {}).success).toBe(false);
+
+  const Node = S.recursive("MaskNode", (self) =>
+    S.schema({ id: S.string, kids: S.array(self) })
+  );
+  const good = { id: "a", kids: [{ id: "b", kids: [] }] };
+  const bad = { id: 1, kids: [] };
+
+  t.expect(S.isInput(Node)(good)).toBe(true);
+  t.expect(S.isInput(Node)(bad)).toBe(false);
+  t.expect(S.parseAsResult(Node, good).value).toEqual(good);
+  t.expect(S.parseAsResult(Node, bad).success).toBe(false);
+  t.expect(S.makeOutputOrThrow(Node, good)).toBe(good);
+  t.expect(() => S.assertInputOrThrow(Node, bad)).toThrow();
+});
+
+test("A parse and a decode of one schema stay separate compiled operations", (t) => {
+  const schema = S.schema({ id: S.string });
+
+  t.expect(S.parseOrThrow(schema)).toBe(S.parseOrThrow(schema));
+  t.expect(S.decodeOrThrow(schema)).toBe(S.decodeOrThrow(schema));
+  t.expect(S.parseOrThrow(schema)).not.toBe(S.decodeOrThrow(schema));
+
+  t.expect(() => S.parseOrThrow(schema)({ id: 1 })).toThrow();
+  t.expect(S.decodeOrThrow(schema)({ id: 1 } as never)).toEqual({ id: 1 });
+});
+
 test("A slotless S.to is shared, so an inline pipeline compiles once", (t) => {
   const item = S.schema({ id: S.string });
 

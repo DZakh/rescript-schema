@@ -351,9 +351,9 @@ export type OpNode = {
   n: OpNode | undefined; // next (older) node
   // @as("t") — hasTransform, @as("y") — isAsync. Facts about the compiled
   // operation, not about any schema in it: one schema is transforming under
-  // one flag and not another, and two operations sharing a chain must not
-  // overwrite each other's answer. `recursiveDecoder` is the only reader, and
-  // it needs them mid-compile — which is why they live on the node its
+  // one flag and not under another, and two operations sharing a chain must
+  // not overwrite each other's answer. `recursiveDecoder` is the only reader,
+  // and it needs them mid-compile — which is why they live on the node its
   // circular reference already finds rather than being returned.
   t?: boolean;
   y?: boolean;
@@ -442,7 +442,17 @@ const compileChain = (
       }
     });
   }
-  const f = compileDecoder(schema, schema, flag, U) as (from: unknown) => unknown;
+  // Flag 8: the caller knows nothing about the input, so the chain's own head
+  // is not the source type — `unknown` is, and the head's decoder emits its
+  // type checks against it. Read here rather than in `compileDecoder`, whose
+  // other caller (recursive.ts) passes a source of its own and inherits this
+  // bit through `g.o`.
+  const f = compileDecoder(
+    (flag & 8) ? unknown : schema,
+    schema,
+    flag,
+    U,
+  ) as (from: unknown) => unknown;
   addOpNode(cacheTarget, args, flag, f);
   return f;
 };
@@ -459,8 +469,7 @@ export const getOp = (
   a0: Internal,
   a1?: Internal,
   a2?: Internal,
-  a3?: Internal,
-  a4?: Internal
+  a3?: Internal
 ): (from: unknown) => unknown => {
   const flag = opFlag | globalConfig.f;
   // The cache lives on the newest-seq argument: the one schema every node for
@@ -471,10 +480,7 @@ export const getOp = (
     if (a1!.seq! > seq) (seq = a1!.seq!), (cacheTarget = a1!);
     if (n > 2) {
       if (a2!.seq! > seq) (seq = a2!.seq!), (cacheTarget = a2!);
-      if (n > 3) {
-        if (a3!.seq! > seq) (seq = a3!.seq!), (cacheTarget = a3!);
-        if (n > 4 && a4!.seq! > seq) cacheTarget = a4!;
-      }
+      if (n > 3 && a3!.seq! > seq) cacheTarget = a3!;
     }
   }
 
@@ -487,8 +493,7 @@ export const getOp = (
       a[0] === a0 &&
       (n < 2 || a[1] === a1) &&
       (n < 3 || a[2] === a2) &&
-      (n < 4 || a[3] === a3) &&
-      (n < 5 || a[4] === a4)
+      (n < 4 || a[3] === a3)
     ) {
       return node.v as (from: unknown) => unknown;
     }
@@ -497,7 +502,7 @@ export const getOp = (
 
   // The one allocation, on the miss path only: a compile dwarfs the spare
   // array a `slice` copies out of.
-  return compileChain(cacheTarget, [a0, a1!, a2!, a3!, a4!].slice(0, n), flag);
+  return compileChain(cacheTarget, [a0, a1!, a2!, a3!].slice(0, n), flag);
 };
 
 export const nestedLoc = "BS_PRIVATE_NESTED_SOME_NONE";
