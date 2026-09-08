@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ "$schema": "https://json-schema.org/draft/2020-12/schema", "$ref": "#/$defs/id", minLength: 3, anyOf: [{ pattern: "c$" }], "$defs": { id: { type: "string" } } })'
+  schema: 'S.fromJSONSchemaOrThrow({ "$schema": "https://json-schema.org/draft/2020-12/schema", "$ref": "#/$defs/id", minLength: 3, anyOf: [{ pattern: "c$" }], "$defs": { id: { type: "string" } } })'
   input: string
   output: string
   instantiations: 1036

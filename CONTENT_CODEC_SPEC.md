@@ -205,7 +205,7 @@ string; a `Blob` input has no document, and keeps saying so.
 A carrier's own emit fills only what the string hasn't already said about
 itself, which is why the last two rows keep the encoding they are written in
 rather than the medium they end in. The base64 rows round-trip through
-`fromJSONSchema`, from either spelling; a `contentMediaType` does not yet, and
+`fromJSONSchemaOrThrow`, from either spelling; a `contentMediaType` does not yet, and
 comes back as a plain string. The
 `contentSchema` emit is gated on a json-format source, so a base64 segment
 carrying a document annotates the encoding it is stored in and stops there.
@@ -278,7 +278,7 @@ ships one. The format side checks only the generic `content` marker — it never
 names toon, env, or any other format, which is what keeps each future carrier a
 self-contained file.
 
-`S.fromJSONSchema` pays for the round trip: reading `contentEncoding` back means
+`S.fromJSONSchemaOrThrow` pays for the round trip: reading `contentEncoding` back means
 naming `S.base64` and `S.base64url`, which bring their patterns and conversions.
 That is the largest row in `bundleSize.yaml`. Every format costs it something;
 these are the first that carry a codec.
@@ -287,7 +287,7 @@ The keyword is an annotation in both dialects, so a validator that reads it as
 one accepts `"hello world"` under `contentEncoding: "base64"`. Sury reads it as
 a schema, because `format` — an annotation on the same terms — has always come
 back as the validating `S.uuid`, `S.email` and the rest. A round trip through
-`fromJSONSchema` produces the schema the keyword names, not a validator for the
+`fromJSONSchemaOrThrow` produces the schema the keyword names, not a validator for the
 document it came from.
 
 **The base64 helpers** feature-detect native `Uint8Array` methods, then Node

@@ -1,7 +1,7 @@
 // The JSON data type, and the type a JSON Schema literal describes.
 //
-// `FromJSONSchema` is what gives `S.fromJSONSchema` its inferred result. It
-// resolves a schema written inline; anything it cannot read statically — a
+// `FromJSONSchema` is what gives `S.fromJSONSchemaOrThrow` its inferred result.
+// It resolves a schema written inline; anything it cannot read statically — a
 // value typed `unknown`, `JSON`, or one of the dialect interfaces in
 // ./jsonschema.d.ts — resolves to `JSON`, so a schema loaded at runtime keeps
 // working without a cast.
@@ -825,7 +825,7 @@ type JSONSchemaHasDefault<S, D, A extends unknown[] = []> = A["length"] extends 
 
 /**
  * The type a JSON Schema literal describes, as inferred by
- * `S.fromJSONSchema`. Resolves local `$ref` pointers (`#/$defs/…`,
+ * `S.fromJSONSchemaOrThrow`. Resolves local `$ref` pointers (`#/$defs/…`,
  * `#/definitions/…`) against the root schema, including recursive and
  * mutually recursive ones. A `$ref` on any other path (`#/components/schemas/…`)
  * is validated the same, but resolves to `S.JSON` here — as does a non-literal

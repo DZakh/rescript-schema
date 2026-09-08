@@ -258,7 +258,7 @@ of a form-data story. What they were built to make cheap, roughly in order:
 - **`required` on an object schema is not what its name says, and no two
   producers agree.** `S.schema`, `S.object`, `S.shape` and `S.merge` set it to
   every declared key, optional or not (`S.schema({a: S.optional(S.string)}).required`
-  is `["a"]`); `fromJSONSchema` alone filters to the non-optional keys, and the
+  is `["a"]`); `fromJSONSchemaOrThrow` alone filters to the non-optional keys, and the
   comment at that producer (`src/jsonschema.ts`) claims the others already do.
   Parse, inferred types and the emitted JSON Schema are all right
   (`specs/merge-optional.yaml`) — the emitter recomputes from the properties —
@@ -267,7 +267,7 @@ of a form-data story. What they were built to make cheap, roughly in order:
   more docs drifts: it inherits `additionalItems` from its *first* argument
   where `docs/js-usage.md` says the second, and the docs say shared keys throw
   where `specs/merge-overwrite.yaml` pins that the second schema's field wins.
-- **ReDoS risk in `fromJSONSchema` patterns.** `new RegExp(jsonSchema.pattern)`
+- **ReDoS risk in `fromJSONSchemaOrThrow` patterns.** `new RegExp(jsonSchema.pattern)`
   compiles untrusted patterns directly; a hostile JSON Schema can supply a
   catastrophic-backtracking pattern.
 - **Homomorphic tuple-mapped types don't map variadic tuple elements.**
@@ -319,12 +319,12 @@ which is what `packages/sury/specs/<format>.yaml` examples are drawn from.
   it describes. JSON Schema `pattern` has no flag syntax, so the fix is either
   to desugar `i` into the pattern source or to reject flagged regexes that
   cannot be represented.
-- `fromJSONSchema` only reaches the format schemas through the
+- `fromJSONSchemaOrThrow` only reaches the format schemas through the
   `type === "string"` branch, so a bare `{"format": "date"}` — which is exactly
   how the JSON-Schema-Test-Suite and most real documents write it — converts to
   an unconstrained schema and validates nothing. Pre-existing (the same gate
   held for `email`/`uri`/`uuid`/`date-time` before the vocabulary landed), but
-  it is now the main thing between the format work and real `fromJSONSchema`
+  it is now the main thing between the format work and real `fromJSONSchemaOrThrow`
   coverage: `packages/json-schema-test-suite` scores `optional/format/date.json`
   at 22/75 where the schemas themselves are 69/69 on the same strings. Faithful
   handling means a string-or-anything-else schema, since `format` is
@@ -407,9 +407,9 @@ s.fn(s.arg(0, S.string))
 - S.mutator
 - Check only number of fields for strict object schema when fields are not optional (bad idea since it's not possible to create a good error message, so we still need to have the loop)
 
-## `fromJSONSchema` type inference follow-ups
+## `fromJSONSchemaOrThrow` type inference follow-ups
 
-- **Corpus-wide round-trip dimension (phase 3)** — derive a `fromJSONSchema`
+- **Corpus-wide round-trip dimension (phase 3)** — derive a `fromJSONSchemaOrThrow`
   check in the spec harness from each spec's existing `jsonSchema.input`
   golden (~126 cases): pin the inferred type + instantiations next to the
   emitter's output so a runtime branch gaining support without a matching

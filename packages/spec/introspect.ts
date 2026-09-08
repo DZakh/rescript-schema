@@ -162,12 +162,12 @@ export const deriveRoundTripTypeInfo = async (
     `type __Output = S.Output<typeof __schema>;\n` +
     (inputSource === undefined
       ? ""
-      : `const __inputSchema = S.fromJSONSchema(${inputSource});\n` +
+      : `const __inputSchema = S.fromJSONSchemaOrThrow(${inputSource});\n` +
         `type __FromInput = S.Input<typeof __inputSchema>;\n` +
         `type __InputMatches = [__Input] extends [__FromInput] ? [__FromInput] extends [__Input] ? true : false : false;\n`) +
     (outputSource === undefined
       ? ""
-      : `const __outputSchema = S.fromJSONSchema(${outputSource});\n` +
+      : `const __outputSchema = S.fromJSONSchemaOrThrow(${outputSource});\n` +
         `type __FromOutput = S.Output<typeof __outputSchema>;\n` +
         `type __OutputMatches = [__Output] extends [__FromOutput] ? [__FromOutput] extends [__Output] ? true : false : false;\n`);
   const { program, file, diagnostics } = check(withExpr);

@@ -102,7 +102,7 @@ S.json.with(S.to, eventSchema)["~standard"].jsonSchema.input({ target: "draft-07
 You can go the other way too: feed JSON Schema in and get a typed Sury schema back. 93% of the official draft-07 test suite passes in CI:
 
 ```ts
-const emailSchema = S.fromJSONSchema({ type: "string", format: "email" });
+const emailSchema = S.fromJSONSchemaOrThrow({ type: "string", format: "email" });
 //? S.Schema<string, string>
 
 S.parseOrThrow(emailSchema, "hi@sury.dev"); // => "hi@sury.dev"
@@ -150,7 +150,7 @@ const userId = S.makeOutputOrThrow(userIdSchema, "f81d4fae-7dec-11d0-a765-00a0c9
 //? S.Brand<string, "UserId">
 ```
 
-Every operation that looks at one side of a schema says which side in its name - `S.makeOutputOrThrow` and `S.isInput`, `S.inputJSONSchema` for the wire and `S.outputJSONSchema` for your types.
+Every operation that looks at one side of a schema says which side in its name - `S.makeOutputOrThrow` and `S.isInput`, `S.toInputJSONSchemaOrThrow` for the wire and `S.toOutputJSONSchemaOrThrow` for your types.
 
 Reading a `File` is asynchronous, so a pipeline that starts from one becomes async too:
 
@@ -306,7 +306,7 @@ Independent benchmarks and conformance suites that include Sury:
 |                                          | Sury                                     | Zod                                       | TypeBox                   | Valibot                                                               | ArkType                   |
 | ---------------------------------------- | ---------------------------------------- | ----------------------------------------- | ------------------------- | --------------------------------------------------------------------- | ------------------------- |
 | **Inferred TS type** (what you hover)    | `S.Schema<{foo: string}, {foo: string}>` | `z.ZodObject<{foo: z.ZodString}, $strip>` | `TObject<{foo: TString}>` | `v.ObjectSchema<{readonly foo: v.StringSchema<undefined>}, undefined>` | `Type<{foo: string}, {}>` |
-| **JSON Schema**                          | both directions + `S.fromJSONSchema`     | `z.toJSONSchema`                          | 👑                        | `@valibot/to-json-schema`                                             | `myType.toJsonSchema()`   |
+| **JSON Schema**                          | both directions + `S.fromJSONSchemaOrThrow`     | `z.toJSONSchema`                          | 👑                        | `@valibot/to-json-schema`                                             | `myType.toJsonSchema()`   |
 | **Validated constructor** (from your types) | ✅                                    | ❌                                        | ⭕ unvalidated            | ❌                                                                    | ❌                        |
 | **Standard Schema**                      | ✅                                       | ✅                                        | ❌                        | ✅                                                                    | ✅                        |
 | **Codegen-free** (doesn't need compiler) | ✅                                       | ✅                                        | ✅                        | ✅                                                                    | ✅                        |
@@ -318,7 +318,7 @@ Independent benchmarks and conformance suites that include Sury:
 Use Sury anywhere a schema is accepted:
 
 - [tRPC](https://trpc.io/), [TanStack Form](https://tanstack.com/form), [TanStack Router](https://tanstack.com/router), [Hono](https://hono.dev/), and 28+ more via the [Standard Schema](https://standardschema.dev/) spec
-- Anything that speaks [JSON Schema](https://json-schema.org/), via `S.inputJSONSchema` / `S.fromJSONSchema`
+- Anything that speaks [JSON Schema](https://json-schema.org/), via `S.toInputJSONSchemaOrThrow` / `S.fromJSONSchemaOrThrow`
 
 ## Used by
 

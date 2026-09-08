@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ type: "object", properties: { foo: { type: "integer" } }, patternProperties: { "^v": { type: "integer" } }, additionalProperties: false })'
+  schema: 'S.fromJSONSchemaOrThrow({ type: "object", properties: { foo: { type: "integer" } }, patternProperties: { "^v": { type: "integer" } }, additionalProperties: false })'
   input: "{ foo?: number | undefined; }"
   output: "{ foo?: number | undefined; }"
   instantiations: 2376

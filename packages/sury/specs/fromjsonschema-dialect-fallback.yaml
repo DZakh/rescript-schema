@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ "$schema": "http://json-schema.org/draft-04/schema#", "$ref": "#/definitions/value", minLength: 3, definitions: { value: { type: "string" } } })'
+  schema: 'S.fromJSONSchemaOrThrow({ "$schema": "http://json-schema.org/draft-04/schema#", "$ref": "#/definitions/value", minLength: 3, definitions: { value: { type: "string" } } })'
   input: string
   output: string
   instantiations: 809

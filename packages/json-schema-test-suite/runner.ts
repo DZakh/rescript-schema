@@ -1,4 +1,4 @@
-// Evaluates the suite against `S.fromJSONSchema` and reduces it to the shape
+// Evaluates the suite against `S.fromJSONSchemaOrThrow` and reduces it to the shape
 // that gets snapshotted into goldens/.
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -115,7 +115,7 @@ export const runDialect = (
       let parse: (data: unknown) => unknown;
       let schema: unknown;
       try {
-        schema = S.fromJSONSchema(testCase.schema as never);
+        schema = S.fromJSONSchemaOrThrow(testCase.schema as never);
         parse = S.parseOrThrow(schema as never) as (data: unknown) => unknown;
       } catch {
         result.errored += testCase.tests.length;

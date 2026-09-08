@@ -2795,8 +2795,8 @@ export function meta<TInput, TOutput>(
   meta: Meta<TOutput>
 ): Schema<TInput, TOutput>;
 
-export function inputExpression(schema: SchemaLike<unknown, unknown>): string;
-export function outputExpression(schema: SchemaLike<unknown, unknown>): string;
+export function toInputExpression(schema: SchemaLike<unknown, unknown>): string;
+export function toOutputExpression(schema: SchemaLike<unknown, unknown>): string;
 /**
  * Renders a path the way an error message shows it: `user.tags[2]`,
  * `["my key"]`. The same renderer `Error.message` uses.
@@ -3014,42 +3014,42 @@ export function to<
 // each one gets its own overload. Falling back to the widest type for a
 // non-literal target is what keeps a caller holding `target` in a variable
 // compiling.
-export function inputJSONSchema<TInput, TOutput>(
+export function toInputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>
 ): JSONSchema7;
-export function inputJSONSchema<TInput, TOutput>(
+export function toInputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target?: "draft-07" }
 ): JSONSchema7;
-export function inputJSONSchema<TInput, TOutput>(
+export function toInputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: "draft-2020-12" }
 ): JSONSchema2020;
-export function inputJSONSchema<TInput, TOutput>(
+export function toInputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: "openapi-3.0" }
 ): OpenAPISchema30;
-export function inputJSONSchema<TInput, TOutput>(
+export function toInputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: StandardJSONSchemaV1.Target }
 ): JSONSchema;
 
-export function outputJSONSchema<TInput, TOutput>(
+export function toOutputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>
 ): JSONSchema7;
-export function outputJSONSchema<TInput, TOutput>(
+export function toOutputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target?: "draft-07" }
 ): JSONSchema7;
-export function outputJSONSchema<TInput, TOutput>(
+export function toOutputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: "draft-2020-12" }
 ): JSONSchema2020;
-export function outputJSONSchema<TInput, TOutput>(
+export function toOutputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: "openapi-3.0" }
 ): OpenAPISchema30;
-export function outputJSONSchema<TInput, TOutput>(
+export function toOutputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: StandardJSONSchemaV1.Target }
 ): JSONSchema;
@@ -3067,12 +3067,12 @@ export function outputJSONSchema<TInput, TOutput>(
  * (`unknown`, `S.JSON`, a dialect type) falls back to `Schema<JSON, JSON>`.
  * Use `S.to` to refine it further.
  */
-export function fromJSONSchema<
+export function fromJSONSchemaOrThrow<
   const T extends { type: "string" | "number" | "integer" | "boolean" | "null" },
 >(
   jsonSchema: T
 ): Schema<FromJSONSchema<T>>;
-export function fromJSONSchema<const T = unknown>(
+export function fromJSONSchemaOrThrow<const T = unknown>(
   jsonSchema: T
 ): Schema<FromJSONSchema<T>, FromJSONSchemaOutput<T>>;
 export function extendJSONSchema<TInput, TOutput>(

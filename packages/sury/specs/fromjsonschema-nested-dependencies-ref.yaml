@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ allOf: [{ dependencies: { bar: { "$ref": "#/$defs/needFoo" } } }], "$defs": { needFoo: { required: ["foo"] } } })'
+  schema: 'S.fromJSONSchemaOrThrow({ allOf: [{ dependencies: { bar: { "$ref": "#/$defs/needFoo" } } }], "$defs": { needFoo: { required: ["foo"] } } })'
   input: JSON
   output: JSON
   instantiations: 830

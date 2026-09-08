@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ type: "object", required: ["a"] })'
+  schema: 'S.fromJSONSchemaOrThrow({ type: "object", required: ["a"] })'
   input: "{ [key: string]: JSON; } & { a: JSON; }"
   output: "{ [key: string]: JSON; } & { a: JSON; }"
   instantiations: 1165

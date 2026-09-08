@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: 'S.fromJSONSchema({ type: "string", minLength: 5, maxLength: 1 })'
+  schema: 'S.fromJSONSchemaOrThrow({ type: "string", minLength: 5, maxLength: 1 })'
   input: never
   output: never
   instantiations: 754

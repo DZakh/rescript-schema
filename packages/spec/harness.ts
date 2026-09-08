@@ -324,8 +324,8 @@ const deriveJsonSchemaSide = (fn: () => unknown): JsonSchemaSide => {
 };
 
 const deriveJsonSchemaSides = (schema: any): JsonSchemaSides => ({
-  input: deriveJsonSchemaSide(() => S.inputJSONSchema(schema)),
-  output: deriveJsonSchemaSide(() => S.outputJSONSchema(schema)),
+  input: deriveJsonSchemaSide(() => S.toInputJSONSchemaOrThrow(schema)),
+  output: deriveJsonSchemaSide(() => S.toOutputJSONSchemaOrThrow(schema)),
 });
 
 const withoutDollarSchema = (value: unknown): unknown => {
@@ -357,8 +357,8 @@ const deriveJsonSchemaTarget = async (
   defaultSides: JsonSchemaSides,
   defaultTypes: { fromInput?: string; fromOutput?: string },
 ): Promise<JsonSchemaDialect | undefined> => {
-  const input = deriveJsonSchemaSide(() => S.inputJSONSchema(schema, { target }));
-  const output = deriveJsonSchemaSide(() => S.inputJSONSchema(S.reverse(schema), { target }));
+  const input = deriveJsonSchemaSide(() => S.toInputJSONSchemaOrThrow(schema, { target }));
+  const output = deriveJsonSchemaSide(() => S.toInputJSONSchemaOrThrow(S.reverse(schema), { target }));
   const inputDiffers = jsonSchemaSourceDiffers(defaultSides.input.schema, input.schema);
   const outputDiffers = jsonSchemaSourceDiffers(defaultSides.output.schema, output.schema);
   if (!inputDiffers && !outputDiffers) return undefined;
@@ -874,7 +874,7 @@ const jsonSchemaTypePresenceViolations = (spec: Spec, expected: Spec): string[] 
       try {
         evalSchema(expected.jsonSchema[side]);
         errs.push(
-          `jsonSchema.${field}: S.fromJSONSchema(jsonSchema.${side}) matches ts.${side} ` +
+          `jsonSchema.${field}: S.fromJSONSchemaOrThrow(jsonSchema.${side}) matches ts.${side} ` +
             `${JSON.stringify(schemaType)} — omit \`${field}\`.`,
         );
       } catch {
@@ -884,7 +884,7 @@ const jsonSchemaTypePresenceViolations = (spec: Spec, expected: Spec): string[] 
       }
     } else if (currentType === undefined && expectedType !== undefined)
       errs.push(
-        `jsonSchema.${field}: omitted, but S.fromJSONSchema(jsonSchema.${side}) infers ` +
+        `jsonSchema.${field}: omitted, but S.fromJSONSchemaOrThrow(jsonSchema.${side}) infers ` +
           `${JSON.stringify(expectedType)} !== ts.${side} ${JSON.stringify(schemaType)} — add \`${field}\`.`,
       );
   }
