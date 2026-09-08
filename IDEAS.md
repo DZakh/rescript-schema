@@ -330,6 +330,39 @@ which is what `packages/sury/specs/<format>.yaml` examples are drawn from.
   handling means a string-or-anything-else schema, since `format` is
   type-conditional — the same structural question the suite README raises for
   `maxLength` and `properties`.
+- **Folding every pipeline to one interned schema does not pay for itself, on
+  the numbers.** The idea: `getOp` folds its schema arguments pairwise through
+  an interned link, so every operation is one schema plus a tail and the memo
+  key stops being a tuple. Two measurements from this branch price it. Removing
+  a single `getOp` slot (the `S.unknown` head, five slots to four) was worth
+  -32 gz in total and up to -30 on the widest rows, so the two slots a full fold
+  would buy are worth roughly -60. Interning, where it landed on `to`, costs
+  +41 gz — and folding puts it on the universal `getOp` path, which nearly every
+  export reaches. It only breaks even if the interned link reuses the node
+  machinery `addOpNode` already ships rather than adding a second cache, and
+  that is the thing to measure before writing any of it. The runtime side gives
+  no separate reason to: a pipeline lookup would trade one list walk for
+  another, and `decode-pipeline-lookup` is already unchanged against main.
+- **`content` names two things, and that is what keeps the content axis on
+  name comparisons.** It is both the payload *kind* — the identity
+  `B_contentDiffers` compares, which is why `S.uint8Array`, `S.file` and
+  `S.blob` all point at the one base64 text node — and the *rendering* a JSON
+  document stores the value as, which is why `S.base64` and `S.base64url` need
+  separate nodes and `B_contentDiffers` needs its `!(from.bc && to.bc)`
+  carve-out to put them back in one family. The overload is also why three
+  sites ask `name === jsonName` (`codecTo`'s ambiguity branch, `to`'s reading
+  validation, the `noValidation` carve-out in `parse`) instead of asking the
+  property they mean, "is its own payload rather than a rendering of one".
+  That property is spelled `content === schema` and it *almost* works — it
+  holds for `S.json` and for both bytes-text nodes — but `copySchema` points a
+  copy's `content` at the original, so it is false for every copy, and
+  reversal copies. Re-pointing it in `copySchema` is not the fix: identity is
+  how the kind is compared, so a copy of `S.json` would then read as a
+  different payload from `S.json`. Splitting the two meanings — `content` for
+  the kind, the rendering derived from it — retires the `bc` carve-out and the
+  three name checks together, and is the prerequisite for moving rule 4 off
+  `name` at all. Tried and reverted at the `content === schema` step;
+  `jsonstring-novalidation` is the spec that catches it.
 - The ordering question behind the `S.uri.with(S.to, S.url)` encode bug is
   settled for the two instance codecs but not in general. A check emits against
   its val's *prev* var, so a val carrying its own transform expression is the
