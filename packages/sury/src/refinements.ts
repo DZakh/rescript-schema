@@ -328,15 +328,17 @@ const boundsRefiner = (input: Val): Check[] => {
     const em = s.errorMessage as Record<string, string | undefined> | undefined;
     // A string measures itself in code points (B_codePointLength above), but
     // only where a unit count could answer differently: a BMP-only format
-    // (`formatFlag` bit 2) can't, nor can a bound of 0 or 1, since a string
-    // has a code point exactly when it has a unit. The unit count stays in
-    // front as the fast path where it already decides - under an upper bound,
-    // or at twice a lower one, since a code point is at most two units - so
-    // only a value near the bound pays for the count.
+    // (`formatFlag` bit 2) can't, nor can a bound of 0, since a string has a
+    // code point exactly when it has a unit. That is also why a *lower* bound
+    // of 1 needs no count, while an upper or exact one does - `"\u{1F600}"` is one code
+    // point in two units, which `.length <= 1` would reject. The unit count
+    // stays in front as the fast path where it already decides - under an
+    // upper bound, or at twice a lower one, since a code point is at most two
+    // units - so only a value near the bound pays for the count.
     let counter: string | undefined;
     const counted = s.type === stringTag && !((s.formatFlag ?? 0) & 2);
     const measure = (inputVar: string, bound: number): string =>
-      counted && bound > 1
+      counted && bound > 0
         ? `${(counter ??= B_embedPure(input, B_codePointLength))}(${inputVar})`
         : `${inputVar}${member}`;
     // Collapsing to `===` folds both directions into one check with one
@@ -363,7 +365,7 @@ const boundsRefiner = (input: Val): Check[] => {
       if (max !== U) {
         checks.push({
           c: (inputVar) =>
-            counted && max > 1
+            counted && max > 0
               ? `${inputVar}${member}<${max + 1}||${measure(inputVar, max)}<${max + 1}`
               : `${inputVar}${member}<${max + 1}`,
           f: B_failWithErrorMessage(maxKey),
