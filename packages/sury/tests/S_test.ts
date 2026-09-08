@@ -82,6 +82,38 @@ test("A return mode does not leak into a nested compile", (t) => {
 // rules around. Verified to hold across all 434 spec schemas when written
 // (395 identical codegen, 39 rejected identically, 0 asymmetric); these are the
 // shapes where reversal does real work.
+// Several structural decisions turn on "is this schema the whole JSON document
+// rather than a rendering of one". That question used to be asked by comparing
+// `name` to "JSON", which user metadata can forge.
+test("Renaming a schema JSON does not change how it converts", (t) => {
+  const renamed = S.meta(S.jsonString, { name: "JSON" });
+
+  // Both are a carrier meeting a format with a different payload, so both are
+  // rule 4's ambiguous pair. Only the rendered name may differ.
+  const real = (): unknown => S.parseOrThrow(S.to(S.base64, S.jsonString));
+  const forged = (): unknown => S.parseOrThrow(S.to(S.base64, renamed));
+  t.expect(real).toThrow("Ambiguous conversion from base64 to JSON string");
+  t.expect(forged).toThrow("Ambiguous conversion from base64 to JSON");
+
+  // `S.json` genuinely has no opened form, so its pair says so instead — the
+  // branch the forged name used to reach.
+  t.expect(() => S.parseOrThrow(S.to(S.uint8Array, S.json))).toThrow(
+    "Can't decode Uint8Array to JSON"
+  );
+
+  // `S.recursive` builds `$ref` from its argument, so that spelling is forgeable
+  // too; it must stay an ordinary recursive schema.
+  const Forged = S.recursive("JSON", (self) => S.schema({ a: S.optional(self) }));
+  t.expect(S.parseOrThrow(Forged)({ a: { a: undefined } })).toEqual({ a: { a: undefined } });
+
+  // The marker rides copies, which is why identity could not replace the name:
+  // a chain node that IS json is a copy of it.
+  t.expect(S.parseOrThrow(S.json.with(S.to, S.string))("x")).toBe("x");
+  t.expect(
+    S.parseOrThrow(S.jsonString.with(S.to, S.schema({ foo: S.optional(S.string) })))("{}")
+  ).toEqual({});
+});
+
 test("Encoding is decoding the reversed schema", (t) => {
   const shapes: Record<string, S.Schema<unknown, unknown>> = {
     codec: S.string.with(S.to, S.number),

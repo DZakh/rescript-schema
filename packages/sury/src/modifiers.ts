@@ -14,7 +14,6 @@ import {
   getOrRethrow,
   inputExpression,
   type Internal,
-  jsonName,
   objectTag,
   panic,
   pathEmpty,
@@ -325,8 +324,8 @@ export const codecTo = (
       target.to === U
       ? B_contentNode(mut) === mut &&
         B_contentNode(target) === target &&
-        mut.name !== jsonName &&
-        target.name !== jsonName
+        !mut.jn &&
+        !target.jn
         ? (input: Val) =>
             B_invalidOperation(
               input,

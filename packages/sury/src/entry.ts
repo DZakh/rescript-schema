@@ -30,7 +30,6 @@ import {
   initialOnAdditionalItems,
   inputExpression,
   type Internal,
-  jsonName,
   objectTag,
   panic,
   type Path,
@@ -342,8 +341,8 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
       from.content === U ||
       target.content === U ||
       !B_contentDiffers(from.content, target.content) ||
-      from.name === jsonName ||
-      target.name === jsonName
+      from.jn ||
+      target.jn
     ) {
       return panic(`Can't pick a reading for this link. Use {decode, encode} coders instead`);
     }

@@ -20,7 +20,6 @@ import {
   isLiteral,
   isOptional,
   isSchemaObject,
-  jsonName,
   noopDecoder,
   objectTag,
   pathConcat,
@@ -123,7 +122,7 @@ const B_fused = (input: Val, expectedSchema: Internal, item?: Internal): Interna
 // on encode, and would hand a declared payload (CONTENT_CODEC_SPEC.md rule 3)
 // the text it had just escaped instead of parsing it.
 const B_narrowJsonSourcedJsonString = (itemInput: Val): void => {
-  if (itemInput.s.name === jsonName && itemInput.e.format === "json") {
+  if (itemInput.s.jn && itemInput.e.format === "json") {
     itemInput.s = unknown;
   }
 };
@@ -554,7 +553,7 @@ export const objectDecoder = (unknownInput: Val): Val => {
     // Detection is fragile (string-compares the schema name) and only
     // covers the union-with-undefined shape; fold this into a shared
     // JSON option representation post-release.
-    const isJsonParent = isItemSchema(inputAdditionalItems) && inputAdditionalItems.name === jsonName;
+    const isJsonParent = isItemSchema(inputAdditionalItems) && inputAdditionalItems.jn === true;
 
     for (let idx = 0; idx < keysCount; idx++) {
       const key = keys[idx]!;

@@ -316,11 +316,13 @@ export const json: Internal = /* @__PURE__ */ initSchema(refTag, jsonDecoderFn, 
   const jsonRef = baseSchema(refTag, true, jsonDecoderFn);
   jsonRef["$ref"] = `${defsPath}${jsonName}`;
   jsonRef.name = jsonName;
+  jsonRef.jn = true;
 
   jsonRef.encoder = jsonEncoderFn;
 
   s["$ref"] = jsonRef["$ref"];
   s.name = jsonName;
+  s.jn = true;
   s.encoder = jsonEncoderFn;
   setContent(s, s);
 

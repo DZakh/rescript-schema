@@ -12,7 +12,6 @@ import {
   instanceTag,
   type Internal,
   isLiteral,
-  jsonName,
   neverTag,
   numberTag,
   objectTag,
@@ -116,7 +115,7 @@ export const parse = (input: Val): Val => {
         // when the operation discards it anyway (S.assertInputOrThrow's `undefined` result
         // sentinel). Every other such target still gets its conversion:
         // `noValidation` drops the checks, not the re-representation.
-        !(loopInput.e.noValidation && (loopInput.e.name === jsonName || loopInput.e.type === undefinedTag))
+        !(loopInput.e.noValidation && (loopInput.e.jn || loopInput.e.type === undefinedTag))
       ) {
         result = maybeEncoder(loopInput, loopInput.e);
       }
