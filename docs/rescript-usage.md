@@ -229,8 +229,6 @@ S.string->S.pattern(%re(`/[0-9]/`)) // Invalid pattern
 S.string->S.trim // trim whitespaces
 ```
 
-Length bounds count Unicode code points, the unit JSON Schema's `minLength`/`maxLength` and most non-JS consumers use, so `"😀"` has length 1 even though its JS `.length` is 2.
-
 For format-specific validation, use the standalone schemas — see [String formats](#string-formats) below.
 
 > For RFC 3339 datetime strings use the dedicated standalone `S.isoDateTime` schema, or `S.utcDateTime` when only `Z` is acceptable — see [ISO datetimes](#iso-datetimes) below.

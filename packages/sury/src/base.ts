@@ -379,11 +379,9 @@ export type Internal = {
   opensBack?: boolean;
   // Properties of every value a string schema admits, which let generated code
   // skip work: 1 escape-free (no `"`, `\`, controls or lone surrogates, so
-  // jsonString splices it between bare quotes with no escaping), 2 BMP-only
-  // (no astral character, so `.length` is already its code-point count and a
-  // length bound needs no count). Set a bit only where that is proven — a
-  // pattern whose range excludes the characters, or a conversion that
-  // manufactures the string — and for bit 1 re-run
+  // jsonString splices it between bare quotes with no escaping). Set the bit
+  // only where that is proven — a pattern whose range excludes the characters,
+  // or a conversion that manufactures the string — and re-run
   // `pnpm --filter=sury fuzz:escfree`, because getting it wrong emits broken
   // JSON rather than merely over-escaped JSON. `noValidation` voids the proof;
   // the read sites handle that.

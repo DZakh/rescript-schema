@@ -28,7 +28,6 @@ import {
   B_contentDiffers,
   B_conversion,
   B_embed,
-  B_embedPure,
   B_failWithErrorMessage,
   B_next,
   B_readOnce,
@@ -275,28 +274,6 @@ const multipleOfValidator = (d: number) => (value: number): boolean => {
   return Math.abs(ratio - Math.round(ratio)) < Number.EPSILON * Math.max(Math.abs(ratio), 1);
 };
 
-const surrogateRe = /[\uD800-\uDFFF]/;
-
-// JSON Schema's minLength/maxLength count code points, and so does every
-// non-JS consumer of a length bound, so the generated check has to as well or
-// the schema and the JSON Schema it emits disagree on astral input.
-// `.length` counts UTF-16 units; the two only differ once a surrogate is
-// present, and the regex scan is what keeps BMP input — nearly all of it — a
-// single native pass with no allocation. A lone surrogate counts as one, the
-// way `[...s].length` counts it.
-const B_codePointLength = (s: string): number => {
-  let n = s.length;
-  if (surrogateRe.test(s)) {
-    for (let i = 0; i < s.length; i++) {
-      if ((s.charCodeAt(i) & 0xfc00) === 0xd800 && (s.charCodeAt(i + 1) & 0xfc00) === 0xdc00) {
-        n--;
-        i++;
-      }
-    }
-  }
-  return n;
-};
-
 // One refiner serves every bound and divisor on a schema, reading the fields
 // at codegen time instead of closing over the value each call captured. That
 // is what lets a narrowing call *replace* a check rather than stack a second
@@ -319,19 +296,6 @@ const boundsRefiner = (input: Val): Check[] => {
     const min = written & 1 ? (s[minKey] as number) : U;
     const max = written & 2 ? (s[maxKey] as number) : U;
     const em = s.errorMessage as Record<string, string | undefined> | undefined;
-    // A string measures itself in code points (B_codePointLength above), but
-    // only where a unit count could answer differently: a BMP-only format
-    // (`formatFlag` bit 2) can't, nor can a bound of 0 or 1, since a string
-    // has a code point exactly when it has a unit. The unit count stays in
-    // front as the fast path where it already decides — under an upper bound,
-    // or at twice a lower one, since a code point is at most two units — so
-    // only a value near the bound pays for the count.
-    let counter: string | undefined;
-    const counted = s.type === stringTag && !((s.formatFlag ?? 0) & 2);
-    const measure = (inputVar: string, bound: number): string =>
-      counted && bound > 1
-        ? `${(counter ??= B_embedPure(input, B_codePointLength))}(${inputVar})`
-        : `${inputVar}${member}`;
     // Collapsing to `===` folds both directions into one check with one
     // message — sound only when both directions would say the same thing.
     // Independent minLength(5)/maxLength(5, "custom") calls converge without
@@ -339,25 +303,19 @@ const boundsRefiner = (input: Val): Check[] => {
     // "custom": those keep a check per direction, each with its own key.
     if (min !== U && min === max && (em !== U ? em[minKey] : U) === (em !== U ? em[maxKey] : U)) {
       checks.push({
-        c: (inputVar) => `${measure(inputVar, min)}===${min}`,
+        c: (inputVar) => `${inputVar}${member}===${min}`,
         f: B_failWithErrorMessage(minKey),
       });
     } else {
       if (min !== U) {
         checks.push({
-          c: (inputVar) =>
-            counted && min > 1
-              ? `${inputVar}${member}>${2 * min - 1}||${measure(inputVar, min)}>${min - 1}`
-              : `${inputVar}${member}>${min - 1}`,
+          c: (inputVar) => `${inputVar}${member}>${min - 1}`,
           f: B_failWithErrorMessage(minKey),
         });
       }
       if (max !== U) {
         checks.push({
-          c: (inputVar) =>
-            counted && max > 1
-              ? `${inputVar}${member}<${max + 1}||${measure(inputVar, max)}<${max + 1}`
-              : `${inputVar}${member}<${max + 1}`,
+          c: (inputVar) => `${inputVar}${member}<${max + 1}`,
           f: B_failWithErrorMessage(maxKey),
         });
       }
@@ -872,8 +830,7 @@ const datePattern =
 // `flag` is `formatFlag` (see base.ts): bit 1 lets jsonString skip escaping
 // for what a pattern accepts, so widening one can emit broken JSON rather than
 // merely admit more strings — run `pnpm --filter=sury fuzz:escfree` after
-// touching either; bit 2 lets a length bound trust `.length`, so it belongs
-// only on a pattern that admits no astral character.
+// touching either.
 // @__NO_SIDE_EFFECTS__
 // `expression` names the format in messages when the format name alone would
 // misread: it goes through the same `Expected X, received Y` as every other
@@ -968,7 +925,7 @@ export const isoDateTime: Internal = /* @__PURE__ */ stringFormat(
     /* @__PURE__ */ new RegExp(/* @__PURE__ */ anchor(datePattern, "[Tt]", timeBody)),
     17,
   ),
-  3,
+  1,
 );
 
 // UTC only, so narrower than the `date-time` it emits: the `Z`-only regex
@@ -982,7 +939,7 @@ export const utcDateTime: Internal = /* @__PURE__ */ patternFormat(
     datePattern,
     "[Tt](?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d|23:59:60)(?:\\.\\d+)?[Zz]",
   ),
-  3,
+  1,
   "UTC date-time",
 );
 
@@ -1006,7 +963,7 @@ export const port: Internal = /* @__PURE__ */ initSchema(numberTag, numberDecode
 export const email: Internal = /* @__PURE__ */ stringFormat(
   "email",
   /^(?!\.)(?!.*\.\.)([A-Z0-9_'+\-\.]*)[A-Z0-9_+-]@([A-Z0-9][A-Z0-9\-]*\.)+[A-Z]{2,}$/i,
-  3,
+  1,
 );
 
 // The loose RFC 4122 shape, which is what the JSON Schema `uuid` format names —
@@ -1015,7 +972,7 @@ export const email: Internal = /* @__PURE__ */ stringFormat(
 export const uuid: Internal = /* @__PURE__ */ stringFormat(
   "uuid",
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/,
-  3,
+  1,
 );
 
 // Only the version and variant nibbles differ, so the three share a source
@@ -1028,16 +985,16 @@ const uuidPattern = (version: string): string =>
   version +
   "[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$";
 
-export const uuidv4: Internal = /* @__PURE__ */ patternFormat("uuidv4", /* @__PURE__ */ uuidPattern("4"), 3);
-export const uuidv6: Internal = /* @__PURE__ */ patternFormat("uuidv6", /* @__PURE__ */ uuidPattern("6"), 3);
-export const uuidv7: Internal = /* @__PURE__ */ patternFormat("uuidv7", /* @__PURE__ */ uuidPattern("7"), 3);
+export const uuidv4: Internal = /* @__PURE__ */ patternFormat("uuidv4", /* @__PURE__ */ uuidPattern("4"), 1);
+export const uuidv6: Internal = /* @__PURE__ */ patternFormat("uuidv6", /* @__PURE__ */ uuidPattern("6"), 1);
+export const uuidv7: Internal = /* @__PURE__ */ patternFormat("uuidv7", /* @__PURE__ */ uuidPattern("7"), 1);
 
 // A cuid is `c` followed by base36, which the previous `[^\s-]` accepted far
 // more than: `c!!!!!!!!` passed. cuid2 drops the prefix and the fixed length —
 // it is any base36 string starting with a letter, so it is the weakest format
 // here and a length bound is usually worth composing onto it.
-export const cuid: Internal = /* @__PURE__ */ patternFormat("cuid", /^[cC][0-9a-z]{6,}$/, 3);
-export const cuid2: Internal = /* @__PURE__ */ patternFormat("cuid2", /^[a-z][0-9a-z]*$/, 3);
+export const cuid: Internal = /* @__PURE__ */ patternFormat("cuid", /^[cC][0-9a-z]{6,}$/, 1);
+export const cuid2: Internal = /* @__PURE__ */ patternFormat("cuid2", /^[a-z][0-9a-z]*$/, 1);
 
 // Which primitive encodes bytes as text, resolved once at import so generated
 // code is `e[N](i)` either way. Native ES2026 methods, then Node's Buffer
@@ -1209,7 +1166,7 @@ const bytesContent = (
   test: (value: string) => boolean,
   codec: { toBytes: (text: string) => Uint8Array; fromBytes: (bytes: Uint8Array) => string },
 ): Internal => {
-  const schema = stringFormat(format, test, 3);
+  const schema = stringFormat(format, test, 1);
   setContent(schema, schema);
   setBytesCodec(schema, codec);
   return schema;
@@ -1350,13 +1307,12 @@ const uriEscapeNonAscii = (value: string): string | undefined => {
 export const isoDate: Internal = /* @__PURE__ */ stringFormat(
   "date",
   /* @__PURE__ */ anchor(datePattern),
-  3,
+  1,
 );
 
 export const isoTime: Internal = /* @__PURE__ */ stringFormat(
   "time",
   /* @__PURE__ */ leapSecondValidator(/* @__PURE__ */ new RegExp(/* @__PURE__ */ anchor(timeBody)), 6),
-  2,
 );
 
 // RFC 3339 Appendix A nests the components rather than making each one
@@ -1365,7 +1321,7 @@ export const isoTime: Internal = /* @__PURE__ */ stringFormat(
 export const duration: Internal = /* @__PURE__ */ stringFormat(
   "duration",
   /^P(?:\d+W|(?:\d+Y(?:\d+M(?:\d+D)?)?|\d+M(?:\d+D)?|\d+D)(?:T(?:\d+H(?:\d+M(?:\d+S)?)?|\d+M(?:\d+S)?|\d+S))?|T(?:\d+H(?:\d+M(?:\d+S)?)?|\d+M(?:\d+S)?|\d+S))$/,
-  3,
+  1,
 );
 
 // RFC 1123: 253 chars overall, labels of 1-63 alphanumerics-or-hyphen that
@@ -1375,7 +1331,7 @@ export const duration: Internal = /* @__PURE__ */ stringFormat(
 export const hostname: Internal = /* @__PURE__ */ stringFormat(
   "hostname",
   /^(?=.{1,253}$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
-  3,
+  1,
 );
 
 // Same label shape as `hostname` over the four Unicode label separators, with
@@ -1389,25 +1345,25 @@ export const idnHostname: Internal = /* @__PURE__ */ stringFormat(
 export const ipv4: Internal = /* @__PURE__ */ stringFormat(
   "ipv4",
   /* @__PURE__ */ anchor(ipv4Pattern),
-  3,
+  1,
 );
 
 export const ipv6: Internal = /* @__PURE__ */ stringFormat(
   "ipv6",
   /* @__PURE__ */ anchor(/* @__PURE__ */ ipv6Pattern()),
-  3,
+  1,
 );
 
 // The string form of a URI. `S.url` (advanced/url.ts) parses the same syntax
 // into a `URL` instance, but not the same language: RFC 3986 is stricter than
 // the WHATWG URL parser behind `new URL`, which silently percent-encodes
 // characters this rejects — so a value can be a legal URL and not a legal URI.
-export const uri: Internal = /* @__PURE__ */ stringFormat("uri", /* @__PURE__ */ uriPattern(""), 3);
+export const uri: Internal = /* @__PURE__ */ stringFormat("uri", /* @__PURE__ */ uriPattern(""), 1);
 
 export const uriReference: Internal = /* @__PURE__ */ stringFormat(
   "uri-reference",
   /* @__PURE__ */ uriPattern("?"),
-  3,
+  1,
 );
 
 // RFC 6570 `literals` runs out at %x7E and resumes at ucschar (%xA0), so DEL,
@@ -1474,7 +1430,7 @@ export const relativeJsonPointer: Internal = /* @__PURE__ */ stringFormat(
 // Not the same language as Zod's `httpUrl` or as `S.url`, both of which run the
 // WHATWG parser: this is RFC 3986, the stricter grammar `S.uri` accepts.
 export const httpUrl: Internal = /* @__PURE__ */ (() => {
-  const schema = stringFormat("http-url", uriPattern("", "https?"), 3);
+  const schema = stringFormat("http-url", uriPattern("", "https?"), 1);
   schema.pattern = /^[hH][tT][tT][pP][sS]?:/;
   return schema;
 })();
@@ -1484,21 +1440,21 @@ export const httpUrl: Internal = /* @__PURE__ */ (() => {
 export const ulid: Internal = /* @__PURE__ */ patternFormat(
   "ulid",
   /^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$/,
-  3,
+  1,
 );
 
-export const ksuid: Internal = /* @__PURE__ */ patternFormat("ksuid", /^[A-Za-z0-9]{27}$/, 3);
+export const ksuid: Internal = /* @__PURE__ */ patternFormat("ksuid", /^[A-Za-z0-9]{27}$/, 1);
 
-export const xid: Internal = /* @__PURE__ */ patternFormat("xid", /^[0-9a-vA-V]{20}$/, 3);
+export const xid: Internal = /* @__PURE__ */ patternFormat("xid", /^[0-9a-vA-V]{20}$/, 1);
 
 // Length is a generator setting, not part of the alphabet, so this checks the
 // alphabet and leaves the count to `S.length` — `S.nanoid.with(S.length, 21)`
 // for the default generator. Both halves ride into the emitted JSON Schema.
-export const nanoid: Internal = /* @__PURE__ */ patternFormat("nanoid", /^[A-Za-z0-9_-]+$/, 3);
+export const nanoid: Internal = /* @__PURE__ */ patternFormat("nanoid", /^[A-Za-z0-9_-]+$/, 1);
 
-export const e164: Internal = /* @__PURE__ */ patternFormat("e164", /^\+[1-9]\d{6,14}$/, 3);
+export const e164: Internal = /* @__PURE__ */ patternFormat("e164", /^\+[1-9]\d{6,14}$/, 1);
 
-export const hex: Internal = /* @__PURE__ */ patternFormat("hex", /^[0-9a-fA-F]+$/, 3);
+export const hex: Internal = /* @__PURE__ */ patternFormat("hex", /^[0-9a-fA-F]+$/, 1);
 
 // EUI-48 and EUI-64 across the three separator conventions. The separator is
 // fixed per alternative rather than a `[:-]` class, which would accept
@@ -1506,7 +1462,7 @@ export const hex: Internal = /* @__PURE__ */ patternFormat("hex", /^[0-9a-fA-F]+
 export const mac: Internal = /* @__PURE__ */ patternFormat(
   "mac",
   /^(?:(?:[0-9a-fA-F]{2}:){5}(?:(?:[0-9a-fA-F]{2}:){2})?[0-9a-fA-F]{2}|(?:[0-9a-fA-F]{2}-){5}(?:(?:[0-9a-fA-F]{2}-){2})?[0-9a-fA-F]{2}|(?:[0-9a-fA-F]{4}\.){2}(?:[0-9a-fA-F]{4}\.)?[0-9a-fA-F]{4}|(?:[0-9a-fA-F]{4}:){3}[0-9a-fA-F]{4})$/,
-  3,
+  1,
 );
 
 // The address grammars are the ones `S.ipv4` and `S.ipv6` use, so a CIDR block
@@ -1514,7 +1470,7 @@ export const mac: Internal = /* @__PURE__ */ patternFormat(
 export const cidrv4: Internal = /* @__PURE__ */ patternFormat(
   "cidrv4",
   /* @__PURE__ */ anchor(ipv4Pattern, "\\/(?:3[0-2]|[12]?\\d)"),
-  3,
+  1,
 );
 
 // The lone format with no published `pattern`: `ipv6Pattern` writes hex as
@@ -1525,5 +1481,5 @@ export const cidrv4: Internal = /* @__PURE__ */ patternFormat(
 export const cidrv6: Internal = /* @__PURE__ */ stringFormat(
   "cidrv6",
   /* @__PURE__ */ anchor(/* @__PURE__ */ ipv6Pattern(), "\\/(?:12[0-8]|1[01]\\d|[1-9]?\\d)"),
-  3,
+  1,
 );

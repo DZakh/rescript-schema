@@ -11,18 +11,18 @@ vs:
   zod: z.string().length(2)
 operations:
   parse:
-    expression: i=>{typeof i==="string"||e[2](i);e[0](i)===2||e[1](i);return i}
+    expression: i=>{typeof i==="string"||e[1](i);i.length===2||e[0](i);return i}
     examples:
       at-the-length:
         input: '"ab"'
         output: '"ab"'
-      two-astral-code-points:
+      two-emojis:
         input: '"😀😀"'
-        output: '"😀😀"'
-      one-astral-code-point-two-units:
+        error: Expected string.length == 2, received "😀😀"
+      emoji:
         input: '"😀"'
-        error: Expected string.length == 2, received "😀"
-      zwj-sequence-counts-code-points:
+        output: '"😀"'
+      zwj-sequence:
         input: '"👨‍👩"'
         error: Expected string.length == 2, received "👨‍👩"
       longer:
@@ -41,18 +41,18 @@ operations:
         input: "1"
         error: Expected string.length == 2, received 1
   decode:
-    expression: i=>{e[0](i)===2||e[1](i);return i}
+    expression: i=>{i.length===2||e[0](i);return i}
     examples:
       at-the-length:
         input: '"ab"'
         output: '"ab"'
-      two-astral-code-points:
+      two-emojis:
         input: '"😀😀"'
-        output: '"😀😀"'
-      one-astral-code-point-two-units:
+        error: Expected string.length == 2, received "😀😀"
+      emoji:
         input: '"😀"'
-        error: Expected string.length == 2, received "😀"
-      zwj-sequence-counts-code-points:
+        output: '"😀"'
+      zwj-sequence:
         input: '"👨‍👩"'
         error: Expected string.length == 2, received "👨‍👩"
       shorter:
@@ -62,18 +62,18 @@ operations:
         input: '""'
         error: Expected string.length == 2, received ""
   encode:
-    expression: i=>{e[0](i)===2||e[1](i);return i}
+    expression: i=>{i.length===2||e[0](i);return i}
     examples:
       at-the-length:
         input: '"ab"'
         output: '"ab"'
-      two-astral-code-points:
+      two-emojis:
         input: '"😀😀"'
-        output: '"😀😀"'
-      one-astral-code-point-two-units:
+        error: Expected string.length == 2, received "😀😀"
+      emoji:
         input: '"😀"'
-        error: Expected string.length == 2, received "😀"
-      zwj-sequence-counts-code-points:
+        output: '"😀"'
+      zwj-sequence:
         input: '"👨‍👩"'
         error: Expected string.length == 2, received "👨‍👩"
       shorter:
