@@ -8,6 +8,7 @@ import {
   baseSchema,
   type Builder,
   type Check,
+  configurableValueOptions,
   copySchema,
   functionTag,
   getOrRethrow,
@@ -24,6 +25,7 @@ import {
   unknown,
   updateOutput,
   type Val,
+  valKey,
   type Path,
 } from "./base";
 import {
@@ -281,6 +283,30 @@ export const getMutErrorMessage = (mut: Internal): SchemaErrorMessage => {
 // direction converts into, which is what makes reversal swap those too. `U`
 // means no slot, i.e. the built-in conversion — or, where `B_contentDiffers`
 // says the pair has two readings, the rejection built below.
+// A slotless link is a pure function of its two arguments, so the chain it
+// builds is shared rather than rebuilt. Written inline in a hot path —
+// `S.parseOrThrow(S.jsonString.with(S.to, userSchema))(body)`, once per request
+// — a fresh chain per call is also a fresh operation-cache target, so the
+// schema recompiled on every call: 16.2us against 68ns for the hoisted
+// spelling.
+//
+// Sharing is only sound because a compiled operation no longer writes anything
+// back onto the schema it compiled (see `OpNode`). A slotted link is excluded
+// for a second reason as well: two of the three internal callers reshape the
+// result afterwards (`trim` stamps a content marker onto its tail).
+//
+// Stored on the newer of the pair and non-enumerable, exactly as `addOpNode`
+// stores an operation: `seq` is monotonic, so the node lands on the argument
+// that dies first, and a long-lived schema paired with a throwaway keeps
+// nothing alive.
+type LinkNode = {
+  s: Internal;
+  t: Internal;
+  r: Internal;
+  n: LinkNode | undefined;
+};
+const linkKey = "l";
+
 export const codecTo = (
   schema: Internal,
   target: Internal,
@@ -347,6 +373,31 @@ export const codecTo = (
       mut.opensBack = encode;
     }
   });
+  return root;
+};
+
+// The slotless link, interned. Kept apart from `codecTo` so the three callers
+// that always pass slots — `trim`, `list`, `Option_getOr` — carry none of this:
+// they cannot be interned anyway (each reshapes its own result afterwards), and
+// sharing one function made them pay up to 60 gzipped bytes for a cache they
+// never reach.
+// @__NO_SIDE_EFFECTS__
+export const linkTo = (schema: Internal, target: Internal): Internal => {
+  const store = schema.seq! > target.seq! ? schema : target;
+  let node = (store as unknown as Record<string, LinkNode | undefined>)[linkKey];
+  while (node) {
+    if (node.s === schema && node.t === target) return node.r;
+    node = node.n;
+  }
+  const root = codecTo(schema, target);
+  const created: LinkNode = {
+    s: schema,
+    t: target,
+    r: root,
+    n: (store as unknown as Record<string, LinkNode | undefined>)[linkKey],
+  };
+  (configurableValueOptions as Record<string, unknown>)[valKey] = created;
+  Object.defineProperty(store, linkKey, configurableValueOptions as PropertyDescriptor);
   return root;
 };
 

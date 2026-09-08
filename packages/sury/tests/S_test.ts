@@ -51,6 +51,80 @@ const expectSchemaType = <TSchema extends S.Schema<unknown, unknown>>(
 // Can use genType schema
 // expectSchemaType(stringSchema).toBe<unknown, string>();
 
+test("A slotless S.to is shared, so an inline pipeline compiles once", (t) => {
+  const item = S.schema({ id: S.string });
+
+  // Identity is the whole point: a fresh chain per call is also a fresh
+  // operation-cache target, so an inline pipeline used to recompile on every
+  // call (16.2us against 68ns hoisted).
+  t.expect(S.to(item, S.unknown)).toBe(S.to(item, S.unknown));
+  t.expect(item.with(S.to, S.jsonString)).toBe(item.with(S.to, S.jsonString));
+  t.expect(S.parseOrThrow(S.jsonString.with(S.to, item))).toBe(
+    S.parseOrThrow(S.jsonString.with(S.to, item))
+  );
+
+  // Direction is part of the key — both orders store on the same schema when
+  // one of them is the newer of the pair.
+  t.expect(S.to(item, S.unknown)).not.toBe(S.to(S.unknown, item));
+
+  t.expect(S.parseOrThrow(S.jsonString.with(S.to, item))('{"id":"a"}')).toEqual({ id: "a" });
+});
+
+test("A coder slot opts out of link sharing", (t) => {
+  const make = () => S.string.with(S.to, S.number, { decode: Number, encode: String });
+
+  // Two calls with the same arguments build two chains: the argument is a fresh
+  // object each time, and `S.trim` reshapes its own result after building it.
+  t.expect(make()).not.toBe(make());
+  t.expect(S.base64.with(S.trim)).not.toBe(S.base64.with(S.trim));
+
+  // The content marker `trim` stamps onto its tail must not reach the shared
+  // `string` singleton. `content` is internal, hence the cast.
+  t.expect((S.string as unknown as { content?: unknown }).content).toBe(undefined);
+});
+
+test("The link cache lands on the argument that dies first", (t) => {
+  const nodes = (schema: unknown) => {
+    let n = 0;
+    let node = (schema as { l?: { n?: unknown } }).l;
+    while (node) (n++, (node = node.n as { n?: unknown } | undefined));
+    return n;
+  };
+  const longLived = S.schema({ id: S.string });
+
+  // `seq` is monotonic, so a fresh partner is always the newer of the pair and
+  // takes the node with it. Neither a long-lived source nor a long-lived target
+  // accumulates anything, which is what makes an unbounded cache safe.
+  for (let i = 0; i < 20; i++) S.to(longLived, S.schema({ n: S.literal(i) }));
+  for (let i = 0; i < 20; i++) S.to(S.schema({ n: S.literal(i) }), S.jsonString);
+  t.expect(nodes(longLived)).toBe(0);
+  t.expect(nodes(S.jsonString)).toBe(0);
+
+  // A repeated pair is one node, however many times it is asked for.
+  for (let i = 0; i < 20; i++) S.to(longLived, S.unknown);
+  t.expect(nodes(longLived)).toBe(1);
+
+  // Invisible to everything that walks a schema: `copySchema`'s Object.assign,
+  // `unionIsTransparent`'s field count, and JSON.stringify of an error.
+  t.expect(Object.keys(longLived)).not.toContain("l");
+  t.expect("l" in S.meta(longLived, { title: "t" })).toBe(false);
+  t.expect(typeof JSON.stringify(S.to(longLived, S.unknown))).toBe("string");
+});
+
+test("Deriving from a shared link leaves the shared instance alone", (t) => {
+  const item = S.schema({ id: S.string });
+  const shared = item.with(S.to, S.unknown);
+
+  const described = shared.with(S.meta, { description: "d" });
+  t.expect(described).not.toBe(shared);
+  t.expect(shared.description).toBe(undefined);
+  t.expect(item.with(S.to, S.unknown).description).toBe(undefined);
+
+  // The reverse is cached on the shared instance, which is a second win, not a
+  // leak: it is derived from the same two arguments.
+  t.expect(S.reverse(shared)).toBe(S.reverse(item.with(S.to, S.unknown)));
+});
+
 test("S.to returns the schema itself when the target is the same instance", (t) => {
   const make = () => S.string.with(S.to, S.number, (string) => string.length);
   const schema = make();

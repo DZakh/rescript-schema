@@ -87,6 +87,15 @@ encode-lookup:
   # Same, through `reverse` — a second cache on a second schema.
   run: S.encodeOrThrow(schema)
 
+inline-pipeline-lookup:
+  prepare: |
+    const item = S.schema({ id: S.string, age: S.number });
+    const data = '{"id":"u1","age":30}';
+  # The schema is built inside the timed call, the way a handler that never
+  # hoists writes it. Every `S.to` here is a cache lookup rather than a chain
+  # rebuild; without that the whole schema recompiles per call.
+  run: S.parseOrThrow(S.jsonString.with(S.to, item))(data)
+
 base64-pack:
   prepare: |
     const encode = S.encodeOrThrow(S.schema({ payload: S.uint8Array }), S.jsonString);

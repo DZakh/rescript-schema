@@ -52,6 +52,7 @@ import {
 } from "./composites";
 import {
   codecTo,
+  linkTo,
   nullAsUnit,
   Option_getOr,
   Option_getOrWith,
@@ -372,7 +373,9 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
       `The target already converts. Chain S.to instead of passing a custom codec`,
     );
   }
-  return codecTo(schema, target, decode, encode);
+  return decode === U && encode === U
+    ? linkTo(schema, target)
+    : codecTo(schema, target, decode, encode);
 };
 
 // @__NO_SIDE_EFFECTS__
