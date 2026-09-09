@@ -13,7 +13,7 @@ Declare your data once, in TypeScript or ReScript. The wires it travels are sche
 const signupSchema = S.schema({ id: S.bigint, email: S.email, avatar: S.blob });
 type Signup = S.Infer<typeof signupSchema>;
 
-const signupsFileSchema = S.file.with(S.to, S.jsonString.with(S.to, S.array(signupSchema)));
+const signupsFileSchema = S.file.with(S.to, S.jsonString).with(S.to, S.array(signupSchema));
 
 await S.decodeAsPromiseOrReject(signupsFileSchema)(file);
 // => [{ id: 7n, email: "a@b.co", avatar: Blob }], the avatar rode as base64
