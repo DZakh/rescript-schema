@@ -10,7 +10,7 @@ jsonSchema:
 vs:
   zod:
     schema: z.array(z.string()).length(2)
-    divergence: A literal length pins arity in the Sury type — `S.length(2)` on an array admits exactly `[string, string]` — where Zod keeps the unbounded `string[]`.
+    divergence: A literal length pins arity in the Sury type - `S.length(2)` on an array admits exactly `[string, string]` - where Zod keeps the unbounded `string[]`.
     input: string[]
     output: string[]
 operations:

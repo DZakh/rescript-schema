@@ -1,6 +1,6 @@
 open Vitest
 
-// https://github.com/DZakh/sury/issues/284 — stale output val schemas in
+// https://github.com/DZakh/sury/issues/284 - stale output val schemas in
 // array/dict/shaped decoders made the next `.to` segment re-decode (or
 // skip-decode) already-transformed values.
 
@@ -98,7 +98,7 @@ test(
   },
 )
 
-// S.object callbacks returning variant constructors — what sury-ppx
+// S.object callbacks returning variant constructors - what sury-ppx
 // generates; routes encoding through the shaped serializer, unlike the
 // S.schema style above
 let makeShapedUnion = () =>

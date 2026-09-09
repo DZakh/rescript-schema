@@ -391,7 +391,7 @@ type exn += private Exn(error)
 // This module is the ReScript face of Sury: the public types above, plus the
 // `@module("sury") external` bindings below, resolved through the package root
 // "." conditional export (import -> the ESM entry, require -> the CJS one).
-// That's what makes them work whichever module format you compile to — a plain
+// That's what makes them work whichever module format you compile to - a plain
 // relative `@module("./index.mjs")` would break under a "commonjs"
 // package-spec (require()-ing an ESM file throws).
 
@@ -402,7 +402,7 @@ external untag: t<'any> => untagged = "%identity"
 // ReScript's `catch { | Exn(e) => }` compiles to a `RE_EXN_ID === Exn`
 // identity test against the constructor id synthesized right here by the
 // `type exn +=` declaration above. The runtime that throws needs the same
-// identity, so hand it over once at module load — SuryError's RE_EXN_ID getter
+// identity, so hand it over once at module load - SuryError's RE_EXN_ID getter
 // returns it. `%raw` because a private exn constructor can't be referenced
 // as a value from ReScript code, only from spliced JS.
 %%private(@module("sury") external __setExnId: unknown => unit = "$setExnId")
@@ -428,7 +428,7 @@ module Error = {
   external throw: error => 'a = "%raise"
 }
 
-// Primitive schema values — the very instances the JS entry exports, so both
+// Primitive schema values - the very instances the JS entry exports, so both
 // surfaces share one object per primitive. Some (string, bool, ...) shadow
 // stdlib names on purpose.
 @module("sury") external never: t<never> = "never"
@@ -441,7 +441,7 @@ module Error = {
 @module("sury") external int: t<int> = "int32"
 // Every format schema carries its own `@unboxed` type, so a format survives in
 // the type system instead of collapsing back into `string`/`float`. Unboxed
-// means the constructor is erased at runtime — the value is the payload, and
+// means the constructor is erased at runtime - the value is the payload, and
 // the JS side never sees the difference.
 // `float`, not `int`: ReScript's `int` is int32, and a JS integer (JSON
 // Schema's unbounded `integer`) can exceed that range.
@@ -452,7 +452,7 @@ module Error = {
 @module("sury") external symbol: t<Symbol.t> = "symbol"
 @module("sury") external nan: t<float> = "nan"
 /** The stdlib `Date.t`, aliased so every schema's value type is reachable as
-    `S.<name>` — including from the ppx, which resolves those names. */
+    `S.<name>` - including from the ppx, which resolves those names. */
 type date = Date.t
 @module("sury") external date: t<date> = "date"
 type json = JSON.t
@@ -463,12 +463,17 @@ type json = JSON.t
 @module("sury") external uint8Array: t<Uint8Array.t> = "uint8Array"
 // `Js.Blob.t`/`Js.File.t` rather than a pair of abstract types declared here:
 // the stdlib has no Blob or File module, and these two are the compiler's own
-// builtin abstract types — the ones untagged variants match on — so a value
+// builtin abstract types - the ones untagged variants match on - so a value
 // from any other binding unifies with these.
 type blob = Js.Blob.t
 @module("sury") external blob: t<blob> = "blob"
 type file = Js.File.t
 @module("sury") external file: t<file> = "file"
+// The stdlib has no FormData module, so the type is declared here, abstract:
+// a value from `%raw`, a fetch binding or a form event unifies with it only
+// through a cast, the way an external's own abstract types do.
+type formData
+@module("sury") external formData: t<formData> = "formData"
 @unboxed type isoDateTime = IsoDateTime(string)
 @module("sury") external isoDateTime: t<isoDateTime> = "isoDateTime"
 @unboxed type utcDateTime = UtcDateTime(string)
@@ -556,7 +561,7 @@ type url
 @module("sury") external dict: t<'value> => t<dict<'value>> = "record"
 @module("sury") external option: t<'value> => t<option<'value>> = "$option"
 // The public JS `nullable` called without a default is exactly
-// `union([item, literal(null)])` — what ReScript calls `S.null`.
+// `union([item, literal(null)])` - what ReScript calls `S.null`.
 @module("sury") external null: t<'value> => t<null<'value>> = "nullable"
 @module("sury") external nullAsOption: t<'value> => t<option<'value>> = "$nullAsOption"
 @module("sury") external nullable: t<'value> => t<nullable<'value>> = "nullish"
@@ -580,7 +585,7 @@ type conversion<'i, 'o> =
   | @as("auto") Auto
   | @as("never") Never
   // The two readings of a content link (CONTENT_CODEC_SPEC.md rule 1). They
-  // carry no payload, so they erase to their strings the way Auto/Never do —
+  // carry no payload, so they erase to their strings the way Auto/Never do -
   // and they have to be here, because the ambiguity this axis reports names
   // them as the remedy.
   | @as("pack") Pack
@@ -636,8 +641,8 @@ let to = (from, target, ~custom=?) =>
 @module("sury") external reverse: t<'value> => t<unknown> = "reverse"
 
 %%private(
-  // Every operation has two JS call shapes — `op(schemas)` compiles, `op(data,
-  // schemas)` runs — and ReScript has no overloads, so each is its own
+  // Every operation has two JS call shapes - `op(schemas)` compiles, `op(data,
+  // schemas)` runs - and ReScript has no overloads, so each is its own
   // external over the same import. Binding both beats applying the compiled
   // one: `compileX(~to)(any)` would ship a wrapper in S.res.mjs and pay a
   // second call for what the JS dispatch already does in one.
@@ -645,7 +650,7 @@ let to = (from, target, ~custom=?) =>
   // The ReScript convert runs FROM a schema's Output space, which is exactly
   // what the JS `encode*` operations compile: they reverse the first schema
   // only and run the rest of the chain forward. Arity-specific bindings, since
-  // a labeled optional `~via` can't spread into a rest param — and an absent
+  // a labeled optional `~via` can't spread into a rest param - and an absent
   // `~via=?` would otherwise compile to a literal `undefined` in the middle of
   // the argument list, which the JS dispatch rejects as a hole.
   @module("sury") external compileConvert2: (t<'from>, t<'to>) => 'from => 'to = "encodeOrThrow"
@@ -713,7 +718,7 @@ external compileParseAsResultPromise: (~to: t<'value>) => 'any => promise<result
 // externals above.
 //
 // `@inline` is load-bearing, not a hint: an external is not a value, so passing
-// one as an argument eta-expands it into a closure at every call site — each
+// one as an argument eta-expands it into a closure at every call site - each
 // convert would allocate two of them per call, to reach a function it could
 // have called directly. Inlined, both helpers disappear from S.res.mjs and each
 // operation compiles to the branch it would have been written as.
@@ -878,8 +883,8 @@ module Metadata = {
 // =============
 
 // The bound is typed as the schema's own value, so one external serves int,
-// float and bigint. It admits nonsense the JS side has to catch — a bound on a
-// `t<string>`, say — which is why gt/gte/lt/lte validate both the schema tag
+// float and bigint. It admits nonsense the JS side has to catch - a bound on a
+// `t<string>`, say - which is why gt/gte/lt/lte validate both the schema tag
 // and the bound's runtime type before building anything.
 @module("sury") external gt: (t<'value>, 'value, ~message: string=?) => t<'value> = "gt"
 @module("sury") external gte: (t<'value>, 'value, ~message: string=?) => t<'value> = "gte"

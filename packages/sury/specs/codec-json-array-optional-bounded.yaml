@@ -4,7 +4,7 @@ ts:
   input: JSON
   output: (number | undefined)[]
   instantiations: 5347
-# FIXME: jsonSchema.input drops the item's `maximum: 1` — a variant converted
+# FIXME: jsonSchema.input drops the item's `maximum: 1` - a variant converted
 # through `.to(json)` reports the target's type without the source's refinements.
 # The generated code still enforces the bound, in both directions.
 jsonSchema:

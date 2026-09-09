@@ -13,7 +13,7 @@
             "type": "string"
           },
           "type": "array",
-          "description": "Alternate `.with`-chain sources that must produce a schema equivalent to `schema` — same ts.input/ts.output, jsonSchema, and operations. Checked live (not separately snapshotted) by `spec check`. You write these by hand."
+          "description": "Alternate `.with`-chain sources that must produce a schema equivalent to `schema` - same ts.input/ts.output, jsonSchema, and operations. Checked live (not separately snapshotted) by `spec check`. You write these by hand."
         },
         "input": {
           "anyOf": [
@@ -214,7 +214,7 @@
               "description": "Explicit opt-out for an unasserted dimension."
             }
           ],
-          "description": "Equivalent Zod (v4) schema. Bare string: inferred types must equal ts.input/ts.output. Object `{schema,divergence,input?,output?}`: differs from ts — divergent side recorded, matching side omitted. `_skip` if Zod can't express it."
+          "description": "Equivalent Zod (v4) schema. Bare string: inferred types must equal ts.input/ts.output. Object `{schema,divergence,input?,output?}`: differs from ts - divergent side recorded, matching side omitted. `_skip` if Zod can't express it."
         }
       },
       "additionalProperties": false,
@@ -341,7 +341,7 @@
               "required": [
                 "creationError"
               ],
-              "description": "An operation that can't be compiled — the creation-time error, ratcheted like codegen."
+              "description": "An operation that can't be compiled - the creation-time error, ratcheted like codegen."
             }
           ],
           "description": "unknown → Output, with validation (the untrusted-input direction)."
@@ -465,7 +465,7 @@
               "required": [
                 "creationError"
               ],
-              "description": "An operation that can't be compiled — the creation-time error, ratcheted like codegen."
+              "description": "An operation that can't be compiled - the creation-time error, ratcheted like codegen."
             }
           ],
           "description": "Input → Output, no top-level type narrowing (input is already typed)."
@@ -589,7 +589,7 @@
               "required": [
                 "creationError"
               ],
-              "description": "An operation that can't be compiled — the creation-time error, ratcheted like codegen."
+              "description": "An operation that can't be compiled - the creation-time error, ratcheted like codegen."
             }
           ],
           "description": "Output → Input (the reverse direction)."

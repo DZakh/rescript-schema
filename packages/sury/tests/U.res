@@ -12,7 +12,7 @@ external castUnknownToAny: unknown => 'any = "%identity"
 let throwError = (error: S.error) => throw(error->Obj.magic)
 
 // Stands in for the removed transform effect ctx's `fail`. A transform now
-// fails by throwing, and this is that throw with the boilerplate named once —
+// fails by throwing, and this is that throw with the boilerplate named once -
 // the same shape a caller writes, kept here so the tests read as assertions
 // rather than as error construction.
 let fail = (message, ~path=S.Path.empty) =>
@@ -80,7 +80,7 @@ let asyncAssertThrowsMessage = async (t, cb, errorMessage, ~message=?) => {
 
 // The operation a def compiled to, read off the def's own memo (OpNode in
 // parse.ts: `c` is the node list, `a` the schema arguments, `v` the function).
-// A def is only ever compiled nested — cold, it has no `$defs` to resolve — so
+// A def is only ever compiled nested - cold, it has no `$defs` to resolve - so
 // the node is the one place its code exists. Newest first, so the most recent
 // operation's nested node answers.
 let defOperationCode: S.t<'a> => option<string> = %raw(`(def) => {

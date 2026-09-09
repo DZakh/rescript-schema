@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import * as S from "sury";
 
 // The operation surface itself: which call form an argument list resolves to,
-// and the Result tail the compiler emits. Neither is expressible as a spec —
+// and the Result tail the compiler emits. Neither is expressible as a spec -
 // a spec pins one schema's codegen per direction, and these are properties of
 // the call, not of the schema (see CONTRIBUTING.md's Spec Harness
 // Suggestions).
@@ -15,17 +15,17 @@ test("all four call forms resolve, on every arity", () => {
   const trimmed = S.string.with(S.trim);
   const toNumber = S.string.with(S.to, S.number, { decode: Number, encode: String });
 
-  // op(s...) — compiled
+  // op(s...) - compiled
   expect(S.parseOrThrow(trimmed)(" a ")).toBe("a");
   expect(S.parseOrThrow(S.unknown, toNumber)("1")).toBe(1);
   expect(S.parseOrThrow(S.unknown, S.string, toNumber)("2")).toBe(2);
 
-  // op(s..., data) — immediate, schema-first
+  // op(s..., data) - immediate, schema-first
   expect(S.parseOrThrow(trimmed, " a ")).toBe("a");
   expect(S.parseOrThrow(S.unknown, toNumber, "1")).toBe(1);
   expect(S.parseOrThrow(S.unknown, S.string, toNumber, "2")).toBe(2);
 
-  // op(data, s...) — immediate, data-first
+  // op(data, s...) - immediate, data-first
   expect(S.parseOrThrow(" a ", trimmed)).toBe("a");
   expect(S.parseOrThrow("1", S.unknown, toNumber)).toBe(1);
   expect(S.parseOrThrow("2", S.unknown, S.string, toNumber)).toBe(2);
@@ -87,7 +87,7 @@ test("the Result tail is compiled into the operation, not wrapped around it", ()
 
 test("an operation that provably cannot throw emits no try", () => {
   // The raise counter says nothing in the body can fail, so there is no `try`
-  // to pay for — the decision a `safe(() => ...)` wrapper can never make.
+  // to pay for - the decision a `safe(() => ...)` wrapper can never make.
   expect(S.parseAsResult(S.unknown).toString()).toMatchInlineSnapshot(
     `"i=>{return {success:true,value:i,error:void 0}}"`,
   );
@@ -133,8 +133,8 @@ test("a foreign exception from user code is a failure of the value, in the outco
     },
     encode: String,
   });
-  // Sury wraps a coder failure as `invalid_conversion` — a failure of THIS
-  // value — and keeps the original as the cause.
+  // Sury wraps a coder failure as `invalid_conversion` - a failure of THIS
+  // value - and keeps the original as the cause.
   const result = S.parseAsResult(schema, "1");
   expect(result.error?.code).toBe("invalid_conversion");
   expect((result.error as { cause?: unknown } | undefined)?.cause).toBe(boom);
@@ -146,10 +146,10 @@ test("a foreign exception from user code is a failure of the value, in the outco
   expect(S.parseAsResult(throwing, "1").error?.code).toBe("invalid_conversion");
   expect(() => S.parseOrThrow(throwing, "1")).toThrow(S.Error);
 
-  // What nothing in the schema catches — a getter — still comes back as a
+  // What nothing in the schema catches - a getter - still comes back as a
   // SuryError wherever the operation answers rather than throws, so a
   // consumer never tells a failure from an exception by inspecting it. The
-  // shape is the outcome's: a Result, `false`, or a promise of either — never
+  // shape is the outcome's: a Result, `false`, or a promise of either - never
   // a synchronous throw from a promise-returning operation.
   const evil = new Proxy({}, { get() { throw boom; } });
   const user = S.schema({ id: S.string });
@@ -165,7 +165,7 @@ test("a foreign exception from user code is a failure of the value, in the outco
 test("a defect throws instead of becoming a Result", () => {
   // A schema wired wrong fails for every input, so it is the developer's bug,
   // not an entry in someone's form validation. It is raised where the
-  // operation is created — which for an immediate call form is that same call.
+  // operation is created - which for an immediate call form is that same call.
   const undecodable = S.boolean.with(S.to, S.number, { decode: "never", encode: "never" });
   expect(() => S.parseAsResult(undecodable, true)).toThrow(S.Error);
   expect(() => S.parseAsResult(undecodable)).toThrow(S.Error);

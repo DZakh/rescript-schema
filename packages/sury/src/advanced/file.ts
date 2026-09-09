@@ -1,4 +1,4 @@
-// `S.blob` / `S.file` — the binary containers a form submission or a fetch body
+// `S.blob` / `S.file` - the binary containers a form submission or a fetch body
 // carries. `File` extends `Blob`, so a file value satisfies `S.blob` through the
 // same `instanceof` the decoder already emits.
 //
@@ -11,7 +11,6 @@ import {
   instanceTag,
   type Internal,
   openApi30,
-  panic,
   setContent,
   tagFlags,
   U,
@@ -30,7 +29,8 @@ import {
 } from "../builder";
 import type { JSONSchemaT } from "../jsonschema";
 import {
- instanceDecoder
+ instanceDecoder,
+ unsupportedInstance
 } from "../parse";
 import {
  openedText,
@@ -41,28 +41,9 @@ import {
  bytesTarget
 } from "../refinements";
 
-// On a runtime that has no such global there is no schema to be had, so `class`
-// reports that instead of sitting there as `undefined` for its readers to
-// dereference. Every route into the schema goes through `class` — the decoder's
-// `instanceof`, the rendering and the JSON Schema emit via `.name`, and
-// `copySchema`'s `Object.assign` for `.with(…)` and `reverse` — so all of them
-// answer with this one sentence rather than a TypeError, or worse, a schema
-// that builds and fails later — converting a schema that only decodes to one
-// included, since the encode-reverse copies the target to get there.
-//
-// Enumerable, so the `Object.assign` copy is one of the routes it covers.
-// `console.log` still works: `util.inspect` shows an accessor rather than
-// invoking it.
-const unsupported = (s: Internal, name: string): void => {
-  Object.defineProperty(s, "class", {
-    enumerable: true,
-    get: () => panic(`S.${name} is not supported in this runtime`),
-  });
-};
-
 // No `type`: octets have none, so the carrier that decodes to a blob is the
 // side with a type to give and this only says what it carries. `minSize` and
-// `maxSize` stay off — neither dialect bounds a byte count, and `minLength`
+// `maxSize` stay off - neither dialect bounds a byte count, and `minLength`
 // counts characters.
 const binaryJSONSchema = (_schema: Internal, target: string): JSONSchemaT =>
   target === openApi30
@@ -111,7 +92,7 @@ const read = (input: Val, call: string, schema: Internal): Val => {
 
 // `global` is the constructor's name and `name` the export's; `nameArg` is what
 // the constructor wants past the parts. Packing a file loses
-// its name — the reverse builds an unnamed one, since a name belongs on
+// its name - the reverse builds an unnamed one, since a name belongs on
 // `S.file` itself rather than on a conversion.
 // @__NO_SIDE_EFFECTS__
 const binarySchema = (name: string, global: string, nameArg: string): Internal =>
@@ -134,7 +115,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
       if (parts !== U) {
         return B_next(input, `new ${B_embed(input, input.e.class)}([${parts}]${nameArg})`, input.e);
       }
-      // `File` extends `Blob`, so a file already satisfies `S.blob` — a widening
+      // `File` extends `Blob`, so a file already satisfies `S.blob` - a widening
       // `instanceDecoder`'s exact-class match refuses. The other direction still
       // does: not every blob is a file.
       return (sourceTagFlag & 8192) &&
@@ -147,7 +128,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
       // The global is read *inside* the initializer, not passed into it: a
       // member expression at module scope is not something esbuild will drop
       // (the getter could have effects), so hoisting it out of the `@__PURE__`
-      // call put both reads in every consumer's bundle — ~90 bytes on exports
+      // call put both reads in every consumer's bundle - ~90 bytes on exports
       // that never mention a blob. `globalThis.` rather than a bare `Blob`
       // because the reference has to survive a runtime that has neither: `Blob`
       // landed in Node 18 and `File` in Node 20, and a bare one would throw at
@@ -156,14 +137,14 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
       setContent(s, base64Content);
       s.jsonSchema = binaryJSONSchema;
       if (s.class === U) {
-        unsupported(s, name);
+        unsupportedInstance(s, name);
       }
 
       s.encoder = (input, target) => {
         const targetTagFlag = tagFlags[target.type]!;
         // A union picks its variant before an asynchronous read resolves, so the
         // arm's own checks would run against the promise. The axis stops here,
-        // the way CONTENT_CODEC_SPEC.md says it stops at every union — a custom
+        // the way CONTENT_CODEC_SPEC.md says it stops at every union - a custom
         // coder on the link is what reads a container into a choice of shapes.
         if ((targetTagFlag & 256)) {
           return B_unsupportedDecode(input, input.s, target);

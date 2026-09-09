@@ -5,9 +5,23 @@
 
 # Sury 🧬
 
-**Next-gen schemas, faster than hand-written code.**
+**Schema for everything - faster than hand-written code.**
 
-Declare your data model once, in TypeScript or ReScript. Decoders and encoders are pipelines of schemas - a wire schema on one side, the types you work with on the other - each JIT-specialized into a function written for exactly your shape.
+Declare your data once, in TypeScript or ReScript. The wires it travels are schemas too, and they chain:
+
+```ts
+const signupSchema = S.schema({ id: S.bigint, email: S.email, avatar: S.blob });
+type Signup = S.Infer<typeof signupSchema>;
+
+const signupsFileSchema = S.file.with(S.to, S.jsonString.with(S.to, S.array(signupSchema)));
+
+await S.decodeAsPromiseOrReject(signupsFileSchema)(file);
+// => [{ id: 7n, email: "a@b.co", avatar: Blob }], the avatar rode as base64
+await S.encodeAsPromiseOrReject(signupsFileSchema)(signups);
+// => a File, from the same declaration - input and return strictly typed
+```
+
+Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.file` and `S.blob`. Coming next: env and protobuf.
 
 ```sh
 npm install sury
@@ -187,7 +201,30 @@ S.encodeOrThrow(rows, [{ id: 1n, city: "Tbilisi" }, { id: 2n, city: "Batumi" }])
 // => [["1", "2"], ["Tbilisi", "Batumi"]]
 ```
 
-Wires today: `S.json`, `S.jsonString`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.file` and `S.blob`. Coming next: env, `FormData` and protobuf.
+A form submission is strings, files and missing checkboxes. `S.formData` reads it as what you declared, and builds the body you post back:
+
+```ts
+const signup = S.formData.with(
+  S.to,
+  S.schema({
+    name: S.string.with(S.nonEmpty),
+    age: S.number, // "42" -> 42
+    agree: true, // a checkbox that has to be ticked
+    newsletter: S.optional(S.boolean), // tri-state: absent -> undefined
+    role: S.union(["admin", "user"]),
+    tags: S.array(S.string), // every "tags" entry
+    avatar: S.file,
+    prefs: S.jsonString.with(S.to, S.schema({ theme: S.string })),
+  }),
+);
+
+S.decodeOrThrow(signup)(await request.formData());
+// => { name: "Ann", age: 42, agree: true, newsletter: undefined, role: "user",
+//      tags: ["a", "b"], avatar: File, prefs: { theme: "dark" } }
+
+S.encodeOrThrow(signup)(value);
+// => a FormData with one append per field, ready for fetch(url, { body })
+```
 
 ### The code a schema turns into
 

@@ -143,7 +143,7 @@ test("Refiner application order: type-narrow first, then inputRefiner, then outp
 // pre-transform input value, not the post-transform output. Here the schema's
 // foo field is string -> bigint, so after S.reverse the field decodes
 // bigint -> string and the original output refiner becomes the inputRefiner.
-// The predicate checks that foo is bigint — which is true of the Input but
+// The predicate checks that foo is bigint - which is true of the Input but
 // false of the post-decode Output. The check must be pushed onto the input
 // val's checks slot so it emits before field decoding code (where the
 // bigint -> string transform turns foo into a string).

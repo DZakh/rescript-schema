@@ -23,7 +23,7 @@ test("Successfully parses polymorphic variants", t => {
   t->Assert.deepEqual(%raw(`"apple"`)->S.parseOrThrow(~to=schema), #apple)
 })
 
-// A never slot yields to its siblings — but with every variant marked never
+// A never slot yields to its siblings - but with every variant marked never
 // the operation itself is the mistake, raised once, where it's created.
 test("Rejects at creation when every variant's decode is never", t => {
   let schema = S.union([
@@ -33,7 +33,7 @@ test("Rejects at creation when every variant's decode is never", t => {
 
   t->U.assertThrowsMessage(
     () => %raw(`"foo"`)->S.parseOrThrow(~to=schema),
-    `Every variant of string is marked as never`,
+    `Nothing decodes string. Every member is S.never`,
   )
 })
 
@@ -45,7 +45,7 @@ test("Rejects at creation when every variant's decode is never and types differ"
 
   t->U.assertThrowsMessage(
     () => %raw(`"abc"`)->S.parseOrThrow(~to=schema),
-    `Every variant of "apple" | string is marked as never`,
+    `Nothing decodes "apple" | string. Every member is S.never`,
   )
 })
 
@@ -57,7 +57,7 @@ test("Rejects at creation when every variant's encode is never", t => {
 
   t->U.assertThrowsMessage(
     () => %raw(`null`)->S.convertOrThrow(~from=schema, ~to=S.unknown),
-    `Every variant of unknown is marked as never`,
+    `Nothing decodes unknown. Every member is S.never`,
   )
 })
 
@@ -349,7 +349,7 @@ test("NaN should be checked before number even if it's later item in the union",
   // A number that satisfies the type but fails the constraint must surface
   // the constraint-specific message, not the generic union mismatch. This
   // is the regression that the type-narrow / refine partition in B.merge
-  // restores — keep this assertion even if the compiled-code snapshot is
+  // restores - keep this assertion even if the compiled-code snapshot is
   // refreshed, otherwise a refactor that recollapses checks into the
   // routing predicate stays green while breaking error specificity.
   t->U.assertThrowsMessage(
@@ -840,7 +840,7 @@ test("Regression https://github.com/DZakh/sury/issues/121", t => {
   let schema = S.union([S.literal(%raw(`null`))->S.castToUnknown, S.unknown])
 
   // The `S.unknown` member accepts everything, so checking `null` first and
-  // swallowing the failure is pure overhead — the union is a noop.
+  // swallowing the failure is pure overhead - the union is a noop.
   t->U.assertCompiledCodeIsNoop(~schema, ~op=#Parse)
 
   let data = %raw(`{a: 'hey'}`)
@@ -973,7 +973,7 @@ test("Optional of int32 should keep a format validation", t => {
   )
 })
 
-// Tagged tuple union — dispatches on i["0"] === "a" / "b", which is what the
+// Tagged tuple union - dispatches on i["0"] === "a" / "b", which is what the
 // `B.hoistChildChecks` helper lifts from each tuple's literal first field
 // into the parent's validation list as union discriminants.
 test("Tagged tuple union dispatches via literal first-field discriminant", t => {

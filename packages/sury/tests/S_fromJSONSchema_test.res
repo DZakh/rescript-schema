@@ -295,7 +295,7 @@ test("fromJSONSchemaOrThrow: format date-time composes with sibling minLength/ma
   let schema = S.fromJSONSchemaOrThrow(js)
   // A valid ISO datetime within length bounds parses.
   t->Assert.deepEqual(parse(schema, "2020-01-01T00:00:00Z"), "2020-01-01T00:00:00Z"->Obj.magic)
-  // A non-ISO string still fails — the datetime validator runs.
+  // A non-ISO string still fails - the datetime validator runs.
   t->Assert.throws(() => parse(schema, "not-a-date"))
 })
 
@@ -355,7 +355,7 @@ test("fromJSONSchemaOrThrow: a finite $ref inlines, and round-trips as what it i
   t->Assert.deepEqual(parse(schema, "foo"), "foo")
   t->Assert.throws(() => parse(schema, 1))
   // No cycle came back to the pointer, so it left no `$defs` entry to point at
-  // — and the same document comes back out whether or not options are passed.
+  // - and the same document comes back out whether or not options are passed.
   t->Assert.deepEqual(jsonRoundTrip(js), {type_: Arrayable.single(#string)})
 })
 
@@ -443,13 +443,13 @@ test("fromJSONSchemaOrThrow: a $ref out of the document throws", t => {
   t->Assert.throws(
     () => S.fromJSONSchemaOrThrow({ref: "https://example.com/Pet.json"}),
     ~expectations={
-      message: "Unsupported JSON Schema $ref: https://example.com/Pet.json. Only JSON Pointers into the same document (#/…) resolve — $id, $anchor and remote refs don't",
+      message: "Unsupported JSON Schema $ref: https://example.com/Pet.json. Only JSON Pointers into the same document (#/…) resolve - $id, $anchor and remote refs don't",
     },
   )
 })
 
 test("fromJSONSchemaOrThrow: a $ref to a non-schema value throws instead of widening to any", t => {
-  // Resolvable pointers into a string, null and an array — all valid JSON, none a schema.
+  // Resolvable pointers into a string, null and an array - all valid JSON, none a schema.
   t->Assert.throws(
     () => S.fromJSONSchemaOrThrow(%raw(`{"$ref": "#/$defs/A/type", "$defs": {"A": {"type": "string"}}}`)),
     ~expectations={message: "Failed to resolve JSON Schema $ref: #/$defs/A/type"},

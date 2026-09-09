@@ -36,4 +36,4 @@ operations:
         input: "[1, 2]"
         error: Expected "done", received [1, 2]
   encode:
-    creationError: "SuryError: Can't decode \"done\" to [1, 2]. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't decode \"done\" -> [1, 2]. Define custom codec with S.to"

@@ -49,7 +49,7 @@ export const integerFormatValidation = (inputVar: string) => {
 // dispatch (`typeCheckCond`) so the two can't drift. Memoized per tag: the
 // returned closure depends only on `tag`, and this is called all over the
 // primitive decoders and union dispatch, so caching stops a fresh closure
-// being allocated on every decode (a large share of codegen GC — see the
+// being allocated on every decode (a large share of codegen GC - see the
 // GC-dominated compile profile).
 const typeofCondCache: Record<string, (inputVar: string) => string> = {};
 export const typeofCond = (tag: Tag): ((inputVar: string) => string) =>
@@ -72,7 +72,7 @@ const typeofCheckCache: Record<string, Check> = {};
 const typeofCheck = (tag: Tag): Check =>
   typeofCheckCache[tag] || (typeofCheckCache[tag] = { c: typeofCond(tag), f: failInvalidType });
 
-// Allocate a fresh var and start a new Val from it — shared by every
+// Allocate a fresh var and start a new Val from it - shared by every
 // primitive decoder that coerces its input into a differently-typed output.
 const B_nextVar = (input: Val): Val => {
   const output = B_next(input, B_varWithoutAllocation(input.g), input.e);
@@ -168,7 +168,7 @@ export const int: Internal = /* @__PURE__ */ initSchema(numberTag, numberDecoder
 });
 
 // JSON Schema's unbounded `integer`: any number with no fractional part, with
-// none of int32's range. Carries no bound fields — there is no range to
+// none of int32's range. Carries no bound fields - there is no range to
 // advertise or for a user bound to contradict.
 export const integer: Internal = /* @__PURE__ */ initSchema(numberTag, numberDecoder, (s) => {
   s.format = "integer";
@@ -187,7 +187,7 @@ export const stringDecoderFn = (input: Val): Val => {
   ) {
     const const_ = "" + (input.s.const as string);
     // The stringified literal is still a literal, so it wants `literalDecoder`
-    // — taken off the source rather than imported, the way unionNarrowSchema
+    // - taken off the source rather than imported, the way unionNarrowSchema
     // avoids naming a decoder. `isLiteral(input.s)` above is what guarantees
     // this is that decoder, and reaching this branch at all requires a literal
     // schema in the bundle: naming it statically would instead ship it to every
@@ -208,7 +208,7 @@ export const string: Internal = /* @__PURE__ */ initSchema(stringTag, stringDeco
 // The text a carrier hands over when it is opened (CONTENT_CODEC_SPEC.md rule
 // 3), carrying what document it claims to be. That marker is what lets the
 // format parse the text instead of escaping it, without every other string
-// being read as a document too — and the text still gets checked, because
+// being read as a document too - and the text still gets checked, because
 // nothing has looked at it yet.
 // @__NO_SIDE_EFFECTS__
 export const openedText = (format: Internal): Internal => {

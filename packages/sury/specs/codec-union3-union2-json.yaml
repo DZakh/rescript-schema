@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Invalid operation: can't convert bigint to JSON | bigint — bigint has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable"
+    creationError: "SuryError: Ambiguous bigint -> JSON | bigint. Should JSON be decoded or ignored? Choose with S.to for bigint -> JSON, or S.never -> JSON"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Invalid operation: can't convert JSON | bigint to string | number | bigint — JSON has no same-type variant on the other side. Use S.to to say what you mean, or S.never to mark a variant unreachable"
+    creationError: "SuryError: Ambiguous JSON | bigint -> string | number | bigint. Should JSON be decoded or ignored? Choose with S.to for JSON -> string, or S.never -> JSON"

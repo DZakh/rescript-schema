@@ -252,7 +252,7 @@ test("Flattened schema without a reshape keeps its refiners", t => {
 
   t->Assert.deepEqual(%raw(`{"n": 1}`)->S.parseOrThrow(~to=schema), %raw(`{"wrap": {"n": 1}}`))
   // The flattened object's fields live at the input root (there is no "wrap"
-  // nesting in the input — that only exists in the output shape), so the
+  // nesting in the input - that only exists in the output shape), so the
   // refiner reports at the root path with no prefix.
   t->U.assertThrowsMessage(
     () => %raw(`{"n": -1}`)->S.parseOrThrow(~to=schema),

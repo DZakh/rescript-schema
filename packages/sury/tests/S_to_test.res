@@ -8,7 +8,7 @@ test("Coerce from string to string", t => {
 test("Coerce a one-directional transform to itself relies on the same-instance shortcut", t => {
   // `S.to` returns `from` untouched when both arguments are the same instance.
   // Without that shortcut this would chain the transform's int output back into
-  // the target's string decoder, which the missing serializer can't bridge — as
+  // the target's string decoder, which the missing serializer can't bridge - as
   // the two-instances case below shows.
   let makeSchema = () => S.string->S.to(S.any, ~custom={decode: Sync(String.length), encode: Never})
 
@@ -457,7 +457,7 @@ test("Coerce string to custom JSON schema", t => {
 
   t->U.assertThrowsMessage(
     () => S.convertOrThrow(JSON.Boolean(true), ~from=schema, ~to=S.unknown),
-    `Can't decode CustomJSON to string. Use S.to to define a custom decoder`,
+    `Can't decode CustomJSON -> string. Define custom codec with S.to`,
     // `Expected string, received true`, FIXME: Should be this error
   )
 
@@ -531,10 +531,10 @@ test("Coerce from object to string", t => {
 
   t->U.assertThrowsMessage(() => {
     %raw(`{"foo": "bar"}`)->S.parseOrThrow(~to=schema)
-  }, `Can't decode { foo: string; } to string. Use S.to to define a custom decoder`)
+  }, `Can't decode { foo: string; } -> string. Define custom codec with S.to`)
   t->U.assertThrowsMessage(() => {
     %raw(`{"foo": "bar"}`)->S.convertOrThrow(~from=schema, ~to=S.unknown)
-  }, `Can't decode string to { foo: string; }. Use S.to to define a custom decoder`)
+  }, `Can't decode string -> { foo: string; }. Define custom codec with S.to`)
 })
 
 test("Coerce from string to JSON and then to bigint", t => {
@@ -748,7 +748,7 @@ test("Coerce from union to bigint", t => {
 
 test("Rejects a union -> bigint conversion whose member has no decoder", t => {
   // A member the built-in decoder can't be built for is an error in the
-  // operation, raised where it's written — never a branch that throws per value.
+  // operation, raised where it's written - never a branch that throws per value.
   let schema =
     S.union([S.string->S.castToUnknown, S.float->S.castToUnknown, S.bool->S.castToUnknown])->S.to(
       S.bigint,
@@ -756,7 +756,7 @@ test("Rejects a union -> bigint conversion whose member has no decoder", t => {
 
   t->U.assertThrowsMessage(
     () => "123"->S.parseOrThrow(~to=schema),
-    `Can't decode boolean to bigint. Use S.to to define a custom decoder`,
+    `Can't decode boolean -> bigint. Define custom codec with S.to`,
   )
 
   // S.never marks the member deliberately unreachable instead.
@@ -774,14 +774,14 @@ test("Rejects a union -> bigint conversion whose member has no decoder", t => {
 })
 
 test("Rejects reversing a union -> bigint conversion with no single way back", t => {
-  // Both members decode into bigint, so reversing has to pick one — and
+  // Both members decode into bigint, so reversing has to pick one - and
   // bigint -> number has no built-in decoder, which makes the choice an error
   // rather than a silent preference for the string member.
   let schema = S.union([S.string->S.castToUnknown, S.float->S.castToUnknown])->S.to(S.bigint)
 
   t->U.assertThrowsMessage(
     () => 123n->S.convertOrThrow(~from=schema, ~to=S.unknown),
-    `Can't decode bigint to number. Use S.to to define a custom decoder`,
+    `Can't decode bigint -> number. Define custom codec with S.to`,
   )
 
   let explicit =
@@ -835,7 +835,7 @@ test("Coerce from union to bigint and then to string", t => {
 
 test("Rejects widening a union into one with an uncovered member", t => {
   // A union-to-union conversion coerces nothing, so the two unions have to cover
-  // each other — the extra boolean target has no source member to come from.
+  // each other - the extra boolean target has no source member to come from.
   let schema =
     S.union([S.string->S.castToUnknown, S.float->S.castToUnknown])->S.to(
       S.union([S.string->S.castToUnknown, S.float->S.castToUnknown, S.bool->S.castToUnknown]),
@@ -843,7 +843,7 @@ test("Rejects widening a union into one with an uncovered member", t => {
 
   t->U.assertThrowsMessage(
     () => "123"->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert string | number to string | number | boolean — boolean has no same-type variant on the other side. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Ambiguous string | number -> string | number | boolean. Should boolean be decoded or ignored? Choose with S.to for string -> boolean, or S.never -> boolean`,
   )
 
   // S.never marks the extra member unreachable, and the rest passes through.
@@ -875,16 +875,16 @@ test("Fails to transform union to union to string", t => {
     ->S.to(S.string)
 
   // Each member converts to the chained target on its own, so the string member
-  // meets `string | number | boolean` — where it matches one member and not the
+  // meets `string | number | boolean` - where it matches one member and not the
   // others, which is the ambiguity rule 2 rejects.
   t->U.assertThrowsMessage(
     () => true->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert string to string | number | boolean — string has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Ambiguous string -> string | number | boolean. Should number be decoded or ignored? Choose with S.to for string -> number, or S.never -> number`,
   )
 })
 
 test("Transform from union to reordered union keeps source type", t => {
-  // Member order doesn't matter to rule 4 — both unions cover each other, so
+  // Member order doesn't matter to rule 4 - both unions cover each other, so
   // every value passes through unchanged.
   let schema =
     S.union([S.string->S.castToUnknown, S.float->S.castToUnknown])->S.to(
@@ -903,13 +903,13 @@ test("Transform from union to reordered union keeps source type", t => {
 })
 
 test("Rejects a source matching some but not all target members", t => {
-  // For "true" — keep the string, or decode it to the boolean member? Sury can't
+  // For "true" - keep the string, or decode it to the boolean member? Sury can't
   // tell, so the operation is rejected where it's written.
   let schema = S.string->S.to(S.union([S.bool->S.castToUnknown, S.string->S.castToUnknown]))
 
   t->U.assertThrowsMessage(
     () => "true"->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert string to boolean | string — string has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Ambiguous string -> boolean | string. Should boolean be decoded or ignored? Choose with S.to for string -> boolean, or S.never -> boolean`,
   )
 
   // Pass strings through, never producing a boolean:
@@ -925,7 +925,7 @@ test("Rejects a source matching some but not all target members", t => {
   t->Assert.deepEqual("anything"->S.parseOrThrow(~to=decodeFirst), %raw(`"anything"`))
 })
 
-test("No nullish bridge for a non-union source — members are tried in order", t => {
+test("No nullish bridge for a non-union source - members are tried in order", t => {
   // The nullish bridge belongs to union-to-union conversion. A plain `null`
   // source goes through rule 2 instead: the first member that accepts wins, and
   // `S.string` decodes null to the "null" sentinel.
@@ -952,14 +952,14 @@ test("No nullish bridge for a non-union source — members are tried in order", 
   t->Assert.deepEqual(%raw(`null`)->S.parseOrThrow(~to=toUndefined), %raw(`undefined`))
 })
 
-test("No source-tag match — every member must still be decodable", t => {
-  // boolean matches neither member, so both are attempted — and boolean has no
+test("No source-tag match - every member must still be decodable", t => {
+  // boolean matches neither member, so both are attempted - and boolean has no
   // built-in decoder to number, which rejects the whole operation.
   let schema = S.bool->S.to(S.union([S.string->S.castToUnknown, S.float->S.castToUnknown]))
 
   t->U.assertThrowsMessage(
     () => true->S.parseOrThrow(~to=schema),
-    `Can't decode boolean to number. Use S.to to define a custom decoder`,
+    `Can't decode boolean -> number. Define custom codec with S.to`,
   )
 
   let explicit =
@@ -1003,7 +1003,7 @@ test("Instance source matching one of two instance members is ambiguous", t => {
 
   t->U.assertThrowsMessage(
     () => %raw(`new Set(["a"])`)->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert Set to Map | Set — Set has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Ambiguous Set -> Map | Set. Should Map be decoded or ignored? Choose with S.to for Set -> Map, or S.never -> Map`,
   )
 
   let explicit =
@@ -1019,7 +1019,7 @@ test("Instance source matching one of two instance members is ambiguous", t => {
 
 test("Instance source absent from the target union has no decoder to it", t => {
   // Set matches neither member, and there is no built-in Set -> string decoder,
-  // so this can never work — it's rejected instead of compiling into an
+  // so this can never work - it's rejected instead of compiling into an
   // operation that throws for every input.
   let schema =
     S.instance(%raw(`Set`))->S.to(
@@ -1028,7 +1028,7 @@ test("Instance source absent from the target union has no decoder to it", t => {
 
   t->U.assertThrowsMessage(
     () => %raw(`new Set()`)->S.parseOrThrow(~to=schema),
-    `Can't decode Set to string. Use S.to to define a custom decoder`,
+    `Can't decode Set -> string. Define custom codec with S.to`,
   )
 })
 
@@ -1038,7 +1038,7 @@ test("S.date -> S.union([S.string, S.date]) is an ambiguous widening", t => {
 
   t->U.assertThrowsMessage(
     () => d->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert Date to string | Date — Date has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Ambiguous Date -> string | Date. Should string be decoded or ignored? Choose with S.to for Date -> string, or S.never -> string`,
   )
 
   let explicit =
@@ -1070,7 +1070,7 @@ test("A const source the target spells out exactly reaches only that member", t 
   t->U.assertCompiledCode(~schema, ~op=#Parse, `i=>{i===void 0||e[0](i);return i}`)
 })
 
-test("Tier 3 fallback for unknown source — transform on unknown variant still runs", t => {
+test("Tier 3 fallback for unknown source - transform on unknown variant still runs", t => {
   // Source is S.unknown. Even though the target has an `unknown` variant
   // (the second one, with a transform), tier-1 must NOT fire here: an
   // unknown source has no derived tag, so dispatch falls through to
@@ -1084,13 +1084,13 @@ test("Tier 3 fallback for unknown source — transform on unknown variant still 
     ]),
   )
 
-  // String input matches the string variant — passes through as-is.
+  // String input matches the string variant - passes through as-is.
   t->Assert.deepEqual("abc"->S.parseOrThrow(~to=schema), %raw(`"abc"`))
   // Non-string input fails the string check, falls through to the unknown
   // variant, which applies the transform (wraps in Some).
   t->Assert.deepEqual(123->S.parseOrThrow(~to=schema), Some(123)->Obj.magic)
 
-  // Generated code is the tier-3 trial chain — string check first, then
+  // Generated code is the tier-3 trial chain - string check first, then
   // the transformed unknown branch in a catch.
   t->U.assertCompiledCode(
     ~schema,
@@ -1108,7 +1108,7 @@ test("Refined+converted target union is still an ambiguous widening", t => {
 
   t->U.assertThrowsMessage(
     () => "123"->S.parseOrThrow(~to=schema),
-    `Invalid operation: can't convert string to string | number | boolean — string has the same type as the source and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Ambiguous string -> string | number | boolean. Should number be decoded or ignored? Choose with S.to for string -> number, or S.never -> number`,
   )
 
   // Narrow the target to the reachable member and both the refinement and the
@@ -1132,7 +1132,7 @@ test("Refined+converted target union is still an ambiguous widening", t => {
 
 test("A narrowed target union runs its refine and chained .to on the one member", t => {
   // [string, bigint] with a refine and a .to(S.bigint) chained on it. The bigint
-  // member is marked unreachable, so only the string member compiles — with the
+  // member is marked unreachable, so only the string member compiles - with the
   // refinement and the conversion.
   let target =
     S.union([S.string->S.castToUnknown, S.never->S.to(S.bigint)->S.castToUnknown])
@@ -1203,7 +1203,7 @@ test("Rejects a nested union whose member has no same-type target member", t => 
 
   t->U.assertThrowsMessage(
     () => {"f": %raw(`123n`)}->S.parseOrThrow(~to=schema),
-    `Failed at f: Invalid operation: can't convert bigint | null to string | undefined — bigint has no same-type variant on the other side. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Failed at f: Ambiguous bigint | null -> string | undefined. Should bigint be decoded or ignored? Choose with S.to for bigint -> string, or S.never -> bigint`,
   )
 })
 
@@ -1229,7 +1229,7 @@ test("Rejects a nested union where only some members match the single target", t
 
   t->U.assertThrowsMessage(
     () => {"f": %raw(`123`)}->S.parseOrThrow(~to=schema),
-    `Failed at f: Invalid operation: can't convert string | number to string — string has the same type as the target and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable`,
+    `Failed at f: Ambiguous string | number -> string. Should number be decoded or ignored? Choose with S.to for number -> string, or S.never -> number`,
   )
 })
 
@@ -1242,7 +1242,7 @@ test("Union member with no decoder to the target rejects the operation", t => {
 
   t->U.assertThrowsMessage(
     () => {"f": %raw(`"12"`)}->S.parseOrThrow(~to=schema),
-    `Failed at f: Can't decode boolean to bigint. Use S.to to define a custom decoder`,
+    `Failed at f: Can't decode boolean -> bigint. Define custom codec with S.to`,
   )
 
   let explicit = S.schema(s =>
@@ -1348,7 +1348,7 @@ asyncTest("Converts union nested in object into an async target (per member)", a
   t->Assert.deepEqual(await %raw(`{f: "abc"}`)->S.parseAsPromiseOrReject(~to=schema), {"f": "abc"})
 })
 
-test("Union variant with a transformed field — parse and encode roundtrip", t => {
+test("Union variant with a transformed field - parse and encode roundtrip", t => {
   let variantA = S.schema(s =>
     {
       "k": s.matches(S.literal("a")),

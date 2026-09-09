@@ -16,7 +16,7 @@ pnpm compliance report draft7 --optional         # include optional/ (formats, b
 
 ## How it works
 
-The suite is not an npm dependency — the `@json-schema-org/tests` mirror is
+The suite is not an npm dependency - the `@json-schema-org/tests` mirror is
 archived and lags upstream, and a git submodule would tax every clone and CI
 checkout with `--recursive`. Instead `suite.ts` fetches the single commit
 pinned in `suite-ref.json` into a gitignored `.suite/`. Bumping that commit is
@@ -40,7 +40,7 @@ available via `report --divergent`.
 `goldens/<dialect>.json` records a summary plus the sorted ids of every failing
 test, errored case, false acceptance, and valid input whose output was changed.
 The lists make a diff read directly: removed lines are newly passing, added
-lines are regressions. `check` fails on drift in **either** direction — an
+lines are regressions. `check` fails on drift in **either** direction - an
 improvement is supposed to land its golden update in the same PR.
 
 Goldens cover the required tests only. `optional/` (format assertion, bignum,
@@ -62,5 +62,5 @@ reference model and generally fail conversion. draft2020-12 has one
 non-conversion mismatch: a custom metaschema with no validation vocabulary
 still validates, because Sury is a codec and does not honor `$vocabulary`.
 
-The goldens are a measurement, not a target — nothing here asserts that 100%
+The goldens are a measurement, not a target - nothing here asserts that 100%
 coverage is the goal.

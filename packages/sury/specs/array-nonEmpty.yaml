@@ -12,7 +12,7 @@ jsonSchema:
 vs:
   zod:
     schema: z.array(z.string()).min(1)
-    divergence: "`S.nonEmpty` on an array admits `[string, ...string[]]` in the Sury type — indexing `[0]` needs no cast — where Zod keeps the unbounded `string[]`."
+    divergence: "`S.nonEmpty` on an array admits `[string, ...string[]]` in the Sury type - indexing `[0]` needs no cast - where Zod keeps the unbounded `string[]`."
     input: string[]
     output: string[]
 operations:

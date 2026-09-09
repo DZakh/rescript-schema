@@ -33,6 +33,10 @@ let myBlobSchema = Sury.blob;
 
 Vitest$1.test("Blob schema", t => U.assertEqualSchemas(t, myBlobSchema, Sury.blob, undefined));
 
+let myFormDataSchema = Sury.formData;
+
+Vitest$1.test("FormData schema", t => U.assertEqualSchemas(t, myFormDataSchema, Sury.formData, undefined));
+
 let myNonEmptyTagsSchema = Sury.nonEmpty(Sury.array(Sury.string));
 
 Vitest$1.test("NonEmpty schema", t => U.assertEqualSchemas(t, myNonEmptyTagsSchema, Sury.nonEmpty(Sury.array(Sury.string)), undefined));
@@ -120,6 +124,7 @@ export {
   myUrlSchema,
   myDateSchema,
   myBlobSchema,
+  myFormDataSchema,
   myNonEmptyTagsSchema,
   userSchema,
   identifiersSchema,

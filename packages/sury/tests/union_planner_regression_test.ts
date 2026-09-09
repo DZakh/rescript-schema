@@ -123,8 +123,8 @@ test("factory normalization preserves duplicate effects and nested metadata", (t
   );
 });
 
-// Whatever a custom coder throws is that conversion failing — a coder hit by
-// a value it was never written for throws a TypeError (#347) — so it hands
+// Whatever a custom coder throws is that conversion failing - a coder hit by
+// a value it was never written for throws a TypeError (#347) - so it hands
 // the value to the next case. A refiner's foreign error still escapes (see
 // the nested-union test below).
 test("custom decoder errors, foreign or Sury, fall through to the next case", (t) => {
@@ -224,7 +224,7 @@ test("foreign exceptions escape a union without trying a fallback", (t) => {
   t.expect(S.parseOrThrow(schema)("value")).toBe("value");
   t.expect(fallbackCalls).toBe(1);
 
-  // What nothing in the schema catches — a getter — is foreign, and escapes.
+  // What nothing in the schema catches - a getter - is foreign, and escapes.
   const getterError = new TypeError("foreign property access failure");
   const throwingObject = Object.defineProperty({}, "value", {
     get() {
@@ -312,7 +312,7 @@ test("reachable rejection and unreachable conversion stay distinct", (t) => {
     S.number,
   ]).with(S.to, S.union([S.string, S.number]));
   t.expect(() => S.parseOrThrow(uncoveredTarget)).toThrow(
-    /string has no same-type variant on the other side/,
+    /be decoded or ignored/,
   );
 
   const chainedUncoveredTarget = S.union([
@@ -320,7 +320,7 @@ test("reachable rejection and unreachable conversion stay distinct", (t) => {
     S.number,
   ]).with(S.to, S.union([S.string, S.number]));
   t.expect(() => S.parseOrThrow(chainedUncoveredTarget)).toThrow(
-    /string has no same-type variant on the other side/,
+    /be decoded or ignored/,
   );
 });
 
