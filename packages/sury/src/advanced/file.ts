@@ -23,7 +23,6 @@ import {
   B_markAsync,
   B_next,
   B_readOnce,
-  B_readsPayload,
   B_throw,
   B_unsupportedDecode
 } from "../builder";
@@ -164,7 +163,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
         // A value position (or base64 itself) stores the bytes as base64;
         // anything else after a string wants the text they spell, which is also
         // what a format opened by rule 3 is handed.
-        if (target.content !== U && (target.content.bc || !B_readsPayload(target))) {
+        if (target.content !== U && (target.content.bc || !target.opens)) {
           const { format: asFormat, fromBytes } = bytesTarget(target, base64Content);
           const output = read(
             input,

@@ -34,7 +34,6 @@ import {
   B_failWithErrorMessage,
   B_next,
   B_readOnce,
-  B_readsPayload,
   B_refine
 } from "./builder";
 import {
@@ -1265,7 +1264,7 @@ const bytesTextFormat = (
       output.io = true;
       return output;
     }
-    return differs(target) && B_readsPayload(target)
+    return differs(target) && target.opens
       ? B_computed(
           input,
           `${B_embed(input, formatToUtf8(codec.toBytes))}(${B_readOnce(input)})`,

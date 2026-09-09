@@ -18,7 +18,6 @@ import {
   B_embed,
   B_next,
   B_readOnce,
-  B_readsPayload,
   B_refine,
   B_unsupportedDecode
 } from "../builder";
@@ -89,7 +88,7 @@ export const uint8Array: Internal = /* @__PURE__ */ initSchema(
       // A value position (or base64 itself) stores the bytes as base64. The
       // test comes before the string one because a JSON document is a value
       // position without being string-tagged.
-      if (target.content !== U && (target.content.bc || !B_readsPayload(target))) {
+      if (target.content !== U && (target.content.bc || !target.opens)) {
         const { format: asFormat, fromBytes } = bytesTarget(target, base64Content);
         const code = `${B_embed(input, fromBytes)}(${B_readOnce(input)})`;
         // A var when the next stage still runs (jsonString's escape-free splice

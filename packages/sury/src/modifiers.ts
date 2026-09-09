@@ -278,10 +278,9 @@ export const getMutErrorMessage = (mut: Internal): SchemaErrorMessage => {
 // fields, so the encode coder becomes the reversed chain's parser and double
 // reversal restores every slot. Slot semantics (auto/never/async/the JS
 // shorthand) are resolved by the caller into Builders; a boolean is a content
-// reading (`true` opens the direction's own source) and rides the schema that
-// direction converts into, which is what makes reversal swap those too. `U`
-// means no slot, i.e. the built-in conversion - or, where `B_contentDiffers`
-// says the pair has two readings, the rejection built below.
+// reading (`true` opens the source) and rides the target as `opens`, the one
+// reading a link has. `U` means no slot, i.e. the built-in conversion - and
+// whether that exists is the payload schemas' question, asked while compiling.
 export const codecTo = (
   schema: Internal,
   target: Internal,
@@ -289,29 +288,17 @@ export const codecTo = (
   encode?: Builder | boolean
 ): Internal => {
   const root: Internal = updateOutput(schema, (mut) => {
-    // The slot spelling is worth naming here, where the caller has somewhere to
-    // write one - but only for a pair where writing one resolves it. A union
-    // arm's payload and a reading on the union both stop short of the dispatch,
-    // and `S.json` has no opened form of its own, so those say what every
-    // undecodable pair says instead.
-    const ambiguous = U;
     const opened = typeof decode === "boolean";
-    const parser = typeof decode === functionTag ? (decode as Builder) : opened ? U : ambiguous;
-    const serializer =
-      typeof encode === functionTag
-        ? (encode as Builder)
-        : typeof encode === "boolean"
-          ? U
-          : ambiguous;
+    const parser = typeof decode === functionTag ? (decode as Builder) : U;
+    const serializer = typeof encode === functionTag ? (encode as Builder) : U;
     if (serializer !== U || opened) {
       // copySchema keeps `anyOf` shared by reference with the target, and
       // unionResolveToUnion recognizes an arm producing the whole target union
       // by exactly that shared array. A deep copy here would silently break
       // Option.getOr's default arms.
       //
-      // A link built with either slot therefore owns its tail, which is what
-      // lets `trim` stamp a content marker onto the result without touching the
-      // shared `string` singleton. Stop copying here and it corrupts one.
+      // A link built with either slot owns its tail: the slot lands on this
+      // copy, never on a target the caller may link to again.
       const targetMut = copySchema(target);
       if (serializer !== U) {
         targetMut.serializer = serializer;

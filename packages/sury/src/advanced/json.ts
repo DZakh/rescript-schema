@@ -40,7 +40,6 @@ import {
   B_mergeWithPathPrepend,
   B_next,
   B_nextConst,
-  B_readsPayload,
   B_refine,
   B_unsupportedDecode,
   B_varWithoutAllocation,
@@ -432,7 +431,7 @@ export const jsonString = /* @__PURE__ */ (() => {
 
   const jsonStringEncoder: Encoder = (input, target) => {
     if (target.format !== "json") {
-      if (target.content !== U && target.content !== json && !B_readsPayload(target)) {
+      if (target.content !== U && target.content !== json && !target.opens) {
         // The target stores this document rather than being another rendering
         // of it, so it takes the text as it stands.
         return input;
@@ -1029,7 +1028,7 @@ export const jsonString = /* @__PURE__ */ (() => {
       // document target that goes on to read its own payload does, and adding
       // the check would parse the same text twice - one that stops there (a
       // bare jsonString, or a jsonPiece about to escape it) reads nothing.
-      if (encoded !== stringVal || (to.format === "json" && B_readsPayload(to))) {
+      if (encoded !== stringVal || (to.format === "json" && to.opens)) {
         return encoded;
       }
     }
@@ -1058,7 +1057,7 @@ export const jsonString = /* @__PURE__ */ (() => {
       // the same unverified text. Every other string is a value, and stays one.
       if (
         input.s.content === json ||
-        (input.s.content !== U && B_readsPayload(expectedSchema))
+        (input.s.content !== U && expectedSchema.opens)
       ) {
         return carriedJsonString(input, expectedSchema);
       }

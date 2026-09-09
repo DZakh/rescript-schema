@@ -367,7 +367,7 @@ export type Internal = {
   // schema also carries `bc`, so passing one there reads as "same kind" against
   // any bytes marker. Carriers look it up off `content.bc`. Copies of a format
   // keep `bc` so alphabet recoding still sees it, `S.trim`'s tail included.
-  // Short: this name is in `B_contentDiffers`, which ships in every export.
+  // Short: this name is in `B_contentDiffers`, which `S.to` ships.
   bc?: BytesCodec;
   // The reading of the content link that converts INTO this schema
   // (CONTENT_CODEC_SPEC.md): `true` opens the source and hands its payload

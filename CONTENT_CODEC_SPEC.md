@@ -241,7 +241,7 @@ schema fields carry it:
 | field | meaning |
 | --- | --- |
 | `content` | the schema this value's payload is stored as inside a JSON document - `S.base64` for every bytes carrier, `S.json` for `S.jsonString` and `S.json` itself. Absent means the value carries no payload. |
-| `opens` | the reading a `"pack"`/`"unpack"` slot wrote, on the schema that direction converts *into* - so `reverse`, which copies node by node, carries each direction's slot with it. |
+| `opens` | the reading of the link into this schema, whatever settled it: a slot, a payload gaining its `.to` (rule 3), or the document piece a field is stored into (rule 2). One per link; `reverse`, which copies node by node, writes each node's from its forward successor's, negated. |
 
 Two schemas that agree on `content` carry the same kind of payload, so a link
 between them is a plain transfer; two that disagree have both readings live, and
