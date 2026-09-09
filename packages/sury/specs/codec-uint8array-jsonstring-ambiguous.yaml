@@ -16,4 +16,5 @@ operations:
   parse:
     creationError: 'SuryError: Ambiguous Uint8Array -> JSON string. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'
   decode: eq-to-parse
-  encode: eq-to-parse
+  encode:
+    creationError: 'SuryError: Ambiguous JSON string -> Uint8Array. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'

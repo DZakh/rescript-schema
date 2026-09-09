@@ -32,7 +32,8 @@ import {
 import {
  base64Content,
  bytesTarget,
- utf8Bytes
+ utf8Bytes,
+  B_rejectUnsettled
 } from "../refinements";
 
 // The decoder names `uint8Array` rather than the `init` callback's `s`: it is
@@ -40,6 +41,8 @@ import {
 export const uint8Array: Internal = /* @__PURE__ */ initSchema(
   instanceTag,
   (input: Val): Val => {
+    const unsettled = B_rejectUnsettled(input, input.s, input.e);
+    if (unsettled) return unsettled;
     const source = input.s;
     const sourceTagFlag = tagFlags[source.type]!;
 
@@ -75,6 +78,8 @@ export const uint8Array: Internal = /* @__PURE__ */ initSchema(
     setContent(s, base64Content);
 
     s.encoder = (input, target) => {
+      const unsettledOut = B_rejectUnsettled(input, input.s, target);
+      if (unsettledOut) return unsettledOut;
       const targetTagFlag = tagFlags[target.type]!;
       if ((targetTagFlag & 8192)) {
         // Another binary carrier holds these very bytes, rather than a

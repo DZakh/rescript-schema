@@ -294,20 +294,7 @@ export const codecTo = (
     // arm's payload and a reading on the union both stop short of the dispatch,
     // and `S.json` has no opened form of its own, so those say what every
     // undecodable pair says instead.
-    const ambiguous =
-      B_contentDiffers(B_contentNode(mut).content, B_contentNode(target).content) &&
-      target.to === U
-      ? B_contentNode(mut) === mut &&
-        B_contentNode(target) === target &&
-        !mut.jn &&
-        !target.jn
-        ? (input: Val) =>
-            B_invalidOperation(
-              input,
-              `Ambiguous ${inputExpression(mut)} -> ${inputExpression(target)}. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"`,
-            )
-        : (input: Val) => B_unsupportedDecode(input, mut, target)
-      : U;
+    const ambiguous = U;
     const opened = typeof decode === "boolean";
     const parser = typeof decode === functionTag ? (decode as Builder) : opened ? U : ambiguous;
     const serializer =

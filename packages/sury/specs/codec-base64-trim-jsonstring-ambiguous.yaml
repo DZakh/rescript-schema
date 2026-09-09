@@ -19,4 +19,12 @@ operations:
   parse:
     creationError: 'SuryError: Ambiguous string -> JSON string. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'
   decode: eq-to-parse
-  encode: eq-to-parse
+  # FIXME: parse rejects the pair but encode resolves it - reversing the `trim`
+  # link puts a `.to` on the JSON string node, which reads as rule 3 naming a
+  # payload. The schema is unusable either way, since decoding always throws.
+  encode:
+    expression: i=>{let v0;try{v0=JSON.parse(i)}catch(t){e[0](i)}typeof v0==="string"||e[5](v0);let v1;try{v1=e[1](v0)}catch(x){e[2](x)}e[3](v1)||e[4](v1);return v1}
+    examples:
+      unpacks-the-document:
+        input: '"\"aGk=\""'
+        output: '"aGk="'

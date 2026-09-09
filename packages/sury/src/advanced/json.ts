@@ -2,6 +2,7 @@
 // encoder/decoder that represent an arbitrary schema as JSON - the only schema
 // that rewrites another schema's shape rather than just validating it.
 
+import { B_rejectUnsettled } from "../refinements";
 import {
   anyOfTag,
   arrayTag,
@@ -87,6 +88,8 @@ const B_stringifyCall = (i: string, space: number | undefined): string =>
   `JSON.stringify(${i}${space ? `,null,${space}` : ""})`;
 
 export const jsonEncoderFn = (input: Val, target: Internal): Val => {
+  const unsettled = B_rejectUnsettled(input, input.s, target);
+  if (unsettled) return unsettled;
   // A json-formatted string target means "serialize", not "coerce to string":
   // without this branch the string case below would re-validate the JSON value
   // as being a string, making S.json -> S.jsonString reject every non-string.
@@ -212,6 +215,8 @@ const perVariantTo = (
 };
 
 export const jsonDecoderFn = (input: Val): Val => {
+  const unsettled = B_rejectUnsettled(input, input.s, input.e);
+  if (unsettled) return unsettled;
   const inputTagFlag = tagFlags[input.s.type]!;
 
   if (isJsonable(input.s)) {
@@ -742,6 +747,12 @@ export const jsonString = /* @__PURE__ */ (() => {
           declared !== U
             ? updateOutput<Internal>(declared, (mut) => {
                 mut.to = jsonPiece;
+                // The position settles the reading - a payload field is stored
+                // as a value in the document - so record it. Without this the
+                // link synthesized here is indistinguishable from one the
+                // caller wrote, and rule 4 would ask about a pair nobody can
+                // answer for.
+                mut.opensBack = false;
               })
             : jsonPiece,
         )
@@ -1031,6 +1042,8 @@ export const jsonString = /* @__PURE__ */ (() => {
   const jsonStringDecoder: Builder = (input) => {
     const inputTagFlag = tagFlags[input.s.type]!;
     const expectedSchema = input.e;
+    const unsettled = B_rejectUnsettled(input, input.s, expectedSchema);
+    if (unsettled) return unsettled;
 
     if ((inputTagFlag & 1)) {
       return carriedJsonString(input, expectedSchema);

@@ -18,6 +18,7 @@ import {
   stringify,
   type StringFormat,
   stringTag,
+  unknownTag,
   SuryError,
   U,
   updateOutput,
@@ -26,6 +27,9 @@ import {
 import {
   B_computed,
   B_contentDiffers,
+  B_contentNode,
+  B_invalidOperation,
+  B_unsupportedDecode,
   B_conversion,
   B_embed,
   B_failWithErrorMessage,
@@ -1119,6 +1123,61 @@ const urlCodec = /* @__PURE__ */ (() => {
   };
 })();
 
+
+// Whether a payload of this kind was already declared earlier in the operation
+// - CONTENT_CODEC_SPEC.md rule 3, read off the value's own history so it reads
+// the same in both orientations. A crossing is a val whose source carries a
+// different content marker than its expected: something was rendered INTO this
+// payload. `b` continues the walk across an async scope, which clears `prev`.
+// Never `val.t` for this: `B_scope` sets that to false, so it reports the async
+// wrapper rather than the declaration, and a guard on it passes
+// `encodeAsPromiseOrReject` while failing `encodeOrThrow` on the same schema.
+const B_declaredInto = (input: Val, content: Internal): boolean => {
+  // From the step before: the crossing being judged is the current one.
+  let v: Val | undefined = input.prev || input.b;
+  while (v) {
+    if (v.e.content === content && v.s.content !== content && v.s.type !== unknownTag) {
+      return true;
+    }
+    v = v.prev || v.b;
+  }
+  return false;
+};
+
+// CONTENT_CODEC_SPEC.md rule 4, owned by the schemas that declare a payload
+// rather than by `S.to`. Two payload declarations of different kinds and
+// nothing settling which reading applies: between two renderings the caller
+// picks, and against `S.json` - the document itself, with no opened form - the
+// pair is undecodable either way.
+//
+// Asked while compiling, not while linking, which is what makes the chained
+// spelling legal: `S.file.with(S.to, S.jsonString).with(S.to, S.array(x))`
+// grows the `.to` that settles it only on the second call, so a link-time check
+// rejects a pipeline the compiler can see is fine. Inlined at each caller
+// rather than wrapped around their decoders: a wrapper applied at module scope
+// makes every operation reach the payload schemas, and `parseOrThrow` grew
+// 10,988 gz.
+// @__NO_SIDE_EFFECTS__
+export const B_rejectUnsettled = (
+  input: Val,
+  from: Internal,
+  to: Internal,
+): Val | undefined =>
+  from.to === to &&
+  to.to === U &&
+  to.opens === U &&
+  from.opensBack === U &&
+  B_contentDiffers(B_contentNode(from).content, B_contentNode(to).content) &&
+  !B_declaredInto(input, from.content!) &&
+  !B_declaredInto(input, to.content!)
+    ? !from.jn && !to.jn && B_contentNode(from) === from && B_contentNode(to) === to
+      ? B_invalidOperation(
+          input,
+          `Ambiguous ${inputExpression(from)} -> ${inputExpression(to)}. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"`,
+        )
+      : B_unsupportedDecode(input, from, to)
+    : U;
+
 // `bc` lives on the format singleton. A trim (or other string) link copies
 // `content` but not `bc`, so recode has to see through that to the alphabet
 // the text still is. A bytes carrier also has `content.bc`, but its value is
@@ -1197,6 +1256,8 @@ const bytesTextFormat = (
   const differs = (other: Internal): boolean => B_contentDiffers(other.content, content);
 
   schema.decoder = (input) => {
+    const unsettled = B_rejectUnsettled(input, input.s, input.e);
+    if (unsettled) return unsettled;
     const src = codecOf(input.s);
     if (src && src !== codec) {
       const output = B_next(
@@ -1220,6 +1281,8 @@ const bytesTextFormat = (
   };
 
   schema.encoder = (input, target) => {
+    const unsettledOut = B_rejectUnsettled(input, input.s, target);
+    if (unsettledOut) return unsettledOut;
     const dst = codecOf(target);
     if (dst && dst !== codec) {
       const output = B_next(
