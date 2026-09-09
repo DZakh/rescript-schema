@@ -1375,6 +1375,11 @@ export const unionDecoder: Builder = (input: Val) => {
   // union's own refiners ride along on each variant for the same reason: there
   // is no single pre-conversion output val left to attach them to.
   if (toPerCase !== U) {
+    // A union arm has nowhere to take a reading, so a link the union carries
+    // into a payload of another kind is rejected whole, before the arms could
+    // each meet the target as a pair a slot would settle. Ahead of the target
+    // owning the dispatch, so `S.json` is named against the union too.
+    B_rejectUnsettled(input, toPerCase, self);
     const perCase = unionTargetOwns(toPerCase)
       ? variants.map((v) => (unionOutput(v).type === neverTag ? U : toPerCase))
       : unionResolve(input, self, variants, toPerCase);
@@ -1477,6 +1482,7 @@ const unionTargetOwns = (target: Internal) =>
 // Applied by the parse loop when a union-typed val meets a different expected
 // schema - rules 3 and 4.
 export const unionEncoder: Encoder = (input: Val, target: Internal) => {
+  B_rejectUnsettled(input, target, input.s);
   if (unionTargetOwns(target)) return input;
   const variants = input.s.anyOf!;
   if (target.perVariant && target.anyOf!.length === variants.length) {
@@ -1520,10 +1526,6 @@ const unionResolve = (
   variants: Internal[],
   target: Internal
 ): (Internal | undefined)[] => {
-  // A union arm has nowhere to take a reading, so a link the union carries into
-  // a payload of another kind is rejected whole, before the arms could each
-  // meet the target as a pair a slot would settle.
-  B_rejectUnsettled(input, target, source);
   if (source.perVariant) {
     return variants.map(() => target);
   }

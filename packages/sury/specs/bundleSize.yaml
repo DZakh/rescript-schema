@@ -5,16 +5,16 @@ exports:
   $Metadata_Id_make: 4276
   $Metadata_get: 4271
   $Metadata_set: 4285
-  $Option_getOr: 10446
-  $Option_getOrWith: 10446
+  $Option_getOr: 10444
+  $Option_getOrWith: 10444
   $encodeAsResult: 4916
   $encodeAsResultPromise: 4916
   $makeAsResult: 5176
   $makeAsResultPromise: 5176
-  $nullAsOption: 12595
+  $nullAsOption: 12603
   $nullAsUnit: 4547
-  $nullableAsOption: 10015
-  $option: 12574
+  $nullableAsOption: 10012
+  $option: 12578
   $parseAsResult: 4917
   $parseAsResultPromise: 4917
   $schema: 7731
@@ -22,7 +22,7 @@ exports:
   $unit: 4514
   Error: 4265
   any: 4262
-  anyOf: 12950
+  anyOf: 12953
   array: 7723
   assertInputAsPromiseOrReject: 5174
   assertInputOrThrow: 4852
@@ -56,7 +56,7 @@ exports:
   encodeAsResult: 4916
   encodeAsResultPromise: 4916
   encodeOrThrow: 4592
-  enum: 12955
+  enum: 12959
   extendJSONSchema: 4344
   file: 5887
   formData: 9773
@@ -85,8 +85,8 @@ exports:
   isoTime: 4887
   json: 14402
   jsonPointer: 4696
-  jsonString: 17200
-  jsonStringWithSpace: 17212
+  jsonString: 17206
+  jsonStringWithSpace: 17218
   ksuid: 4712
   length: 5450
   list: 8107
@@ -116,11 +116,11 @@ exports:
   never: 4325
   noValidation: 4278
   nonEmpty: 5476
-  nullable: 13362
+  nullable: 13368
   nullish: 12953
   number: 4722
   object: 9460
-  optional: 13332
+  optional: 13337
   parseAsPromisableResult: 4917
   parseAsPromiseOrReject: 4915
   parseAsResult: 4917
@@ -151,7 +151,7 @@ exports:
   tuple: 8799
   uint8Array: 5603
   ulid: 4741
-  union: 12950
+  union: 12953
   unknown: 4262
   uri: 4985
   uriReference: 4992
