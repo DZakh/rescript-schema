@@ -360,14 +360,26 @@ test("a nullable checkbox reads an absent box as null, and spells its false out"
   }
 });
 
-test("a checkbox defaulting to true cannot round-trip, because the wire disagrees", () => {
-  // An absent checkbox entry means unchecked, so a default of `true` states
-  // something the wire never says. The encode omits `false` like a browser
-  // does, and the decode then applies that default. Documented rather than
-  // worked around: the schema is what contradicts the medium.
-  const schema = S.formData.with(S.to, S.schema({ a: S.optional(S.boolean, true) }));
-  expect(entries(S.encodeOrThrow(schema)({ a: false }))).toEqual([]);
-  expect(S.decodeOrThrow(schema)(S.encodeOrThrow(schema)({ a: false }))).toEqual({ a: true });
+test("a checkbox defaulting to true spells false out, so it round-trips", () => {
+  const schema = S.formData.with(
+    S.to,
+    S.schema({ agree: S.boolean, a: S.optional(S.boolean, true), b: S.nullable(S.boolean, true) }),
+  );
+  expect(entries(S.encodeOrThrow(schema)({ agree: false, a: false, b: false }))).toEqual([
+    ["a", "false"],
+    ["b", "false"],
+  ]);
+  expect(S.decodeOrThrow(schema)(S.encodeOrThrow(schema)({ agree: true, a: false, b: false }))).toEqual({
+    agree: true,
+    a: false,
+    b: false,
+  });
+  expect(S.decodeOrThrow(schema)(S.encodeOrThrow(schema)({ agree: true, a: true, b: true }))).toEqual({
+    agree: true,
+    a: true,
+    b: true,
+  });
+  expect(S.decodeOrThrow(schema)(new FormData())).toEqual({ agree: false, a: true, b: true });
 });
 
 test("encoding a tuple of unions does not write into the caller's array", () => {

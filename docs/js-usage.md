@@ -1259,8 +1259,8 @@ S.schema({
 Encoding omits an unchecked box, exactly as a browser does - unless the field
 has a third state, since absent and unchecked are the same wire:
 `S.optional(S.boolean)` and `S.nullable(S.boolean)` write their `false` out to
-keep it apart. `S.optional(S.boolean, true)` still cannot round-trip: its
-`false` omits, and an absent box is its default.
+keep it apart. `S.optional(S.boolean, true)` does the same, so `false` round-trips;
+an absent box is still its default.
 
 Any other `value` is a string the schema should name (`S.union(["yes", "no"])`),
 and a list of booleans is rejected: a checkbox group submits the value of each

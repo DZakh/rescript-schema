@@ -170,10 +170,7 @@ const KNOWN: Record<string, string> = {
     "a form has one way to say nothing, so a field declaring both sentinels reads it as the weaker one",
   "optional-nullable/* <- null": "the same, spelled as two wrappers",
   "optional/null <- null": "the same, from the other side",
-  "defaulted/boolean <- false":
-    "an unchecked box sends nothing, so a default of `true` states what the wire never says and reads back as itself",
   "nullable/void <- null": "the same, from the other side",
-  "nullable-defaulted/boolean <- false": "the same, with `null` for the sentinel",
   "*/string-bare <- ''":
     "a bare string says nothing about a blank entry, so a wrapper reads one as the absence it declares",
   "optional-array/* <- undefined":

@@ -303,19 +303,33 @@ const readWrapped = (
   return parse(B_markOutput(output, item));
 };
 
-const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean): string => {
+const appendValue = (
+  val: Val,
+  fdVar: string,
+  keyText: string,
+  inList?: boolean,
+  declared?: Internal,
+): string => {
   const schema = val.s;
+  const classified = declared ?? schema;
   const tagFlag = tagFlags[schema.type]!;
   if (tagFlag & (16 | 32)) {
     return "";
   }
-  if (!inList && isCheckbox(schema)) {
-    if (schema.const !== U) {
-      return schema.const ? `${fdVar}.append(${keyText},"on");` : "";
+  if (!inList) {
+    const present = presentArm(classified);
+    if (isCheckbox(present)) {
+      if (present.const !== U && classified.type !== anyOfTag) {
+        return present.const ? `${fdVar}.append(${keyText},"on");` : "";
+      }
+      // A required boolean omits false (unchecked). A union field - optional,
+      // nullable, or defaulted - has a third state, so false must be spelled out.
+      // `isAbsent` misses a defaulted optional: encode has already dropped
+      // `undefined` from `has`. The declared field still being a union is that case.
+      return isAbsent(classified) || classified.type === anyOfTag
+        ? `if(${val.i}!=null){${fdVar}.append(${keyText},${val.i}?"on":"false")}`
+        : `if(${val.i}){${fdVar}.append(${keyText},"on")}`;
     }
-    return isAbsent(schema)
-      ? `if(${val.i}!=null){${fdVar}.append(${keyText},${val.i}?"on":"false")}`
-      : `if(${val.i}){${fdVar}.append(${keyText},"on")}`;
   }
   if (schema.type === arrayTag) {
     assertListItems(val, schema);
@@ -393,7 +407,9 @@ const objectToFormData = (input: Val): Val => {
   let code = `let ${fdVar}=new ${B_embed(input, input.e.class)}();`;
   for (const key in properties) {
     const field = valGet(input, key);
-    code += appendValue(field, fdVar, inlinedValueFromString(key));
+    // valGet on a defaulted field is already the output boolean. Classify from
+    // the declared union so false is not omitted as an unchecked required box.
+    code += appendValue(field, fdVar, inlinedValueFromString(key), U, properties[key]);
   }
   const output = B_next(input, fdVar, input.e);
   output.v = _var;

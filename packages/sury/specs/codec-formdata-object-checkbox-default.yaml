@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=./spec.schema.json
+ts:
+  schema: "S.formData.with(S.to, S.schema({ agree: S.boolean, a: S.optional(S.boolean, true), b: S.nullable(S.boolean, true) }))"
+  input: FormData
+  output: "{ agree: boolean; a: boolean; b: boolean; }"
+  instantiations: 6412
+jsonSchema:
+  input: Expected JSON, received FormData
+  output: '{ type: "object", properties: { agree: { type: "boolean" }, a: { type: "boolean" }, b: { type: "boolean" } }, required: ["agree", "a", "b"] }'
+vs:
+  zod:
+    _skip: not-applicable
+operations:
+  parse:
+    expression: i=>{i instanceof e[4]||e[5](i);let v0=e[0](i),v1=v0.get("agree"),v3=v0.get("a"),v5=v0.get("b");let v2=v1==="on"||v1==="true"||(v1==="false"||!v1?false:e[1](v1));if(v3){let v4=v3==="on"||v3==="true"||(v3==="false"||!v3?false:e[2](v3));v3=v4;}else{v3=true;}if(v5){let v6=v5==="on"||v5==="true"||(v5==="false"||!v5?false:e[3](v5));v5=v6;}else{v5=true;}return {agree:v2,a:v3,b:v5}}
+    examples:
+      absent-is-the-default:
+        input: new FormData()
+        output: "{ agree: false, a: true, b: true }"
+      false-is-present:
+        input: ((f) => (f.append("a", "false"), f.append("b", "false"), f))(new FormData())
+        output: "{ agree: false, a: false, b: false }"
+      checked:
+        input: ((f) => (f.append("a", "on"), f.append("b", "on"), f))(new FormData())
+        output: "{ agree: false, a: true, b: true }"
+  decode:
+    expression: i=>{let v0=e[0](i),v1=v0.get("agree"),v3=v0.get("a"),v5=v0.get("b");let v2=v1==="on"||v1==="true"||(v1==="false"||!v1?false:e[1](v1));if(v3){let v4=v3==="on"||v3==="true"||(v3==="false"||!v3?false:e[2](v3));v3=v4;}else{v3=true;}if(v5){let v6=v5==="on"||v5==="true"||(v5==="false"||!v5?false:e[3](v5));v5=v6;}else{v5=true;}return {agree:v2,a:v3,b:v5}}
+    examples:
+      absent-is-the-default:
+        input: new FormData()
+        output: "{ agree: false, a: true, b: true }"
+  encode:
+    expression: i=>{let v0=i["a"],v1=i["b"];typeof v0==="boolean"||e[0](v0);typeof v1==="boolean"||e[1](v1);let v2=new e[2]();if(i["agree"]){v2.append("agree","on")}if(v0!=null){v2.append("a",v0?"on":"false")}if(v1!=null){v2.append("b",v1?"on":"false")}return v2}
+    examples:
+      false-is-spelled-out:
+        input: "{ agree: false, a: false, b: false }"
+        output: ((f) => (f.append("a", "false"), f.append("b", "false"), f))(new FormData())
+      true-is-on:
+        input: "{ agree: true, a: true, b: true }"
+        output: ((f) => (f.append("agree", "on"), f.append("a", "on"), f.append("b", "on"), f))(new FormData())
