@@ -323,6 +323,12 @@ export const codecTo = (
     } else {
       mut.to = target;
     }
+    // CONTENT_CODEC_SPEC.md rule 3, written down the moment it becomes true: a
+    // payload that gains a `.to` names what it holds, so the link into it opens
+    // its source. Materialized here rather than read off `.to !== U` by the
+    // payload schemas, because `reverse` re-points `.to` and would lose it,
+    // while it carries `opens` across.
+    if (mut.content !== U && mut.opens === U) mut.opens = true;
     if (parser !== U) {
       mut.parser = parser;
     }

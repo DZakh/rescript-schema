@@ -37,8 +37,6 @@ import {
   B_embedInvalidInput,
   B_embedPure,
   B_errorOf,
-  B_contentDiffers,
-  B_contentNode,
   B_inlineConst,
   B_markOutput,
   B_merge,
@@ -428,17 +426,9 @@ const compileChain = (
     const to = schema;
     schema = updateOutput(args[i]!, (mut) => {
       mut.to = to;
-      // Only this direction: an operation compiles the chain the way it runs
-      // it, so the encode side is a chain of its own, built from the reversed
-      // schemas. Reported as a missing decoder rather than with the slot
-      // spelling `codecTo` offers - this form has nowhere to write one, and a
-      // custom coder is what answers it.
-      if (
-        B_contentDiffers(B_contentNode(mut).content, B_contentNode(to).content) &&
-        !to.to
-      ) {
-        mut.parser = (input: Val) => B_unsupportedDecode(input, mut, to);
-      }
+      // Rule 3, materialized exactly as `codecTo` does it, and for the same
+      // reason: `reverse` re-points `.to` and would lose it.
+      if (mut.content !== U && mut.opens === U) mut.opens = true;
     });
   }
   // Flag 8: the caller knows nothing about the input, so the chain's own head

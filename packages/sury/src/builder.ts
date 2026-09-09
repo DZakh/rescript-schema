@@ -854,12 +854,11 @@ export const B_contentNode = (schema: Internal): Internal =>
 export const B_contentDiffers = (from?: Internal, to?: Internal): boolean =>
   from !== U && to !== U && from !== to && !(from.bc && to.bc);
 
-// Which reading of a content link applies: a `"pack"`/`"unpack"` slot the caller
-// wrote wins (rule 1), and otherwise a target that names its own payload is what
-// asks for the source to be opened (rule 3). Read by the carriers, never by the
-// formats - the format side only ever asks whether a `content` marker is there.
-export const B_readsPayload = (target: Internal): boolean =>
-  target.opens ?? target.to !== U;
+// Whether the link into `target` opens its source. Every way a reading gets
+// settled writes `opens` (see it in base.ts), so this is a read, not a rule.
+// Read by the carriers, never by the formats - the format side only ever asks
+// whether a `content` marker is there.
+export const B_readsPayload = (target: Internal): boolean => !!target.opens;
 
 export const B_invalidOperation = (val: Val, description: string): never =>
   B_throw({ code: "invalid_operation", reason: description, path: val.path });

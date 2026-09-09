@@ -366,18 +366,22 @@ export type Internal = {
   // only while both sides of that comparison are content markers: a format's own
   // schema also carries `bc`, so passing one there reads as "same kind" against
   // any bytes marker. Carriers look it up off `content.bc`. Copies of a format
-  // keep `bc` so alphabet recoding still sees it. `S.trim` targets `string`,
-  // which has none.
+  // keep `bc` so alphabet recoding still sees it, `S.trim`'s tail included.
   // Short: this name is in `B_contentDiffers`, which ships in every export.
   bc?: BytesCodec;
-  // Which reading of a content link the caller wrote, when they wrote one.
-  // `opens` is the reading of the link that converts INTO this schema - `true`
-  // opens the source and hands its payload over, `false` stores its value -
-  // and `opensBack` the same for the reversed chain, where this schema is the
+  // The reading of a content link (CONTENT_CODEC_SPEC.md). `opens` is the
+  // reading of the link that converts INTO this schema - `true` opens the
+  // source and hands its payload over, `false` stores its value - and
+  // `opensBack` the same for the reversed chain, where this schema is the
   // target instead. `reverse` trades the two, the way it trades
   // parser/serializer, so each direction's slot lands on the node the other
-  // direction reads it from. Absent means the link's shape decides - see
-  // `B_readsPayload` in builder.ts.
+  // direction reads it from.
+  // Written by a slot the caller gave (rule 1), by a payload gaining a `.to`
+  // (rule 3, materialized by `codecTo` and `compileChain` the moment it
+  // becomes true, since `reverse` re-points `.to` and would lose it), and by
+  // a document field's position (rule 2, `fieldPiece`). Absent on a link
+  // between two payloads of different kinds is therefore rule 4, and the
+  // payload schemas reject it while compiling.
   opens?: boolean;
   opensBack?: boolean;
   // Properties of every value a string schema admits, which let generated code

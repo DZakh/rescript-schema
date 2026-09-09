@@ -18,7 +18,6 @@ import {
   stringify,
   type StringFormat,
   stringTag,
-  unknownTag,
   SuryError,
   U,
   updateOutput,
@@ -793,16 +792,15 @@ export const pattern = (schema: Internal, re: RegExp, message: string = `Invalid
 // @__NO_SIDE_EFFECTS__
 export const trim = (schema: Internal): Internal => {
   const transformer = B_conversion((value: unknown) => (value as string).trim());
-  // Trimming does not change what the text *is*: a trimmed base64 payload is
-  // still that payload. The marker has to be carried onto the link's target,
-  // because the next link reads the chain tail - left bare, it would see a
-  // plain string and pack the base64 text itself as bytes.
-  const content = getOutputSchema(schema).content;
-  const root = codecTo(schema, string, transformer, transformer);
-  if (content !== U) {
-    setContent(getOutputSchema(root), content);
-  }
-  return root;
+  // Trimmed text is still the text it was - same type, format, alphabet and
+  // payload - so the link's target is a copy of the tail, not `string`. The
+  // next link then reads a node that can answer for itself, with the format's
+  // own decoder and encoder on it. Its check is dropped: the tail already ran
+  // it, and the copy is the same text with the whitespace gone.
+  const tail = copySchema(getOutputSchema(schema));
+  delete tail.refiner;
+  delete tail.inputRefiner;
+  return codecTo(schema, tail, transformer, transformer);
 }
 
 // @__NO_SIDE_EFFECTS__
@@ -1124,26 +1122,6 @@ const urlCodec = /* @__PURE__ */ (() => {
 })();
 
 
-// Whether a payload of this kind was already declared earlier in the operation
-// - CONTENT_CODEC_SPEC.md rule 3, read off the value's own history so it reads
-// the same in both orientations. A crossing is a val whose source carries a
-// different content marker than its expected: something was rendered INTO this
-// payload. `b` continues the walk across an async scope, which clears `prev`.
-// Never `val.t` for this: `B_scope` sets that to false, so it reports the async
-// wrapper rather than the declaration, and a guard on it passes
-// `encodeAsPromiseOrReject` while failing `encodeOrThrow` on the same schema.
-const B_declaredInto = (input: Val, content: Internal): boolean => {
-  // From the step before: the crossing being judged is the current one.
-  let v: Val | undefined = input.prev || input.b;
-  while (v) {
-    if (v.e.content === content && v.s.content !== content && v.s.type !== unknownTag) {
-      return true;
-    }
-    v = v.prev || v.b;
-  }
-  return false;
-};
-
 // CONTENT_CODEC_SPEC.md rule 4, owned by the schemas that declare a payload
 // rather than by `S.to`. Two payload declarations of different kinds and
 // nothing settling which reading applies: between two renderings the caller
@@ -1164,12 +1142,9 @@ export const B_rejectUnsettled = (
   to: Internal,
 ): Val | undefined =>
   from.to === to &&
-  to.to === U &&
   to.opens === U &&
   from.opensBack === U &&
-  B_contentDiffers(B_contentNode(from).content, B_contentNode(to).content) &&
-  !B_declaredInto(input, from.content!) &&
-  !B_declaredInto(input, to.content!)
+  B_contentDiffers(B_contentNode(from).content, B_contentNode(to).content)
     ? !from.jn && !to.jn && B_contentNode(from) === from && B_contentNode(to) === to
       ? B_invalidOperation(
           input,
@@ -1178,12 +1153,10 @@ export const B_rejectUnsettled = (
       : B_unsupportedDecode(input, from, to)
     : U;
 
-// `bc` lives on the format singleton. A trim (or other string) link copies
-// `content` but not `bc`, so recode has to see through that to the alphabet
-// the text still is. A bytes carrier also has `content.bc`, but its value is
-// bytes - only a string-tagged source is text we can recode.
-const codecOf = (s: Internal) =>
-  s.bc ?? (s.type === stringTag ? s.content?.bc : U);
+// A bytes carrier also has `content.bc`, but its value is bytes - only a
+// string-tagged source is text we can recode, and every one of those carries
+// its own `bc`.
+const codecOf = (s: Internal) => s.bc;
 
 const recodeText =
   (
