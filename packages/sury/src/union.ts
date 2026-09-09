@@ -22,7 +22,7 @@ import {
   getOrRethrow,
   immutableEmptyArray,
   immutableEmptyObject,
-  inlinedValueFromString,
+  inlinedProperty,
   inputExpression,
   type Internal,
   isLiteral,
@@ -1112,7 +1112,7 @@ const unionEmit = (
       // `===` can't match a NaN discriminant (`x===NaN` is always false), which
       // made the member unreachable and rejected a value it declares. The
       // hoisted-check path this replaces used the same NaN-aware form.
-      const dRead = `${source.v()}[${inlinedValueFromString(trustedD[0])}]`;
+      const dRead = inlinedProperty(source.v(), trustedD[0]);
       const dCond =
         dSchema.type === nanTag
           ? `Number.isNaN(${dRead})`

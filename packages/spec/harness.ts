@@ -1571,14 +1571,14 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
         errs.push(
           ex.whenChecked === undefined
             ? `${where}: the checks ${verdicts[0]!.passed ? "passed" : `failed${verdicts[0]!.detail}`}, but parse ` +
-              `${parseFailed ? `failed with ${"error" in ex ? JSON.stringify(ex.error) : ex.errorConstructor}` : "succeeded"} — ` +
+              `${parseFailed ? `failed with ${"error" in ex ? JSON.stringify(ex.error) : ex.errorConstructor}` : "succeeded"} - ` +
               `add \`whenChecked: ${verdict}\``
             : `${where}: whenChecked says \`${ex.whenChecked}\` but the checks ${verdict}`,
         );
         continue;
       }
       if (ex.whenChecked !== undefined && passed === !parseFailed)
-        errs.push(`${where}: whenChecked agrees with parse — remove it`);
+        errs.push(`${where}: whenChecked agrees with parse - remove it`);
       // `make` hands the value back rather than decoding it. `Object.is`, not
       // `!==`: a spec whose example is NaN is exactly the case that matters.
       const made = verdicts.find((v) => v.name.startsWith("make"));
@@ -1633,11 +1633,11 @@ export const checkVs = async (spec: Spec): Promise<string[]> => {
       if (!has && z !== t)
         errs.push(
           `vs.zod: ${side} omitted (no divergence) but Zod infers ${JSON.stringify(z)} !== ts.${side} ` +
-            `${JSON.stringify(t)} — add \`${side}\` to record the divergent type.`,
+            `${JSON.stringify(t)} - add \`${side}\` to record the divergent type.`,
         );
       else if (has && z === t)
         errs.push(
-          `vs.zod.${side} equals ts.${side} ${JSON.stringify(t)} — it matches Sury, so omit \`${side}\`.`,
+          `vs.zod.${side} equals ts.${side} ${JSON.stringify(t)} - it matches Sury, so omit \`${side}\`.`,
         );
     }
     return errs;
@@ -1699,12 +1699,12 @@ export const checkSpec = async (
         errs.push(`ts.constructionError differs:\n${diffText(spec.ts.constructionError, message)}`);
     } else {
       errs.push(
-        `ts.schema did not evaluate: ${message} — if this panic is the contract, add ts.constructionError`,
+        `ts.schema did not evaluate: ${message} - if this panic is the contract, add ts.constructionError`,
       );
     }
   }
   if (evaluated && spec.ts.constructionError !== undefined) {
-    errs.push(`ts.constructionError is set but ts.schema evaluated — omit constructionError`);
+    errs.push(`ts.constructionError is set but ts.schema evaluated - omit constructionError`);
   }
   if (evaluated && !isUsableSchema(schema)) {
     errs.push(`ts.schema evaluated but isn't a Sury schema`);

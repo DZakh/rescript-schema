@@ -384,7 +384,7 @@ test("full op block claimed but the operation actually compiles to identity", as
         operations.decode: no examples - a compiled op block must run at least one input (add a named entry with just \`input\`, then \`--write\` fills the result)
         operations.decode: compiles to identity - use \`identity\` instead of an expression + examples
         goldens stale - resolve the identity mismatch above first, then \`pnpm spec check string --write\` can fix it (also formats canonically; use \`pnpm spec format\` for a formatting-only fix):
-    @@ -28,7 +28,10 @@
+    @@ -28,7 +28,7 @@
               input: "null"
               error: Expected string, received null
         decode:
@@ -570,7 +570,7 @@ test("operations block omits an op the schema supports", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        schema: Failed at ["operations"]["encode"]: Expected "identity" | "eq-to-parse" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received undefined
+        schema: Failed at ["operations"]["encode"]: Expected "identity" | "eq-to-parse" | { isAsync: true | undefined; expression: string | { _skip: string; }; resultExpression: string | undefined; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; } | { input: string; errorConstructor: string; whenChecked: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received undefined
         operations.encode: missing - a spec must declare parse, decode, and encode (run \`pnpm spec new\` to scaffold them, or add the block)",
       "stdout": "",
     }
@@ -600,7 +600,7 @@ test("schema source doesn't evaluate (syntax error)", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        ts.schema did not evaluate: Unexpected token '>>>' — if this panic is the contract, add ts.constructionError",
+        ts.schema did not evaluate: Unexpected token '>>>' - if this panic is the contract, add ts.constructionError",
       "stdout": "",
     }
   `);

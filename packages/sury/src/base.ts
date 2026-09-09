@@ -402,6 +402,8 @@ export type Internal = {
   additionalItems?: AdditionalItems;
   items?: Internal[];
   required?: string[];
+  properties?: Record<string, Internal>;
+
   noValidation?: boolean;
   // Sury's own "this read may be absent" union - a dict value read by a fixed
   // key, modelled as `V | undefined`. The conversion rules (2-4) don't apply to

@@ -11,7 +11,18 @@
 // Bundled to .bench-cache/child.mjs (see bench.ts) instead of run through tsx,
 // because 32 tsx startups would cost more than the measurement itself.
 import type { ChildPayload, ChildResult, Target } from "./bench";
-import { requireSchema } from "./bench";
+import { buildScenarioRunner } from "./scenario";
+
+// A missing export on the baseline (`S.xid` before it existed) evaluates to
+// `undefined` without throwing. `parseOrThrow(undefined)` then compiles to
+// `noopOperation`, and the real validator looks thousands of percent slower
+// than a function that returns its input. Throw here so `measure` reports
+// `unsupported` → `new:`, the same path a missing builder already takes.
+const requireSchema = (schema: unknown): unknown => {
+  if (schema == null) throw new Error("schema expression is not a Sury schema");
+  return schema;
+};
+
 
 // Two spellings per builder: a baseline built from a ref older than the
 // operations rename carries the first, the current library the second. Both

@@ -88,12 +88,12 @@ test("Parses JSON string to float", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{typeof i==="string"||e[2](i);let v0;try{v0=JSON.parse(i)}catch(t){e[0](i)}typeof v0==="number"&&v0===v0||e[1](v0);return v0}`,
+    `i=>{typeof i==="string"||e[2](i);let v0;try{v0=JSON.parse(i)}catch(t){e[0](i)}typeof v0==="number"&&v0==v0||e[1](v0);return v0}`,
   )
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Convert,
-    `i=>{let v0;try{v0=JSON.parse(i)}catch(t){e[0](i)}typeof v0==="number"&&v0===v0||e[1](v0);return v0}`,
+    `i=>{let v0;try{v0=JSON.parse(i)}catch(t){e[0](i)}typeof v0==="number"&&v0==v0||e[1](v0);return v0}`,
   )
 
   t->Assert.deepEqual(1.23->S.convertOrThrow(~from=schema, ~to=S.unknown), %raw(`"1.23"`))
@@ -341,7 +341,7 @@ test("A S.unknown in the S.jsonString chain should do nothing", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{typeof i==="string"||e[3](i);try{JSON.parse(i)}catch(t){e[0](i)}let v0;try{v0=JSON.parse(i)}catch(t){e[1](i)}typeof v0==="boolean"||e[2](v0);return v0}`,
+    `i=>{typeof i==="string"||e[3](i);let v0;try{v0=JSON.parse(i)}catch(t){e[0](i)}let v2=JSON.stringify(v0);let v1;try{v1=JSON.parse(v2)}catch(t){e[1](v2)}typeof v1==="boolean"||e[2](v1);return v1}`,
   )
 
   t->U.assertCompiledCode(~schema, ~op=#Encode, `i=>{return ""+i}`)
@@ -368,7 +368,7 @@ test("Parses JSON string to object with bigint", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{typeof i==="string"||e[8](i);let v0;try{v0=JSON.parse(i)}catch(t){e[0](i)}typeof v0==="object"&&v0&&!Array.isArray(v0)||e[7](v0);let v1=v0["foo"],v2=v0["bar"];v1==="bar"||e[1](v1);Array.isArray(v2)||e[6](v2);v2.length===2||e[5](v2);let v4=v2["0"],v5=v2["1"];typeof v4==="string"||e[3](v4);let v3;try{v3=BigInt(v4)}catch(_){e[2](v4)}v3||v4.trim()||e[2](v4);typeof v5==="boolean"||e[4](v5);return {foo:v1,bar:[v3,v5]}}`,
+    `i=>{typeof i==="string"||e[8](i);let v0;try{v0=JSON.parse(i)}catch(t){e[0](i)}typeof v0==="object"&&v0&&!Array.isArray(v0)||e[7](v0);let v1=v0.foo,v2=v0.bar;v1==="bar"||e[1](v1);Array.isArray(v2)||e[6](v2);v2.length===2||e[5](v2);let v4=v2[0],v5=v2[1];typeof v4==="string"||e[3](v4);let v3;try{v3=BigInt(v4)}catch(_){e[2](v4)}v3||v4.trim()||e[2](v4);typeof v5==="boolean"||e[4](v5);return {foo:v1,bar:[v3,v5]}}`,
   )
 
   t->Assert.deepEqual(
@@ -379,7 +379,7 @@ test("Parses JSON string to object with bigint", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{let v0=i["bar"];return "{\\"foo\\":\\"bar\\",\\"bar\\":[\\""+v0["0"]+"\\","+v0["1"]+"]}"}`,
+    `i=>{let v0=i.bar;return "{\\"foo\\":\\"bar\\",\\"bar\\":[\\""+v0[0]+"\\","+v0[1]+"]}"}`,
   )
 })
 
@@ -433,7 +433,7 @@ test("Converts JSON string to object with unknown field", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{typeof i==="string"||e[2](i);let v0;try{v0=JSON.parse(i)}catch(t){e[0](i)}typeof v0==="object"&&v0&&!Array.isArray(v0)||e[1](v0);return v0["foo"]}`,
+    `i=>{typeof i==="string"||e[2](i);let v0;try{v0=JSON.parse(i)}catch(t){e[0](i)}typeof v0==="object"&&v0&&!Array.isArray(v0)||e[1](v0);return v0.foo}`,
   )
   t->U.assertCompiledCode(
     ~schema,
@@ -485,7 +485,7 @@ test("Can apply refinement to JSON string with S.to after", t => {
     ~schema,
     ~op=#Parse,
     // TODO: Can be improved to perform JSON.parse only once
-    `i=>{typeof i==="string"||e[5](i);try{JSON.parse(i)}catch(t){e[0](i)}e[1](i)||e[4](i);let v0;try{v0=JSON.parse(i)}catch(t){e[2](i)}typeof v0==="number"&&v0<=2147483647&&v0>=-2147483648&&v0%1===0||e[3](v0);return v0}`,
+    `i=>{typeof i==="string"||e[5](i);try{JSON.parse(i)}catch(t){e[0](i)}e[1](i)||e[4](i);let v0;try{v0=JSON.parse(i)}catch(t){e[2](i)}typeof v0==="number"&&v0<=2147483647&&v0>=-2147483648&&v0%1==0||e[3](v0);return v0}`,
   )
 })
 
@@ -496,6 +496,6 @@ test("Can apply refinement to JSON string with S.to before", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{typeof i==="number"&&i<=2147483647&&i>=-2147483648&&i%1===0||e[3](i);let v0=(Number.isFinite(i)?""+i:e[0](i));e[1](v0)||e[2](v0);return v0}`,
+    `i=>{typeof i==="number"&&i<=2147483647&&i>=-2147483648&&i%1==0||e[3](i);let v0=(Number.isFinite(i)?""+i:e[0](i));e[1](v0)||e[2](v0);return v0}`,
   )
 })

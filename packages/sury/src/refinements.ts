@@ -664,7 +664,8 @@ export const minLength = (root: Internal, length: number, maybeMessage?: string)
   // on a string it is how a schema says the empty string is a value it admits,
   // which the text wires read (`decidesBlank` in advanced/formData.ts).
   if (!narrowsSize(schema[key], length, false) && !(length === 0 && schema[key] === U)) {
-    return carryMessage(root, (schema.bounds ?? 0) & 1 ? key : U, maybeMessage);
+    return carryMessage(root, (schema.bd ?? 0) & 1 ? key : U, maybeMessage);
+
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);

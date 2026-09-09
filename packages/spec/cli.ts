@@ -313,7 +313,7 @@ const cmdCheck = async (): Promise<void> => {
     const exists = existsSync(path);
     if (exists && readFileSync(path, "utf8") === emit()) continue;
     failOne(basename(path), [
-      exists ? "stale — run `pnpm spec schema`" : "missing — run `pnpm spec schema`",
+      exists ? "stale - run `pnpm spec schema`" : "missing - run `pnpm spec schema`",
     ]);
   }
 
