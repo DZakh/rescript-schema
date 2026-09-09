@@ -184,7 +184,7 @@ export const stringDecoderFn = (input: Val): Val => {
     // this is that decoder, and reaching this branch at all requires a literal
     // schema in the bundle: naming it statically would instead ship it to every
     // `S.string` consumer (+264 gz on that export, +4 on total).
-    const schema = baseSchema(stringTag, false, input.s.dc);
+    const schema = baseSchema(stringTag, false, input.s.decoder);
     schema.const = const_;
     return B_next(input, `"${const_}"`, schema);
   }
@@ -205,7 +205,7 @@ export const string: Internal = /* @__PURE__ */ initSchema(stringTag, stringDeco
 // @__NO_SIDE_EFFECTS__
 export const openedText = (format: Internal): Internal => {
   const opened = copySchema(string);
-  setContent(opened, format.ct!);
+  setContent(opened, format.content!);
   return opened;
 };
 

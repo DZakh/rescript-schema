@@ -44,7 +44,7 @@ const dateTimeString: Internal = /* @__PURE__ */ initSchema(
   (s) => {
     s.format = "date-time";
     // `toISOString()` emits only digits, `-:.TZ` and a sign.
-    s.fg = 1;
+    s.formatFlag = 1;
   },
 );
 
@@ -68,7 +68,7 @@ export const date: Internal = /* @__PURE__ */ initSchema(
     s.class = Date;
 
     // Encoder: Date → string (via toISOString) when target is string
-    s.en = (input, target) => {
+    s.encoder = (input, target) => {
       const toTagFlag = tagFlags[target.type]!;
       if ((toTagFlag & 2)) {
         // `toISOString()` throws a bare RangeError on an invalid Date, which

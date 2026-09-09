@@ -74,7 +74,7 @@ const nestedNone = (): Internal => {
   mut.required = [nestedLoc];
   mut.properties = properties;
   mut.additionalItems = "strip";
-  mut.sz = (input: Val) => {
+  mut.serializer = (input: Val) => {
     const nextSchema = input.e.to!;
     return B_nextConst(input, nextSchema, nextSchema);
   };
@@ -84,7 +84,7 @@ const nestedNone = (): Internal => {
 const nestedOption = (item: Internal): Internal => {
   return updateOutput<Internal>(item, (mut) => {
     mut.to = nestedNone();
-    mut.pr = nestedOptionParser;
+    mut.parser = nestedOptionParser;
   });
 }
 
@@ -185,15 +185,15 @@ export const internalRefine = (
 ): Internal => {
   return updateOutput(schema, (mut) => {
     const refiner = makeRefiner(mut);
-    const existingRefiner = mut.rf;
+    const existingRefiner = mut.refiner;
     if (existingRefiner !== U) {
-      mut.rf = (input) => {
+      mut.refiner = (input) => {
         const arr = existingRefiner(input);
         arr.push(...refiner(input));
         return arr;
       };
     } else {
-      mut.rf = refiner;
+      mut.refiner = refiner;
     }
   });
 }
@@ -249,8 +249,8 @@ export const refineInput = (
         },
       ];
     };
-    const existing = mut.ir;
-    mut.ir =
+    const existing = mut.inputRefiner;
+    mut.inputRefiner =
       existing !== U
         ? (input) => {
             const arr = existing(input);
@@ -290,7 +290,7 @@ export const codecTo = (
     // and `S.json` has no opened form of its own, so those say what every
     // undecodable pair says instead.
     const ambiguous =
-      B_contentDiffers(B_contentNode(mut).ct, B_contentNode(target).ct) &&
+      B_contentDiffers(B_contentNode(mut).content, B_contentNode(target).content) &&
       target.to === U
       ? B_contentNode(mut) === mut &&
         B_contentNode(target) === target &&
@@ -322,34 +322,34 @@ export const codecTo = (
       // shared `string` singleton. Stop copying here and it corrupts one.
       const targetMut = copySchema(target);
       if (serializer !== U) {
-        targetMut.sz = serializer;
+        targetMut.serializer = serializer;
       }
       if (opened) {
-        targetMut.op = decode as boolean;
+        targetMut.opens = decode as boolean;
       }
       mut.to = targetMut;
     } else {
       mut.to = target;
     }
     if (parser !== U) {
-      mut.pr = parser;
+      mut.parser = parser;
     }
     if (typeof encode === "boolean") {
-      // `ob`, not `op`: this node is the *source* of the link, and it
-      // may later be some other link's target — where `op` would then be
+      // `opensBack`, not `opens`: this node is the *source* of the link, and it
+      // may later be some other link's target - where `opens` would then be
       // read as that link's decode reading. `reverse` moves it across.
-      mut.ob = encode;
+      mut.opensBack = encode;
     }
   });
-  // copySchema carries a cached ia/ht from the source and a
+  // copySchema carries a cached isAsync/hasTransform from the source and a
   // custom slot can change both, so let the next compile re-derive them.
   // Slotless links keep the fast path: a built-in conversion can turn async now
   // that a container reads its payload, but only where the source itself is
   // already one, and the cache is read off the link's own head - nothing that
   // reaches here carries a value for either.
   if (decode !== U || encode !== U) {
-    delete root.ia;
-    delete root.ht;
+    delete root.isAsync;
+    delete root.hasTransform;
   }
   return root;
 };

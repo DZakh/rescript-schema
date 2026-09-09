@@ -96,9 +96,9 @@ export const parse = (input: Val): Val => {
       result.io = true;
     } else if (loopInput.io) {
       const to = loopInput.e.to!;
-      result = loopInput.e.pr ? loopInput.e.pr(loopInput) : B_refine(result, U, U, to);
+      result = loopInput.e.parser ? loopInput.e.parser(loopInput) : B_refine(result, U, U, to);
     } else {
-      const maybeEncoder = loopInput.s.en;
+      const maybeEncoder = loopInput.s.encoder;
       if (
         maybeEncoder &&
         maybeEncoder !== appliedEncoder &&
@@ -117,7 +117,7 @@ export const parse = (input: Val): Val => {
       // otherwise let's start the loop from the beginning
       if (loopInput !== result) appliedEncoderRef = maybeEncoder!;
       else {
-        result = loopInput.e.dc(loopInput);
+        result = loopInput.e.decoder(loopInput);
         // Primitive decoder (no internal transforms): apply refiners here.
         // Advanced decoders set isOutput themselves and own refiner application.
         if (!result.io) result = B_markOutput(result, result);
@@ -211,8 +211,8 @@ export const compileDecoder = (
   const output = parse(input);
   const code = B_merge(output);
   const isAsync = !!(output.f & 1);
-  expected.ia = isAsync;
-  expected.ht = output.t === true;
+  expected.isAsync = isAsync;
+  expected.hasTransform = output.t === true;
 
   const body = emitTail(input, code, output.i, isAsync, flag, !!defs);
   if (!body) return noopOperation;
@@ -263,9 +263,9 @@ Object.defineProperty(schemaPrototype, reversedKey, {
       const next = mut.to;
       reversedHead ? (mut.to = reversedHead) : delete mut.to;
       const record = mut as unknown as Record<string, unknown>;
-      reverseSwap(record, "pr", "sz");
-      reverseSwap(record, "rf", "ir");
-      reverseSwap(record, "op", "ob");
+      reverseSwap(record, "parser", "serializer");
+      reverseSwap(record, "refiner", "inputRefiner");
+      reverseSwap(record, "opens", "opensBack");
       // Deleted, not parked in a holding field: encode has no absent-input arm,
       // and double reversal reads the cache below rather than re-deriving, so
       // nothing needs the old value back.
@@ -415,10 +415,10 @@ const compileChain = (
       // spelling `codecTo` offers - this form has nowhere to write one, and a
       // custom coder is what answers it.
       if (
-        B_contentDiffers(B_contentNode(mut).ct, B_contentNode(to).ct) &&
+        B_contentDiffers(B_contentNode(mut).content, B_contentNode(to).content) &&
         !to.to
       ) {
-        mut.pr = (input: Val) => B_unsupportedDecode(input, mut, to);
+        mut.parser = (input: Val) => B_unsupportedDecode(input, mut, to);
       }
     });
   }

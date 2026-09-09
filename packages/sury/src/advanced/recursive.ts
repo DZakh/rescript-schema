@@ -64,8 +64,8 @@ export const recursiveDecoder: Builder = (input) => {
       existing.v === 0 ? B_embed(input, existing) + ".v" : B_embed(input, existing.v);
   } else {
     // Optimistic compilation with recompile if assumptions were wrong
-    let assumedHasTransform = !!def.ht;
-    let assumedIsAsync = !!def.ia;
+    let assumedHasTransform = !!def.hasTransform;
+    let assumedIsAsync = !!def.isAsync;
     let compileNeeded = true;
     const node = addOpNode(def, [inputSchema, def], key, 0);
 
@@ -75,11 +75,11 @@ export const recursiveDecoder: Builder = (input) => {
 
         // Set optimistic values on def before compiling (if not already set)
         // Inner circular references will read these values
-        if (def.ht === U) {
-          def.ht = assumedHasTransform;
+        if (def.hasTransform === U) {
+          def.hasTransform = assumedHasTransform;
         }
-        if (def.ia === U) {
-          def.ia = assumedIsAsync;
+        if (def.isAsync === U) {
+          def.isAsync = assumedIsAsync;
         }
 
         // Back to in-progress: a recompile's inner circular references must
@@ -89,8 +89,8 @@ export const recursiveDecoder: Builder = (input) => {
         node.v = compileDecoder(inputSchema, def, flag, defs);
 
         // Check if actual values differ from assumed
-        const actualHasTransform = def.ht!;
-        const actualIsAsync = def.ia!;
+        const actualHasTransform = def.hasTransform!;
+        const actualIsAsync = def.isAsync!;
 
         if (
           actualHasTransform !== assumedHasTransform ||
@@ -113,8 +113,8 @@ export const recursiveDecoder: Builder = (input) => {
     recOperation = B_embed(input, node.v);
   }
 
-  const hasTransform = def.ht === true;
-  const isAsync = def.ia!;
+  const hasTransform = def.hasTransform === true;
+  const isAsync = def.isAsync!;
 
   // Result var decl, prepended after the re-merge below so it sits outside the
   // try/catch mergeWithPathPrepend may wrap the assignment in (stays in scope).

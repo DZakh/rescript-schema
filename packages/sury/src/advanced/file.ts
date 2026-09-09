@@ -103,7 +103,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
       // `v()` inside each branch that uses it: materializing the var up
       // front left a dead `let vN = …` on the two paths below, which take the
       // value as it stands.
-      const toBytes = source.ct?.bc?.toBytes;
+      const toBytes = source.content?.bc?.toBytes;
       const parts = (sourceTagFlag & 2)
         ? toBytes
           ? `${B_embed(input, toBytes)}(${input.v()})`
@@ -134,12 +134,12 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
       // import.
       s.class = (globalThis as unknown as Record<string, unknown>)[global];
       setContent(s, base64Content);
-      s.js = binaryJSONSchema;
+      s.jsonSchema = binaryJSONSchema;
       if (s.class === U) {
         unsupportedInstance(s, name);
       }
 
-      s.en = (input, target) => {
+      s.encoder = (input, target) => {
         const targetTagFlag = tagFlags[target.type]!;
         // A union picks its variant before an asynchronous read resolves, so the
         // arm's own checks would run against the promise. The axis stops here,
@@ -158,7 +158,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
         // A value position (or base64 itself) stores the bytes as base64;
         // anything else after a string wants the text they spell, which is also
         // what a format opened by rule 3 is handed.
-        if (target.ct !== U && (target.ct.bc || !B_readsPayload(target))) {
+        if (target.content !== U && (target.content.bc || !B_readsPayload(target))) {
           const { format: asFormat, fromBytes } = bytesTarget(target, base64Content);
           const output = read(
             input,
@@ -174,7 +174,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
         // A format being opened (rule 3) is handed its own document, so it
         // parses the text instead of escaping it.
         return (targetTagFlag & 2)
-          ? read(input, `.text()`, target.ct !== U ? openedText(target) : string)
+          ? read(input, `.text()`, target.content !== U ? openedText(target) : string)
           : input;
       };
     },

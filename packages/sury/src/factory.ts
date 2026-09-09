@@ -122,7 +122,7 @@ const fieldOrSchema = (schema: Internal, or: unknown): Internal => {
   // check the union compiler used to emit disappears.
   if (schema.to === U) {
     const toMut = copySchema(schema);
-    toMut.sz = (input: Val) => {
+    toMut.serializer = (input: Val) => {
       const itemInput = B_scope(input);
       itemInput.io = false;
       itemInput.s = unknown;
@@ -148,9 +148,9 @@ const fieldOrSchema = (schema: Internal, or: unknown): Internal => {
   } catch (_exn) {}
 
   const parseAs = copySchema(schema);
-  parseAs.xp = () => inputExpression(mut);
+  parseAs.expression = () => inputExpression(mut);
 
-  mut.pr = (input: Val) => {
+  mut.parser = (input: Val) => {
     const v = input.v();
     const defCode = B_inlineConst(input, Literal_parse(or));
     const itemInput = B_scope(input);
@@ -179,9 +179,9 @@ const makeFieldOr = (field: (location: string, schema: Internal) => unknown) =>
 
 const proxifyShapedSchema = (schema: Internal, from: string[], fromFlattened?: number): unknown => {
   const mut = copySchema(getOutputSchema(schema));
-  mut.fr = from;
+  mut.from = from;
   if (fromFlattened !== U) {
-    mut.ff = fromFlattened;
+    mut.fromFlattened = fromFlattened;
   }
   return new Proxy(mut, {
     get(target: Internal, prop) {
@@ -205,8 +205,8 @@ const proxifyShapedSchema = (schema: Internal, from: string[], fromFlattened?: n
 
         return proxifyShapedSchema(
           maybeField!,
-          target.fr!.concat(location),
-          target.ff
+          target.from!.concat(location),
+          target.fromFlattened
         );
       }
     },
@@ -221,7 +221,7 @@ export const schemaShape = <TValue>(schema: Internal, definer: (value: unknown) 
     if (definition === fromProxy) {
       // Definer returned the proxy unchanged: no reshape, keep the identity parser.
     } else {
-      mut.pr = shapedParser;
+      mut.parser = shapedParser;
       mut.to = definitionToShapedSchema(definition);
     }
   });
@@ -259,8 +259,8 @@ const schemaNested = function (this: AdvancedObjectCtx & Record<string, unknown>
       properties[fieldName] = schema;
       return proxifyShapedSchema(
         schema,
-        parentSchema.fr!.concat(fieldName),
-        parentSchema.ff
+        parentSchema.from!.concat(fieldName),
+        parentSchema.fromFlattened
       );
     };
 
@@ -340,10 +340,10 @@ export const schemaObject = (
   mut.required = Object.keys(properties);
   mut.properties = properties;
   mut.additionalItems = globalConfig.a;
-  mut.pr = shapedParser;
+  mut.parser = shapedParser;
   mut.to = definitionToShapedSchema(definition);
   if (flattened !== U) {
-    mut.fl = flattened;
+    mut.flattened = flattened;
   }
   return mut;
 }
@@ -387,7 +387,7 @@ export const schemaTuple = (
   const mut = baseSchema(arrayTag, false, arrayDecoder);
   mut.items = items;
   mut.additionalItems = "strict";
-  mut.pr = shapedParser;
+  mut.parser = shapedParser;
   mut.to = definitionToShapedSchema(definition);
   return mut;
 }
@@ -449,12 +449,12 @@ const assembleShapedObject = (
 
 const getShapedParserOutput = (input: Val, targetSchema: Internal): Val => {
   let v: Val;
-  if (targetSchema.ff !== U) {
+  if (targetSchema.fromFlattened !== U) {
     v = B_scope(
-      getValByFrom(input.fv![targetSchema.ff]!, targetSchema.fr!, 0)
+      getValByFrom(input.fv![targetSchema.fromFlattened]!, targetSchema.from!, 0)
     );
-  } else if (targetSchema.fr !== U) {
-    v = B_scope(getValByFrom(input, targetSchema.fr, 0));
+  } else if (targetSchema.from !== U) {
+    v = B_scope(getValByFrom(input, targetSchema.from, 0));
   } else if (isLiteral(targetSchema)) {
     v = B_nextConst(input, targetSchema);
   } else {
@@ -468,7 +468,7 @@ const getShapedParserOutput = (input: Val, targetSchema: Internal): Val => {
 }
 
 const shapedParser: Builder = (input: Val) => {
-  const flattened = input.e.fl;
+  const flattened = input.e.flattened;
   if (flattened !== U) {
     const flattenedVals: Val[] = [];
     for (let idx = 0; idx < flattened.length; idx++) {
@@ -518,9 +518,9 @@ const shapedParser: Builder = (input: Val) => {
 }
 
 const prepareShapedSerializerAcc = (acc: ShapedSerializerAcc, input: Val): void => {
-  if (input.e.fr !== U) {
-    const from = input.e.fr;
-    const fromFlattened = input.e.ff;
+  if (input.e.from !== U) {
+    const from = input.e.from;
+    const fromFlattened = input.e.fromFlattened;
     let accAtFrom: ShapedSerializerAcc;
     if (fromFlattened !== U) {
       if (acc.flattened === U) {
@@ -593,7 +593,7 @@ const getShapedSerializerOutput = (
 
     const missingInput = (): never => {
       const locatedPath =
-        targetSchema.fr !== U ? pathConcat(path, targetSchema.fr) : path;
+        targetSchema.from !== U ? pathConcat(path, targetSchema.from) : path;
       return B_invalidOperation(
         input,
         `Missing input for ${inputExpression(targetSchema)}` +
@@ -621,7 +621,7 @@ const getShapedSerializerOutput = (
         v.prev = U;
         v.p = input;
         v.v = _notVarAtParent;
-        const flattened = resolvedTargetSchema.fl;
+        const flattened = resolvedTargetSchema.flattened;
         if (flattened !== U && acc !== U && acc.flattened !== U) {
           const flattenedSchemas = flattened;
           const flattenedAcc = acc.flattened;
@@ -651,8 +651,8 @@ const getShapedSerializerOutput = (
     // The walk built the head of `targetSchema`'s chain. If the schema also
     // carries a transform of its own, run it here: the assembled head is its
     // input, and nobody else will apply it (a pending operation-level `to`
-    // — `pr` absent — is the compile pipeline's job, not ours).
-    return targetSchema.pr === U ? assembled : parse(assembled);
+    // with no parser is the compile pipeline's job, not ours).
+    return targetSchema.parser === U ? assembled : parse(assembled);
   }
 }
 
@@ -674,7 +674,7 @@ const definitionToShapedSchema = (definition: unknown): Internal => {
       (node) => (node as Record<symbol, Internal | undefined>)[itemSymbol]
     )
   );
-  s.sz = shapedSerializer;
+  s.serializer = shapedSerializer;
   return s;
 }
 

@@ -97,7 +97,7 @@ export const jsonEncoderFn = (input: Val, target: Internal): Val => {
   // without this branch the string case below would re-validate the JSON value
   // as being a string, making S.json -> S.jsonString reject every non-string.
   if (target.format === "json") {
-    return B_next(input, B_stringifyCall(input.i, target.sp), target, target);
+    return B_next(input, B_stringifyCall(input.i, target.space), target, target);
   }
   const toTagFlag = tagFlags[target.type]!;
   const copyVia = (schema: Internal): Val =>
@@ -135,7 +135,7 @@ export const jsonEncoderFn = (input: Val, target: Internal): Val => {
     // which `B_narrowJsonSourcedJsonString` already routes, and standing
     // `S.json` in front of it would match every value and swallow the dispatch.
     const storedApart = (variant: Internal): Internal | undefined => {
-      const content = variant.ct;
+      const content = variant.content;
       return content !== U && content !== json && content.type !== variant.type ? content : U;
     };
     if (anyOf !== U && anyOf.some((variant) => storedApart(variant) !== U)) {
@@ -154,7 +154,7 @@ export const jsonEncoderFn = (input: Val, target: Internal): Val => {
           return copyTo(from, variant);
         })
       );
-      stored.pv = true;
+      stored.perVariant = true;
       return parse(B_refine(input, unknown, U, stored));
     }
     return input;
@@ -162,7 +162,7 @@ export const jsonEncoderFn = (input: Val, target: Internal): Val => {
     // For non-JSON types (bigint, instance, etc.), decode through the schema
     // the target is stored as - a plain string, unless it carries a payload of
     // its own and names how a document holds it (bytes as base64).
-    return copyVia(target.ct !== U ? target.ct : string);
+    return copyVia(target.content !== U ? target.content : string);
   }
 }
 
@@ -199,7 +199,7 @@ const perVariantTo = (
   );
   // Already resolved variant by variant, so the union encoder pairs them
   // by position instead of re-matching them by type.
-  mapped.pv = true;
+  mapped.perVariant = true;
   return mapped;
 };
 
@@ -277,7 +277,7 @@ export const jsonDecoderFn = (input: Val): Val => {
       !!to &&
       to.format !== "json" &&
       !(to.noValidation && to.type === undefinedTag) &&
-      !input.e.pr;
+      !input.e.parser;
     if (preEncode) {
       input.s = json;
       return jsonEncoderFn(input, input.e);
@@ -305,11 +305,11 @@ export const json: Internal = /* @__PURE__ */ initSchema(refTag, jsonDecoderFn, 
   jsonRef["$ref"] = `${defsPath}${jsonName}`;
   jsonRef.name = jsonName;
 
-  jsonRef.en = jsonEncoderFn;
+  jsonRef.encoder = jsonEncoderFn;
 
   s["$ref"] = jsonRef["$ref"];
   s.name = jsonName;
-  s.en = jsonEncoderFn;
+  s.encoder = jsonEncoderFn;
   setContent(s, s);
 
   const anyOf = [
@@ -413,7 +413,7 @@ export const jsonString = /* @__PURE__ */ (() => {
 
   const jsonStringEncoder: Encoder = (input, target) => {
     if (target.format !== "json") {
-      if (target.ct !== U && target.ct !== json && !B_readsPayload(target)) {
+      if (target.content !== U && target.content !== json && !B_readsPayload(target)) {
         // The target stores this document rather than being another rendering
         // of it, so it takes the text as it stands.
         return input;
@@ -444,7 +444,7 @@ export const jsonString = /* @__PURE__ */ (() => {
   const initJsonString = (s: Internal): void => {
     s.format = "json";
     s.name = `${jsonName} string`;
-    s.en = jsonStringEncoder;
+    s.encoder = jsonStringEncoder;
     setContent(s, json);
     // Only an unknown-typed source has validation pending - a typed source
     // (decode direction) has nothing to fuse, and marking it would make the
@@ -466,12 +466,12 @@ export const jsonString = /* @__PURE__ */ (() => {
       if (
         input.s.additionalItems === unknown &&
         container &&
-        !container.to!.sp &&
+        !container.to!.space &&
         !(input.g.o & 1) &&
         (item !== U
           ? !(item.to === U && (tagFlags[item.type]! & ((2 | 8) | 32)))
-          : container.rf === U &&
-            container.ir === U &&
+          : container.refiner === U &&
+            container.inputRefiner === U &&
             typeof container.additionalItems !== objectTag)
       ) {
         const marked = copySchema(container);
@@ -591,7 +591,7 @@ export const jsonString = /* @__PURE__ */ (() => {
         : typeof c === stringTag && JSON.stringify(c) === `"${c}"`;
     });
   const bareString = copySchema(string);
-  bareString.fg = 1;
+  bareString.formatFlag = 1;
 
   // A serialization piece: `p` produces the JSON text, `g` (when set) is the
   // var to test against void 0 - an undefined-able value renders by omission,
@@ -984,8 +984,8 @@ export const jsonString = /* @__PURE__ */ (() => {
     if (
       to !== U &&
       !(to.noValidation && to.type === undefinedTag) &&
-      !expectedSchema.pr &&
-      !expectedSchema.rf
+      !expectedSchema.parser &&
+      !expectedSchema.refiner
     ) {
       const encoded = jsonStringEncoder(stringVal, to);
       // Unless the target only stores the text: then nothing downstream reads it
@@ -1018,8 +1018,8 @@ export const jsonString = /* @__PURE__ */ (() => {
       // read it yet. A source already claiming this payload (a union narrow) is
       // the same unverified text. Every other string is a value, and stays one.
       if (
-        input.s.ct === json ||
-        (input.s.ct !== U && B_readsPayload(expectedSchema))
+        input.s.content === json ||
+        (input.s.content !== U && B_readsPayload(expectedSchema))
       ) {
         return carriedJsonString(input, expectedSchema);
       }
@@ -1029,7 +1029,7 @@ export const jsonString = /* @__PURE__ */ (() => {
       // raw default - a `Date`, not its ISO text. The helper handles both.
       return B_next(
         input,
-        (input.s.fg ?? 0) & 1 && !input.s.noValidation && accessorRe.test(input.i)
+        (input.s.formatFlag ?? 0) & 1 && !input.s.noValidation && accessorRe.test(input.i)
           ? `"\\""+${input.i}+"\\""`
           : `${B_embedJsonStr(input)}(${input.i})`,
         expectedSchema,
@@ -1072,7 +1072,7 @@ export const jsonString = /* @__PURE__ */ (() => {
       // `!items.length`: a tuple prefix serializes under its own item schemas,
       // which the whole-value call would ignore.
       if (
-        (expectedSchema.sp !== U && expectedSchema.sp !== 0) ||
+        (expectedSchema.space !== U && expectedSchema.space !== 0) ||
         // `!uv`: a fused container skipped upstream validation, and the
         // whole-value paths don't validate - only the aggregate loop does.
         (!input.s.uv &&
@@ -1090,7 +1090,7 @@ export const jsonString = /* @__PURE__ */ (() => {
             jsonVal,
             `${jsonVal.v()}.then(${resolvedVar}=>${B_stringifyCall(
               resolvedVar,
-              expectedSchema.sp,
+              expectedSchema.space,
             )})`,
             expectedSchema,
             expectedSchema,
@@ -1100,7 +1100,7 @@ export const jsonString = /* @__PURE__ */ (() => {
         }
         return B_next(
           jsonVal,
-          B_stringifyCall(jsonVal.i, expectedSchema.sp),
+          B_stringifyCall(jsonVal.i, expectedSchema.space),
           expectedSchema,
           expectedSchema,
         );
@@ -1134,6 +1134,6 @@ export const jsonString = /* @__PURE__ */ (() => {
 // @__NO_SIDE_EFFECTS__
 export const jsonStringWithSpace = (space: number): Internal => {
   const mut = copySchema(jsonString);
-  mut.sp = space;
+  mut.space = space;
   return mut;
 }

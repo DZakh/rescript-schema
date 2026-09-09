@@ -328,24 +328,20 @@ export type Internal = {
   seq?: number;
   // Builder for transforming to the "to" schema. If missing, should apply
   // coercion logic.
-  // `pr` parser · `sz` serializer. Short: compile-only, survive minification.
-  pr?: Builder;
-  // A field on the "to" schema, to turn it into "pr", when reversing.
-  sz?: Builder;
-  // `dc` decoder · `en` encoder. Short: on every schema, survive minification.
-  dc: Builder;
-  en?: Encoder;
-  // `ir` inputRefiner. Short: compile-only, survives minification.
-  ir?: (input: Val) => Check[];
-  // `rf` refiner.
-  rf?: (input: Val) => Check[];
+  parser?: Builder;
+  // A field on the "to" schema, to turn it into "parser", when reversing.
+  serializer?: Builder;
+  decoder: Builder;
+  encoder?: Encoder;
+  inputRefiner?: (input: Val) => Check[];
+  refiner?: (input: Val) => Check[];
   to?: Internal;
-  // `fr` from. Short: compile-only, survive minification.
-  fr?: string[];
+  // When transforming with changing shape, store from which path it came
+  // from. For S.object, S.tuple, and S.shape.
+  from?: string[];
   // The index of the flattened schema reshaping is happening from.
-  // `ff` fromFlattened · `fl` flattened.
-  ff?: number;
-  fl?: Internal[];
+  fromFlattened?: number;
+  flattened?: Internal[];
   const?: unknown;
   class?: unknown;
   name?: string;
@@ -368,25 +364,23 @@ export type Internal = {
   // check the text, never escape it as a value - `S.jsonString` inside
   // `S.optional` used to serialize `"a"` to `"\"a\""` for exactly that reason.
   // Written only through `setContent` (below), which keeps it non-enumerable.
-  // `ct` content. Short: compile-only, survive minification.
-  ct?: Internal;
+  content?: Internal;
   // Bytes-as-text codec on a format singleton (`S.base64`, `S.base64url`).
   // Presence is the payload *kind* `B_contentDiffers` uses, so the two alphabets
   // are one family without importing either format into builder.ts. Always read.
-  // Carriers look it up off `ct.bc`. Copies of a format keep `bc` so
+  // Carriers look it up off `content.bc`. Copies of a format keep `bc` so
   // alphabet recoding still sees it. `S.trim` targets `string`, which has none.
-  // Short: this name is in `B_contentDiffers`, which ships in every export.
   bc?: BytesCodec;
   // Which reading of a content link the caller wrote, when they wrote one.
-  // `op` (opens) is the reading of the link that converts INTO this schema — `true`
-  // opens the source and hands its payload over, `false` stores its value —
-  // and `ob` (opensBack) the same for the reversed chain, where this schema is the
+  // `opens` is the reading of the link that converts INTO this schema - `true`
+  // opens the source and hands its payload over, `false` stores its value -
+  // and `opensBack` the same for the reversed chain, where this schema is the
   // target instead. `reverse` trades the two, the way it trades
-  // pr/sz, so each direction's slot lands on the node the other
-  // direction reads it from. Absent means the link's shape decides — see
+  // parser/serializer, so each direction's slot lands on the node the other
+  // direction reads it from. Absent means the link's shape decides - see
   // `B_readsPayload` in builder.ts.
-  op?: boolean;
-  ob?: boolean;
+  opens?: boolean;
+  opensBack?: boolean;
   // Properties of every value a string schema admits, which let generated code
   // skip work: 1 escape-free (no `"`, `\`, controls or lone surrogates, so
   // jsonString splices it between bare quotes with no escaping). Set the bit
@@ -395,8 +389,7 @@ export type Internal = {
   // `pnpm --filter=sury fuzz:escfree`, because getting it wrong emits broken
   // JSON rather than merely over-escaped JSON. `noValidation` voids the proof;
   // the read sites handle that.
-  // `fg` formatFlag. Short: compile-only, survive minification.
-  fg?: number;
+  formatFlag?: number;
   has?: Partial<Record<Tag, boolean>>;
   anyOf?: Internal[];
   additionalItems?: AdditionalItems;
@@ -410,16 +403,14 @@ export type Internal = {
   // it: it isn't a user-written widening whose intent could be ambiguous, so
   // each variant converts to whatever the target is, and a variant with no
   // decoder to that target drops out with its error reported per value.
-  // `pv` perVariant.
-  pv?: boolean;
+  perVariant?: boolean;
   // Which bounds the caller actually wrote. int32 and port put their own
   // range in the fields below, so the values can't tell a caller's bound from
   // a format's - this can, and only the bound constructors ever set it.
   // 1 lower inclusive · 2 upper inclusive · 4 lower exclusive · 8 upper
   // exclusive. A schema bounds exactly one of its value, its length or its
   // size, so one pair of bits covers minimum/minLength/minItems/minSize alike.
-  // `bd` bounds. Short: compile-only, survive minification.
-  bd?: number;
+  bounds?: number;
   minimum?: number | bigint;
   maximum?: number | bigint;
   // S.gt/S.lt always land here and S.gte/S.lte always land on
@@ -438,8 +429,7 @@ export type Internal = {
   maxSize?: number;
   pattern?: RegExp;
   errorMessage?: SchemaErrorMessage;
-  // `sp` space. jsonString pretty-print indent. Compile-only.
-  sp?: number;
+  space?: number;
   // Compile-time only, set on a per-operation schema copy by `fz` below: the
   // container's dynamic items, or a fixed container's non-literal fields, are
   // typed but UNVALIDATED - the decoder skipped them because
@@ -472,25 +462,21 @@ export type Internal = {
   // clears them. Nothing derives them without compiling, so there is no probe
   // to ask a schema whether it is async - an operation reports that by
   // rejecting.
-  // `ia` async · `ht` hasTransform. Short: they live on every compiled schema
-  // and survive minification.
-  ia?: boolean;
-  ht?: boolean;
+  isAsync?: boolean;
+  hasTransform?: boolean;
   "~standard"?: unknown;
   // Overrides how inputExpression renders this schema. Only for a schema whose
   // expression its tag can't produce - compactColumns, whose columns live on
   // the `.to` target. Everything structural is rendered by inputExpression
   // itself, so setting this is the exception, not the pattern.
-  // `xp` expression. Short: compile-only, survive minification.
-  xp?: (schema: Internal) => string;
+  expression?: (schema: Internal) => string;
   // What this schema adds to the JSON Schema of a value that decodes to it.
   // jsonschema.ts reads it off `.to` and never off the schema being converted:
   // a schema whose own input isn't JSON has no document and must keep failing
   // the conversion. Unlike S.extendJSONSchema, which holds one document for
   // every dialect, it can answer per target. `unknown` because base.ts imports
   // nothing and `JSONSchemaT` lives upwards; the single read casts.
-  // `js` jsonSchema overlay. Short: compile-only.
-  js?: (schema: Internal, target: string) => unknown;
+  jsonSchema?: (schema: Internal, target: string) => unknown;
   // The reversed (Input ↔ Output swapped) schema. Always readable: `this` via
   // the self-reverse prototype getter, otherwise computed and cached by the
   // general prototype getter (parse.ts). Reading it on a plain schema COMPUTES
@@ -711,8 +697,8 @@ export const inputExpression = (schema: Internal, skipOverride?: boolean): strin
     return schema.name;
   } else if (schema.const !== U) {
     return stringify(schema.const);
-  } else if (schema.xp && !skipOverride) {
-    return schema.xp(schema);
+  } else if (schema.expression && !skipOverride) {
+    return schema.expression(schema);
   } else if (schema.anyOf !== U) {
     // Repeated members remain significant to decoding (the same effectful schema
     // may intentionally run more than once), but not to the expression. Deduping
@@ -752,7 +738,7 @@ export const inputExpression = (schema: Internal, skipOverride?: boolean): strin
       // A bound or divisor reads as part of the item, not the array:
       // `int32 > 5[]` parses as an array-typed bound and `number % 2[]` as an
       // array-typed divisor, the same ambiguity a union has.
-      return (item.type === anyOfTag || item.bd !== U || item.multipleOf !== U
+      return (item.type === anyOfTag || item.bounds !== U || item.multipleOf !== U
         ? `(${itemName})`
         : itemName) + "[]";
     }
@@ -910,10 +896,10 @@ export const valKey = "value";
 // survive minification as a real assignment.
 type SchemaClass = new () => Internal;
 
-// `dc` is a parameter, not something the caller assigns afterwards, and
+// `decoder` is a parameter, not something the caller assigns afterwards, and
 // that is load-bearing: a schema handed to a builder as a val's `s` becomes
 // that value's output schema, an output schema is reachable as another
-// operation's *target*, and the parse loop calls `e.dc` on a target
+// operation's *target*, and the parse loop calls `e.decoder` on a target
 // unconditionally. A site that forgot the assignment produced a TypeError deep
 // inside compilation (#369); requiring the argument makes that unrepresentable.
 // It also means every schema gains its fields in one order, so the instances
@@ -922,7 +908,7 @@ export const baseSchema = (tag: Tag, selfReverse: boolean, decoder: Builder): In
   const schema = new ((selfReverse ? SelfReverseSchema : Schema) as unknown as SchemaClass)();
   schema.type = tag;
   schema.seq = seq++;
-  schema.dc = decoder;
+  schema.decoder = decoder;
   return schema;
 };
 
@@ -955,7 +941,7 @@ export const copySchema = (schema: Internal): Internal => {
   c.seq = seq++;
   // `content` is non-enumerable, so Object.assign skips it - carried by hand
   // here, which is also the only place that pays for it.
-  if (schema.ct !== U) setContent(c, schema.ct);
+  if (schema.content !== U) setContent(c, schema.content);
   if (schema.bc !== U) setBytesCodec(c, schema.bc);
   return c;
 };
@@ -972,7 +958,7 @@ export const copyTo = (from: Internal, to: Internal): Internal => {
 // a carrier and its copies agree on the field count `unionIsTransparent` walks.
 export const setContent = (schema: Internal, content: Internal): void => {
   valueOptions[valKey] = content;
-  Object.defineProperty(schema, "ct", valueOptions as PropertyDescriptor);
+  Object.defineProperty(schema, "content", valueOptions as PropertyDescriptor);
 }
 
 export const setBytesCodec = (schema: Internal, codec: BytesCodec): void => {

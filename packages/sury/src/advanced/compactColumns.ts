@@ -291,7 +291,7 @@ export const compactColumns = (inputSchema: unknown): Internal => {
   const innerArray = array(inputSchema);
   const mut = arrayFactory(innerArray);
   mut.format = "compactColumns";
-  mut.dc = compactColumnsDecoder;
-  mut.xp = compactColumnsExpression;
+  mut.decoder = compactColumnsDecoder;
+  mut.expression = compactColumnsExpression;
   return mut;
 }

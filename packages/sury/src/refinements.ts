@@ -200,7 +200,7 @@ const sizeMember = (schema: Internal): string | undefined => {
 // could never shake, where `expression` is the hook base.ts offers for a
 // rendering another module owns.
 const withBounds = (schema: Internal, base: string): string => {
-  const written = schema.bd ?? 0;
+  const written = schema.bounds ?? 0;
   const member = sizeMember(schema);
   const sized = member !== U;
   const minKey = sized ? sizeKey(schema, false) : "minimum";
@@ -245,9 +245,9 @@ const withBounds = (schema: Internal, base: string): string => {
 // the same base, or the wrapping nests into `1 <= (1 <= number <= 9) <= 9`.
 // `skipOverride` is what stops the base rendering from re-entering this.
 const setBoundExpression = (mut: Internal, schema: Internal): void => {
-  if (schema.bd === U && schema.multipleOf === U) {
-    const base = schema.xp;
-    mut.xp = (s: Internal) =>
+  if (schema.bounds === U && schema.multipleOf === U) {
+    const base = schema.expression;
+    mut.expression = (s: Internal) =>
       withBounds(s, base !== U ? base(s) : inputExpression(s, true));
   }
 };
@@ -287,14 +287,14 @@ const multipleOfValidator = (d: number) => (value: number): boolean => {
 // one after it: `gte(5).gte(10)` compiles to the single `>=10`, and `length(3)`
 // after `maxLength(5)` retracts the `<6` - refinements intersect, ArkType
 // style, rather than append. Reading `input.e` is sound because a refiner is
-// only ever invoked through the schema that owns it (`val.e.rf(val)`,
+// only ever invoked through the schema that owns it (`val.e.refiner(val)`,
 // and the reversed copy carries the same fields), and a bound can never land
 // on a union (assertNumericBound rejects the anyOf tag), so the one context
 // that re-attaches refiners to other schemas - the union compiler - can't
 // receive this one.
 const boundsRefiner = (input: Val): Check[] => {
   const s = input.e;
-  const written = s.bd ?? 0;
+  const written = s.bounds ?? 0;
   const checks: Check[] = [];
   const member = sizeMember(s);
   if (member !== U) {
@@ -383,7 +383,7 @@ const boundsRefiner = (input: Val): Check[] => {
 // Schema document describing the same empty range loads and round-trips
 // verbatim - which `never` wouldn't.
 const updateBounds = (schema: Internal, update: (mut: Internal) => void): Internal =>
-  schema.bd !== U || schema.multipleOf !== U
+  schema.bounds !== U || schema.multipleOf !== U
     ? updateOutput(schema, update)
     : internalRefine(schema, (mut: Internal) => {
         update(mut);
@@ -484,11 +484,11 @@ const conflict = (incoming: Internal, existing: Internal): void => {
 };
 
 // One bound of `schema`, rendered alone: a copy so inputExpression still sees the
-// type and items, with `bd` set to just this bit so every other bound
-// stays invisible. Only ever called from a failing branch — building a message
+// type and items, with `bounds` set to just this bit so every other bound
+// stays invisible. Only ever called from a failing branch - building a message
 // must not cost an allocation on every bound that turns out to be fine.
 const asBound = (schema: Internal, key: string, bit: number, value: unknown): Internal => {
-  const mut = { ...schema, bd: bit } as unknown as Record<string, unknown>;
+  const mut = { ...schema, bounds: bit } as unknown as Record<string, unknown>;
   mut[key] = value;
   // The first bound on a schema is reported before one was ever applied, so
   // the copy has no override to inherit and renders bare without this.
@@ -540,12 +540,12 @@ export const gte = (root: Internal, minValue: number | bigint, maybeMessage?: st
   const schema = assertNumericBound("gte", root, minValue);
   assertLower(schema, minValue, false);
   if (!narrowsLower(schema, minValue, false)) {
-    const written = schema.bd ?? 0;
+    const written = schema.bounds ?? 0;
     return carryMessage(root, written & 4 ? "exclusiveMinimum" : written & 1 ? "minimum" : U, maybeMessage);
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
-    mut.bd = ((schema.bd ?? 0) & ~4) | 1;
+    mut.bounds = ((schema.bounds ?? 0) & ~4) | 1;
     mut.minimum = minValue;
     mut.exclusiveMinimum = U;
     setBoundMessage(mut, schema, "minimum", maybeMessage, "exclusiveMinimum");
@@ -557,12 +557,12 @@ export const lte = (root: Internal, maxValue: number | bigint, maybeMessage?: st
   const schema = assertNumericBound("lte", root, maxValue);
   assertUpper(schema, maxValue, false);
   if (!narrowsUpper(schema, maxValue, false)) {
-    const written = schema.bd ?? 0;
+    const written = schema.bounds ?? 0;
     return carryMessage(root, written & 8 ? "exclusiveMaximum" : written & 2 ? "maximum" : U, maybeMessage);
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
-    mut.bd = ((schema.bd ?? 0) & ~8) | 2;
+    mut.bounds = ((schema.bounds ?? 0) & ~8) | 2;
     mut.maximum = maxValue;
     mut.exclusiveMaximum = U;
     setBoundMessage(mut, schema, "maximum", maybeMessage, "exclusiveMaximum");
@@ -574,12 +574,12 @@ export const gt = (root: Internal, minValue: number | bigint, maybeMessage?: str
   const schema = assertNumericBound("gt", root, minValue);
   assertLower(schema, minValue, true);
   if (!narrowsLower(schema, minValue, true)) {
-    const written = schema.bd ?? 0;
+    const written = schema.bounds ?? 0;
     return carryMessage(root, written & 4 ? "exclusiveMinimum" : written & 1 ? "minimum" : U, maybeMessage);
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
-    mut.bd = ((schema.bd ?? 0) & ~1) | 4;
+    mut.bounds = ((schema.bounds ?? 0) & ~1) | 4;
     mut.exclusiveMinimum = minValue;
     mut.minimum = U;
     setBoundMessage(mut, schema, "exclusiveMinimum", maybeMessage, "minimum");
@@ -591,12 +591,12 @@ export const lt = (root: Internal, maxValue: number | bigint, maybeMessage?: str
   const schema = assertNumericBound("lt", root, maxValue);
   assertUpper(schema, maxValue, true);
   if (!narrowsUpper(schema, maxValue, true)) {
-    const written = schema.bd ?? 0;
+    const written = schema.bounds ?? 0;
     return carryMessage(root, written & 8 ? "exclusiveMaximum" : written & 2 ? "maximum" : U, maybeMessage);
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
-    mut.bd = ((schema.bd ?? 0) & ~2) | 8;
+    mut.bounds = ((schema.bounds ?? 0) & ~2) | 8;
     mut.exclusiveMaximum = maxValue;
     mut.maximum = U;
     setBoundMessage(mut, schema, "exclusiveMaximum", maybeMessage, "maximum");
@@ -664,12 +664,12 @@ export const minLength = (root: Internal, length: number, maybeMessage?: string)
   // on a string it is how a schema says the empty string is a value it admits,
   // which the text wires read (`decidesBlank` in advanced/formData.ts).
   if (!narrowsSize(schema[key], length, false) && !(length === 0 && schema[key] === U)) {
-    return carryMessage(root, (schema.bd ?? 0) & 1 ? key : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 1 ? key : U, maybeMessage);
 
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
-    mut.bd = (schema.bd ?? 0) | 1;
+    mut.bounds = (schema.bounds ?? 0) | 1;
     mut[key] = length;
     setBoundMessage(mut, schema, key, maybeMessage);
   });
@@ -681,11 +681,11 @@ export const maxLength = (root: Internal, length: number, maybeMessage?: string)
   assertSize(schema, length, true);
   const key = sizeKey(schema, true);
   if (!narrowsSize(schema[key], length, true)) {
-    return carryMessage(root, (schema.bd ?? 0) & 2 ? key : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 2 ? key : U, maybeMessage);
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
-    mut.bd = (schema.bd ?? 0) | 2;
+    mut.bounds = (schema.bounds ?? 0) | 2;
     mut[key] = length;
     setBoundMessage(mut, schema, key, maybeMessage);
   });
@@ -707,7 +707,7 @@ export const length = (root: Internal, length: number, maybeMessage?: string): I
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
-    mut.bd = (schema.bd ?? 0) | 3;
+    mut.bounds = (schema.bounds ?? 0) | 3;
     mut[minKey] = length;
     mut[maxKey] = length;
     setBoundMessage(mut, schema, minKey, maybeMessage);
@@ -720,11 +720,11 @@ export const minSize = (root: Internal, size: number, maybeMessage?: string): In
   const schema = assertSizeBound("minSize", root, size);
   assertSize(schema, size, false);
   if (!narrowsSize(schema.minSize, size, false)) {
-    return carryMessage(root, (schema.bd ?? 0) & 1 ? "minSize" : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 1 ? "minSize" : U, maybeMessage);
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
-    mut.bd = (schema.bd ?? 0) | 1;
+    mut.bounds = (schema.bounds ?? 0) | 1;
     mut.minSize = size;
     setBoundMessage(mut, schema, "minSize", maybeMessage);
   });
@@ -735,11 +735,11 @@ export const maxSize = (root: Internal, size: number, maybeMessage?: string): In
   const schema = assertSizeBound("maxSize", root, size);
   assertSize(schema, size, true);
   if (!narrowsSize(schema.maxSize, size, true)) {
-    return carryMessage(root, (schema.bd ?? 0) & 2 ? "maxSize" : U, maybeMessage);
+    return carryMessage(root, (schema.bounds ?? 0) & 2 ? "maxSize" : U, maybeMessage);
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
-    mut.bd = (schema.bd ?? 0) | 2;
+    mut.bounds = (schema.bounds ?? 0) | 2;
     mut.maxSize = size;
     setBoundMessage(mut, schema, "maxSize", maybeMessage);
   });
@@ -755,7 +755,7 @@ export const size = (root: Internal, size: number, maybeMessage?: string): Inter
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
-    mut.bd = (schema.bd ?? 0) | 3;
+    mut.bounds = (schema.bounds ?? 0) | 3;
     mut.minSize = size;
     mut.maxSize = size;
     setBoundMessage(mut, schema, "minSize", maybeMessage);
@@ -794,7 +794,7 @@ export const trim = (schema: Internal): Internal => {
   // still that payload. The marker has to be carried onto the link's target,
   // because the next link reads the chain tail - left bare, it would see a
   // plain string and pack the base64 text itself as bytes.
-  const content = getOutputSchema(schema).ct;
+  const content = getOutputSchema(schema).content;
   const root = codecTo(schema, string, transformer, transformer);
   if (content !== U) {
     setContent(getOutputSchema(root), content);
@@ -856,13 +856,13 @@ const stringFormat = (
   initSchema(stringTag, stringDecoderFn, (s) => {
     const re = typeof test === "string" ? new RegExp(test, "i") : test;
     s.format = format;
-    if (expression) s.xp = () => expression;
+    if (expression) s.expression = () => expression;
     // Conditional so an unflagged format carries no key at all: schemas are
     // printed by consumers, and `fg: undefined` is noise on every one.
     if (flag) {
-      s.fg = flag;
+      s.formatFlag = flag;
     }
-    s.rf = (input) => {
+    s.refiner = (input) => {
       return [
         {
           c: (inputVar) =>
@@ -962,7 +962,7 @@ export const port: Internal = /* @__PURE__ */ initSchema(numberTag, numberDecode
   s.format = "port";
   s.minimum = 0;
   s.maximum = 65535;
-  s.rf = (_input) => {
+  s.refiner = (_input) => {
     return [
       {
         c: (inputVar) => `${inputVar}>=0&&${inputVar}<65536&&${inputVar}%1==0`,
@@ -1125,7 +1125,7 @@ const urlCodec = /* @__PURE__ */ (() => {
 // the text still is. A bytes carrier also has `content.bc`, but its value is
 // bytes - only a string-tagged source is text we can recode.
 const codecOf = (s: Internal) =>
-  s.bc ?? (s.type === stringTag ? s.ct?.bc : U);
+  s.bc ?? (s.type === stringTag ? s.content?.bc : U);
 
 const recodeText =
   (
@@ -1195,9 +1195,9 @@ const bytesTextFormat = (
 ): Internal => {
   const schema = copySchema(content);
 
-  const differs = (other: Internal): boolean => B_contentDiffers(other.ct, schema);
+  const differs = (other: Internal): boolean => B_contentDiffers(other.content, schema);
 
-  schema.dc = (input) => {
+  schema.decoder = (input) => {
     const src = codecOf(input.s);
     if (src && src !== codec) {
       const output = B_next(
@@ -1220,7 +1220,7 @@ const bytesTextFormat = (
     return B_refine(stringDecoderFn(input), input.e);
   };
 
-  schema.en = (input, target) => {
+  schema.encoder = (input, target) => {
     const dst = codecOf(target);
     if (dst && dst !== codec) {
       const output = B_next(
@@ -1265,9 +1265,9 @@ export const bytesTarget = (
   fallback: Internal,
 ): { format: Internal; fromBytes: (bytes: Uint8Array) => string } => {
   if (target.bc) return { format: target, fromBytes: target.bc.fromBytes };
-  const codec = target.ct?.bc;
+  const codec = target.content?.bc;
   return {
-    format: codec ? target.ct! : fallback,
+    format: codec ? target.content! : fallback,
     fromBytes: codec?.fromBytes ?? fallback.bc!.fromBytes,
   };
 };

@@ -159,7 +159,7 @@ export const makeObjectVal = (prev: Val): Val =>
     required: [],
     properties: Object.create(null),
     additionalItems: "strict",
-    dc: objectDecoder,
+    decoder: objectDecoder,
   } as Internal);
 
 export const makeArrayVal = (prev: Val): Val =>
@@ -167,7 +167,7 @@ export const makeArrayVal = (prev: Val): Val =>
     type: arrayTag,
     items: [],
     additionalItems: "strict",
-    dc: arrayDecoder,
+    decoder: arrayDecoder,
   } as Internal);
 export const completeObjectVal = (objectVal: Val): Val => {
   const isArray = objectVal.s.type === arrayTag;
@@ -716,8 +716,8 @@ const wrapDictMissingKeyLight = (s: Internal): Internal => {
   mut.anyOf = [s, unit];
   mut.has = { [undefinedTag]: true };
   setHas(mut.has, s.type);
-  mut.en = missingKeyEncoder;
-  mut.pv = true;
+  mut.encoder = missingKeyEncoder;
+  mut.perVariant = true;
   return mut;
 };
 

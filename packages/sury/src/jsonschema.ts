@@ -275,12 +275,12 @@ const applyMetadataOverlay = (
   // into does.
   const to = schema.to;
   if (to !== U) {
-    if (to.js) {
+    if (to.jsonSchema) {
       // Under what the structural emit already said, not over it: the carrier
       // describes what the string holds, and where the string's own format has
       // named what it IS - a JSON document carrying a base64 payload - that is
       // the more specific claim and the one a reader validates against.
-      const carried = to.js(to, target) as Record<string, unknown>;
+      const carried = to.jsonSchema(to, target) as Record<string, unknown>;
       for (const key in carried) {
         if (!(key in jsonSchema)) {
           (jsonSchema as Record<string, unknown>)[key] = carried[key];
@@ -362,7 +362,7 @@ const internalToJSONSchema = (
     (tagFlag & 2) &&
     (tagFlags[to.type]! & 2) &&
     to.to === U &&
-    to.ct === schema.ct
+    to.content === schema.content
   ) {
     return jsonSchemaMerge(
       internalToJSONSchemaBase(to, path, defs, parent, target),
@@ -372,7 +372,7 @@ const internalToJSONSchema = (
   const hasUserTo =
     !!schema.to &&
     !(tagFlag & (64 | 128)) &&
-    !((tagFlag & 256) && !!schema.pr);
+    !((tagFlag & 256) && !!schema.parser);
   if (hasUserTo) {
     let encoded: JSONSchemaT | undefined;
     try {

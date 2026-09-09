@@ -90,7 +90,7 @@ const unionLiteralEqual = (a: unknown, b: unknown): boolean =>
 const unionOutput = (schema: Internal): Internal => {
   let output = schema;
   while (output.type !== neverTag && output.to !== U) {
-    if (output.pr === B_neverSlot) return never_;
+    if (output.parser === B_neverSlot) return never_;
     output = output.to;
   }
   return output;
@@ -103,7 +103,7 @@ const unionOutput = (schema: Internal): Internal => {
 // and yields to its siblings.
 const unionNeverLink = (schema: Internal): boolean => {
   for (let node: Internal | undefined = schema; node !== U && node.type !== neverTag; node = node.to) {
-    if (node.pr === B_neverSlot) return true;
+    if (node.parser === B_neverSlot) return true;
   }
   return false;
 };
@@ -114,15 +114,15 @@ const unionNeverLink = (schema: Internal): boolean => {
 // "Nothing of its own" is a field count, not a list of interesting fields, so an
 // unknown field reads as "carries something" and keeps the union whole - the
 // conservative direction. The 6 are exactly what `unionFactory` sets: `type` and
-// `seq` from `baseSchema`, then `anyOf`, `dc`, `en`, `has`. `ia`
-// and `ht` are excluded because the parse loop writes them onto a live
+// `seq` from `baseSchema`, then `anyOf`, `decoder`, `encoder`, `has`. `isAsync`
+// and `hasTransform` are excluded because the parse loop writes them onto a live
 // schema in place. Changing `unionFactory`'s field set without changing this
 // count stops every union from flattening, which the nested-union goldens catch.
 const unionIsTransparent = (schema: Internal): boolean => {
   if (schema.type !== anyOfTag) return false;
   let fields = 0;
   for (const key in schema) {
-    if (key !== "ia" && key !== "ht") fields++;
+    if (key !== "isAsync" && key !== "hasTransform") fields++;
   }
   return fields === 6;
 };
@@ -134,8 +134,8 @@ const unionTraits = (schema: Internal): number => {
   const tag = tagFlags[schema.type]!;
   let traits = 0;
   // Low bits: Sury failure, foreign failure, opaque boundary, change.
-  if ((tag & (256 | 512 | 4096)) || schema.pr !== U) return 15;
-  if (schema.rf !== U || schema.ir !== U) {
+  if ((tag & (256 | 512 | 4096)) || schema.parser !== U) return 15;
+  if (schema.refiner !== U || schema.inputRefiner !== U) {
     traits |= 3;
   } else if (tag & (64 | 128 | 8192)) {
     traits |= 2;
@@ -147,7 +147,7 @@ const unionTraits = (schema: Internal): number => {
   if (to !== U) {
     if (
       to === schema ||
-      to.pr !== U ||
+      to.parser !== U ||
       (tagFlags[to.type]! & (256 | 512 | 4096))
     ) {
       traits |= 15;
@@ -180,7 +180,7 @@ const unionTraits = (schema: Internal): number => {
 // Typed decode/encode may skip validation and refinement, but never a value
 // transformation. Refs stay conservative so this walk terminates on cycles.
 const unionIsNoop = (schema: Internal): boolean => {
-  if (schema.to !== U || schema.pr !== U || tagFlags[schema.type]! & 512) {
+  if (schema.to !== U || schema.parser !== U || tagFlags[schema.type]! & 512) {
     return false;
   }
   const fields = (schema.anyOf || schema.items || schema.properties) as
@@ -397,18 +397,18 @@ const unionNarrowSchema = (schema: Internal): Internal => {
     // took for the source.
     if (isLiteral(schema) && tagFlag & (4 | 8 | 1024)) {
       input.e = schema;
-      const output = schema.dc(input);
+      const output = schema.decoder(input);
       input.e = narrow;
       return output;
     }
-    return schema.dc(input);
+    return schema.decoder(input);
   });
-  narrow.en = schema.en;
+  narrow.encoder = schema.encoder;
   // With the encoder, its marker: the narrow is what a carrier's encoder is
   // handed for this arm, and without it the arm reads as carrying no payload -
   // bytes reaching a `S.base64` variant UTF-8-decoded instead of packing.
-  if (schema.ct !== U) {
-    setContent(narrow, schema.ct);
+  if (schema.content !== U) {
+    setContent(narrow, schema.content);
   }
   if (tagFlag & 8192) {
     narrow.class = schema.class;
@@ -429,7 +429,7 @@ const unionNarrowSchema = (schema: Internal): Internal => {
     // jsonString reads that as "already JSON text" (see fieldPiece), where the
     // bare `content` marker says "claims JSON, unchecked".
     narrow.format = schema.format;
-    narrow.fg = schema.fg;
+    narrow.formatFlag = schema.formatFlag;
     narrow.noValidation = schema.noValidation;
   }
   return narrow;
@@ -960,7 +960,7 @@ const unionPlan = (members: UnionMember[]): UnionGroup[] => {
       overlaps ||
       (laterMask &&
         (tagFlags[head.s.type]! & (1 | 256 | 512 | 4096 | 32768)) &&
-        (head.s.to !== U || head.s.pr !== U))
+        (head.s.to !== U || head.s.parser !== U))
     ) {
       group.f |= 8 | 2;
     }
@@ -1077,7 +1077,7 @@ const unionEmit = (
     try {
       caseOut = parse(caseInput);
     } catch (exn) {
-      if (!self.pv) throw exn;
+      if (!self.perVariant) throw exn;
       salvaged += `,${B_embed(input, getOrRethrow(exn))}`;
       return U;
     } finally {
@@ -1283,7 +1283,7 @@ export const unionDecoder: Builder = (input: Val) => {
   // member's own check with the sentinel's, which silently breaks dispatch.
   // Left alone, it converts the union's assembled output once instead.
   const toPerCase =
-    self.pr === U && self.to !== U && self.to.noValidation !== true ? self.to : U;
+    self.parser === U && self.to !== U && self.to.noValidation !== true ? self.to : U;
   let variants = self.anyOf!;
 
   if (
@@ -1323,7 +1323,7 @@ export const unionDecoder: Builder = (input: Val) => {
   const trustedSelf = input.s === self || self.tr;
   if (
     (initialTagFlag & 256) ||
-    (input.s.en === U && (initialTagFlag & 512))
+    (input.s.encoder === U && (initialTagFlag & 512))
   ) {
     input.s = unknown;
   }
@@ -1371,7 +1371,7 @@ export const unionDecoder: Builder = (input: Val) => {
       ? variants.map((v) => (unionOutput(v).type === neverTag ? U : toPerCase))
       : unionResolve(input, self, variants, toPerCase);
     const attach =
-      self.rf !== U || self.ir !== U ? unionRefinerAttacher(self) : U;
+      self.refiner !== U || self.inputRefiner !== U ? unionRefinerAttacher(self) : U;
     variants = variants.map((variant, idx) => {
       const to = perCase[idx];
       return to === U && attach === U
@@ -1403,7 +1403,7 @@ const unionRefinerAttacher = (self: Internal): ((mut: Internal) => void) => {
   const cached: (Check[] | undefined)[] = [];
   return (mut: Internal) => {
     for (let i = 0; i < 2; i++) {
-      const key = i ? "ir" : "rf";
+      const key = i ? "inputRefiner" : "refiner";
       const source = self[key];
       if (source !== U) {
         const current = mut[key];
@@ -1435,8 +1435,8 @@ export const unionRewrite = (
   const mut = baseSchema(anyOfTag, false, unionDecoder);
   mut.anyOf = anyOf;
   mut.has = has;
-  mut.en = unionEncoder;
-  mut.pv = input.s.pv;
+  mut.encoder = unionEncoder;
+  mut.perVariant = input.s.perVariant;
   // The variants above were mapped from `input.s`'s, so the value is already
   // known to satisfy one of them - a fact the `unknown` below throws away. See
   // `tr` in base.ts: this is the only place allowed to claim it.
@@ -1471,7 +1471,7 @@ const unionTargetOwns = (target: Internal) =>
 export const unionEncoder: Encoder = (input: Val, target: Internal) => {
   if (unionTargetOwns(target)) return input;
   const variants = input.s.anyOf!;
-  if (target.pv && target.anyOf!.length === variants.length) {
+  if (target.perVariant && target.anyOf!.length === variants.length) {
     // An already-resolved per-variant mapping (the JSON encoder builds one for an
     // object field): each target variant *is* its source variant plus whatever
     // the caller appended, so it replaces the variant instead of chaining onto
@@ -1512,7 +1512,7 @@ const unionResolve = (
   variants: Internal[],
   target: Internal
 ): (Internal | undefined)[] => {
-  if (source.pv) {
+  if (source.perVariant) {
     return variants.map(() => target);
   }
   if (unionIsTransparent(target)) {
@@ -1632,8 +1632,8 @@ const unionResolveToUnion = (
     // pass-through.
     return matched === sourceOut ||
       (unionIsNoop(matched) &&
-        matched.rf === U &&
-        matched.ir === U &&
+        matched.refiner === U &&
+        matched.inputRefiner === U &&
         matched.noValidation === U &&
         (matched.const === U || unionLiteralEqual(matched.const, sourceOut.const)) &&
         !(tagFlags[matched.type]! & (64 | 128 | 8192 | 512 | 256)) &&
@@ -1663,7 +1663,7 @@ export const unionFactory = (schemas: Internal[]): Internal => {
 
   const mut = baseSchema(anyOfTag, false, unionDecoder);
   mut.anyOf = anyOf;
-  mut.en = unionEncoder;
+  mut.encoder = unionEncoder;
   mut.has = has;
   return mut;
 };

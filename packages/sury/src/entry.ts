@@ -14,7 +14,7 @@
 // their own.
 //
 // Built by scripts/pack.ts into index.mjs (the publish step additionally
-// emits a CJS index.js into the artifact for the require condition). The extra
+// emits a CJS index.jsonSchema into the artifact for the require condition). The extra
 // ReScript-binding exports ($-prefixed) are invisible to TS users
 // (index.d.ts is the curated surface) and tree-shake when unused like any
 // other export.
@@ -342,9 +342,9 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
     }
     const from = getOutputSchema(schema);
     if (
-      from.ct === U ||
-      target.ct === U ||
-      !B_contentDiffers(from.ct, target.ct) ||
+      from.content === U ||
+      target.content === U ||
+      !B_contentDiffers(from.content, target.content) ||
       from.name === jsonName ||
       target.name === jsonName
     ) {

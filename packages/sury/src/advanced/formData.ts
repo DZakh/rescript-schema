@@ -174,7 +174,7 @@ const entrySchema = (blank: boolean): Internal =>
     s.name = "form field";
     // Set inside the initializer: a property write at module scope is a
     // statement esbuild keeps, and every bundle would carry the codec.
-    s.en = (input: Val, target: Internal): Val => {
+    s.encoder = (input: Val, target: Internal): Val => {
       if (blank && !decidesBlank(target)) {
         B_invalidOperation(
           input,
@@ -494,7 +494,7 @@ export const formData: Internal = /* @__PURE__ */ initSchema(
     if (s.class === U) {
       unsupportedInstance(s, "formData");
     }
-    s.en = (input, target) => {
+    s.encoder = (input, target) => {
       const targetTagFlag = tagFlags[target.type]!;
       return (targetTagFlag & 64) && typeof target.additionalItems === "string"
         ? formDataToObject(input, target)

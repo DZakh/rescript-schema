@@ -550,7 +550,7 @@ export const B_pushCheck = (val: Val, check: Check): void => {
 // call this. Not calling it silently drops the user's S.refine.
 export const B_markOutput = (val: Val, valInput: Val): Val => {
   let inC: Check[] | undefined, outC: Check[] | undefined;
-  const ir = valInput.e.ir;
+  const ir = valInput.e.inputRefiner;
   if (ir) {
     const c = ir(valInput);
     if (c.length) {
@@ -558,7 +558,7 @@ export const B_markOutput = (val: Val, valInput: Val): Val => {
       else inC = c;
     }
   }
-  const rf = val.e.rf;
+  const rf = val.e.refiner;
   if (rf) {
     const c = rf(val);
     if (c.length) outC = c;
@@ -843,7 +843,7 @@ export const B_neverSlot: Builder = (input: Val) =>
 // `.to` of its own, though linking a carrier to `S.optional(S.jsonString)` puts
 // the same two readings on the table as linking it to `S.jsonString`.
 export const B_contentNode = (schema: Internal): Internal =>
-  (schema.ct === U && schema.anyOf?.find((arm) => arm.ct !== U)) || schema;
+  (schema.content === U && schema.anyOf?.find((arm) => arm.content !== U)) || schema;
 
 // Half of CONTENT_CODEC_SPEC.md rule 4's question: whether two payloads are of
 // different kinds, which is what puts two readings on the table - store the
@@ -862,7 +862,7 @@ export const B_contentDiffers = (from?: Internal, to?: Internal): boolean =>
 // asks for the source to be opened (rule 3). Read by the carriers, never by the
 // formats - the format side only ever asks whether a `content` marker is there.
 export const B_readsPayload = (target: Internal): boolean =>
-  target.op ?? target.to !== U;
+  target.opens ?? target.to !== U;
 
 export const B_invalidOperation = (val: Val, description: string): never =>
   B_throw({ code: "invalid_operation", reason: description, path: val.path });
