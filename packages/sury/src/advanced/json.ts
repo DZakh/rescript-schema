@@ -427,6 +427,7 @@ export const jsonString = /* @__PURE__ */ (() => {
         const nextSchema = copyTo(json, target);
 
         const output = B_nextVar(input, nextSchema);
+        output.io = true;
         const inputVar = input.v();
         output.cp = `let ${output.i};try{${output.i}=${B_parseCall(inputVar)}}catch(t){${B_embedInvalidInput(
           input,
@@ -1027,6 +1028,7 @@ export const jsonString = /* @__PURE__ */ (() => {
       // over `i===void 0?e[2]:i.toISOString()`, whose default branch is the
       // raw default - a `Date`, not its ISO text. The helper handles both.
       return B_next(
+        input,
         (input.s.fg ?? 0) & 1 && !input.s.noValidation && accessorRe.test(input.i)
           ? `"\\""+${input.i}+"\\""`
           : `${B_embedJsonStr(input)}(${input.i})`,

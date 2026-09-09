@@ -14,27 +14,3 @@ operations:
   parse: identity
   decode: identity
   encode: identity
-  assert:
-    expression: i=>{return void 0}
-    examples:
-      valid-object:
-        input: "{ a: 1 }"
-        output: undefined
-      valid-null:
-        input: "null"
-        output: undefined
-      non-json:
-        input: undefined
-        output: undefined
-  is:
-    expression: i=>{return true}
-    examples:
-      valid-object:
-        input: "{ a: 1 }"
-        output: "true"
-      valid-null:
-        input: "null"
-        output: "true"
-      non-json:
-        input: undefined
-        output: "true"

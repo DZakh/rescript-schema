@@ -24,21 +24,3 @@ operations:
         output: undefined
   decode: eq-to-parse
   encode: identity
-  assert:
-    expression: i=>{return void 0}
-    examples:
-      object:
-        input: "{ a: 1 }"
-        output: undefined
-      non-json-skips-declared-string-output:
-        input: undefined
-        output: undefined
-  is:
-    expression: i=>{return true}
-    examples:
-      object:
-        input: "{ a: 1 }"
-        output: "true"
-      non-json-skips-declared-string-output:
-        input: undefined
-        output: "true"

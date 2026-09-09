@@ -833,7 +833,7 @@
               "required": [
                 "creationError"
               ],
-              "description": "An operation that can't be compiled — the creation-time error, ratcheted like codegen."
+              "description": "An operation that can't be compiled - the creation-time error, ratcheted like codegen."
             }
           ],
           "description": "unknown → void: validate and drop the value (`S.assertInputOrThrow`). Optional — add when the void target's handling is what the spec is pinning (JSON, jsonString, noValidation)."
@@ -986,7 +986,7 @@
               "required": [
                 "creationError"
               ],
-              "description": "An operation that can't be compiled — the creation-time error, ratcheted like codegen."
+              "description": "An operation that can't be compiled - the creation-time error, ratcheted like codegen."
             }
           ],
           "description": "unknown → boolean (`S.isInput`). Optional — add when the boolean target's handling is what the spec is pinning."

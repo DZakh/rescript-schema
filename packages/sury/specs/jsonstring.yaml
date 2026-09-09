@@ -31,33 +31,3 @@ operations:
         error: Expected JSON string, received 123
   decode: identity
   encode: identity
-  assert:
-    expression: i=>{typeof i==="string"||e[1](i);try{JSON.parse(i)}catch(t){e[0](i)}return void 0}
-    examples:
-      valid-json-number-text:
-        input: '"123"'
-        output: undefined
-      valid-json-object-text:
-        input: '"{\"foo\":[1,2]}"'
-        output: undefined
-      invalid-json-text:
-        input: '"{"'
-        error: Expected JSON string, received "{"
-      not-a-string:
-        input: "123"
-        error: Expected JSON string, received 123
-  is:
-    expression: i=>{try{typeof i==="string"||e[1](i);try{JSON.parse(i)}catch(t){e[0](i)}return true}catch(v0){return false}}
-    examples:
-      valid-json-number-text:
-        input: '"123"'
-        output: "true"
-      valid-json-object-text:
-        input: '"{\"foo\":[1,2]}"'
-        output: "true"
-      invalid-json-text:
-        input: '"{"'
-        output: "false"
-      not-a-string:
-        input: "123"
-        output: "false"

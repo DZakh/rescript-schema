@@ -842,6 +842,10 @@ const blobToCode = (v: object, bytes: Bytes): string => {
     : `new Blob([${bytesToCode(own)}]${options})`;
 };
 
+const recordToCode = (parts: string[]): string =>
+  parts.length === 0 ? "{}" : `{ ${parts.join(", ")} }`;
+
+
 const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet(), bytes: Bytes = new WeakMap()): string => {
   if (v === undefined) return "undefined";
   if (typeof v === "bigint") return `${v}n`;
@@ -855,10 +859,6 @@ const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet(), bytes: B
     return `Symbol.for(${JSON.stringify(key)})`;
   }
   if (typeof v === "object") {
-    if (blobs && typeof Blob !== "undefined" && v instanceof Blob) {
-      const src = blobs.get(v);
-      if (src !== undefined) return src;
-    }
     if (seen.has(v)) throw new Error("cannot represent a cyclic value as spec source code");
     seen.add(v);
     try {
@@ -903,11 +903,6 @@ const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet(), bytes: B
   throw new Error(`cannot represent a ${typeof v} as spec source code`);
 };
 
-const valueToCodeAsync = async (v: unknown): Promise<string> => {
-  const blobs = new WeakMap<Blob, string>();
-  await fillBlobSources(v, blobs, new WeakSet());
-  return valueToCode(v, new WeakSet(), blobs);
-};
 
 const ZOD_IMPORT = `import * as z from "zod";\n`;
 
