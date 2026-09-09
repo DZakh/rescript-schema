@@ -31,6 +31,7 @@ operations:
       empty:
         input: '""'
         error: Expected hex, received ""
+        whenZod: passes
       not-a-string:
         input: "42"
         error: Expected hex, received 42

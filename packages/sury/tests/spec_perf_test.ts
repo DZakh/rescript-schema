@@ -302,6 +302,56 @@ test("renderComment omits the head when it wasn't given one", () => {
   expect(out).not.toContain(" vs `93999e3`");
 });
 
+// The verdict is the line a reader scrolling a PR actually reads, so it has to
+// answer "did this change cost anything" without them counting table rows.
+test("renderComment leads with what moved and how much was measured", () => {
+  const out = renderComment(
+    report([
+      row("object10 · create", "create", 12.4),
+      row("union2 · create", "create", 3.9),
+      row("union2 · parse · nested", "run", -6.1),
+    ]),
+  );
+  expect(out).toContain("**2 slower, 1 faster** of 140 timed targets");
+});
+
+// One list sorted worst-first truncates from the improving end, so a change
+// with more regressions than the table holds showed none of what it sped up.
+test("renderComment tables regressions and improvements separately", () => {
+  const rows = [
+    ...Array.from({ length: 12 }, (_, i) => row(`slow-${i} · create`, "create", 20 - i)),
+    row("quick · create", "create", -14.2),
+  ];
+  const out = renderComment(report(rows));
+  expect(out).toContain("**Slower**");
+  expect(out).toContain("**Faster**");
+  expect(out).toContain("| `quick · create` | -14.2% faster |");
+  expect(out.indexOf("**Slower**")).toBeLessThan(out.indexOf("**Faster**"));
+  // Each table truncates on its own, so the improvement survives regardless of
+  // how many regressions sit above it.
+  expect(out).toContain("…and 2 more.");
+});
+
+// A target the run could not time is a result about this change. As a `<sub>`
+// footnote next to the node version it read as boilerplate.
+test("renderComment surfaces untimed targets above the tables, not in the small print", () => {
+  const out = renderComment(
+    renderPerformance(
+      perf([row("object10 · create", "create", 12.4)], {
+        errors: [{ name: "union5 · create", error: "boom" }],
+        outcomeChanged: [
+          { name: "optional-object · parse · array-is-not-an-object", note: "baseline accepted it, now rejected" },
+        ],
+      }),
+    ),
+  );
+  expect(out).toContain("**Not timed**");
+  expect(out).toContain("- behavior changed, not timed - optional-object · parse · array-is-not-an-object");
+  expect(out).toContain("- could not measure union5 · create: boom");
+  expect(out.indexOf("**Not timed**")).toBeLessThan(out.indexOf("**Slower**"));
+  expect(out).not.toContain("<sub>could not measure");
+});
+
 test("renderComment carries every footer line the CLI emits", () => {
   // Each of these is the only place its information appears; a filter that
   // drops them leaves the comment quietly claiming a clean run.
@@ -336,7 +386,7 @@ test("renderComment truncates to the worst rows and says how many it dropped", (
 
 test("renderComment still posts when nothing changed, so a missing comment means a broken job", () => {
   const out = renderComment(report([]));
-  expect(out).toContain("No significant changes.");
+  expect(out).toContain("**No significant changes**");
   // Still a whole comment, header and footer included - a clean run is a
   // result, not an empty one.
   expect(out).toContain("`93999e3` (merge-base with main)");

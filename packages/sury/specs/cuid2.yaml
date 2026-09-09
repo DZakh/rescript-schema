@@ -22,6 +22,7 @@ operations:
       digit-first:
         input: '"9abc"'
         error: Expected cuid2, received "9abc"
+        whenZod: passes
       uppercase:
         input: '"TZ4A98"'
         error: Expected cuid2, received "TZ4A98"

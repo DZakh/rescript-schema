@@ -19,9 +19,11 @@ operations:
       sibling-rejects:
         input: '"ab"'
         error: Should pass the keywords adjacent to the $ref.
+        whenZod: passes
       sibling-composition-rejects:
         input: '"abd"'
         error: Should pass at least one schema according to the anyOf property.
+        whenZod: passes
       ref-still-rejects-type:
         input: "123"
         error: Expected string, received 123

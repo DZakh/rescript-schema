@@ -177,7 +177,8 @@ test("vs.zod overwrite form omits a side that actually diverges from ts (must be
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        vs.zod: input omitted (no divergence) but Zod infers "string | null" !== ts.input "string" - add \`input\` to record the divergent type.",
+        vs.zod: input omitted (no divergence) but Zod infers "string | null" !== ts.input "string" - add \`input\` to record the divergent type.
+        operations.parse.examples.invalid-null: parse rejects this value and the \`vs.zod\` equivalent accepts it - if the two libraries genuinely read it differently, record it with \`whenZod: passes\`; if not, the equivalent is the wrong one",
       "stdout": "",
     }
   `);
@@ -573,7 +574,7 @@ test("operations block omits an op the schema supports", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        schema: Failed at ["operations"]["encode"]: Expected "identity" | "eq-to-parse" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received undefined
+        schema: Failed at ["operations"]["encode"]: Expected "identity" | "eq-to-parse" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; whenValidated: "passes" | "fails" | undefined; whenZod: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; whenValidated: "passes" | "fails" | undefined; whenZod: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received undefined
         operations.encode: missing - a spec must declare parse, decode, and encode (run \`pnpm spec new\` to scaffold them, or add the block)",
       "stdout": "",
     }
@@ -587,7 +588,7 @@ test("_skip on an operation is rejected with a guiding message", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        schema: Failed at ["operations"]["parse"]: Expected "identity" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received { _skip: "not-applicable"; }
+        schema: Failed at ["operations"]["parse"]: Expected "identity" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; whenValidated: "passes" | "fails" | undefined; whenZod: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; whenValidated: "passes" | "fails" | undefined; whenZod: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received { _skip: "not-applicable"; }
     - At ["operations"]["parse"]["expression"]: Expected string | { _skip: string; }, received undefined
     - At ["operations"]["parse"]["creationError"]: Expected string, received undefined
         operations.parse: _skip is not valid on an operation - use identity, eq-to-parse, a full block with examples, or a creationError",
@@ -603,7 +604,7 @@ test("schema source doesn't evaluate (syntax error)", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        ts.schema did not evaluate: Unexpected token '>>>'",
+        ts.schema did not evaluate: Expression expected.",
       "stdout": "",
     }
   `);
@@ -650,4 +651,108 @@ test("a recorded divergence that is no longer true is reported", async () => {
   });
   const { stderr } = await runCheck("string", serialize(spec));
   expect(stderr).toContain("whenChecked agrees with parse - remove it");
+});
+
+// ---- the examples themselves -----------------------------------------------
+//
+// Each of these was previously either invisible or reported as something else -
+// a golden that pinned a typo, a name with no case behind it, a staleness diff
+// naming the schema. What they have in common is that the spec stayed green.
+
+test("an example input that does not evaluate is reported, not recorded as its own error golden", async () => {
+  const spec = mutate((s) => {
+    if (s.operations.parse !== "identity" && !isCreationError(s.operations.parse))
+      s.operations.parse.examples.typo = { input: "notDefiend", error: "notDefiend is not defined" };
+  });
+  const { stderr } = await runCheck("string", serialize(spec));
+  expect(stderr).toContain("examples.typo: input did not evaluate: notDefiend is not defined");
+  expect(stderr).toContain("pins the typo");
+});
+
+test("an example input that does not parse is reported instead of being silently repaired", async () => {
+  // transpileModule REPAIRS this: `({ a: "hello"` comes back as a complete
+  // object literal, so the golden recorded a passing result for an input with
+  // no closing brace - and re-recorded it on every `--write`.
+  const spec = mutate((s) => {
+    if (s.operations.parse !== "identity" && !isCreationError(s.operations.parse))
+      s.operations.parse.examples.unbalanced = { input: '{ a: "hello"', error: "x" };
+  });
+  const { stderr } = await runCheck("string", serialize(spec));
+  expect(stderr).toContain("examples.unbalanced: input did not evaluate:");
+});
+
+test("two examples with the same input are one case with two names", async () => {
+  const spec = mutate((s) => {
+    if (s.operations.parse !== "identity" && !isCreationError(s.operations.parse))
+      s.operations.parse.examples.alsoValid = { input: '"hello"', output: '"hello"' };
+  });
+  const { stderr } = await runCheck("string", serialize(spec));
+  expect(stderr).toContain("examples.alsoValid: input is identical to `valid`'s");
+});
+
+test("an example whose operation answers differently each time is reported as that", async () => {
+  // Otherwise it is a `--write` that rewrites the file every run and a `check`
+  // that reports a staleness diff naming the schema, neither of which says the
+  // golden cannot exist.
+  const spec = mutate((s) => {
+    s.ts.schema =
+      'S.string.with(S.to, S.unknown, { decode: () => Math.random(), encode: () => "x" })';
+    s.vs.zod = { _skip: "not-applicable" };
+  });
+  const { stderr } = await runCheck("string", serialize(spec));
+  expect(stderr).toContain("is not deterministic");
+  expect(stderr).toContain("so no golden can hold it");
+});
+
+test("a spec that calls S.global is refused before anything evaluates it", async () => {
+  // One library instance is shared by every spec in a run, so this one would
+  // change what its neighbours compile. The check reports it and stops - the
+  // schema is never evaluated, which is the only way the rule can hold.
+  const spec = mutate((s) => {
+    s.ts.schema = "S.global({ disableNanNumberCheck: true }) ?? S.string";
+  });
+  const { stderr } = await runCheck("string", serialize(spec));
+  expect(stderr).toContain("ts.schema: calls S.global");
+  expect(stderr).toContain("the failure lands somewhere else and only sometimes");
+  // Nothing past the lint ran, so no golden was recomputed against a
+  // reconfigured library.
+  expect(stderr).not.toContain("goldens stale");
+});
+
+// ---- the cross-checks ------------------------------------------------------
+
+test("a JSON Schema that rejects a value parse accepts must be recorded or fixed", async () => {
+  // `S.minLength` counts JS characters and `minLength` counts code points, so
+  // the published document turns away the emoji the parser takes.
+  const spec = readSpec(listSpecFiles().find((f) => specId(f) === "string-minLength")!);
+  const op = spec.operations.parse;
+  if (op !== "identity" && !isCreationError(op)) delete op.examples.emoji!.whenValidated;
+  const { stderr } = await runCheck("string-minLength", serialize(spec));
+  expect(stderr).toContain("parse accepts this value but jsonSchema.input rejects it");
+  expect(stderr).toContain("record the divergence with `whenValidated: fails`");
+});
+
+test("a `vs.zod` equivalent that reads a value differently must be recorded", async () => {
+  const spec = readSpec(listSpecFiles().find((f) => specId(f) === "integer")!);
+  const op = spec.operations.parse;
+  if (op !== "identity" && !isCreationError(op))
+    for (const ex of Object.values(op.examples)) delete ex.whenZod;
+  const { stderr } = await runCheck("integer", serialize(spec));
+  expect(stderr).toContain("the `vs.zod` equivalent");
+  expect(stderr).toContain("record it with `whenZod:");
+});
+
+test("an error thrown by something other than Sury carries its class into the golden", async () => {
+  // A bare message reads exactly like a Sury rejection, so a leaked TypeError
+  // or a foreign exception out of user code was indistinguishable from
+  // intended behaviour.
+  const spec = readSpec(listSpecFiles().find((f) => specId(f) === "string-to-blob")!);
+  const op = spec.operations.decode;
+  if (typeof op !== "string" && !isCreationError(op)) {
+    const ex = op.examples["not-a-part"]!;
+    if ("error" in ex) ex.error = "boom";
+  }
+  const { stderr } = await runCheck("string-to-blob", serialize(spec));
+  expect(stderr).toContain("-         error: boom");
+  expect(stderr).toContain('+         error: "Error: boom"');
 });

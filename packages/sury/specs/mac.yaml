@@ -19,21 +19,27 @@ operations:
       eui-48-hyphen:
         input: '"00-1b-44-11-3a-b7"'
         output: '"00-1b-44-11-3a-b7"'
+        whenZod: fails
       eui-48-dotted:
         input: '"001b.4411.3ab7"'
         output: '"001b.4411.3ab7"'
+        whenZod: fails
       eui-64-colon:
         input: '"00:1b:44:11:3a:b7:c8:d9"'
         output: '"00:1b:44:11:3a:b7:c8:d9"'
+        whenZod: fails
       eui-64-hyphen:
         input: '"00-1b-44-11-3a-b7-c8-d9"'
         output: '"00-1b-44-11-3a-b7-c8-d9"'
+        whenZod: fails
       eui-64-dotted:
         input: '"001b.4411.3ab7.c8d9"'
         output: '"001b.4411.3ab7.c8d9"'
+        whenZod: fails
       eui-64-colon-quad:
         input: '"001b:4411:3ab7:c8d9"'
         output: '"001b:4411:3ab7:c8d9"'
+        whenZod: fails
       uppercase:
         input: '"00:1B:44:11:3A:B7"'
         output: '"00:1B:44:11:3A:B7"'

@@ -65,10 +65,12 @@ const outcome = S.union([
   S.schema({ error: S.string }).with(S.strict),
 ]);
 
-// Two spellings of one operation can legitimately disagree, and `spec check`
-// re-runs every example through all of them (see checkOperationMatrix). The
-// divergence below is documented library behaviour, not a bug, so it is
-// recorded and ratcheted rather than left to go unnoticed.
+// An example is re-run by every cross-check `spec check` makes - the other
+// spellings of its own operation (checkOperationMatrix), the recorded JSON
+// Schema (checkJsonSchemaExamples) and the `vs` equivalent (checkZodExamples).
+// Each verdict is expected to agree with parse, so a marker below exists only
+// where one legitimately does not: documented behaviour, recorded and ratcheted
+// rather than left to go unnoticed.
 //
 // Declared, not refreshed - the `isAsync` rule: `--write` keeps a present
 // field's content fresh, but adding or removing one is the author's call,
@@ -79,6 +81,19 @@ const divergences = {
       "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they " +
       "disagree with parse. They validate without building an output, so a failure that " +
       "only arises while building one is invisible to them. `parse` only.",
+  }),
+  whenValidated: S.optional(S.union(["passes", "fails"])).with(S.meta, {
+    description:
+      "What the recorded `jsonSchema` documents say about this example, when they disagree " +
+      "with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement " +
+      "has no keyword), so only an accepted example is cross-checked and only `fails` is ever " +
+      "recorded here - the schema rejecting data the parser accepts. `parse` only.",
+  }),
+  whenZod: S.optional(S.union(["passes", "fails"])).with(S.meta, {
+    description:
+      "What the `vs.zod` equivalent answers for this example, when it disagrees with parse - " +
+      "the two libraries reading the same input differently (coercion, bounds units, format " +
+      "strictness). `parse` only.",
   }),
 };
 
@@ -228,8 +243,10 @@ export type ZodOverwrite = S.Output<typeof zodOverwrite>;
 
 // Cross-library equivalent, checked live like `ts.aliases` (no golden). A
 // required dimension: each spec declares a real Zod equivalent or an explicit
-// `zod: { _skip }`. Only inferred types are asserted - codegen, JSON Schema,
-// errors, coercion diverge by design.
+// `zod: { _skip }`. Two things are asserted: the inferred types, and whether
+// Zod accepts each parse example that Sury does (an example where the two
+// genuinely read the input differently carries `whenZod`). Codegen, JSON Schema
+// and error wording are Sury's own and are never compared.
 const vs = S.schema({
   zod: S.union([S.string, zodOverwrite, skip]).with(S.meta, {
     description:

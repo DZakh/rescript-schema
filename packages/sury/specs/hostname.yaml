@@ -40,6 +40,7 @@ operations:
       trailing-dot:
         input: '"example."'
         error: Expected hostname, received "example."
+        whenZod: passes
       idn-label-separator:
         input: '"example．com"'
         error: Expected hostname, received "example．com"

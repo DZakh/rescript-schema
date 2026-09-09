@@ -22,9 +22,11 @@ operations:
       leap-second:
         input: '"2016-12-31T23:59:60Z"'
         output: '"2016-12-31T23:59:60Z"'
+        whenZod: fails
       leap-second-under-offset:
         input: '"1998-12-31T15:59:60.123-08:00"'
         output: '"1998-12-31T15:59:60.123-08:00"'
+        whenZod: fails
       leap-second-off-the-utc-boundary:
         input: '"2016-12-31T23:59:60+01:00"'
         error: Expected date-time, received "2016-12-31T23:59:60+01:00"

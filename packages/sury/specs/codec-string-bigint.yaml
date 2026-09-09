@@ -34,9 +34,11 @@ operations:
       empty-string:
         input: '""'
         error: Expected bigint, received ""
+        whenZod: passes
       whitespace-string:
         input: '"   "'
         error: Expected bigint, received "   "
+        whenZod: passes
       not-a-string:
         input: "123"
         error: Expected string, received 123

@@ -19,7 +19,7 @@ operations:
       checked:
         input: ((f) => (f.append("agree", "on"), f.append("age", "42"), f))(new FormData())
         output: '{ agree: true, notify: undefined, mailing: null, seen: false, asText: "false", age: 42 }'
-      defaulted-absent:
+      every-checkbox-absent:
         input: ((f) => (f.append("age", "42"), f))(new FormData())
         output: '{ agree: false, notify: undefined, mailing: null, seen: false, asText: "false", age: 42 }'
       defaulted-on:
@@ -31,9 +31,6 @@ operations:
       zero-is-rejected:
         input: ((f) => (f.append("agree", "0"), f.append("age", "42"), f))(new FormData())
         error: 'Failed at agree: Expected boolean, received "0"'
-      unchecked:
-        input: ((f) => (f.append("age", "42"), f))(new FormData())
-        output: '{ agree: false, notify: undefined, mailing: null, seen: false, asText: "false", age: 42 }'
       empty-value:
         input: ((f) => (f.append("agree", ""), f.append("age", "42"), f))(new FormData())
         output: '{ agree: false, notify: undefined, mailing: null, seen: false, asText: "false", age: 42 }'
@@ -49,9 +46,6 @@ operations:
       file-where-checkbox:
         input: ((f) => (f.append("agree", new File(["on"], "a.txt")), f.append("age", "42"), f))(new FormData())
         error: "Failed at agree: Expected boolean, received File"
-      tri-state-absent:
-        input: ((f) => (f.append("age", "42"), f))(new FormData())
-        output: '{ agree: false, notify: undefined, mailing: null, seen: false, asText: "false", age: 42 }'
       tri-state-false:
         input: ((f) => (f.append("notify", "false"), f.append("age", "42"), f))(new FormData())
         output: '{ agree: false, notify: false, mailing: null, seen: false, asText: "false", age: 42 }'

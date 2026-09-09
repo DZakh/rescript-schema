@@ -1,14 +1,12 @@
 import { expect, test } from "vitest";
 import * as S from "sury";
 
-// The value side of CONTENT_CODEC_SPEC.md, for the operations whose output the
-// spec format can't write down: a golden holding a `Blob` or `File` raises
-// "cannot represent a ... instance as spec source code", and a compiled op
-// block must run at least one example - so a conversion that only ever
-// produces one has no spec at all (see CONTRIBUTING.md's Spec Harness
-// Suggestions, which is where the fix belongs). Bytes are written as a
-// `new Uint8Array([...])` call, so every `Uint8Array` conversion is a
-// `codec-*` spec; what lands here is the container side of the same pairs.
+// The value side of CONTENT_CODEC_SPEC.md. A `Blob` or `File` output IS
+// writable as a golden now (the writer reads the bytes before rendering, and
+// `blob.yaml` and the `codec-*` pairs carry them), so what stays here is what a
+// spec still cannot hold: a chain built from several schemas at once, and the
+// cases whose point is the async shape of the call rather than one schema's
+// contract.
 // Non-ASCII bytes throughout, deliberately - an ASCII-only fixture round-trips
 // even through the broken UTF-8 path.
 const png = new Uint8Array([137, 80, 78, 71]);

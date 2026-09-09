@@ -17,6 +17,8 @@ Add a case: a named entry with just `input` under an op's `examples`, then `--wr
 
 **Examples are where findings live.** Cover every edge case the schema turns up - boundary values, IEEE-754 oddities (`-0`, `NaN`, `Infinity`), coercion corners, each generated-check branch. A bug report or review finding becomes an example, not a test file and not a commit message.
 
+Every example is then re-run by every cross-check the harness makes: the other spellings of its own operation, the `jsonSchema` the same spec publishes (with a real validator), and the `vs.zod` equivalent. All three are expected to agree with `parse`, so where one genuinely does not, the example records it - `whenChecked`, `whenValidated`, `whenZod`. The check names the marker and the value to write. Add one only when the disagreement is real behaviour; if it is a bug, add the marker *and* a `FIXME:` comment saying so.
+
 ## Metrics ratchet
 
 Goldens snapshot generated code, `ts.instantiations`, inferred types, and per-export bundle size (`bundleSize.yaml`). After core-logic changes run `pnpm spec check --write`: it prints every metric that moved, ranked - **that summary is the deliverable**. Each should improve or stay flat; call out an unavoidable regression in the commit/PR.

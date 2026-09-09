@@ -88,48 +88,63 @@ operations:
       invalid-userinfo:
         input: '"https://[@example.org/test.txt"'
         error: Expected uri, received "https://[@example.org/test.txt"
+        whenZod: passes
       unescaped-non-us-ascii-characters:
         input: '"https://example.org/foobar®.txt"'
         error: Expected uri, received "https://example.org/foobar®.txt"
+        whenZod: passes
       invalid-backslash-character:
         input: '"https://example.org/foobar\\.txt"'
         error: Expected uri, received "https://example.org/foobar\.txt"
+        whenZod: passes
       invalid-character:
         input: '"https://example.org/foobar\".txt"'
         error: Expected uri, received "https://example.org/foobar".txt"
+        whenZod: passes
       invalid-characters:
         input: '"https://example.org/foobar<>.txt"'
         error: Expected uri, received "https://example.org/foobar<>.txt"
+        whenZod: passes
       invalid-characters-2:
         input: '"https://example.org/foobar{}.txt"'
         error: Expected uri, received "https://example.org/foobar{}.txt"
+        whenZod: passes
       invalid-character-2:
         input: '"https://example.org/foobar^.txt"'
         error: Expected uri, received "https://example.org/foobar^.txt"
+        whenZod: passes
       invalid-character-3:
         input: '"https://example.org/foobar`.txt"'
         error: Expected uri, received "https://example.org/foobar`.txt"
+        whenZod: passes
       invalid-space-character:
         input: '"https://example.org/foo bar.txt"'
         error: Expected uri, received "https://example.org/foo bar.txt"
+        whenZod: passes
       invalid-character-4:
         input: '"https://example.org/foobar|.txt"'
         error: Expected uri, received "https://example.org/foobar|.txt"
+        whenZod: passes
       uri-with-leading-zero-ipv4-is-structurally-valid:
         input: '"http://087.10.0.1/"'
         output: '"http://087.10.0.1/"'
+        whenZod: fails
       uri-with-out-of-bounds-ipv4-is-structurally:
         input: '"http://999.999.999.999/"'
         output: '"http://999.999.999.999/"'
+        whenZod: fails
       invalid-percent-encoding-with-non-hex-digits:
         input: '"http://example.com/%6G"'
         error: Expected uri, received "http://example.com/%6G"
+        whenZod: passes
       incomplete-percent-encoding-triplet:
         input: '"http://example.com/%A"'
         error: Expected uri, received "http://example.com/%A"
+        whenZod: passes
       lone-percent-sign-is-invalid:
         input: '"http://example.com/%"'
         error: Expected uri, received "http://example.com/%"
+        whenZod: passes
       scheme-must-start-with-a-letter:
         input: '"1http://example.com"'
         error: Expected uri, received "1http://example.com"

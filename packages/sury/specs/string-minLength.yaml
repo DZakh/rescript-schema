@@ -22,6 +22,7 @@ operations:
       emoji:
         input: '"😀"'
         output: '"😀"'
+        whenValidated: fails
       lone-surrogate-pair-halves:
         input: '"\ud83d\ud83d"'
         output: '"\ud83d\ud83d"'

@@ -82,9 +82,6 @@ operations:
       time-components-only:
         input: '"PT1H2M3S"'
         output: '"PT1H2M3S"'
-      month-and-day:
-        input: '"P1M2D"'
-        output: '"P1M2D"'
       hour-and-minute:
         input: '"PT1H30M"'
         output: '"PT1H30M"'
@@ -94,6 +91,7 @@ operations:
       fractional-duration-is-not-allowed-by-rfc-3339:
         input: '"PT0.5S"'
         error: Expected duration, received "PT0.5S"
+        whenZod: passes
       leading-whitespace-is-invalid:
         input: '" P1D"'
         error: Expected duration, received " P1D"
@@ -109,6 +107,7 @@ operations:
       years-and-days-cannot-appear-without-months:
         input: '"P1Y2D"'
         error: Expected duration, received "P1Y2D"
+        whenZod: passes
       months-and-days-can-appear-without-years:
         input: '"P1M2D"'
         output: '"P1M2D"'
@@ -118,6 +117,7 @@ operations:
       hours-and-seconds-cannot-appear-without-minutes:
         input: '"PT1H2S"'
         error: Expected duration, received "PT1H2S"
+        whenZod: passes
       minutes-and-seconds-can-appear-without-hour:
         input: '"PT1M2S"'
         output: '"PT1M2S"'

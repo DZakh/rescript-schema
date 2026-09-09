@@ -25,6 +25,7 @@ operations:
       timestamp-out-of-range:
         input: '"8ZZZZZZZZZZZZZZZZZZZZZZZZZ"'
         error: Expected ulid, received "8ZZZZZZZZZZZZZZZZZZZZZZZZZ"
+        whenZod: passes
       excluded-letter-i:
         input: '"01ARZ3NDEKTSV4RRFFQ69G5FAI"'
         error: Expected ulid, received "01ARZ3NDEKTSV4RRFFQ69G5FAI"

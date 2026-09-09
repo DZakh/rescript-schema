@@ -22,9 +22,11 @@ operations:
       valid-remainder-near-the-divisor:
         input: "0.3"
         output: "0.3"
+        whenValidated: fails
       valid-negative:
         input: "-0.7"
         output: "-0.7"
+        whenValidated: fails
       valid-zero:
         input: "0"
         output: "0"

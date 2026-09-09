@@ -74,6 +74,9 @@ importers:
       '@vitest/utils':
         specifier: 4.1.7
         version: 4.1.7
+      ajv:
+        specifier: 8.20.0
+        version: 8.20.0
       esbuild:
         specifier: 0.28.1
         version: 0.28.1
@@ -86,6 +89,9 @@ importers:
       yaml:
         specifier: 2.9.0
         version: 2.9.0
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
 
   packages/sury:
     devDependencies:

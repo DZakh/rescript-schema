@@ -28,6 +28,7 @@ operations:
       valid-above-safe-integer:
         input: "1e+21"
         output: "1e+21"
+        whenZod: fails
       invalid-float:
         input: "42.5"
         error: Expected integer, received 42.5

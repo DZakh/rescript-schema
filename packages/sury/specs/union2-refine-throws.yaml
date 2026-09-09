@@ -16,6 +16,7 @@ operations:
       a-throwing-refine-fails-its-case-so-the-catch-all-matches:
         input: '"x"'
         output: '"x"'
+        whenZod: fails
       wrong-type-still-reports-the-union:
         input: "1"
         error: Expected string, received 1

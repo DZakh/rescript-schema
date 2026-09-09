@@ -31,6 +31,7 @@ operations:
       infinity:
         input: Infinity
         output: Infinity
+        whenZod: fails
       nan:
         input: NaN
         error: Expected number > 5, received NaN

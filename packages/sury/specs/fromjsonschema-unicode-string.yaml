@@ -19,12 +19,15 @@ operations:
       astral-letters:
         input: '"𐐀𐐁"'
         error: Expected string.length == 2, received "𐐀𐐁"
+        whenZod: passes
       one-code-point:
         input: '"😀"'
         error: Invalid pattern
+        whenZod: passes
       three-code-points:
         input: '"éab"'
         error: Expected string.length == 2, received "éab"
+        whenZod: passes
   decode:
     expression: i=>{i.length===2||e[1](i);e[0].test(i)||e[2](i);return i}
     examples:

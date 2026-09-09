@@ -5,6 +5,11 @@ ts:
   output: "[({ value?: string | undefined; } | undefined)?, ...never[]]"
   instantiations: 3125
 jsonSchema:
+  # FIXME: the default target is draft-07, where `prefixItems` means nothing and
+  # `items: false` forbids every item - so this document rejects every non-empty
+  # array the schema itself accepts (the `whenValidated` markers below). The two
+  # keywords are carried over from the source document rather than re-emitted
+  # for the target, the way S.tuple's positional items are.
   input: '{ items: false, type: "array", prefixItems: [{ type: "object", properties: { value: { type: "string", default: "fallback" } } }] }'
   output: '{ items: false, type: "array", prefixItems: [{ type: "object", properties: { value: { type: "string", default: "fallback" } } }] }'
 vs:
@@ -20,9 +25,11 @@ operations:
       present-empty-object:
         input: "[{}]"
         output: "[{}]"
+        whenValidated: fails
       present-value:
         input: '[{ value: "set" }]'
         output: '[{ value: "set" }]'
+        whenValidated: fails
       invalid-present-value:
         input: "[{ value: 1 }]"
         error: Should pass the positional and additional item schemas.

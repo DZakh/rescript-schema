@@ -19,9 +19,11 @@ operations:
       shorter-than-the-default-generator:
         input: '"abc"'
         output: '"abc"'
+        whenZod: fails
       url-safe-punctuation-only:
         input: '"_-_-_"'
         output: '"_-_-_"'
+        whenZod: fails
       standard-base64-alphabet:
         input: '"a+b/c"'
         error: Expected nanoid, received "a+b/c"

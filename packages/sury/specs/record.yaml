@@ -32,6 +32,7 @@ operations:
       symbol-keyed-value-is-not-validated:
         input: '{ [Symbol.for("k")]: 123 }'
         output: '{ [Symbol.for("k")]: 123 }'
+        whenZod: fails
       invalid-value:
         input: "{ a: 1 }"
         error: "Failed at a: Expected string, received 1"

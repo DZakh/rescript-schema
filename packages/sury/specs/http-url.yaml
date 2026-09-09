@@ -40,6 +40,7 @@ operations:
       unencoded-space:
         input: '"https://example.com/a b"'
         error: Expected http-url, received "https://example.com/a b"
+        whenZod: passes
       empty:
         input: '""'
         error: Expected http-url, received ""
