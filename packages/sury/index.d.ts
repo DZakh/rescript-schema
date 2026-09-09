@@ -629,6 +629,43 @@ export type FormData = typeof globalThis extends {
 export const formData: Schema<FormData, FormData>;
 
 /**
+ * An environment variable value. `process.env` is a record of these, so pipe
+ * `S.record(S.env)` to an object schema and the coercions are inferred:
+ * `"8080"` -> `S.port`, `"true"` -> `S.boolean`, a missing key -> `S.optional`.
+ * Nested objects, files and repeated keys fail as unsupported.
+ * @example S.record(S.env).with(S.to, S.schema({ PORT: S.port, DEBUG: S.boolean, NAME: S.optional(S.string) }))
+ */
+export const env: Schema<string, string>;
+
+/** The runtime's `URLSearchParams`, or a structural stand-in. See {@link Blob}. */
+export type URLSearchParams = typeof globalThis extends {
+  URLSearchParams: abstract new (...args: never) => infer T;
+}
+  ? T
+  : {
+      append(name: string, value: string): void;
+      get(name: string): string | null;
+      getAll(name: string): string[];
+      toString(): string;
+    };
+
+/**
+ * A query as `URLSearchParams`, converted to and from an object schema with
+ * `S.to`. Same field coercions as `S.formData`, without files. A required,
+ * non-nullable string must say what a blank entry means - `S.nonEmpty`,
+ * `S.minLength(0)` or `S.optional` - or the operation fails to build.
+ * @example S.urlSearchParams.with(S.to, S.schema({ q: S.string.with(S.nonEmpty), page: S.optional(S.number) }))
+ */
+export const urlSearchParams: Schema<URLSearchParams, URLSearchParams>;
+
+/**
+ * A query string. Convert with `S.to` to an object schema or to
+ * `S.urlSearchParams`.
+ * @example S.queryString.with(S.to, S.schema({ q: S.string.with(S.nonEmpty), page: S.optional(S.number) }))
+ */
+export const queryString: Schema<string, string>;
+
+/**
  * RFC 3339 timestamp - the JSON Schema `date-time` format exactly: `Z` or an
  * offset like `+02:00`. Calendar-aware: month, day, hour, minute and leap
  * second are all range-checked, the leap second against UTC under the offset.

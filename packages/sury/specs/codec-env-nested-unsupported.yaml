@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=./spec.schema.json
+ts:
+  schema: "S.record(S.env).with(S.to, S.schema({ user: S.schema({ name: S.string }) }))"
+  input: "{ [x: string]: string; }"
+  output: "{ user: { name: string; }; }"
+  instantiations: 6473
+jsonSchema:
+  input: "Failed at []: Expected JSON, received env"
+  output: '{ type: "object", properties: { user: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } }, required: ["user"] }'
+vs:
+  zod:
+    _skip: not-applicable
+operations:
+  parse:
+    creationError: "SuryError: Failed at user: Can't decode env -> { name: string; }. Define custom codec with S.to"
+  decode: eq-to-parse
+  encode:
+    creationError: "SuryError: Failed at user: Can't decode { name: string; } -> env. Define custom codec with S.to"

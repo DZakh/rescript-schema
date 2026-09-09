@@ -47,6 +47,9 @@
   - [Checkboxes](#checkboxes)
   - [Blank inputs](#blank-inputs)
   - [Not supported](#not-supported)
+- [Env](#env)
+- [URLSearchParams](#urlsearchparams)
+- [Query string](#query-string)
 - [Content](#content)
 - [Meta](#meta)
 - [Brand](#brand)
@@ -1325,6 +1328,59 @@ rejected rather than silently closing the gaps.
 A file input with nothing chosen still submits an empty, unnamed `File`; that
 sentinel reads as absent, so a required `S.file` reports a missing file,
 `S.nullable(S.file)` reads `null`, and `S.array(S.file)` reads `[]`.
+
+## Env
+
+`S.env` is an environment variable value. `process.env` is a record of these:
+
+```ts
+const envSchema = S.record(S.env).with(
+  S.to,
+  S.schema({
+    PORT: S.port,
+    DEBUG: S.boolean,
+    NAME: S.optional(S.string),
+  }),
+);
+
+S.decodeOrThrow(envSchema)(process.env);
+```
+
+A missing key is absent. An empty string is a value. Nested objects, files and
+repeated keys fail as unsupported.
+
+## URLSearchParams
+
+```ts
+const search = S.urlSearchParams.with(
+  S.to,
+  S.schema({
+    q: S.string.with(S.nonEmpty),
+    page: S.optional(S.number),
+    tags: S.array(S.string),
+  }),
+);
+
+S.decodeOrThrow(search)(new URLSearchParams("q=hi&page=2&tags=a&tags=b"));
+```
+
+Same field coercions as [`S.formData`](#formdata), without files. A required,
+non-nullable string must say what a blank entry means.
+
+## Query string
+
+```ts
+const search = S.queryString.with(
+  S.to,
+  S.schema({
+    q: S.string.with(S.nonEmpty),
+    page: S.optional(S.number),
+  }),
+);
+
+S.decodeOrThrow(search)("q=hi&page=2");
+S.encodeOrThrow(search)({ q: "hi", page: 2 });
+```
 
 ## Content
 

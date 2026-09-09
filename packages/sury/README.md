@@ -175,19 +175,20 @@ await S.parseAsPromiseOrReject(configSchema, new File(['{"theme":"dark"}'], "con
 // => { theme: "dark" }
 ```
 
-`process.env` is strings; your config isn't. Pipe from `S.record(S.string)` and the coercions are inferred:
+`process.env` is strings; your config isn't. Pipe from `S.record(S.env)` and the coercions are inferred:
 
 ```ts
-const envSchema = S.record(S.string).with(
+const envSchema = S.record(S.env).with(
   S.to,
   S.schema({
     PORT: S.port,
-    DEBUG: S.string.with(S.to, S.boolean),
+    DEBUG: S.boolean,
+    NAME: S.optional(S.string),
   }),
 );
 
 S.decodeOrThrow(envSchema, process.env);
-// => { PORT: 8080, DEBUG: true }
+// => { PORT: 8080, DEBUG: true, NAME: undefined }
 ```
 
 Some data arrives in awkward layouts - like the columnar arrays that [boost Postgres INSERT performance by 2x](https://www.timescale.com/blog/boosting-postgres-insert-performance). Describe the layout instead of writing glue code, and `S.compactColumns` turns columns into rows and back:

@@ -474,6 +474,14 @@ type file = Js.File.t
 // through a cast, the way an external's own abstract types do.
 type formData
 @module("sury") external formData: t<formData> = "formData"
+// Unboxed so `S.dict(S.env)` is not `dict<string>`: the codec, not `S.string`,
+// is what reads `"42"` as a number.
+@unboxed type env = Env(string)
+@module("sury") external env: t<env> = "env"
+type urlSearchParams
+@module("sury") external urlSearchParams: t<urlSearchParams> = "urlSearchParams"
+@unboxed type queryString = QueryString(string)
+@module("sury") external queryString: t<queryString> = "queryString"
 @unboxed type isoDateTime = IsoDateTime(string)
 @module("sury") external isoDateTime: t<isoDateTime> = "isoDateTime"
 @unboxed type utcDateTime = UtcDateTime(string)

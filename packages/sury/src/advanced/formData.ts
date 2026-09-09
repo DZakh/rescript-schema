@@ -14,7 +14,6 @@
 import {
   anyOfTag,
   arrayTag,
-  copySchema,
   inlinedValueFromString,
   instanceTag,
   initSchema,
@@ -23,9 +22,7 @@ import {
   isOptional,
   nullTag,
   pathConcat,
-  setHas,
   tagFlags,
-  type Tag,
   U,
   undefinedTag,
   unknown,
@@ -62,9 +59,19 @@ import {
   unsupportedInstance
 } from "../parse";
 import {
- bool,
- string
+  bool,
+  string
 } from "../primitives";
+import {
+  absentArm,
+  admitsBlank,
+  asList,
+  asText,
+  decidesBlank,
+  isAbsent,
+  presentArm,
+  readWrapped
+} from "./entries";
 
 const isBlobClass = (class_: unknown): boolean => {
   const blobClass = (globalThis as { Blob?: unknown }).Blob as
@@ -77,30 +84,6 @@ const isBlobClass = (class_: unknown): boolean => {
   );
 };
 
-// Rebuilt from the union's own pieces rather than through unionFactory, so
-// `S.formData` doesn't carry the union compiler for a form that never has an
-// optional field.
-const presentArm = (schema: Internal): Internal => {
-  if (schema.type !== anyOfTag) {
-    return schema;
-  }
-  const present: Internal[] = [];
-  const has: Partial<Record<Tag, boolean>> = {};
-  for (const variant of schema.anyOf!) {
-    if (variant.type !== undefinedTag && variant.type !== nullTag) {
-      present.push(variant);
-      setHas(has, variant.type);
-    }
-  }
-  if (present.length < 2) {
-    return present[0] || schema;
-  }
-  const mut = copySchema(schema);
-  mut.anyOf = present;
-  mut.has = has;
-  return mut;
-};
-
 const isCheckbox = (schema: Internal): boolean =>
   schema.type === anyOfTag
     ? schema.anyOf!.some((variant) => tagFlags[variant.type]! & 8) &&
@@ -109,40 +92,6 @@ const isCheckbox = (schema: Internal): boolean =>
           variant.type === undefinedTag || variant.type === nullTag || isCheckbox(variant),
       )
     : (tagFlags[schema.type]! & 8) !== 0;
-
-// A bare string is silent about whether `""` is a value or a missing field.
-const decidesBlank = (schema: Internal): boolean => {
-  const flag = tagFlags[schema.type]!;
-  return flag & 256
-    ? schema.anyOf!.every(decidesBlank)
-    : !(flag & 2) ||
-        schema.minLength !== U ||
-        schema.const !== U ||
-        schema.format !== U ||
-        (schema.pattern !== U && !schema.pattern.test("")) ||
-        (schema.to !== U && decidesBlank(schema.to));
-};
-
-const admitsBlank = (schema: Internal): boolean =>
-  schema.minLength === 0 ||
-  schema.const === "" ||
-  (schema.type === anyOfTag && schema.anyOf!.some(admitsBlank));
-
-const isAbsent = (schema: Internal): boolean =>
-  isOptional(schema) ||
-  schema.type === nullTag ||
-  (schema.type === anyOfTag && !!schema.has![nullTag]);
-
-const beforeTo = (schema: Internal): Internal => {
-  if (schema.to === U) {
-    return schema;
-  }
-  const mut = copySchema(schema);
-  // `delete`, not `= U`: `unionIsTransparent` counts a schema's keys, and a
-  // key left present with an undefined value stops every union flattening.
-  delete mut.to;
-  return mut;
-};
 
 // A `Map`, not an object: the keys are whatever the client sent, and
 // `__proto__` is one of them. An unchosen file input still submits an empty
@@ -162,9 +111,6 @@ const readEntries = (formData: FormData): Map<string, unknown> => {
   }
   return entries;
 };
-
-const asList = (value: unknown): unknown[] =>
-  value === U ? [] : Array.isArray(value) ? value : [value];
 
 // Named and instance-tagged so no text target shares its type: a same-typed
 // arm would be taken as a pass-through and the hook never consulted. Two of
@@ -209,15 +155,6 @@ const formDataEntry: Internal = /* @__PURE__ */ entrySchema(true);
 const formDataValue: Internal = /* @__PURE__ */ entrySchema(false);
 const formDataList: Internal = /* @__PURE__ */ arrayFactory(formDataValue);
 
-// The check names the target: `Expected number, received undefined` is the
-// field's own vocabulary, and `string` is not.
-const asText = (input: Val, target: Internal): Val => {
-  const output = B_next(input, input.i, string, target);
-  output.v = _var;
-  output.cp = `typeof ${input.i}==="string"||${B_embedInvalidInput(input, target)};`;
-  return output;
-};
-
 const readCheckbox = (input: Val, target: Internal): Val => {
   const v = input.i;
   if (target.const !== U) {
@@ -249,58 +186,6 @@ const assertListItems = (val: Val, schema: Internal): void => {
       unsupported(`A repeated key is flat`);
     }
   }
-};
-
-const armCode = (item: Val, source: Internal, target: Internal): string => {
-  const armIn = B_scope(item);
-  armIn.io = false;
-  armIn.s = source;
-  armIn.e = target;
-  const armOut = parse(armIn);
-  item.f |= armOut.f & 1;
-  return B_merge(armOut) + (armOut.i === item.i ? "" : `${item.i}=${armOut.i};`);
-};
-
-const absentArm = (schema: Internal): Internal =>
-  schema.anyOf?.find(
-    (variant) => variant.type === (isOptional(schema) ? undefinedTag : nullTag),
-  ) || schema;
-
-const absentCode = (item: Val, schema: Internal): string => {
-  const absent = absentArm(schema);
-  return absent.to !== U
-    ? armCode(item, absent, absent)
-    : isOptional(schema)
-      ? ""
-      : `${item.i}=null`;
-};
-
-// Convert to the present arm, not the whole optional: a string reaching
-// `X | undefined` would be routed through the union rules, which reject
-// `string | undefined` outright and otherwise dispatch on the text `"undefined"`.
-const readWrapped = (
-  item: Val,
-  schema: Internal,
-  present: Internal,
-  folds: boolean | undefined,
-): Val => {
-  const v = item.i;
-  const presentCode = armCode(item, item.s, present);
-  let code = presentCode;
-  if (folds !== U) {
-    const absent = absentCode(item, schema);
-    code = presentCode
-      ? `if(${folds ? v : `${v}!==void 0`}){${presentCode}}${absent && `else{${absent}}`}`
-      : absent
-        ? `if(${folds ? `!${v}` : `${v}===void 0`}){${absent}}`
-        : "";
-  }
-  const output = B_next(item, v, beforeTo(schema), schema);
-  output.v = _var;
-  output.io = true;
-  output.cp = code;
-  output.f |= item.f & 1;
-  return parse(B_markOutput(output, item));
 };
 
 const appendValue = (val: Val, fdVar: string, keyText: string, inList?: boolean): string => {
