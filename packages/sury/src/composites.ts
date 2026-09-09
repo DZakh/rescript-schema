@@ -1,5 +1,5 @@
 // An object/array val (`makeObjectVal`'s result) reuses the plain `Val`
-// shape — there's no separate "object val" type.
+// shape - there's no separate "object val" type.
 
 import {
   anyOfTag,
@@ -116,7 +116,7 @@ const B_fused = (input: Val, expectedSchema: Internal, item?: Internal): Interna
 
 // The wire form of a nested json-format string is an escaped string value, not
 // raw JSON text (see fieldPiece in advanced/json.ts). So a JSON-sourced item (a
-// JSON.parse result typed `json`) converting to one holds the document itself —
+// JSON.parse result typed `json`) converting to one holds the document itself -
 // narrowing the source to `unknown` routes it to jsonString's own decoder
 // instead of json's serialize encoder, which would re-stringify and double-wrap
 // on encode, and would hand a declared payload (CONTENT_CODEC_SPEC.md rule 3)
@@ -245,7 +245,7 @@ export const completeObjectVal = (objectVal: Val): Val => {
   }
 }
 // `S.json` builds its members before operations.ts installs the `~standard`
-// marker, so `array` would misread them as instance literals — init-time and
+// marker, so `array` would misread them as instance literals - init-time and
 // codegen callers take this one.
 export const arrayFactory = (item: Internal): Internal => {
   const mut = baseSchema(arrayTag, !!item.sr, arrayDecoder);
@@ -335,7 +335,7 @@ export const arrayDecoder = (unknownInput: Val): Val => {
       const itemOutput = parseDynamic(itemInput);
       const hasTransform = itemOutput.t!;
       const output2 = hasTransform
-        ? // The next `.to` segment decodes from this schema — item-output, not expectedSchema (#284)
+        ? // The next `.to` segment decodes from this schema - item-output, not expectedSchema (#284)
           B_next(input, `new Array(${inputVar}.length)`, arrayFactory(itemOutput.s))
         : B_refine(input, expectedSchema);
 
@@ -413,7 +413,7 @@ export const arrayDecoder = (unknownInput: Val): Val => {
   return B_markOutput(output, input);
 }
 // Shared, immutable: B_refine wraps it in a fresh array. Must match
-// typeCheckCond's object tag — strip could skip `!Array.isArray` (it
+// typeCheckCond's object tag - strip could skip `!Array.isArray` (it
 // rebuilds, so an array would decode to `{}`) but that widens the union
 // acceptance mask.
 const objectTypeCheck: Check = {
@@ -478,7 +478,7 @@ export const objectDecoder = (unknownInput: Val): Val => {
 
     const hasTransform = itemOutput.t!;
     const output2 = hasTransform
-      ? // The next `.to` segment decodes from this schema — item-output, not expectedSchema (#284)
+      ? // The next `.to` segment decodes from this schema - item-output, not expectedSchema (#284)
         B_next(input, "{}", dictFactory(itemOutput.s))
       : B_refine(input, expectedSchema);
 
@@ -547,12 +547,12 @@ export const objectDecoder = (unknownInput: Val): Val => {
     //     `v===null`, JSON having no undefined,
     //   - but `i[key]` for a missing key returns undefined, so the rewritten
     //     arm would reject `{}` for `{foo: option<...>}`.
-    // FIXME: a shared JSON option representation would remove the sniff — an arm
+    // FIXME: a shared JSON option representation would remove the sniff - an arm
     // that accepts both spellings of empty, so nothing has to patch the read.
     // Two things stand in the way:
     //   - adding an `undefined` arm beside the `null` one makes ENCODE
     //     ambiguous, since both produce the same output and only `null` is
-    //     writable to a document — which is why this rewrites rather than adds;
+    //     writable to a document - which is why this rewrites rather than adds;
     //   - loosening the arm's own narrow to `== null` instead means widening
     //     what `typeCheckCond` emits for a tag, and a union group's shared
     //     narrow stands in for its members' checks (see the cross-module
@@ -601,7 +601,7 @@ export const objectDecoder = (unknownInput: Val): Val => {
     if (shouldRecreateInput) {
       output = completeObjectVal(objectVal);
     } else {
-      // The value was just validated against expectedSchema — carry it as
+      // The value was just validated against expectedSchema - carry it as
       // the val's schema instead of input.schema, which may be a minimal
       // union dispatch narrow ({properties:{}, additionalItems: unknown}).
       // Keeping the narrow mis-routed a pending `.to(json)` conversion
@@ -658,7 +658,7 @@ export const traverseDefinition = (
       } else {
         // A prototype other than Object.prototype (or null, e.g. Object.create(null))
         // means `definition` is a genuine class instance (Date, RegExp, a user
-        // class, ...) to match as a literal — not a plain-record description.
+        // class, ...) to match as a literal - not a plain-record description.
         // Checking definition["constructor"] instead would misclassify any plain
         // record that happens to declare an own field named "constructor".
         const proto = Object.getPrototypeOf(definition);
@@ -691,7 +691,7 @@ export const traverseDefinition = (
 // Dict-missing-key as `T | undefined` without unionFactory, so valGet does
 // not put the union compiler on the objectDecoder/arrayDecoder SCC. A missing
 // key against an optional target stays absent (None); against a required
-// target it fails — not the string `"undefined"`.
+// target it fails - not the string `"undefined"`.
 const missingKeyEncoder: Encoder = (input, target) => {
   const item = input.s.anyOf![0]!;
   const v = input.v();
@@ -765,7 +765,7 @@ export const valGet = (parent: Val, location: string): Val => {
         // A `dict<V>` read by a fixed key may be absent (dicts have no required
         // keys), so model it as `option<V>` and let the union coercion handle a
         // missing key uniformly. Scoped to dict parents (objectTag) with a
-        // concrete value type — array->tuple rest reads (arrayTag) and
+        // concrete value type - array->tuple rest reads (arrayTag) and
         // json/unknown values read as-is. Light T|undefined wrap (not
         // optionFactory) so this decoder SCC does not statically retain union.
         if (

@@ -42,7 +42,7 @@ The internal representation of a type schema, containing:
 
 #### Builder
 
-A builder is a plain function with signature `(input: Val) => Val`. The schema being built is available as `input.e` (`expected` — there is no separate self-schema parameter). Builders generate JavaScript code at compile time by manipulating `val` objects:
+A builder is a plain function with signature `(input: Val) => Val`. The schema being built is available as `input.e` (`expected` - there is no separate self-schema parameter). Builders generate JavaScript code at compile time by manipulating `val` objects:
 
 ```ts
 const myBuilder = (input: Val): Val =>
@@ -62,9 +62,9 @@ A compilation-time representation of a value being processed. Key fields:
 - `expected`: The schema we're trying to parse/convert into
 - `prev`: Link to the previous val in the transform chain (walked by `merge`)
 - `codeFromPrev`: Generated statements that produce this val from `prev`, including the `let` declaration of its own value. A non-empty `codeFromPrev` makes the val non-hoistable in `merge`, so a union discriminant can't be lifted above a `let` it reads.
-- `hoistedDecls`: `let` declarations hoisted *onto this val* by a descendant whose own segment was already emitted (a field read on its parent, a loop accumulator before its `for`). Populated with `B.hoistDecl(owner, decl)` and emitted by `merge` right after this val's checks — no callback mutating an unrelated val.
+- `hoistedDecls`: `let` declarations hoisted *onto this val* by a descendant whose own segment was already emitted (a field read on its parent, a loop accumulator before its `for`). Populated with `B.hoistDecl(owner, decl)` and emitted by `merge` right after this val's checks - no callback mutating an unrelated val.
 - `finalized`: set by `merge` once a val's code is emitted; a late cached-bond materialization re-reads inline instead of hoisting onto it (#240)
-- `checks`: `array<check>` of type-narrows and user refiners. A check whose `fail === B.failInvalidType` is a type-narrow that doubles as a union dispatch discriminant. (Invariant: absent iff no checks — never stored as `Some([])`.)
+- `checks`: `array<check>` of type-narrows and user refiners. A check whose `fail === B.failInvalidType` is a type-narrow that doubles as a union dispatch discriminant. (Invariant: absent iff no checks - never stored as `Some([])`.)
 - `isOutput`: `Some(true)` once refiners have run; advanced decoders (object/array/tuple/union/recursive) set it themselves
 - `global`: Shared compilation context containing:
   - `embeded`: Array of embedded values (functions, constants) accessible as `e[n]`
@@ -81,7 +81,7 @@ Input Schema
      │
      ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  parse(val) loop — one iteration                             │
+│  parse(val) loop - one iteration                             │
 │                                                              │
 │  if async flag:                                              │
 │     - continue the chain inside `.then(...)`                 │
@@ -91,11 +91,11 @@ Input Schema
 │       or `refine` onto `.to` (default encoder coercion)      │
 │                                                              │
 │  else (not yet decoded):                                     │
-│     1. Encoder — if `schema !== expected` and an encoder     │
+│     1. Encoder - if `schema !== expected` and an encoder     │
 │        exists, coerce between schema types                   │
-│     2. Decoder — otherwise narrow to the schema type         │
+│     2. Decoder - otherwise narrow to the schema type         │
 │        (e.g. `typeof === "string"`) and push `checks`        │
-│     3. markOutput — for primitive decoders, apply            │
+│     3. markOutput - for primitive decoders, apply            │
 │        `inputRefiner`/`refiner` and set `isOutput`           │
 │        (advanced decoders own this themselves)               │
 └──────────────────────────────────────────────────────────────┘
@@ -129,7 +129,7 @@ Checks emit as `cond || e[n](x);` (throw when the condition is false), not as
 
 ### Key Functions
 
-- `parse(val)`: Main compilation loop — encoder → decoder → markOutput → follow `.to`, until the val is fully decoded
+- `parse(val)`: Main compilation loop - encoder → decoder → markOutput → follow `.to`, until the val is fully decoded
 - `B_merge(val, hoistCond?)`: Walks the `.prev` chain into a code string. With `hoistCond` (union codegen) it lifts type-narrow checks into a dispatch condition; a val with non-empty `codeFromPrev` stays non-hoistable so its `let` travels with the check
 - `B_next(prev, code, schema, expected)`: Creates the next val one step down the transform chain
 - `B_refine(val, schema?, checks?)`: Clones a val to attach `checks` while preserving the var-allocation link
@@ -333,8 +333,8 @@ schema(data);
 
 A running list of strictness or author-guidance features the spec harness
 (`packages/spec`, see the `spec` skill) could add. When working on Sury you hit a
-case the harness *should* have caught or guided better — a missing check, a weak
-error message, a strictness gap that let a bad spec through — add a bullet here
+case the harness *should* have caught or guided better - a missing check, a weak
+error message, a strictness gap that let a bad spec through - add a bullet here
 instead of silently working around it.
 
 - A spec still pins one schema's *codegen* per direction, so the Result modes'
@@ -356,12 +356,12 @@ instead of silently working around it.
   rather than by Sury pins that engine's wording: `new Blob([Symbol()])` says
   "Cannot convert a Symbol value to a string" on Node 22 and "The argument
   'value' is invalid" on Node 24, and the golden passed locally while failing
-  CI. Write such an example so the message is ours — an input whose own
-  `toString` throws — or the check could compare only the error's constructor
+  CI. Write such an example so the message is ours - an input whose own
+  `toString` throws - or the check could compare only the error's constructor
   when the spec says the failure is the platform's.
-- `ts.schema` has to evaluate, so a schema whose *construction* panics — every
+- `ts.schema` has to evaluate, so a schema whose *construction* panics - every
   argument the public API rejects outright, including the `"pack"`/`"unpack"`
-  pairs that don't name two readings — has no spec at all, only a
+  pairs that don't name two readings - has no spec at all, only a
   `creationError` for the ones that survive construction and fail at the
   operation. `tests/content_test.ts` holds those. A `ts.constructionError`
   beside `creationError` would keep them with the schema they reject.
@@ -373,8 +373,8 @@ instead of silently working around it.
   pass/throw example, would have caught it; `tests/content_test.ts` holds it
   instead.
 - `operations` names one schema's `parse`/`decode`/`encode`, so a **pipeline**
-  — `S.decodeOrThrow(a, b, c)`, the multi-schema form `docs/js-usage.md`
-  documents — has no golden anywhere. It is not a niche path: the fold is right
+  - `S.decodeOrThrow(a, b, c)`, the multi-schema form `docs/js-usage.md`
+  documents - has no golden anywhere. It is not a niche path: the fold is right
   associative, which makes `S.decodeOrThrow(base64, jsonString, string)` emit
   byte for byte what `S.base64.with(S.to, S.jsonString.with(S.to, S.string))`
   does (rule 3's pipeline spelling), while the left associated
@@ -390,17 +390,17 @@ instead of silently working around it.
   schema objects and each writes its own per-compile fields onto them. Building
   the members with each library separately, the way `diffsForUnion` does for the
   generated cases, would make the changelog trustworthy. The gate itself is
-  unaffected — it only counts `acceptance`/`exception-kind` from the
+  unaffected - it only counts `acceptance`/`exception-kind` from the
   compiled-vs-reference run.
 - A spec for a *new* export is timed against a baseline that doesn't have it.
   The expression evaluates to `undefined` there, `S.parseOrThrow(undefined)` compiles
   to `noopOperation`, and the real validator is then reported as thousands of
-  percent slower than a function that returns its input — PR #420 added 14
+  percent slower than a function that returns its input - PR #420 added 14
   formats and got 17 such rows, every one of them bogus. The harness already
   knows how to say `new:` (the same spec's `decode`/`encode` targets are listed
   that way), so `parse` could take the same path when the baseline expression
   is `undefined`, rather than comparing against a no-op. The accompanying
-  `behavior changed — baseline accepted it, now rejected` lines have the same
+  `behavior changed - baseline accepted it, now rejected` lines have the same
   cause: a no-op accepts every input, valid or not.
 
 ## License

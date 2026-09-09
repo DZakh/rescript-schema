@@ -1,4 +1,4 @@
-// `S.recursive` — a schema that refers to itself. The decoder compiles the
+// `S.recursive` - a schema that refers to itself. The decoder compiles the
 // body once and routes every self-reference back through it by `$ref`.
 
 import {
@@ -43,7 +43,7 @@ export const recursiveDecoder: Builder = (input) => {
   // The memo key. A sync nested operation is byte-for-byte the top-level
   // `parseOrThrow(def)`, so the two share a node. An async one is not: nested,
   // it stays throwing where the top-level one lifts to a promise and rejects,
-  // so it is keyed apart (8192, a bit no operation flag carries) — or a
+  // so it is keyed apart (8192, a bit no operation flag carries) - or a
   // `parseAsPromiseOrReject(def)` compiled through the wrapper would answer
   // a bare value, and its failure a synchronous throw.
   const key = flag & 1 ? flag | 8192 : flag;
@@ -55,8 +55,8 @@ export const recursiveDecoder: Builder = (input) => {
   // The def's operations live in the same node cache `getOp` uses (see OpNode
   // in parse.ts), stored on `def`; `getOp` stores on its newest-seq argument,
   // so the two sides find each other's work whenever `def` is the newer of the
-  // pair — otherwise the pair just compiles twice. `v === 0`
-  // means this def is mid-compilation — a circular reference — and the NODE
+  // pair - otherwise the pair just compiles twice. `v === 0`
+  // means this def is mid-compilation - a circular reference - and the NODE
   // is what gets embedded: it exists before the function it will hold, so
   // generated code calls `.v` at runtime and every recompile lands there for
   // free.
@@ -78,7 +78,7 @@ export const recursiveDecoder: Builder = (input) => {
         compileNeeded = false;
 
         // The assumption goes on the node, which is what an inner circular
-        // reference finds (`findOpNode` above) — so the two ends of the cycle
+        // reference finds (`findOpNode` above) - so the two ends of the cycle
         // agree on the shape of the call before either is compiled.
         node.t = assumedHasTransform;
         node.y = assumedIsAsync;

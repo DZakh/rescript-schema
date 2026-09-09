@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Can't decode symbol to string. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't decode symbol -> string. Define custom codec with S.to"
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Can't decode string to symbol. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't decode string -> symbol. Define custom codec with S.to"

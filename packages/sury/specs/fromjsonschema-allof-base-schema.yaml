@@ -30,7 +30,7 @@ operations:
         error: "Failed at bar: Expected integer, received undefined"
   decode: eq-to-parse
   encode:
-    # FIXME: the value `parse` returns cannot be encoded back — the object arm
+    # FIXME: the value `parse` returns cannot be encoded back - the object arm
     # strips `foo` before the allOf refinement reads it, so no input satisfies
     # both. Unchanged from before the input-refiner fix, which only moved the
     # decode-direction checks.

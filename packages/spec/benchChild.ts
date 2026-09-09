@@ -3,7 +3,7 @@
 //
 // Interleaving is the whole point. Wall-clock on a laptop or a shared CI
 // runner drifts by far more than the deltas worth catching, so nothing here
-// reports an absolute time — only the ratio between batches that ran
+// reports an absolute time - only the ratio between batches that ran
 // milliseconds apart, which drift affects equally. Rounds are ordered ABBA
 // rather than ABAB: under ABAB any linear drift within a round biases whichever
 // side runs second, while ABBA cancels it exactly.
@@ -24,7 +24,7 @@ const OP_BUILDER = {
 } as const;
 // An async schema compiles only through these, so a `create+compile` target for
 // one has to name the builder its spec's `isAsync` declares. (There are no
-// async `run` targets — see deriveTargets.)
+// async `run` targets - see deriveTargets.)
 const ASYNC_OP_BUILDER = {
   parse: ["parseAsPromiseOrReject", "asyncParser"],
   decode: ["decodeAsPromiseOrReject", "asyncDecoder"],
@@ -41,7 +41,7 @@ const boxes: { v: unknown }[] = [];
 // which would make the inner call megamorphic across the 100+ targets in a run
 // and measure the driver instead of the schema. A distinct function per target
 // per side keeps every call site monomorphic.
-// Returns the runner, plus — for run-phase targets — whether the operation
+// Returns the runner, plus - for run-phase targets - whether the operation
 // threw on each of this target's inputs. The two sides are timed against each
 // other, so an outcome that differs between them makes the ratio meaningless:
 // returning a value and raising a `SuryError` are different work, not the same
@@ -55,7 +55,7 @@ const buildRunner = (
   boxes.push(box);
 
   // A scenario brings its own setup and expression instead of a schema. No
-  // `threw` either — the builder runs the expression once, so a side that
+  // `threw` either - the builder runs the expression once, so a side that
   // can't execute it fails here instead of reaching a comparison.
   if (target.phase === "scenario")
     return {
@@ -104,7 +104,7 @@ const buildRunner = (
   });
   // The batch iterates every example, which is why one target covers the whole
   // outcome. Indexed rather than `for…of`, so it times the operation and not an
-  // iterator protocol — and a single-example outcome (half of them) keeps the
+  // iterator protocol - and a single-example outcome (half of them) keeps the
   // flat loop it had before outcomes were aggregated, so the majority of
   // targets measure exactly what they measured before.
   const call = target.throws ? "try { box.v = op(INPUT); } catch (e) { box.v = e; }" : "box.v = op(INPUT);";
@@ -123,7 +123,7 @@ const time = (run: (n: number) => void, n: number): number => {
 };
 
 // A batch has to be long enough that the two clock reads around it are noise
-// rather than signal — at ~25ns per `hrtime` call, a 1ms batch puts clock
+// rather than signal - at ~25ns per `hrtime` call, a 1ms batch puts clock
 // overhead under 0.1%. (Timing each iteration individually, which is what
 // tinybench does, would measure the clock ~10x more than a `S.string` parse.)
 const MAX_BATCH = 1 << 24;
@@ -143,20 +143,20 @@ const measure = (baseline: any, current: any, payload: ChildPayload, target: Tar
   try {
     a = buildRunner(baseline, target);
   } catch (e) {
-    // The baseline predates whatever this target needs — a new schema, a new
+    // The baseline predates whatever this target needs - a new schema, a new
     // API. Reported as "new", not as a failure.
     return { name: target.name, unsupported: (e as Error).message };
   }
   try {
     // A control measures the baseline against itself, so its reported delta is
-    // pure noise — that's how a run states its own confidence.
+    // pure noise - that's how a run states its own confidence.
     b = buildRunner(target.control ? baseline : current, target);
   } catch (e) {
     return { name: target.name, error: (e as Error).message };
   }
 
   // Timing them against each other would compare a returned value with a
-  // thrown error and report the difference as a slowdown — a correctness fix
+  // thrown error and report the difference as a slowdown - a correctness fix
   // that starts rejecting an input shows up as several hundred times "slower".
   // The whole target is withheld when any single example disagrees, because the
   // batch times them together and one changed example is enough to move it.
@@ -175,7 +175,7 @@ const measure = (baseline: any, current: any, payload: ChildPayload, target: Tar
   const n = Math.max(calibrate(a.run, payload.batchTargetNs), calibrate(b.run, payload.batchTargetNs));
   // Long enough for both sides to reach their final tier. A side still being
   // re-optimised when measurement starts stays slow for the whole target, which
-  // no amount of interleaving can cancel — it is not drift, it is one side
+  // no amount of interleaving can cancel - it is not drift, it is one side
   // running different machine code than it will a moment later.
   for (let i = 0; i < payload.warmupBatches; i++) {
     a.run(n);
@@ -183,7 +183,7 @@ const measure = (baseline: any, current: any, payload: ChildPayload, target: Tar
   }
 
   // Each block reduces to the ratio of its two FASTEST batches. Scheduler
-  // noise is strictly additive — an interrupted batch is slow, never fast — so
+  // noise is strictly additive - an interrupted batch is slow, never fast - so
   // the minimum is the one estimator that noise cannot move, while an average
   // or a median over rounds treats every interrupt as signal. Blocks then give
   // back the repetition needed for an interval (see conservativePct): a delta
@@ -191,14 +191,14 @@ const measure = (baseline: any, current: any, payload: ChildPayload, target: Tar
   // A round is ABBA followed by BAAB, which is the shortest sequence giving both
   // sides the same set of positions. Plain ABBA does not: it puts B's two
   // batches back to back while A's are separated by B's work, so B's minimum
-  // starts from a warmer cache every time — invisible when the round is reduced
+  // starts from a warmer cache every time - invisible when the round is reduced
   // by a sum, but a standing bias once it is reduced by a minimum.
   const ratios: number[] = [];
   for (let block = 0; block < payload.blocks; block++) {
     // Once per block, not per batch (a full collection costs more than a
     // batch does). Creation targets allocate hard enough to drive the heap
     // through collection cycles, and without a reset the two sides enter the
-    // block at different points in that cycle — which decides who pays for the
+    // block at different points in that cycle - which decides who pays for the
     // next collection, systematically rather than randomly.
     global.gc?.();
     let minA = Infinity;

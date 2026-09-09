@@ -1,4 +1,4 @@
-// The spec format, defined *as a Sury schema* — the harness INFRASTRUCTURE.
+// The spec format, defined *as a Sury schema* - the harness INFRASTRUCTURE.
 //
 // This half of the harness runs on a PUBLISHED sury (`sury-published` =
 // npm:sury@<pinned>), not the in-development source. That keeps the CLI stable
@@ -13,16 +13,16 @@
 //     absence is not allowed. A dimension is either its real value or `{_skip}`.
 //   - `_` prefix is the reserved harness namespace (currently just `_skip`).
 //   - Every exported TS type is INFERRED from its schema via `S.Output<typeof x>`
-//     — the schema is the single source of truth, never hand-duplicated.
+//     - the schema is the single source of truth, never hand-duplicated.
 //   - Every schema/field carries a `.with(S.meta, {description})` so
 //     spec.schema.json (consumed by yaml-language-server for hover/autocomplete,
-//     and by AI authors) is self-documenting — never rely on this SKILL.md alone.
+//     and by AI authors) is self-documenting - never rely on this SKILL.md alone.
 //   - Descriptions are added via DIRECT `.with(S.meta, {...})` chains, never
 //     through a generic wrapper function. A generic `desc<T extends
 //     Schema<unknown,unknown>>(schema: T, description: string)` helper was
 //     tried and reliably collapsed `S.Output<typeof specSchema>` to `unknown`
 //     at THIS schema's nesting depth (reproduced in isolation; direct chaining
-//     at the exact same depth was unaffected) — presumably the same complexity
+//     at the exact same depth was unaffected) - presumably the same complexity
 //     cliff the "14-member union...costly to instantiate" note elsewhere in
 //     this codebase refers to. Don't reintroduce a generic description helper
 //     without re-verifying against the full, real specSchema, not a toy schema.
@@ -70,7 +70,7 @@ const outcome = S.union([
 // divergence below is documented library behaviour, not a bug, so it is
 // recorded and ratcheted rather than left to go unnoticed.
 //
-// Declared, not refreshed — the `isAsync` rule: `--write` keeps a present
+// Declared, not refreshed - the `isAsync` rule: `--write` keeps a present
 // field's content fresh, but adding or removing one is the author's call,
 // because that is the moment a divergence appears or goes away.
 const divergences = {
@@ -103,7 +103,7 @@ export type Example = S.Output<typeof example>;
 // insertion/removal.
 const operationExpression = S.schema({
   // Declared, not refreshed: an async operation is compiled by a different
-  // builder and returns a Promise — a different API for every consumer — so
+  // builder and returns a Promise - a different API for every consumer - so
   // `--write` never adds or removes the marker in place. A schema that turns
   // async fails the check instead of quietly rewriting the spec to say so.
   // Absent means sync; `false` is never written, so there's one spelling per state.
@@ -126,10 +126,10 @@ export type OperationExpression = S.Output<typeof operationExpression>;
 
 // The operation analogue of a thrown `jsonSchema` string: some conversions are
 // rejected when the operation is compiled (an unsupported or ambiguous `.to`),
-// so there's no `expression` to record — only the creation-time message. Kept
+// so there's no `expression` to record - only the creation-time message. Kept
 // as its own block (not a `_skip`) because that message, and its suggested
 // rewrites, are product surface to be ratcheted like codegen. Recorded per
-// direction, like jsonSchema — the two directions can throw different messages.
+// direction, like jsonSchema - the two directions can throw different messages.
 const operationCreationError = S.schema({
   creationError: S.string.with(S.meta, {
     description:
@@ -139,16 +139,16 @@ const operationCreationError = S.schema({
 })
   .with(S.strict)
   .with(S.meta, {
-    description: "An operation that can't be compiled — the creation-time error, ratcheted like codegen.",
+    description: "An operation that can't be compiled - the creation-time error, ratcheted like codegen.",
   });
 export type CreationError = S.Output<typeof operationCreationError>;
 
 // An operation is either a full block or a literal shorthand:
-// - `identity` — Sury's pass-through compile.
-// - `eq-to-parse` (decode/encode only) — compiles to exactly the same code as
+// - `identity` - Sury's pass-through compile.
+// - `eq-to-parse` (decode/encode only) - compiles to exactly the same code as
 //   the spec's `parse` op, so the expression and examples live there; or is
 //   rejected at creation with parse's exact message.
-// - a `{creationError}` block — rejected at operation creation with a message
+// - a `{creationError}` block - rejected at operation creation with a message
 //   of its own.
 // harness.identityViolations enforces the shorthands both ways: an op that
 // compiles to a shorthand's meaning must use it, and the shorthand must
@@ -189,7 +189,7 @@ const ts = S.schema({
   }),
   aliases: S.optional(S.array(S.string)).with(S.meta, {
     description:
-      "Alternate `.with`-chain sources that must produce a schema equivalent to `schema` — " +
+      "Alternate `.with`-chain sources that must produce a schema equivalent to `schema` - " +
       "same ts.input/ts.output, jsonSchema, and operations. Checked live (not separately " +
       "snapshotted) by `spec check`. You write these by hand.",
   }),
@@ -228,13 +228,13 @@ export type ZodOverwrite = S.Output<typeof zodOverwrite>;
 
 // Cross-library equivalent, checked live like `ts.aliases` (no golden). A
 // required dimension: each spec declares a real Zod equivalent or an explicit
-// `zod: { _skip }`. Only inferred types are asserted — codegen, JSON Schema,
+// `zod: { _skip }`. Only inferred types are asserted - codegen, JSON Schema,
 // errors, coercion diverge by design.
 const vs = S.schema({
   zod: S.union([S.string, zodOverwrite, skip]).with(S.meta, {
     description:
       "Equivalent Zod (v4) schema. Bare string: inferred types must equal ts.input/ts.output. Object " +
-      "`{schema,divergence,input?,output?}`: differs from ts — divergent side recorded, matching side omitted. " +
+      "`{schema,divergence,input?,output?}`: differs from ts - divergent side recorded, matching side omitted. " +
       "`_skip` if Zod can't express it.",
   }),
 })
@@ -312,7 +312,7 @@ export type Spec = S.Output<typeof specSchema>;
 
 export type OpName = keyof Spec["operations"];
 
-// Ordered dimension keys — the canonical key order for `spec format`. Built via
+// Ordered dimension keys - the canonical key order for `spec format`. Built via
 // `Record<keyof T, true>` (not a plain array literal) so adding a field to
 // `ts`/`operations`/`specSchema` without updating the matching order here is a
 // compile error, not a silently-out-of-order key at serialize time.
@@ -350,11 +350,11 @@ export const JSON_SCHEMA_KEY_ORDER = keyOrder<Spec["jsonSchema"]>({
 
 export const isSkip = (v: unknown): v is Skip => is(skip, v);
 
-// The overwrite form of `vs.zod` — distinguished from a bare string (Zod
+// The overwrite form of `vs.zod` - distinguished from a bare string (Zod
 // source) and from `{_skip}` by carrying its own `schema` key.
 export const isZodOverwrite = (v: unknown): v is ZodOverwrite => is(zodOverwrite, v);
 
-// The creation-error operation block — distinguished from an `{expression,
+// The creation-error operation block - distinguished from an `{expression,
 // examples}` block and the string shorthands by carrying `creationError`.
 export const isCreationError = (v: unknown): v is CreationError => is(operationCreationError, v);
 
@@ -378,17 +378,17 @@ export const schemaJson = (): string =>
 
 // The whole-package bundle-size ratchet: one gzipped-byte row per public
 // export of the dev entry, plus `total` for the whole entry. A second format
-// alongside `specSchema`, not a spec dimension — bundle cost is a property of
+// alongside `specSchema`, not a spec dimension - bundle cost is a property of
 // the package's export surface, and a per-schema number measures only the
 // exports that schema reaches plus the author's own source literal.
 //
 // Every field is derived (bundleSize.ts measures them), so unlike specs there
-// is no hand-authored part and no emitted JSON Schema — no author for
+// is no hand-authored part and no emitted JSON Schema - no author for
 // yaml-language-server to help. It's still schema-validated so a hand-edited
 // or truncated file fails with a pointed message instead of a whole-file diff.
 export const bundleSizeSchema = S.schema({
   total: S.number.with(S.meta, {
-    description: "Minified+gzipped size of the whole entry (`export * from \"sury\"`) — the anchor row.",
+    description: "Minified+gzipped size of the whole entry (`export * from \"sury\"`) - the anchor row.",
   }),
   exports: S.record(S.number).with(S.meta, {
     description: "Minified+gzipped size of each public export bundled in isolation, keyed by export name.",
@@ -416,13 +416,13 @@ export const validateBundleSize = (
 
 // A spec times the library's inner surface (create, compile, compiled
 // operation); a scenario times a whole call the way a consumer writes it, so
-// the dispatch around the compiled operation — invisible to every per-spec
-// phase — is inside the measurement. Perf never stores a number, so scenarios
+// the dispatch around the compiled operation - invisible to every per-spec
+// phase - is inside the measurement. Perf never stores a number, so scenarios
 // have no goldens and no `--write`; `spec check` executes each one instead.
 export const scenarioSchema = S.schema({
   prepare: S.optional(S.string).with(S.meta, {
     description:
-      "Statements run once per library version before measuring, with `S` in scope; their bindings are in scope for `run`. Build the schema and the input here — only `run` is timed.",
+      "Statements run once per library version before measuring, with `S` in scope; their bindings are in scope for `run`. Build the schema and the input here - only `run` is timed.",
   }),
   run: S.string.with(S.meta, {
     description:

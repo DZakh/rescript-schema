@@ -25,4 +25,4 @@ operations:
         error: Expected File, received "hi"
   decode: identity
   encode:
-    creationError: "SuryError: Can't decode Blob to File. Use S.to to define a custom decoder"
+    creationError: "SuryError: Can't decode Blob -> File. Define custom codec with S.to"

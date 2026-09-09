@@ -30,7 +30,7 @@ export type Encoder = (input: Val, target: Internal) => Val;
 // `_var`/`_linkVar`/`_notVarBeforeValidation`/`_notVarAtParent`/`_notVar`
 // and `failInvalidType` are top-level consts (not object methods) because
 // they're compared/stored by reference (`val.v = _var`, `val.v !== _var`,
-// `check.f === failInvalidType`) — a method wrapper would break that
+// `check.f === failInvalidType`) - a method wrapper would break that
 // identity comparison.
 
 export function _var(this: Val): string {
@@ -56,10 +56,10 @@ export function _notVarAtParent(this: Val): string {
   const val = this;
   const parent = val.p!;
   // A re-readable field access (`parent[key]`). Its decl hoists onto the
-  // parent, which outlives this field's own segment — field vals are often
+  // parent, which outlives this field's own segment - field vals are often
   // materialized late (e.g. completeObjectVal's optional-field check), after
   // their merge code was emitted, so owning it here would drop the decl.
-  // If the parent is itself finalized (cached bond after its block closed —
+  // If the parent is itself finalized (cached bond after its block closed -
   // #240), re-read inline: the only still-open vals are ancestors whose
   // segments precede the parent's guard, so hoisting there could read
   // `parent[key]` before that guard; inlining defers it to a guarded use.
@@ -77,14 +77,14 @@ export function _notVarAtParent(this: Val): string {
 export function _notVar(this: Val): string {
   const val: Val = this;
   // Already emitted (a late materialization after this val's segment was
-  // merged — e.g. a fused `.to` stage reading a previous stage's transformed
+  // merged - e.g. a fused `.to` stage reading a previous stage's transformed
   // output): owning a fresh decl here would drop it (the phantom-var fusion
   // bug). Re-read the inline expression instead. Like `_notVarAtParent`'s
   // finalized guard, but that sibling's inline is always an atomic
   // `parent[key]`, whereas a transform val's inline can be compound (e.g.
   // `""+x`), so parenthesize it to stay correct under any operator a consumer
   // wraps it in (`+(""+x)`, not `+""+x`). Mutating `inline` (not just
-  // returning the wrap) keeps a second `.var()` — now routed through `_var` —
+  // returning the wrap) keeps a second `.var()` - now routed through `_var` -
   // consistent. Re-reading is sound only because the inlines that reach here
   // are idempotent (`""+x`, `+x`): side-effecting/allocating coercions
   // (`BigInt(...)`, `new Date(...)`, `new Array(...)`) are var-materialized by
@@ -123,7 +123,7 @@ export const operationArgVar = "i";
 // Pass this as `fail` on every check that wants "expected X, received Y"
 // error semantics. Stable reference → adjacent checks fuse.
 // A format's range check is a type check for that format, so it answers to
-// `errorMessage.format` rather than `errorMessage.type` — keeping it the same
+// `errorMessage.format` rather than `errorMessage.type` - keeping it the same
 // Check the plain type-narrow uses is what lets the two fuse into one
 // condition instead of two throws.
 export const failInvalidType = (input: Val): (value: unknown) => ErrorDetails => {
@@ -136,14 +136,14 @@ export const failInvalidType = (input: Val): (value: unknown) => ErrorDetails =>
 }
 
 // Bumps the raise counter: an embedded value is reached through `e[N]`, and
-// anything callable behind that accessor may raise — a fail helper, a user
+// anything callable behind that accessor may raise - a fail helper, a user
 // transform, `S.json`'s validator. Counting every embed over-reports for the
 // inert ones (a symbol literal compared with `===`), which is the safe
 // direction: union codegen wraps a case in a `try` it turns out not to need,
 // rather than dropping the fallback a raise needed.
 export const B_embed = (b: Val, value: unknown): string => (b.g.t++, B_embedPure(b, value));
 
-// B_embed for a value generated code can't raise through — a helper that
+// B_embed for a value generated code can't raise through - a helper that
 // never throws. Skipping the raise counter keeps union codegen from wrapping
 // the case in a `try` it doesn't need, and keeps loop bodies recognizable as
 // throw-free (see B_mergeWithCatch's `pureSince`).
@@ -167,8 +167,8 @@ export const B_varWithoutAllocation = (g: BGlobal): string => `v${++g.v}`;
 // Append a `let` declaration to a still-open owner val, emitted after the
 // owner's checks in `merge`. The owner is the materialized val's immediate
 // context (its `prev`, its `parent` for a field read, or itself); since the
-// decl lands at the owner's segment end — after the owner's guard, before
-// its dependent code — that immediate owner already dominates and outlives
+// decl lands at the owner's segment end - after the owner's guard, before
+// its dependent code - that immediate owner already dominates and outlives
 // every use, so no separate scope-tree is needed. The owner must be
 // unfinalized; `_notVarAtParent` guards this explicitly.
 export const B_hoistDecl = (owner: Val, decl: string): void => {
@@ -183,7 +183,7 @@ export const B_operationArg = (
   defs: Record<string, Internal> | undefined
 ): Val => {
   // Every Val literal in the codegen path lists the same fields in the same
-  // order (undefined where unset) so V8 gives them all ONE hidden class —
+  // order (undefined where unset) so V8 gives them all ONE hidden class -
   // monomorphic property reads in the hot merge/parse loops and faster
   // allocation. Keep this canonical order in sync across all Val creators.
   return {
@@ -225,7 +225,7 @@ export const B_unsupportedDecode = (b: Val, from: Internal, target: Internal): n
     code: "unsupported_decode",
     from,
     to: target,
-    reason: `Can't decode ${inputExpression(from)} to ${inputExpression(target)}. Use S.to to define a custom decoder`,
+    reason: `Can't decode ${inputExpression(from)} -> ${inputExpression(target)}. Define custom codec with S.to`,
     path: b.path,
   });
 
@@ -234,7 +234,7 @@ export const B_failWithArg = <TArg>(b: Val, fn: (arg: TArg) => ErrorDetails, arg
     B_throw(fn(a));
   })}(${arg})`;
 
-// Record a raise that reaches generated code without an embed behind it — the
+// Record a raise that reaches generated code without an embed behind it - the
 // bare `throw` a loop wrapper re-raises a nested error with. Union codegen
 // decides whether a case needs a `try` by bracketing an emission and reading
 // `g.t`, so a raise counted by neither this nor `B_embed` is a case that
@@ -262,11 +262,11 @@ export const B_makeInvalidConversionDetails = (input: Val, to: Internal, cause: 
 
     // A SuryError thrown by user code carries only the path it named, so the
     // path it was reached through is prepended here. Nothing arrives
-    // pre-prepended any more — that was effectCtx, which is gone.
+    // pre-prepended any more - that was effectCtx, which is gone.
     //
     // Copied rather than mutated: user code may throw one retained instance
     // more than once, and prepending onto the instance makes the second parse
-    // report `a.a`. Nothing to prepend means nothing to copy — `B_throw`
+    // report `a.a`. Nothing to prepend means nothing to copy - `B_throw`
     // rebuilds a SuryError from whichever of the two it gets.
     return (
       input.path.length ? { ...error, path: pathConcat(input.path, error.path) } : error
@@ -276,8 +276,8 @@ export const B_makeInvalidConversionDetails = (input: Val, to: Internal, cause: 
 }
 
 // The error an operation answers with when it answers rather than throws
-// (Result, boolean, Standard Schema): a Sury failure as it is, anything else —
-// a getter, a coder or refiner hit on a value it was never written for —
+// (Result, boolean, Standard Schema): a Sury failure as it is, anything else -
+// a getter, a coder or refiner hit on a value it was never written for -
 // wrapped, so every outcome shape holds a SuryError and a consumer never has to
 // tell a validation failure from an exception by inspecting it. Not the
 // throwing outcomes: there the exception is the answer, and it stays raw.
@@ -374,7 +374,7 @@ export const B_embedInvalidInput = (input: Val, expected: Internal = input.e): s
   B_failWithArg(input, B_invalidInputBuilder(expected)(input), input.v());
 
 // Caller must verify `val.vc` is truthy and `val.expected.noValidation !==
-// true` first — the `!` unwrap below is unchecked. `inputVar` is usually
+// true` first - the `!` unwrap below is unchecked. `inputVar` is usually
 // `val.prev.var()`.
 const B_emitChecks = (val: Val, inputVar: string): string => {
   const checks = val.vc!;
@@ -395,7 +395,7 @@ const B_emitChecks = (val: Val, inputVar: string): string => {
 
 // A hoisted type-narrow kept in both forms: `c` routes the value to the next
 // union case (dispatch), and re-emitting it against `v` rejects the case from
-// inside a `try` (fallback). Only `c` and the two strings it needs are captured —
+// inside a `try` (fallback). Only `c` and the two strings it needs are captured -
 // most cases never emit the rejecting form, so its closure and embed slot are
 // built on demand (see `unionRejectCond`).
 export type Hoist = {
@@ -421,7 +421,7 @@ export const B_merge = (val: Val, out?: HoistCond): string => {
     if (val.vc) {
       // Type-narrows hoist only when they can't strand a decl the lifted
       // check reads: a transforming val is safe iff prev is non-transforming
-      // (stable input var) and this val has no codeFromPrev of its own —
+      // (stable input var) and this val has no codeFromPrev of its own -
       // else the lifted check runs before that producer (the
       // str->to(option(int)) "v0 is not defined" bug class).
       if (out && (!val.t || !val.prev!.t && val.cp === "")) {
@@ -434,7 +434,7 @@ export const B_merge = (val: Val, out?: HoistCond): string => {
           if (check.f === failInvalidType) {
             hoisted = hoisted ? `${hoisted}&&${condCode}` : condCode;
           } else if (val.e.noValidation !== true) {
-            // `noValidation` is intentionally bypassed for the hoisted part —
+            // `noValidation` is intentionally bypassed for the hoisted part -
             // the cond routes between cases, it doesn't reject, so suppressing
             // it would break dispatch.
             currentCode += `${condCode}||${B_failWithArg(val, check.f(val), inputVar)};`;
@@ -464,7 +464,7 @@ export const B_merge = (val: Val, out?: HoistCond): string => {
 }
 
 // Rebinds `val.v` so the next call to it also stashes the resolved var name
-// (and switches `nextVal.v` to the plain `_var` reader) onto `nextVal` —
+// (and switches `nextVal.v` to the plain `_var` reader) onto `nextVal` -
 // links a derived val's var resolution to its source without eagerly
 // materializing a var. Shared by every "derive a val from a val" builder.
 const B_linkVar = (val: Val, nextVal: Val): void => {
@@ -475,10 +475,10 @@ const B_linkVar = (val: Val, nextVal: Val): void => {
 export const B_next = (prev: Val, initial: string, schema: Internal, expected: Internal = prev.e): Val => {
   // No `d`: this val is a *new* value, so `prev`'s field vals don't describe
   // it. Inheriting them let a reader of a transformed object read the fields
-  // of the value that went in — a flattened member's codec ran and its result
+  // of the value that went in - a flattened member's codec ran and its result
   // was then discarded field by field (#368's FIXME). `valGet` re-reads them
   // off this value instead. B_scope, which names the *same* value, does share
-  // `d` — that aliasing is the correct one.
+  // `d` - that aliasing is the correct one.
   // Canonical Val field order (see B_operationArg).
   return {
     b: U,
@@ -504,7 +504,7 @@ export const B_next = (prev: Val, initial: string, schema: Internal, expected: I
   };
 }
 
-// Pass a non-empty `~checks` or omit it. Never pass `~checks=[]` —
+// Pass a non-empty `~checks` or omit it. Never pass `~checks=[]` -
 // that would break the val.checks "absent iff no checks" invariant.
 export const B_refine = (val: Val, schema: Internal = val.s, checks?: Check[], expected: Internal = val.e): Val => {
   const shouldLink = val.v !== _var;
@@ -542,14 +542,14 @@ export const B_pushCheck = (val: Val, check: Check): void => {
 }
 
 // Applies both refiners. Output checks wrap `val` via refine; input checks push
-// onto `valInput.vc`, which emits ahead of the decoder body — they have to read
+// onto `valInput.vc`, which emits ahead of the decoder body - they have to read
 // what the decoder was *handed*. A schema that narrows leaves nothing else to
 // read it from: a union assigns its result over the operation argument, so an
 // `allOf` refinement placed after it looks for keys the object arm just
 // stripped. Sets isOutput on the result.
 //
 // The parse loop applies refiners itself only for primitive decoders, so every
-// decoder that sets isOutput — object, array, tuple, union, recursive — has to
+// decoder that sets isOutput - object, array, tuple, union, recursive - has to
 // call this. Not calling it silently drops the user's S.refine.
 export const B_markOutput = (val: Val, valInput: Val): Val => {
   let outC: Check[] | undefined;
@@ -593,7 +593,7 @@ export const B_hoistChildChecks = (parent: Val, child: Val, key: string): void =
 export const B_dynamicScope = (from: Val, locationVar: string): Val => {
   // `additionalItems` doubles as the value schema for a dict-shaped val.
   // Extract it via a real pattern match: a non-`Schema` mode (`Strip`/`Strict`
-  // on a fixed-property object) must never be cast to a schema — that string
+  // on a fixed-property object) must never be cast to a schema - that string
   // reaching `isLiteral` is the `'const' in "strip"` crash. Callers only pass
   // dict sources; the `unknown` fallback keeps a misuse safe instead of crashing.
   const schemaAdditionalItems = from.s.additionalItems;
@@ -632,7 +632,7 @@ export const B_dynamicScope = (from: Val, locationVar: string): Val => {
 export const B_nextConst = (from: Val, schema: Internal, expected?: Internal): Val =>
   B_next(from, B_inlineConst(from, schema), schema, expected);
 
-// The expression to read a val by when it will be read more than once — the
+// The expression to read a val by when it will be read more than once - the
 // conversion reads it, and whatever the conversion's own result is spliced into
 // may read that. `v()` hands back the var that already stands for the value
 // wherever one does, and hoists one only where the source is an expression
@@ -641,7 +641,7 @@ export const B_readOnce = (input: Val): string => input.v();
 
 // A conversion's result, held in a var. The splice that reads it may read it
 // twice (jsonString's escape-free form does), and unlike a property path this is
-// a fresh pass over the whole value — so it is computed once, the way
+// a fresh pass over the whole value - so it is computed once, the way
 // B_conversion computes a custom coder's result once.
 export const B_computed = (
   input: Val,
@@ -782,8 +782,8 @@ export const B_conversion = (
       output.cp = `let ${outputVar}=${embeddedFn}(${inputValue});`;
       return output;
     }
-    // Whatever the coder throws — a `SuryError` it raised on purpose or a
-    // TypeError it hit on a value it was never written for — is that
+    // Whatever the coder throws - a `SuryError` it raised on purpose or a
+    // TypeError it hit on a value it was never written for - is that
     // conversion failing, so in a union it is what hands the value to the
     // next case rather than aborting the operation (#347); a refiner's throw
     // is wrapped the same way (modifiers.ts `refine`). The foreign errors that
@@ -799,7 +799,7 @@ export const B_conversion = (
     // A val whose result the target's own refiners can attach to. `val.vc`
     // checks emit at the *pre-transform* slot (`prev.v()` in B_merge), so
     // leaving them on the coder's own val would validate what went into the
-    // coder instead of what came out — `S.uuid->S.to(userSchema, ~custom=…)`
+    // coder instead of what came out - `S.uuid->S.to(userSchema, ~custom=…)`
     // ran the uuid pattern over the user object. The junction seam never
     // hits this: its `unknown` source makes the loop compile the target's
     // decoder, which supplies a val of its own. The trusted seam claims the
@@ -815,37 +815,35 @@ export const B_conversion = (
 export const B_neverSlot: Builder = (input: Val) =>
   B_invalidOperation(
     input,
-    `Can't decode ${inputExpression(input.e)} to ${inputExpression(
-      input.e.to!,
-    )}. The conversion is marked as never`,
+    `Nothing decodes ${inputExpression(input.e)} -> ${inputExpression(input.e.to!)}. It is marked with S.never`,
   );
 
 // CONTENT_CODEC_SPEC.md rules 3 and 4, for the direction a link is written in:
-// two schemas whose payloads disagree (`content`) have two readings of it —
+// two schemas whose payloads disagree (`content`) have two readings of it -
 // store the source's value in the target, or open the source and hand its
-// payload over — and the target naming its own payload with `.to` is what picks
+// payload over - and the target naming its own payload with `.to` is what picks
 // the second. Compiling can't tell the two apart, because reversing a chain
 // turns that payload declaration into just another link: the legal
 // `X -> jsonString -> File` and the rejected `jsonString -> File` reach the
 // decoder as the same pair. So the reading is settled where the link is made,
 // and an unreadable one takes a slot that rejects the operation instead.
 // The node a link's content reading comes from: the schema, or the arm that
-// carries one where the schema is a union — which has neither `content` nor
+// carries one where the schema is a union - which has neither `content` nor
 // `.to` of its own, though linking a carrier to `S.optional(S.jsonString)` puts
 // the same two readings on the table as linking it to `S.jsonString`.
 export const B_contentNode = (schema: Internal): Internal =>
   (schema.content === U && schema.anyOf?.find((arm) => arm.content !== U)) || schema;
 
 // Half of CONTENT_CODEC_SPEC.md rule 4's question: whether two payloads are of
-// different kinds, which is what puts two readings on the table — store the
+// different kinds, which is what puts two readings on the table - store the
 // source's value in the target, or open the source and hand its payload over.
 // The other half, a `.to` on the target picking the second (rule 3), stays with
 // each caller, along with the `B_contentNode` walk that finds a marker on a
-// union arm, and what to say about the pair — which differs by where the link
+// union arm, and what to say about the pair - which differs by where the link
 // was made.
 //
 // Compiling *can* tell the two readings apart, contrary to what the shape
-// suggests: rule 3 survives reversal, just spelled differently at each end —
+// suggests: rule 3 survives reversal, just spelled differently at each end -
 // forward as `to.to`, and backward as a val that something was already rendered
 // into. A guard on both, in each payload schema's own decoder and encoder, was
 // built and measured. It is not worth it: `to` -148, `trim` -104, `list` -99,
@@ -859,7 +857,7 @@ export const B_contentDiffers = (from?: Internal, to?: Internal): boolean =>
 // Which reading of a content link applies: a `"pack"`/`"unpack"` slot the caller
 // wrote wins (rule 1), and otherwise a target that names its own payload is what
 // asks for the source to be opened (rule 3). Read by the carriers, never by the
-// formats — the format side only ever asks whether a `content` marker is there.
+// formats - the format side only ever asks whether a `content` marker is there.
 export const B_readsPayload = (target: Internal): boolean =>
   target.opens ?? target.to !== U;
 
@@ -875,8 +873,8 @@ const B_mergeWithCatch = (
   const valCode = B_merge(val);
   // `pureSince` is the raise counter before the val was built: unchanged means
   // nothing merged can throw, so the catch wrapper is dead. Without an append
-  // the code itself is dead too — an untransformed, unfailable body is only
-  // orphaned `let`s — and dropping it lets the caller skip its loop entirely.
+  // the code itself is dead too - an untransformed, unfailable body is only
+  // orphaned `let`s - and dropping it lets the caller skip its loop entirely.
   const pure = pureSince !== U && val.g.t === pureSince;
   if (
     (valCode === "" || pure) &&

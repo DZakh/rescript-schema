@@ -30,4 +30,4 @@ operations:
         input: '"123"'
         output: "123"
   encode:
-    creationError: "SuryError: Encoding is ambiguous when only a decode function is provided. Use S.to(target, {decode, encode})"
+    creationError: 'SuryError: Ambiguous encode for number -> string. Only decode is defined. Add encode to S.to as a function, "auto" or "never"'

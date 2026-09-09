@@ -484,7 +484,7 @@ module Union = {
     let schema = S.union([S.literal(2)->validAsyncRefine, S.literal(2), S.literal(3)])
 
     // An async member can't be dropped from the dispatch to make a sync parser
-    // work — the operation itself is the problem, so it's raised once.
+    // work - the operation itself is the problem, so it's raised once.
     t->U.assertThrowsMessage(
       () => 2->S.parseOrThrow(~to=schema),
       "Invalid async during sync operation",

@@ -99,13 +99,13 @@ test("Encodes object with a union of objects field to JSON string", t => {
 // used to fail to encode to JSON once nested inside another object with:
 // `Failed at x.s: Expected JSON, received undefined`.
 //
-// Root cause: nested, the field converts in two steps — a JSON-unaware plain
+// Root cause: nested, the field converts in two steps - a JSON-unaware plain
 // encode of the union (which keeps the undefined "s" key), then a per-variant
 // `.to(json)` re-dispatch. Inside that re-dispatch, objectDecoder's
 // no-transform pass-through kept the union dispatch narrow
 // ({properties:{}, additionalItems: unknown}) as the case output's schema
 // instead of the validated variant schema, so jsonDecoderFn misrouted the
-// conversion into the dict path — which rejects undefined values instead of
+// conversion into the dict path - which rejects undefined values instead of
 // omitting optional fields the way the fixed-properties path does.
 type flattenedA = {s: option<string>}
 type flattenedB = {v: int}
@@ -115,7 +115,7 @@ type flattenedContainer = {x: flattenedX}
 // aSchema/bSchema/testSchema are `@schema`-derived in the original report.
 // sury-ppx compiles plain records via `S.schema` + `s.matches` (see
 // generateRecordSchema in packages/sury-ppx/src/ppx/Structure.ml), not
-// `S.object` + `s.field` — only the hand-written union below uses `S.object`.
+// `S.object` + `s.field` - only the hand-written union below uses `S.object`.
 let flattenedASchema: S.t<flattenedA> = S.schema(s => {
   s: s.matches(S.nullableAsOption(S.string)),
 })

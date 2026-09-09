@@ -254,12 +254,12 @@ test("Default on a primary item with S.to runs the transformation on parse and r
   let otherDate = Date.fromString("2024-06-15T12:30:45.123Z")
   let schema = S.string->S.to(S.date)->S.option->S.Option.getOr(defaultDate)
 
-  // schema.default is the input form (ISO string), not the Date — JSON Schema metadata.
+  // schema.default is the input form (ISO string), not the Date - JSON Schema metadata.
   let untagged = schema->S.untag
   t->Assert.is(untagged.tag, S.AnyOf)
   t->Assert.is(untagged.anyOf->Option.getOrThrow->Array.length, 2)
   t->Assert.deepEqual(untagged.default, %raw(`"2024-01-01T00:00:00.000Z"`))
-  // The default arm carries the conversion — the union itself has no `.to`.
+  // The default arm carries the conversion - the union itself has no `.to`.
   t->Assert.is(untagged.to, None)
 
   t->Assert.deepEqual(%raw(`undefined`)->S.parseOrThrow(~to=schema), defaultDate)
@@ -314,7 +314,7 @@ test("Appending S.to(S.jsonString) after getOr extends the output chain", t => {
 
 // getOr hands jsonString a bare ternary, and `+` binds tighter than `?:`, so
 // splicing it between quotes unparenthesized reassociated into
-// `("\""+i)===void 0?…` — which dropped the opening quote on BOTH branches and
+// `("\""+i)===void 0?…` - which dropped the opening quote on BOTH branches and
 // went unnoticed because no test paired a default with a quoted primitive.
 // Spelled here rather than as a spec: `spec new` can't evaluate `$Option_getOr`.
 test("getOr default reaches jsonString quoted, not reassociated", t => {
@@ -371,7 +371,7 @@ test("Multi-member union with transformed members + getOr", t => {
 test("Compiled serialize code snapshot", t => {
   let schema = S.bool->S.option->S.Option.getOr(false)
 
-  // The reversed union validates the value like any other typed decode — the
+  // The reversed union validates the value like any other typed decode - the
   // old noop relied on Option_getWithDefault's noopDecoder hack.
   t->U.assertCompiledCode(~schema, ~op=#Encode, `i=>{typeof i==="boolean"||e[0](i);return i}`)
 })

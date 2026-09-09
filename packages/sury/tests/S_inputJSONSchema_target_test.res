@@ -193,7 +193,7 @@ test("toJSONSchema keeps both bounds when only one is exclusive", t => {
 })
 
 // `contentSchema` is 2019-09 and later, and OpenAPI 3.0 predates the whole
-// content family — so the same schema says three different amounts about the
+// content family - so the same schema says three different amounts about the
 // document it carries. Not a spec: the format snapshots one target (the
 // default), so the dialect gating is only observable here.
 test("toJSONSchema of a JSON string describes the document it carries", t => {
@@ -230,7 +230,7 @@ test("toJSONSchema of a JSON string describes the document it carries", t => {
   )
 })
 
-// A blob is octets, which no JSON type describes — so a document exists only
+// A blob is octets, which no JSON type describes - so a document exists only
 // for the string somebody encodes it into, and the two dialects spell what that
 // string carries differently. `S.extendJSONSchema` holds one document for every
 // target and could not have said this.

@@ -21,13 +21,13 @@ export type DialectResult = {
   assertions: number;
   passed: number;
   failed: number;
-  // Split of `failed` by direction — see the push sites below.
+  // Split of `failed` by direction - see the push sites below.
   falseAccept: number;
   falseReject: number;
   errored: number;
   // `S.isInput` score over the same corpus. Tracked alongside the canonical parse
   // score because the two disagreeing is always a Sury bug, never a JSON
-  // Schema gap — that delta is what surfaced the `S.json` assert break.
+  // Schema gap - that delta is what surfaced the `S.json` assert break.
   assertPassed: number;
   identityAssertions: number;
   identityPassed: number;
@@ -58,7 +58,7 @@ const optionalFilesIn = (dir: string): string[] => {
 };
 
 // Test ids are the human-readable descriptions upstream already writes, joined
-// by " :: " — they survive a suite bump far better than file offsets would,
+// by " :: " - they survive a suite bump far better than file offsets would,
 // which is what keeps a golden diff readable.
 const caseId = (file: string, testCase: SuiteCase): string => `${file} :: ${testCase.description}`;
 const testId = (file: string, testCase: SuiteCase, test: SuiteTest): string =>

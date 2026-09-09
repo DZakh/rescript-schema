@@ -1,7 +1,7 @@
 // The factory functions below (`schemaShape`, `schemaNested`, `schemaObject`,
 // `schemaTuple`, `schemaDefiner`, `schemaFactory`) are standalone top-level
-// functions rather than object methods — several are mutually recursive,
-// which is awkward to express inside an object literal — with
+// functions rather than object methods - several are mutually recursive,
+// which is awkward to express inside an object literal - with
 // `schema`-prefixed names to avoid colliding with other sections.
 
 import {
@@ -73,7 +73,7 @@ const inputFrom = immutableEmptyArray as string[];
 
 // The public JS/TS-facing object-builder ctx: `field` is the long-form JS/TS
 // name, `f` the short runtime alias (`ObjectCtx.f` in operations.ts) that
-// both ship — `field` for DX, `f` because it's what codegen already looks up.
+// both ship - `field` for DX, `f` because it's what codegen already looks up.
 export type AdvancedObjectCtx = {
   field: (fieldName: string, schema: Internal) => unknown;
   f: (fieldName: string, schema: Internal) => unknown;
@@ -88,7 +88,7 @@ const makeTag = (field: (location: string, schema: Internal) => unknown) =>
     field(tag, definitionToSchema(asValue));
   };
 
-// Field-with-default as `if(v===void 0)v=def` plus the item's own decoder —
+// Field-with-default as `if(v===void 0)v=def` plus the item's own decoder -
 // not `union([unit, item])` + Option_getOr. The anyOf/has/undefined shape is
 // what isOptional, JSON Schema (skip the unit arm, emit `default`) and json
 // omit still read; unionDecoder is what would pull the planner into every
@@ -101,7 +101,7 @@ const fieldOrSchema = (schema: Internal, or: unknown): Internal => {
   setHas(mut.has, schema.type);
   // A `.to` is what makes reverse start at the item (output is required, not
   // optional). A serializer on a self-reverse item is what keeps encode
-  // re-checking it — without one, a typed boolean property is trusted and the
+  // re-checking it - without one, a typed boolean property is trusted and the
   // check the union compiler used to emit disappears.
   if (schema.to === U) {
     const toMut = copySchema(schema);
@@ -307,7 +307,7 @@ export const schemaObject = (
         const flattenedSchema = flattenedProperties[key]!;
         const existing = properties[key];
         if (existing !== U && existing === flattenedSchema) {
-          // Same field flattened in from two places — already registered, skip.
+          // Same field flattened in from two places - already registered, skip.
         } else if (existing !== U) {
           panic(`The field "${key}" defined twice with incompatible schemas`);
         } else {
@@ -403,7 +403,7 @@ export const schemaTuple = (
 
 const getValByFrom = (input: Val, from: string[], idx: number): Val => {
   // Flattened schemas are resolved by the caller (getShapedParserOutput picks
-  // the right `input.fv[fromFlattened]` before calling this) — this walk only
+  // the right `input.fv[fromFlattened]` before calling this) - this walk only
   // needs to handle a plain nested `from` path.
   const key = from[idx];
   if (key !== U) {
@@ -415,7 +415,7 @@ const getValByFrom = (input: Val, from: string[], idx: number): Val => {
 
 // Owns the shaped structure walk: assembles an object/tuple val from a
 // per-location field producer. `init` wires the fresh objectVal before the
-// walk and may pre-populate `d` (flattened merge) — pre-populated locations
+// walk and may pre-populate `d` (flattened merge) - pre-populated locations
 // are skipped. `onMissing` handles a non-object/tuple target.
 const assembleShapedObject = (
   input: Val,
@@ -484,7 +484,7 @@ const shapedParser: Builder = (input: Val) => {
       const flattenedSchema = flattened[idx]!;
       // The flattened object's keys are merged into the parent's properties and
       // already decoded by the parent objectDecoder, so `input` holds their
-      // decoded vals. Reuse them here instead of decoding again — re-decoding
+      // decoded vals. Reuse them here instead of decoding again - re-decoding
       // would re-apply field-level transforms on the already-transformed value
       // (issue #271).
       let flattenedVal: Val;
@@ -582,7 +582,7 @@ const getShapedSerializerOutput = (
   path: Path
 ): Val => {
   if (acc !== U && acc.val !== U) {
-    // Placement of an already-decoded val — don't overwrite its schema (#284);
+    // Placement of an already-decoded val - don't overwrite its schema (#284);
     // parse only re-advances `e` and emits nothing for an output val
     const v = B_scope(acc.val);
     v.t = true;
@@ -645,9 +645,9 @@ const getShapedSerializerOutput = (
             );
             // Only the member's fields are placed here, so take its code once
             // and read each field back out of it. `valGet` scopes a field the
-            // member already emitted — a whole-object placement hands back the
+            // member already emitted - a whole-object placement hands back the
             // very vals the parent's own decode declared, and adding those
-            // unscoped is what emitted their `let`s a second time (#368) — and
+            // unscoped is what emitted their `let`s a second time (#368) - and
             // synthesizes a read when the member ends in its own transform,
             // whose result carries no field vals of its own (B_next).
             v.cp = v.cp + B_merge(flattenedOutput);
@@ -662,7 +662,7 @@ const getShapedSerializerOutput = (
     // The walk built the head of `targetSchema`'s chain. If the schema also
     // carries a transform of its own, run it here: the assembled head is its
     // input, and nobody else will apply it (a pending operation-level `to`
-    // — `parser` absent — is the compile pipeline's job, not ours).
+    // - `parser` absent - is the compile pipeline's job, not ours).
     return targetSchema.parser === U ? assembled : parse(assembled);
   }
 }
@@ -705,7 +705,7 @@ export const schemaFactory = (definition: unknown): Internal => {
   return definitionToSchema(definition);
 }
 
-// PORT-NOTE: `enum` is a reserved word in TS — defined as `enum_` and
+// PORT-NOTE: `enum` is a reserved word in TS - defined as `enum_` and
 // re-exported under the name `enum` (legal as an export alias).
 // @__NO_SIDE_EFFECTS__
 const enum_ = (values: unknown[]): Internal => {

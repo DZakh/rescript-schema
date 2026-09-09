@@ -1,4 +1,4 @@
-// `S.compactColumns` — a row-of-objects schema read from column arrays, which
+// `S.compactColumns` - a row-of-objects schema read from column arrays, which
 // is why it owns a decoder of its own rather than composing existing ones.
 
 import {
@@ -36,12 +36,12 @@ import {
 } from "../parse";
 
 // The column types only exist once `.to` has been applied, so this must stay
-// lazy — until then there are no column names and the schema describes its own
+// lazy - until then there are no column names and the schema describes its own
 // `array(array(item))` shape as `item[][]`.
 //
 // Columns are read where compactColumnsDecoder's forward direction reads them:
 // on the `.to` array's item schema. Reading `to.properties` instead described
-// `.to(objectSchema)` — a shape the decoder rejects outright — while the
+// `.to(objectSchema)` - a shape the decoder rejects outright - while the
 // supported `.to(S.array(objectSchema))` fell through to a bare `unknown[][]`.
 const compactColumnsExpression = (schema: Internal): string => {
   const to = schema.to;
@@ -102,7 +102,7 @@ export const compactColumnsDecoder: Builder = (input: Val) => {
     const keysLen = keys.length;
 
     // Forward: output already matches selfSchema.to, reuse it so
-    // markOutput picks up its refiner. selfSchema.to is Some here —
+    // markOutput picks up its refiner. selfSchema.to is Some here -
     // isForwardDirection reads through it above.
     // Reverse: runtime shape differs (array of arrays of unknown),
     // so build fresh and propagate .to for downstream steps.
@@ -211,7 +211,7 @@ export const compactColumnsDecoder: Builder = (input: Val) => {
       output.cp = `let ${outputVar}=new Array(Math.max(${lengthCode.slice(0, -1)}));`;
 
       // Wrap the row body in a single try/catch that prepends the row index to
-      // any thrown error — giving paths like `[0].bar`. A single wrapper is
+      // any thrown error - giving paths like `[0].bar`. A single wrapper is
       // used (rather than per-field) so that `let` variables declared while
       // parsing one field remain in scope for the object construction.
       let rowAssign: string;

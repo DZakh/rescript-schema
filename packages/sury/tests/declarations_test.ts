@@ -2,14 +2,14 @@
 //
 // Every other typecheck in the repo runs with `skipLibCheck: true` (tsconfig.json,
 // and most consumers do the same), which does not check .d.ts files at all. A
-// broken reference inside index.d.ts therefore raises nothing — it resolves to an
+// broken reference inside index.d.ts therefore raises nothing - it resolves to an
 // error type, and everything built on it degrades quietly: a dangling
 // `StandardSchemaV1.Props` in `Schema["~standard"]` costs every schema its
 // inferred Input and Output while the suite stays green.
 //
 // This bites specifically when declarations are split across files, since
 // `export * from "./other.js"` re-exports names to consumers without binding
-// them locally — the file still needs its own `import type`.
+// them locally - the file still needs its own `import type`.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -70,7 +70,7 @@ test("every declared value has a runtime export, and vice versa", async () => {
   }
   // The ReScript binding surface, which index.d.ts deliberately doesn't
   // describe. `$`-prefixed is the convention (entry.ts); these three predate it
-  // and are bound from S.res under their bare names — `list` builds a ReScript
+  // and are bound from S.res under their bare names - `list` builds a ReScript
   // linked list, `enum` takes the array of values `S.union` takes as a
   // definition, and `nan` is `t<float>`'s NaN literal. Declaring them would put
   // three ReScript-shaped APIs in front of every TS consumer; renaming them to

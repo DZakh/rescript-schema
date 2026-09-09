@@ -77,7 +77,7 @@ export const parse = (input: Val): Val => {
     // The val is a promise, so the rest of the chain has to run inside a
     // `.then`. The flag alone is the right guard: a second condition could only
     // have been "and there is something to wrap", which is not knowable before
-    // parsing the remainder — so the decision lives below, where the recursive
+    // parsing the remainder - so the decision lives below, where the recursive
     // parse has already answered it, and an empty remainder refines instead of
     // wrapping. Across the spec corpus the no-wrap arm is reached by exactly one
     // shape, `S.file.with(S.to, S.uint8Array)`, where reading the file IS the
@@ -147,7 +147,7 @@ export const parseDynamic = (input: Val): Val => {
   }
 }
 
-// How a compiled operation's body ends. `undefined` means "no body at all" —
+// How a compiled operation's body ends. `undefined` means "no body at all" -
 // the operation is the identity, and the caller hands back `noopOperation`.
 //
 // A mutable binding rather than a branch on the flag: `compileDecoder` is in
@@ -169,7 +169,7 @@ export type Tail = (
 // Schema arm is here rather than behind the `__setTail` hook because the
 // `~standard` prototype getter can never be tree-shaken (standard.ts), so a
 // registration from it would drag the whole emitter into every consumer bundle
-// — the very thing the hook exists to prevent. Keeping the one shape that
+// - the very thing the hook exists to prevent. Keeping the one shape that
 // getter needs here costs a branch; the JS and ReScript Result shapes stay
 // behind the hook (operations.ts).
 export const throwTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
@@ -244,7 +244,7 @@ const reverseSwap = (mut: Record<string, unknown>, a: string, b: string): void =
 }
 
 // Null prototype: the keys are user-controlled property names, and assigning
-// `__proto__` on a plain `{}` reparents the object instead of adding a key —
+// `__proto__` on a plain `{}` reparents the object instead of adding a key -
 // which reparented the reversed property dict onto the property's own schema and
 // dropped the key, so `outputExpression` rendered schema internals.
 const reverseDict = (dict: Record<string, Internal>): Record<string, Internal> => {
@@ -255,12 +255,12 @@ const reverseDict = (dict: Record<string, Internal>): Record<string, Internal> =
   return reversed;
 }
 
-// The general `reversed` getter: every schema can answer its reverse — the
+// The general `reversed` getter: every schema can answer its reverse - the
 // self-reverse prototype shadows this with `this`, and a first read here
 // computes, then caches both directions as own non-enumerable properties
 // (own beats the getter on every later read). Free bundle-wise: `toString`
 // above already makes `reverse` unshakeable. Reading `r` therefore has side
-// effects — a debugger that expands prototype getters computes the reverse
+// effects - a debugger that expands prototype getters computes the reverse
 // and writes the cache; harmless, but not inert.
 Object.defineProperty(schemaPrototype, reversedKey, {
   get(this: Internal): Internal {
@@ -307,7 +307,7 @@ Object.defineProperty(schemaPrototype, reversedKey, {
     }
 
     // defineProperty (slower, once per schema) keeps the cache non-enumerable:
-    // enumerability is load-bearing, not cosmetic — copySchema's Object.assign,
+    // enumerability is load-bearing, not cosmetic - copySchema's Object.assign,
     // optionFactory-style spreads, and unionIsTransparent's field count all walk
     // enumerable fields and must not see it.
     const r = reversedHead!;
@@ -330,18 +330,18 @@ export const outputExpression = (schema: Internal): string =>
 
 // THE compiled-operation cache: a linked list of nodes on the cache target
 // (the newest-seq schema argument) under `memoKey`, newest node first, matched
-// by identity-comparing the schema arguments and the resolved flag — no string
+// by identity-comparing the schema arguments and the resolved flag - no string
 // keys, since a key assembled per call is never interned and re-hashes on
 // every lookup. Non-enumerable so copySchema's Object.assign can't carry it
 // onto a derived schema. Nothing evicts: a `S.global` flag change strands the
 // old flag's nodes, and each node pins its argument schemas for the target's
-// lifetime — both bounded by the number of distinct (args, flag) operations
+// lifetime - both bounded by the number of distinct (args, flag) operations
 // ever asked of the schema.
 //
 // recursiveDecoder (advanced/recursive.ts) shares this storage; its lookup
 // triple (inputSchema, def, flag) is a two-schema node stored on `def`. That
 // is why `v` admits 0: a def mid-compilation holds the sentinel so inner
-// circular references embed the NODE and call `.v` at runtime — the node
+// circular references embed the NODE and call `.v` at runtime - the node
 // exists before the function it will hold, and a recompile under corrected
 // assumptions overwrites `v` in place. getOp never observes the sentinel:
 // a def is only mid-compilation inside a synchronous recursiveDecoder pass,
@@ -351,11 +351,11 @@ export type OpNode = {
   f: Flag;
   v: ((from: unknown) => unknown) | 0;
   n: OpNode | undefined; // next (older) node
-  // @as("t") — hasTransform, @as("y") — isAsync. Facts about the compiled
+  // @as("t") - hasTransform, @as("y") - isAsync. Facts about the compiled
   // operation, not about any schema in it: one schema is transforming under
   // one flag and not under another, and two operations sharing a chain must
   // not overwrite each other's answer. `recursiveDecoder` writes and reads
-  // them, and needs them mid-compile — which is why they live on the node its
+  // them, and needs them mid-compile - which is why they live on the node its
   // circular reference already finds rather than being returned. Left off the
   // literal in `addOpNode`: the lookup walk never reads them, so the shape a
   // recursive compile adds them to is not one it has to stay off.
@@ -398,7 +398,7 @@ export const removeOpNode = (schema: Internal, node: OpNode): void => {
   }
 };
 
-// recursiveDecoder's lookup — always exactly two schemas, and a plain read
+// recursiveDecoder's lookup - always exactly two schemas, and a plain read
 // rather than `getOp`: a hit must not compile a missing node into existence.
 export const findOpNode = (
   schema: Internal,
@@ -431,7 +431,7 @@ const compileChain = (
       // Only this direction: an operation compiles the chain the way it runs
       // it, so the encode side is a chain of its own, built from the reversed
       // schemas. Reported as a missing decoder rather than with the slot
-      // spelling `codecTo` offers — this form has nowhere to write one, and a
+      // spelling `codecTo` offers - this form has nowhere to write one, and a
       // custom coder is what answers it.
       if (
         B_contentDiffers(B_contentNode(mut).content, B_contentNode(to).content) &&
@@ -442,7 +442,7 @@ const compileChain = (
     });
   }
   // Flag 8: the caller knows nothing about the input, so the chain's own head
-  // is not the source type — `unknown` is, and the head's decoder emits its
+  // is not the source type - `unknown` is, and the head's decoder emits its
   // type checks against it. Read here rather than in `compileDecoder`, whose
   // other caller (recursive.ts) passes a source of its own and inherits this
   // bit through `g.o`.
@@ -458,7 +458,7 @@ const compileChain = (
 
 // THE operation lookup: `n` (1 to 5) says how many schema slots are filled, so
 // the memo walk is straight-line and nothing is allocated on a hit. Arity-
-// specialised on purpose — the variadic form this replaced read its
+// specialised on purpose - the variadic form this replaced read its
 // `arguments`, which V8 must materialize the moment the object is aliased to a
 // variable, and that was measurably the bulk of an operation lookup.
 // @__NO_SIDE_EFFECTS__
@@ -534,6 +534,25 @@ export const instanceDecoder: Builder = (input: Val) => {
       : B_unsupportedDecode(input, input.s, input.e);
 };
 
+// On a runtime that has no such global there is no schema to be had, so `class`
+// reports that instead of sitting there as `undefined` for its readers to
+// dereference. Every route into the schema goes through `class` - the decoder's
+// `instanceof`, the rendering and the JSON Schema emit via `.name`, and
+// `copySchema`'s `Object.assign` for `.with(…)` and `reverse` - so all of them
+// answer with this one sentence rather than a TypeError, or worse, a schema
+// that builds and fails later - converting a schema that only decodes to one
+// included, since the encode-reverse copies the target to get there.
+//
+// Enumerable, so the `Object.assign` copy is one of the routes it covers.
+// `console.log` still works: `util.inspect` shows an accessor rather than
+// invoking it.
+export const unsupportedInstance = (s: Internal, name: string): void => {
+  Object.defineProperty(s, "class", {
+    enumerable: true,
+    get: () => panic(`S.${name} is not supported in this runtime`),
+  });
+};
+
 // @__NO_SIDE_EFFECTS__
 export const instance = (class_: unknown): Internal => {
   const mut = baseSchema(instanceTag, true, instanceDecoder);
@@ -542,12 +561,12 @@ export const instance = (class_: unknown): Internal => {
 }
 
 // Type-narrow condition for a union variant, built from the shared atoms with no
-// per-type factory reference — so unused type decoders tree-shake.
+// per-type factory reference - so unused type decoders tree-shake.
 //
 // Cross-module contract: a decoder's own type narrow must be exactly what this
 // returns for its tag. A union group's shared narrow stands in for its members'
-// type checks, so a decoder that narrowed more loosely — an object mode dropping
-// `!Array.isArray` because it rebuilds the value anyway — would widen what the
+// type checks, so a decoder that narrowed more loosely - an object mode dropping
+// `!Array.isArray` because it rebuilds the value anyway - would widen what the
 // case accepts past what its acceptance mask claims, and arrays would dispatch
 // to an object member.
 export const typeCheckCond = (input: Val, schema: Internal, inputVar: string): string => {

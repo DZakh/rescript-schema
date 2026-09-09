@@ -5,7 +5,7 @@
 // of four call forms. The Result outcomes are compiled, not wrapped: the tail
 // that builds `{success, value, error}` is emitted into the operation's own
 // body, which is what lets a schema that provably cannot throw skip the `try`
-// entirely — a decision no `safe(() => ...)` wrapper can make.
+// entirely - a decision no `safe(() => ...)` wrapper can make.
 //
 // Deliberately free of top-level side effects, and deliberately NOT the module
 // that installs the schema prototype's interop getters (standard.ts): a bundle
@@ -53,11 +53,11 @@ export const assertResult: Internal = /* @__PURE__ */ initSchema(undefinedTag, l
 
 // The two Result shapes: 128 the JS `Result`, 256 ReScript's
 // `result<'value, S.error>`. The Standard Schema shape (1024) is emitted by
-// `throwTail` instead — see the comment there. Neither bit means the value is
+// `throwTail` instead - see the comment there. Neither bit means the value is
 // its own answer, which is `is`'s `true`.
 //
-// The JS pair carries the same keys in the same order — `void 0` in the slot
-// the branch doesn't use — so the two branches share one hidden class and a
+// The JS pair carries the same keys in the same order - `void 0` in the slot
+// the branch doesn't use - so the two branches share one hidden class and a
 // consumer's `.success`/`.value` reads stay monomorphic. It is also what makes
 // `const { value, error } = result` narrow on the TS side (the `?: undefined`
 // sibling fields in `Result`): one decision, both halves.
@@ -97,7 +97,7 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
   // on the way out, and has to reach the value's failure before the promise
   // does.
   const toPromise = !!(flag & 1) && !(flag & 512) && !hasDefs;
-  // No answer of its own for a failure — the exception still is the answer, so
+  // No answer of its own for a failure - the exception still is the answer, so
   // `throwTail` still decides the identity case and the promise lift.
   if (!(flag & (128 | 256 | 4096))) {
     const body = throwTail(
@@ -116,8 +116,8 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
     // Safe to decide here rather than from a flag bit, even though the tail is
     // registered globally: EVERY operation carrying the async flag goes through
     // `tailDispatch`, so none of them can be compiled before this emitter is in
-    // place. 512 is also the bit that keeps the Standard Schema tail out —
-    // 1024 is only ever compiled with 512 (standard.ts) — where `throwTail`
+    // place. 512 is also the bit that keeps the Standard Schema tail out -
+    // 1024 is only ever compiled with 512 (standard.ts) - where `throwTail`
     // already emitted its own `try`.
     if (!body || !toPromise || !input.g.t) return body;
     const e = B_varWithoutAllocation(input.g);
@@ -136,7 +136,7 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
       `${code}return ${out}.then(${valueVar}=>(${success}),${errVar}=>(${failure}))`
     : `${code}return ${toPromise ? `Promise.resolve(${success})` : success}`;
   // The raise counter: when nothing merged can throw, the operation needs no
-  // `try` at all — the decision a `safe(() => ...)` wrapper can never make.
+  // `try` at all - the decision a `safe(() => ...)` wrapper can never make.
   // A failure the sync phase raises has to come back in the shape the success
   // path uses, so an async operation's answer is a promise either way: the
   // consumer sees one shape whether the value died before the first await or
@@ -155,7 +155,7 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
 // `decode`/`encode` start from their first schema argument). It is a flag
 // rather than an `S.unknown` schema spliced in front of the chain: that node
 // cost a `copySchema` and a dead pass through `noopDecoder` per compile, and a
-// slot in every one of those operations' cache keys — which is what let `getOp`
+// slot in every one of those operations' cache keys - which is what let `getOp`
 // drop from five schema slots to four.
 // `rev` reverses the first argument, which is what makes an operation run the
 // encode direction. `tail` closes the chain: `assertResult` for the families
@@ -174,7 +174,7 @@ const compile = (
 ): ((data: unknown) => unknown) => {
   // `dispatch` has already proved `s0`. The slots after it hold a schema or
   // nothing: a foreign Standard Schema is named rather than silently read as
-  // the data to validate, and so is a hole — or a value in the middle
+  // the data to validate, and so is a hole - or a value in the middle
   // (`op(s, data, s)`), which is the one misplacement the argument count
   // can't tell apart from a hole.
   if ((n > 1 && !isOwnSchema(s1)) || (n > 2 && !isOwnSchema(s2))) {
@@ -183,7 +183,7 @@ const compile = (
   const first = (rev ? reverse(s0 as Internal) : s0) as Internal;
   // The chain, in order: the caller's schemas, then the tail. `getOp` reads
   // exactly as many positional arguments as it is told, so the tail has to sit
-  // right after the last schema — which is why each arity is written out with
+  // right after the last schema - which is why each arity is written out with
   // its own count rather than padded with `U`; it also allocates nothing on a
   // cache hit.
   return n > 2
@@ -200,7 +200,7 @@ const compile = (
 //   op(s..., data)  → immediate, schema-first
 //   op(data, s...)  → immediate, data-first
 //
-// Three schemas is the ceiling — it is ReScript's ~from/~via/~to; a longer
+// Three schemas is the ceiling - it is ReScript's ~from/~via/~to; a longer
 // chain is written with `.with(S.to, ...)`.
 //
 // Only the argument count partitions the forms: an argument is NEVER tested
@@ -209,9 +209,9 @@ const compile = (
 // `op(S.void)` (arity 1).
 //
 // Accepted and documented: `op(s1, s2)` always reads as a chain, so parsing a
-// Sury schema *as data* is only available compiled — `S.parseOrThrow(Meta)(s)`.
+// Sury schema *as data* is only available compiled - `S.parseOrThrow(Meta)(s)`.
 // No argument order makes both reachable. The data is only ever the first or
-// the last argument, so those are the slots tested here — each exactly once,
+// the last argument, so those are the slots tested here - each exactly once,
 // since `compile` trusts its first slot and checks the rest.
 const panicArity = (): never =>
   panic("Expected at most 3 schemas and a value. Use .with(S.to, ...) for a longer chain");
@@ -281,7 +281,7 @@ const tailDispatch = (
 //
 // NEVER annotate one of these `@__NO_SIDE_EFFECTS__`. The immediate call forms
 // execute, and a validation-only call discards its result
-// (`S.parseOrThrow(User, data)` used as a check) — esbuild drops an annotated
+// (`S.parseOrThrow(User, data)` used as a check) - esbuild drops an annotated
 // pure call whose result is unused, which would silently delete the validation.
 // tests/treeShaking_test.ts holds the matching `EFFECTFUL` entries.
 //
@@ -418,7 +418,7 @@ export function makeOutputAsPromisableResult(
 
 // ── Checks ───────────────────────────────────────────────────────────────────
 //
-// Direction is a free parameter here — there is no value to read it off — so
+// Direction is a free parameter here - there is no value to read it off - so
 // it is spelled out and mandatory. `is*` answers a boolean and never throws;
 // `is*AsPromise` resolves to one and never rejects.
 

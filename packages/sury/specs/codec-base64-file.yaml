@@ -16,12 +16,18 @@ operations:
   parse:
     expression: i=>{typeof i==="string"||e[4](i);e[2](i)||e[3](i);return new e[1]([e[0](i)],"")}
     examples:
+      the-bytes:
+        input: '"aGk="'
+        output: new File(["hi"], "")
       not-base64:
         input: '"!!"'
         error: Expected base64, received "!!"
   decode:
     expression: i=>{e[2](i)||e[3](i);return new e[1]([e[0](i)],"")}
     examples:
+      the-bytes:
+        input: '"aGk="'
+        output: new File(["hi"], "")
       not-base64:
         input: '"!!"'
         error: Expected base64, received "!!"

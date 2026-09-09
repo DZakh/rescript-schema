@@ -2,7 +2,7 @@
 //
 // They are what lets a consumer's bundler drop schemas it never uses: without
 // one, `export const adminSchema = S.schema({…})` in a shared module is an
-// unanalyzable call, so it — and every part of Sury it reaches — survives into
+// unanalyzable call, so it - and every part of Sury it reaches - survives into
 // a page that only imports `userSchema`.
 //
 // bundleSize.yaml can't catch a lost annotation: it measures with esbuild,
@@ -19,7 +19,7 @@ const source = readFileSync(new URL("../index.mjs", import.meta.url), "utf8");
 // to them even when the result is unused.
 // Every dual operation (§ operations.ts): the immediate call forms execute, and
 // a validation-only call discards its result, which an annotated pure call
-// would let esbuild drop — silently deleting the validation.
+// would let esbuild drop - silently deleting the validation.
 const EFFECTFUL: Record<string, string> = {
   $parseAsResult: "the immediate call forms validate",
   $parseAsResultPromise: "the immediate call forms validate",
@@ -119,4 +119,17 @@ test("no public name is an alias of another binding", () => {
       new RegExp(`^var ${local.replace(/\$/g, "\\$")} = [A-Za-z_$][\\w$]*;$`, "m").test(source),
     );
   expect(aliases).toEqual([]);
+});
+
+// A property write at module scope (`schema.encoder = …`) is a statement, not
+// a declaration, so no annotation covers it: esbuild keeps the write and with
+// it the schema and everything its value reaches - in every bundle, whether or
+// not the schema is imported. A schema built by `initSchema` sets its hooks
+// inside the initializer callback instead.
+test("no module-scope property write on a schema", () => {
+  const writes = source
+    .split("\n")
+    .filter((line) => /^[A-Za-z_$][\w$]*\.[\w$]+ = /.test(line))
+    .filter((line) => !line.includes(".prototype = "));
+  expect(writes).toEqual([]);
 });

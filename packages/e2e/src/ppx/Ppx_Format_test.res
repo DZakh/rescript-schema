@@ -49,6 +49,12 @@ test("Blob schema", t => {
 })
 
 @schema
+type myFormData = S.formData
+test("FormData schema", t => {
+  t->assertEqualSchemas(myFormDataSchema, S.formData)
+})
+
+@schema
 type myNonEmptyTags = S.nonEmpty<array<string>>
 test("NonEmpty schema", t => {
   t->assertEqualSchemas(myNonEmptyTagsSchema, S.array(S.string)->S.nonEmpty)

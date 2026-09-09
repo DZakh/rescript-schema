@@ -49,7 +49,7 @@ test("A never decode rejects the parse operation at creation", t => {
 
   t->U.assertThrowsMessage(
     () => "Hello world!"->S.parseOrThrow(~to=schema),
-    `Can't decode string to unknown. The conversion is marked as never`,
+    `Nothing decodes string -> unknown. It is marked with S.never`,
   )
 })
 
@@ -59,7 +59,7 @@ test("A never encode rejects the encode operation at creation", t => {
   t->Assert.deepEqual("Hello world!"->S.parseOrThrow(~to=schema), %raw(`"Hello world!"`))
   t->U.assertThrowsMessage(
     () => "Hello world!"->S.convertOrThrow(~from=schema, ~to=S.unknown),
-    `Can't decode unknown to string. The conversion is marked as never`,
+    `Nothing decodes unknown -> string. It is marked with S.never`,
   )
 })
 
@@ -278,7 +278,7 @@ asyncTest("An async encode compiles through the reversed chain", async t => {
 
   // The forward direction stays sync-parseable.
   t->Assert.deepEqual(%raw(`"abc"`)->S.parseOrThrow(~to=schema), %raw(`"abc"`))
-  // Async-ness is discovered by catching the sync operation's rejection —
+  // Async-ness is discovered by catching the sync operation's rejection -
   // there is no S.isAsync probe.
   t->U.assertThrowsMessage(
     () => "abc"->S.convertOrThrow(~from=schema, ~to=S.unknown),
@@ -431,7 +431,7 @@ test("Refines the coder's result, not what went into it", t => {
 })
 
 test("Picks a reading for a content link the way the ambiguity report says to", t => {
-  // The report names `"pack"`/`"unpack"`, so the binding has to offer them —
+  // The report names `"pack"`/`"unpack"`, so the binding has to offer them -
   // without Pack/Unpack the remedy it points at is unwritable from ReScript.
   let packed = S.base64->S.to(S.jsonString, ~custom={decode: Pack, encode: Unpack})
   t->Assert.deepEqual("aGk="->S.parseOrThrow(~to=packed), S.JsonString(`"aGk="`))
@@ -445,6 +445,6 @@ test("Picks a reading for a content link the way the ambiguity report says to", 
 
   t->U.assertThrowsMessage(
     () => "aGk="->S.parseOrThrow(~to=S.base64->S.to(S.jsonString))->ignore,
-    `Ambiguous conversion from base64 to JSON string. Use S.to(from, to, "unpack" | "pack")`,
+    `Ambiguous base64 -> JSON string. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"`,
   )
 })

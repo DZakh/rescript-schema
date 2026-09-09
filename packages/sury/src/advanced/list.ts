@@ -1,4 +1,4 @@
-// `S.list` — the ReScript linked-list representation.
+// `S.list` - the ReScript linked-list representation.
 
 import {
  type Internal,

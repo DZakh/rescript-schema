@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=./spec.schema.json
+ts:
+  schema: "S.record(S.string).with(S.to, S.schema({ a: S.optional(S.string) }))"
+  input: "{ [x: string]: string; }"
+  output: "{ a?: string | undefined; }"
+  instantiations: 6342
+jsonSchema:
+  input: '{ type: "object", additionalProperties: { type: "string" } }'
+  output: '{ type: "object", properties: { a: { type: "string" } } }'
+vs:
+  zod:
+    _skip: not-applicable
+operations:
+  parse:
+    creationError: "SuryError: Failed at a: Ambiguous string -> string | undefined. Should undefined be decoded or ignored? Choose with S.to for string -> undefined, or S.never -> undefined"
+  decode: eq-to-parse
+  encode:
+    creationError: "SuryError: Failed at a: Ambiguous string | undefined -> string. Should undefined be decoded or ignored? Choose with S.to for undefined -> string, or S.never -> undefined"

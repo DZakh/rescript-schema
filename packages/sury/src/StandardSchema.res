@@ -50,7 +50,7 @@ module Result = {
   // Sury does for a schema with an async codec and never otherwise. Untagged,
   // so the runtime value is the result object or the promise itself. Same shape
   // as `S.promisableResult`, over this module's own `t` rather than the
-  // stdlib's `result` — the spec defines its own success/failure object.
+  // stdlib's `result` - the spec defines its own success/failure object.
   @unboxed
   type promisable<'output> = Sync(t<'output>) | Async(promise<t<'output>>)
 

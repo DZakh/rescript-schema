@@ -1,9 +1,9 @@
 // PORT-NOTE: no runtime values had to be imported from JSONSchema.res or
-// StandardSchema.res — everything runtime-relevant there is `%identity`
+// StandardSchema.res - everything runtime-relevant there is `%identity`
 // externals (Arrayable.single/array, Mutable.fromReadOnly/toReadOnly,
 // Result casts) or `Object.assign` (Mutable.mixin), all inlined below.
 // Their types are ported as loose TS aliases with the RUNTIME field names
-// (`$ref`, `$schema`, `$defs`, `type`, `if`, `else` — the `@as(...)` names,
+// (`$ref`, `$schema`, `$defs`, `type`, `if`, `else` - the `@as(...)` names,
 // not the ReScript field names `ref`/`schema`/`defs`/`type_`/`if_`/`else_`).
 // =============================================================================
 
@@ -141,7 +141,7 @@ export type JSONSchemaTypeName =
 export type JSONSchemaArrayable<TItem> = TItem | TItem[];
 
 // PORT-NOTE: JSONSchema's `definition` is `@unboxed
-// Schema(t) | @as(false) Never | @as(true) Any` — at runtime a definition is
+// Schema(t) | @as(false) Never | @as(true) Any` - at runtime a definition is
 // the schema object itself, `false`, or `true`. The `Schema(...)` wrapping
 // at construction sites is a no-op and is dropped; `Never` -> `false`,
 // `Any` -> `true`; the `Schema(t)` pattern -> `typeof d !== "boolean"`.
@@ -260,7 +260,7 @@ export type JSONSchemaT = {
 
 // PORT-NOTE: StandardSchema.JsonSchema.target is `@unboxed | @as("draft-07")
 // Draft07 | @as("draft-2020-12") Draft202012 | @as("openapi-3.0") OpenApi30 |
-// Unknown(string)` — at runtime it's just a string; the known dialects are
+// Unknown(string)` - at runtime it's just a string; the known dialects are
 // compared as string literals, everything else is the `Unknown` case.
 // TODO(integration): if section 06 already declares these two aliases for
 // standardJSONSchemaRef's signature, keep a single declaration.
@@ -297,14 +297,14 @@ const applyMetadataOverlay = (
 ): void => {
   // Both read `.to` from the carrier, never from the target itself: the
   // encode-reverse only ever answers "a string", and the target's own input is
-  // often not JSON at all — `S.blob` has no document, the string it encodes
+  // often not JSON at all - `S.blob` has no document, the string it encodes
   // into does.
   const to = schema.to;
   if (to !== U) {
     if (to.jsonSchema) {
       // Under what the structural emit already said, not over it: the carrier
       // describes what the string holds, and where the string's own format has
-      // named what it IS — a JSON document carrying a base64 payload — that is
+      // named what it IS - a JSON document carrying a base64 payload - that is
       // the more specific claim and the one a reader validates against.
       const carried = to.jsonSchema(to, target) as Record<string, unknown>;
       for (const key in carried) {
@@ -317,7 +317,7 @@ const applyMetadataOverlay = (
     if (schema.format === "json" && target === draft202012) {
       try {
         const contentSchema = internalToJSONSchema(to, path, defs, schema, target);
-        // `{}` — what `S.json` converts to — says nothing the media type hasn't.
+        // `{}` - what `S.json` converts to - says nothing the media type hasn't.
         if (Object.keys(contentSchema).length) {
           jsonSchema.contentSchema = contentSchema;
         }
@@ -334,7 +334,7 @@ const applyMetadataOverlay = (
   // Examples live on a schema in its input form, which is what this document
   // describes. A reversed copy carries none of its own (see `reverse`): the
   // original's are decoded through it to reach this side. Only a copy the
-  // getter made has the cache as an own key, so this never forces a reverse —
+  // getter made has the cache as an own key, so this never forces a reverse -
   // the `.to` path above renders a val's schema, whose members the builder
   // makes without the prototype a reverse needs. A never or async decode
   // drops them: metadata is not a value operation.
@@ -369,7 +369,7 @@ const internalToJSONSchema = (
   // precise JSON schema (e.g. `format: "date-time"` for `S.string->S.to(S.date)`).
   // For a user-applied `.to` on a union (no `parser`) the encode-reverse output
   // is the schema produced by the union decoder, already shrunk to the
-  // surviving variants — exactly what a downstream JSON Schema should describe.
+  // surviving variants - exactly what a downstream JSON Schema should describe.
   // Unions with a `parser` come from the option machinery (S.option,
   // Option.getOrWith, ...) where the union's anyOf is the input format we want
   // to keep describing. Object/array still need their nested item metadata, so
@@ -473,7 +473,7 @@ const internalToJSONSchemaBase = (
     jsonSchema.type = "string";
     // String formats store the JSON Schema name verbatim, so they pass
     // through. The content formats and the `jsonSchemaFormat` family are the
-    // exceptions — a denylist costs less than an allowlist of the rest, and
+    // exceptions - a denylist costs less than an allowlist of the rest, and
     // stays flat as formats are added.
     if (format === "base64" || format === "base64url") {
       target === openApi30
@@ -502,14 +502,14 @@ const internalToJSONSchemaBase = (
     const exclusiveMinimum = schema.exclusiveMinimum as number | undefined;
     const exclusiveMaximum = schema.exclusiveMaximum as number | undefined;
     // int32 and port carry their range as bound fields, so nothing
-    // format-specific is left to emit here — and a user bound that superseded
+    // format-specific is left to emit here - and a user bound that superseded
     // one of them has already cleared it.
     jsonSchema.type = schema.format !== U ? "integer" : "number";
     if (schema.multipleOf !== U) jsonSchema.multipleOf = schema.multipleOf as number;
     if (minimum !== U) jsonSchema.minimum = minimum;
     if (maximum !== U) jsonSchema.maximum = maximum;
-    // draft-06 made exclusive bounds independent numeric keywords; draft-04 —
-    // which OpenAPI 3.0 follows — spells them as booleans modifying
+    // draft-06 made exclusive bounds independent numeric keywords; draft-04 -
+    // which OpenAPI 3.0 follows - spells them as booleans modifying
     // minimum/maximum.
     if (exclusiveMinimum !== U) {
       if (target === openApi30) {
@@ -567,7 +567,7 @@ const internalToJSONSchemaBase = (
     const seen: Record<string, boolean> = {};
 
     schema.anyOf!.forEach((childSchema) => {
-      // Filter out undefined to support optional fields — no `else` branch
+      // Filter out undefined to support optional fields - no `else` branch
       // needed, this variant is simply skipped.
       if (
         childSchema.type === undefinedTag &&
@@ -660,7 +660,7 @@ const internalToJSONSchemaBase = (
   } else {
     // Not `invalid_input`: nothing was parsed, so there is no input to report
     // and no schema a value failed against. What failed is the conversion
-    // itself, on a schema that has no JSON Schema equivalent — which is what
+    // itself, on a schema that has no JSON Schema equivalent - which is what
     // `invalid_operation` describes. The offending schema is named in the
     // reason and located by `path`.
     const offender = (tagFlags[parent.type]! & 256) ? parent : schema;
@@ -692,13 +692,13 @@ export const inputJSONSchema = (schema: Internal, options?: JSONSchemaOptions): 
   }
   // Null prototypes: definitions are named by their author. `__proto__` would
   // set a prototype instead of taking a key, and `toString` would read back as
-  // already converted — either way a `$ref` to a definition nobody publishes.
+  // already converted - either way a `$ref` to a definition nobody publishes.
   const defs: Record<string, Internal> = Object.create(null);
   const jsonSchema = internalToJSONSchema(schema, pathEmpty, defs, schema, target);
   if (options !== U) delete jsonSchema.$schema;
   const jsonSchemDefs: Record<string, JSONSchemaDefinition> = Object.create(null);
   // Converting a def body can name defs of its own, so the set grows while it
-  // is walked — a schema reached only from inside another one is otherwise left
+  // is walked - a schema reached only from inside another one is otherwise left
   // with a `$ref` nobody publishes. `S.json` names itself in here and is the
   // one that stays unpublished: it converts to `{}`.
   let name: string | undefined;
@@ -751,12 +751,12 @@ export const extendJSONSchema = (schema: Internal, jsonSchema: JSONSchemaT): Int
 
 // PORT-NOTE: the `let rec fromJSONSchema = { let helper = ...; jsonSchema => ... }`
 // block-scoped helpers (primitiveToSchema, toIntSchema,
-// definitionToDefaultValue) are hoisted to module-scope functions —
+// definitionToDefaultValue) are hoisted to module-scope functions -
 // same behavior, they close over nothing but module-level bindings.
 
 // `const`/`enum` values. An object or array goes through schemaFactory (what
 // `S.literal` is) so it becomes a structural schema whose fields are literals,
-// matching the document's meaning — a deep comparison. Literal_parse would
+// matching the document's meaning - a deep comparison. Literal_parse would
 // make it an instance literal compared by reference, which rejects every value
 // but the one the document object itself was built from.
 const primitiveToSchema = (primitive: unknown): Internal =>
@@ -771,7 +771,7 @@ const primitiveToSchema = (primitive: unknown): Internal =>
 
 // The inverse of the format pass-through in inputJSONSchema. Every format name
 // Sury can emit has to round-trip back to the schema that emitted it, so a
-// format added on one side without the other is a reversibility bug — with the
+// format added on one side without the other is a reversibility bug - with the
 // `jsonSchemaFormat` family the one exception, since what it emits is the
 // pattern beside the name (or instead of it) and that reads back on its own. A
 // record rather than a branch chain: reaching fromJSONSchema at all means
@@ -834,7 +834,7 @@ const withNumericBounds = (schema: Internal, jsonSchema: JSONSchemaT): Internal 
   if (max !== U) schema = applyBound(schema, lte, max);
   if (exMax !== U) schema = applyBound(schema, lt, exMax);
   // `multipleOf: 1` on an integer schema restates what the format already
-  // checks — storing it would emit a keyword the author's document may not
+  // checks - storing it would emit a keyword the author's document may not
   // have had (the int-schema branches synthesize integer from other spellings).
   if (jsonSchema.multipleOf !== U && !(schema.format !== U && jsonSchema.multipleOf === 1)) {
     schema = applyBound(schema, multipleOf, jsonSchema.multipleOf);
@@ -845,8 +845,8 @@ const withNumericBounds = (schema: Internal, jsonSchema: JSONSchemaT): Internal 
 const toIntSchema = (jsonSchema: JSONSchemaT): Internal => withNumericBounds(integer, jsonSchema);
 
 // Assertion keywords Sury doesn't model. Silently ignoring one widens the
-// schema — the validator then accepts data the author wrote the keyword to
-// reject — so creation fails instead. Annotations (`title`, `default`,
+// schema - the validator then accepts data the author wrote the keyword to
+// reject - so creation fails instead. Annotations (`title`, `default`,
 // `$comment`, …) are ignored on purpose and stay out of this list.
 const unsupportedKeywords = [
   "$dynamicRef",
@@ -856,7 +856,7 @@ const unsupportedKeywords = [
 ];
 
 // Which JSON type each assertion keyword constrains. A keyword says nothing
-// about an instance of any other type — `{minLength: 3}` accepts `42` — so a
+// about an instance of any other type - `{minLength: 3}` accepts `42` - so a
 // schema without `type` has to apply each group only to its own type.
 const keywordTypes: [JSONSchemaTypeName, string[]][] = [
   ["string", ["pattern", "minLength", "maxLength"]],
@@ -866,8 +866,8 @@ const keywordTypes: [JSONSchemaTypeName, string[]][] = [
 ];
 
 // The keywords that layer on top of a base type rather than describing one.
-// Pinning a type — for a `type` array member, or for an untyped document's
-// per-type pass — has to drop them, or every member re-applies the whole
+// Pinning a type - for a `type` array member, or for an untyped document's
+// per-type pass - has to drop them, or every member re-applies the whole
 // document.
 const layeredKeywords = [
   "nullable",
@@ -887,7 +887,7 @@ const layeredKeywords = [
   "examples",
 ];
 
-// `required` names keys the shape around it can't make mandatory — a `dict`,
+// `required` names keys the shape around it can't make mandatory - a `dict`,
 // or an object whose `additionalProperties` schema keeps it one.
 const withRequired = (schema: Internal, required: string[]): Internal =>
   refineInput(
@@ -945,22 +945,6 @@ const jsonItemsUnique = (items: unknown[]): boolean => {
   return true;
 };
 
-const codePointLength = (value: string): number => {
-  const end = value.length;
-  let length = end;
-  for (let idx = 0; idx < end - 1; idx++) {
-    const first = value.charCodeAt(idx);
-    if (first >= 0xd800 && first <= 0xdbff) {
-      const second = value.charCodeAt(idx + 1);
-      if (second >= 0xdc00 && second <= 0xdfff) {
-        length--;
-        idx++;
-      }
-    }
-  }
-  return length;
-};
-
 const B_invalidLengthRange = (
   minimum = 0,
   maximum = minimum
@@ -973,7 +957,7 @@ const B_invalidLengthRange = (
 // `default` is an annotation, not an assertion: a document may carry one its own
 // property schema rejects (`{type: "integer", default: ""}` is everywhere in
 // hand-written OpenAPI) and it still has to load. `Option_getOr` panics on that,
-// because writing one by hand *is* a caller bug — so an unusable default falls
+// because writing one by hand *is* a caller bug - so an unusable default falls
 // back to a plain optional that keeps the annotation for the round-trip. Same
 // shape as `applyBound`: a SuryError still escapes.
 const withDefault = (property: Internal, defaultValue: unknown): Internal => {
@@ -1009,7 +993,7 @@ const objectSchema = (
   );
   // Every other producer of `required` (builder, factory, composites) means the
   // non-optional properties in declaration order, not the document's `required`
-  // set — which is the same list only once each absent key has been wrapped in
+  // set - which is the same list only once each absent key has been wrapped in
   // `option`, and in a different order.
   schema.required = Object.keys(properties).filter((key) => !isOptional(properties[key]!));
   schema.properties = properties;
@@ -1017,7 +1001,7 @@ const objectSchema = (
   return schema;
 };
 
-// A document may describe an empty range — `{minimum: 5, maximum: 1}`, or a
+// A document may describe an empty range - `{minimum: 5, maximum: 1}`, or a
 // bound past int32's edge. That is legal JSON Schema with no inhabitants, so
 // it has to load, where the same bounds written by hand are a caller bug that
 // the public bound panics on. Reading that panic as `never` is what lets this
@@ -1029,7 +1013,7 @@ const applyBound = (
   bound: (schema: Internal, value: number) => Internal,
   value: number
 ): Internal => {
-  // Already empty — a further bound can only panic on it and land back here.
+  // Already empty - a further bound can only panic on it and land back here.
   if (schema.type === neverTag) {
     return schema;
   }
@@ -1112,7 +1096,7 @@ const resolveRef = (ref: string, ctx: RefContext): Internal => {
   const segments = ref.split("/");
   if (segments[0] !== "#") {
     refError(
-      `Unsupported JSON Schema $ref: ${ref}. Only JSON Pointers into the same document (#/…) resolve — $id, $anchor and remote refs don't`
+      `Unsupported JSON Schema $ref: ${ref}. Only JSON Pointers into the same document (#/…) resolve - $id, $anchor and remote refs don't`
     );
   }
   let target: unknown = ctx.root;
@@ -1123,7 +1107,7 @@ const resolveRef = (ref: string, ctx: RefContext): Internal => {
         : U;
   }
   // A pointer that lands on a non-schema value (a string, `null`, an `enum`
-  // array) must fail like a dangling one — falling through would hand the
+  // array) must fail like a dangling one - falling through would hand the
   // untyped branch an accept-everything `S.json`.
   if (
     target === null ||
@@ -1168,7 +1152,7 @@ const resolveRef = (ref: string, ctx: RefContext): Internal => {
     return refSchema;
   }
   // The target turned out finite, so the ref inlines and the minted schema is
-  // discarded — release the name for a def that will actually occupy it.
+  // discarded - release the name for a def that will actually occupy it.
   delete ctx.names[name];
   return def;
 };
@@ -1180,7 +1164,7 @@ const jsonDefinitionToSchema = (
   typeof definition !== "boolean" ? fromJSONSchema(definition, ctx) : definition ? json : never_;
 
 // The compiler reads `$defs` off the schema it is handed, so every schema that
-// gets compiled as a root of its own needs the document's — the outermost one,
+// gets compiled as a root of its own needs the document's - the outermost one,
 // and each schema `passesSchema` runs, since a `$ref` inside an `allOf` member
 // resolves against the same document as everywhere else. Copied because the
 // schema may be a shared instance (an interned primitive, or a def inlined at
@@ -1189,7 +1173,7 @@ const jsonDefinitionToSchema = (
 const withDefs = (schema: Internal, ctx: RefContext): Internal => {
   const copy = copySchema(schema);
   // `S.json` names itself through a `$defs` of its own, so fold rather than
-  // replace — dropping it leaves the compiler with a `$ref` it can't resolve.
+  // replace - dropping it leaves the compiler with a `$ref` it can't resolve.
   if (copy["$defs"] !== U) Object.assign(ctx.defs, copy["$defs"]);
   copy["$defs"] = ctx.defs;
   return copy;
@@ -1229,7 +1213,7 @@ const keyMatchesPattern = (key: string, patterns: PatternProp[]): boolean => {
 };
 
 // The JSON rendering of a definition that only ever runs through
-// `passesSchema` — a keyword whose constraint no Sury schema carries, so
+// `passesSchema` - a keyword whose constraint no Sury schema carries, so
 // The JSON Schema of the built schema would return the shape the refinement sits
 // on, not the keyword. The document's own text is the rendering, with one
 // rewrite it can't skip: a `$ref` whose target turned out finite was inlined
@@ -1375,7 +1359,7 @@ export const fromJSONSchema = (
     const keyword = unsupportedKeywords[i]!;
     if ((jsonSchema as Record<string, unknown>)[keyword] !== U) {
       refError(
-        `Unsupported JSON Schema keyword: ${keyword}. Ignoring it would accept data the schema rejects — remove it, or express the constraint with S.refine on the result`
+        `Unsupported JSON Schema keyword: ${keyword}. Ignoring it would accept data the schema rejects - remove it, or express the constraint with S.refine on the result`
       );
     }
   }
@@ -1392,7 +1376,7 @@ export const fromJSONSchema = (
       // Every assertion keyword that may sit beside a `$ref`: the per-type ones
       // `keywordTypes` maps, plus the five that pick a type rather than
       // constrain one. Derived so the two can't drift, and built here rather
-      // than at module scope — a top-level call is a side effect to esbuild,
+      // than at module scope - a top-level call is a side effect to esbuild,
       // which then pins both arrays into every export's bundle.
       const candidates = (
         [
@@ -1577,7 +1561,7 @@ export const fromJSONSchema = (
           : (jsonSchema.additionalItems ?? true);
       // `items: false` caps the length at the prefix, and so does a `maxItems`
       // landing inside it. A Sury tuple is the shape only when the bounds pin
-      // the length to exactly the prefix — and when they cross, the document
+      // the length to exactly the prefix - and when they cross, the document
       // describes an array no value can have, which is `never` rather than the
       // two contradictory length checks the bounds pass would emit.
       const maximum = Math.min(
@@ -1657,6 +1641,17 @@ export const fromJSONSchema = (
       stringFormatSchemas[jsonSchema.format!] ||
       contentEncodingSchemas[jsonSchema.contentEncoding!] ||
       string;
+    // The keyword counts code points, and so do `S.minLength`/`S.maxLength`.
+    // A zero lower bound is kept: it is how a schema says a blank string is a
+    // value, which the form codec reads.
+    const minimum = jsonSchema.minLength;
+    const maximum = jsonSchema.maxLength;
+    if (B_invalidLengthRange(minimum, maximum)) {
+      schema = never_;
+    } else {
+      if (minimum !== U) schema = applyBound(schema, minLength, minimum);
+      if (maximum !== U) schema = applyBound(schema, maxLength, maximum);
+    }
     if (jsonSchema.pattern !== U) {
       // `utcDateTime` publishes its regex beside `date-time`: the pair reads
       // back as that schema, not as the wide format plus a refinement.
@@ -1664,34 +1659,6 @@ export const fromJSONSchema = (
         schema === isoDateTime && jsonSchema.pattern === utcDateTime.pattern!.source
           ? utcDateTime
           : pattern(schema, B_compilePattern(jsonSchema.pattern));
-    }
-    if (jsonSchema.minLength !== U || jsonSchema.maxLength !== U) {
-      const minimum = jsonSchema.minLength;
-      const maximum = jsonSchema.maxLength;
-      if (B_invalidLengthRange(minimum, maximum)) {
-        schema = never_;
-      } else if (minimum !== 0 || maximum !== U) {
-        schema = refineInput(
-          schema,
-          (data: unknown) => {
-            const stringData = data as string;
-            if (minimum !== U && stringData.length < minimum) return false;
-            if (minimum === U && maximum !== U && stringData.length <= maximum)
-              return true;
-            const length = codePointLength(stringData);
-            return (minimum === U || length >= minimum) && (maximum === U || length <= maximum);
-          },
-          "Should have a code-point length within the JSON Schema bounds."
-        );
-      }
-      // `minLength: 0` asserts nothing, so a document carrying only that has
-      // no keyword to store and no copy to pay for.
-      if (schema.type !== neverTag && (minimum || maximum !== U)) {
-        const lengthKeywords: JSONSchemaT = {};
-        if (minimum) lengthKeywords.minLength = minimum;
-        if (maximum !== U) lengthKeywords.maxLength = maximum;
-        schema = extendJSONSchema(schema, lengthKeywords);
-      }
     }
   } else if (
     jsonSchema.type === "integer" ||
@@ -1746,12 +1713,12 @@ export const fromJSONSchema = (
     }
   }
 
-  // Composition keywords constrain *in addition to* everything above — so they
+  // Composition keywords constrain *in addition to* everything above - so they
   // layer on as refinements rather than replacing the shape. The exception is a
   // base nothing has constrained yet: intersecting with "any JSON" is the
   // member itself, so the member compiles natively instead, keeping the union
   // codegen and the per-member error a document with no sibling keywords
-  // deserves. `schema === json` is exactly that test — every other branch
+  // deserves. `schema === json` is exactly that test - every other branch
   // above, and `enum`/`const`, replace it.
   if (jsonSchema.allOf !== U) {
     const definitions = jsonSchema.allOf;
@@ -2081,7 +2048,7 @@ export const fromJSONSchema = (
   return schema;
 }
 
-// PORT-NOTE: every one of these is a PURE NO-OP — a bare `Obj.magic` (or
+// PORT-NOTE: every one of these is a PURE NO-OP - a bare `Obj.magic` (or
 // `castToPublic` for `unknown`) that re-types an existing function/value from
 // its `internal`-returning form to the public `t<'x>`-returning form without
 // touching the runtime value. In this TS port the runtime object is `Internal`
