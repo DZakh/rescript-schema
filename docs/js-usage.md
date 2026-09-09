@@ -1346,6 +1346,12 @@ const envSchema = S.record(S.env).with(
 S.decodeOrThrow(envSchema)(process.env);
 ```
 
+A single var is the same coercion:
+
+```ts
+S.decodeOrThrow(S.env.with(S.to, S.port))(process.env.PORT);
+```
+
 A missing key is absent. An empty string is a value. Nested objects, files and
 repeated keys fail as unsupported.
 

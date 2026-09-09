@@ -1317,6 +1317,12 @@ let schema = S.dict(S.env)->S.to(
 )
 ```
 
+A single var is the same coercion:
+
+```rescript
+process.env["PORT"]->S.parseOrThrow(~to=S.env->S.to(S.port))
+```
+
 A missing key is absent. An empty string is a value. Nested objects fail as
 unsupported.
 

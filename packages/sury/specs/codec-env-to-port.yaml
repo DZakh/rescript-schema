@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=./spec.schema.json
+ts:
+  schema: S.env.with(S.to, S.port)
+  input: string
+  output: number
+  instantiations: 4419
+jsonSchema:
+  input: Expected JSON, received env
+  output: '{ type: "integer", minimum: 0, maximum: 65535 }'
+vs:
+  zod:
+    _skip: not-applicable
+operations:
+  parse:
+    expression: i=>{typeof i==="string"||e[3](i);typeof i==="string"||e[0](i);let v0=+i;v0===v0&&(v0||i.trim())||e[2](i);v0>=0&&v0<65536&&v0%1===0||e[1](v0);return v0}
+    examples:
+      valid:
+        input: '"8080"'
+        output: "8080"
+      blank:
+        input: '""'
+        error: Expected port, received ""
+      not-a-number:
+        input: '"x"'
+        error: Expected port, received "x"
+      too-big:
+        input: '"70000"'
+        error: Expected port, received 70000
+  decode:
+    expression: i=>{typeof i==="string"||e[0](i);let v0=+i;v0===v0&&(v0||i.trim())||e[2](i);v0>=0&&v0<65536&&v0%1===0||e[1](v0);return v0}
+    examples:
+      valid:
+        input: '"8080"'
+        output: "8080"
+  encode:
+    expression: i=>{i>=0&&i<65536&&i%1===0||e[0](i);return ""+i}
+    examples:
+      valid:
+        input: "8080"
+        output: '"8080"'
+      too-big:
+        input: "70000"
+        error: Expected port, received 70000
