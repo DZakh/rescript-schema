@@ -26,15 +26,13 @@ import {
 import {
   B_computed,
   B_contentDiffers,
-  B_contentNode,
-  B_invalidOperation,
-  B_unsupportedDecode,
   B_conversion,
   B_embed,
   B_failWithErrorMessage,
   B_next,
   B_readOnce,
-  B_refine
+  B_refine,
+  B_rejectUnsettled
 } from "./builder";
 import {
  definitionToSchema
@@ -1121,36 +1119,6 @@ const urlCodec = /* @__PURE__ */ (() => {
 })();
 
 
-// CONTENT_CODEC_SPEC.md rule 4, owned by the schemas that declare a payload
-// rather than by `S.to`. Two payload declarations of different kinds and
-// nothing settling which reading applies: between two renderings the caller
-// picks, and against `S.json` - the document itself, with no opened form - the
-// pair is undecodable either way.
-//
-// Asked while compiling, not while linking, which is what makes the chained
-// spelling legal: `S.file.with(S.to, S.jsonString).with(S.to, S.array(x))`
-// grows the `.to` that settles it only on the second call, so a link-time check
-// rejects a pipeline the compiler can see is fine. Inlined at each caller
-// rather than wrapped around their decoders: a wrapper applied at module scope
-// makes every operation reach the payload schemas, and `parseOrThrow` grew
-// 10,988 gz.
-// @__NO_SIDE_EFFECTS__
-export const B_rejectUnsettled = (
-  input: Val,
-  from: Internal,
-  to: Internal,
-): Val | undefined =>
-  from.to === to &&
-  to.opens === U &&
-  B_contentDiffers(B_contentNode(from).content, B_contentNode(to).content)
-    ? !from.jn && !to.jn && B_contentNode(from) === from && B_contentNode(to) === to
-      ? B_invalidOperation(
-          input,
-          `Ambiguous ${inputExpression(from)} -> ${inputExpression(to)}. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"`,
-        )
-      : B_unsupportedDecode(input, from, to)
-    : U;
-
 // A bytes carrier also has `content.bc`, but its value is bytes - only a
 // string-tagged source is text we can recode, and every one of those carries
 // its own `bc`.
@@ -1227,8 +1195,7 @@ const bytesTextFormat = (
   const differs = (other: Internal): boolean => B_contentDiffers(other.content, content);
 
   schema.decoder = (input) => {
-    const unsettled = B_rejectUnsettled(input, input.s, input.e);
-    if (unsettled) return unsettled;
+    B_rejectUnsettled(input, input.e);
     const src = codecOf(input.s);
     if (src && src !== codec) {
       const output = B_next(
@@ -1252,8 +1219,7 @@ const bytesTextFormat = (
   };
 
   schema.encoder = (input, target) => {
-    const unsettledOut = B_rejectUnsettled(input, input.s, target);
-    if (unsettledOut) return unsettledOut;
+    B_rejectUnsettled(input, target);
     const dst = codecOf(target);
     if (dst && dst !== codec) {
       const output = B_next(

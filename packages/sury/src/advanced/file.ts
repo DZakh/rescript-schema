@@ -24,6 +24,7 @@ import {
   B_next,
   B_readOnce,
   B_throw,
+  B_rejectUnsettled,
   B_unsupportedDecode
 } from "../builder";
 import type { JSONSchemaT } from "../jsonschema";
@@ -37,8 +38,7 @@ import {
 } from "../primitives";
 import {
  base64Content,
- bytesTarget,
-  B_rejectUnsettled
+ bytesTarget
 } from "../refinements";
 
 // No `type`: octets have none, so the carrier that decodes to a blob is the
@@ -99,8 +99,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
   initSchema(
     instanceTag,
     (input: Val): Val => {
-      const unsettled = B_rejectUnsettled(input, input.s, input.e);
-      if (unsettled) return unsettled;
+      B_rejectUnsettled(input, input.e);
       const source = input.s;
       const sourceTagFlag = tagFlags[source.type]!;
       // `B_readOnce` inside each branch that uses it: materializing the var up
@@ -143,8 +142,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
       }
 
       s.encoder = (input, target) => {
-        const unsettledOut = B_rejectUnsettled(input, input.s, target);
-        if (unsettledOut) return unsettledOut;
+        B_rejectUnsettled(input, target);
         const targetTagFlag = tagFlags[target.type]!;
         // A union picks its variant before an asynchronous read resolves, so the
         // arm's own checks would run against the promise. The axis stops here,

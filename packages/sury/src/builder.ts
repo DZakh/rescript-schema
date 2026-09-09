@@ -818,15 +818,6 @@ export const B_neverSlot: Builder = (input: Val) =>
     `Nothing decodes ${inputExpression(input.e)} -> ${inputExpression(input.e.to!)}. It is marked with S.never`,
   );
 
-// CONTENT_CODEC_SPEC.md rules 3 and 4, for the direction a link is written in:
-// two schemas whose payloads disagree (`content`) have two readings of it -
-// store the source's value in the target, or open the source and hand its
-// payload over - and the target naming its own payload with `.to` is what picks
-// the second. Compiling can't tell the two apart, because reversing a chain
-// turns that payload declaration into just another link: the legal
-// `X -> jsonString -> File` and the rejected `jsonString -> File` reach the
-// decoder as the same pair. So the reading is settled where the link is made,
-// and an unreadable one takes a slot that rejects the operation instead.
 // The node a link's content reading comes from: the schema, or the arm that
 // carries one where the schema is a union - which has neither `content` nor
 // `.to` of its own, though linking a carrier to `S.optional(S.jsonString)` puts
@@ -834,25 +825,54 @@ export const B_neverSlot: Builder = (input: Val) =>
 export const B_contentNode = (schema: Internal): Internal =>
   (schema.content === U && schema.anyOf?.find((arm) => arm.content !== U)) || schema;
 
-// Half of CONTENT_CODEC_SPEC.md rule 4's question: whether two payloads are of
-// different kinds, which is what puts two readings on the table - store the
-// source's value in the target, or open the source and hand its payload over.
-// The other half, a `.to` on the target picking the second (rule 3), stays with
-// each caller, along with the `B_contentNode` walk that finds a marker on a
-// union arm, and what to say about the pair - which differs by where the link
-// was made.
-//
-// Compiling *can* tell the two readings apart, contrary to what the shape
-// suggests: rule 3 survives reversal, just spelled differently at each end -
-// forward as `to.to`, and backward as a val that something was already rendered
-// into. A guard on both, in each payload schema's own decoder and encoder, was
-// built and measured. It is not worth it: `to` -148, `trim` -104, `list` -99,
-// `optional` -83 and `nullable` -81 against `jsonString` +165, `uint8Array`
-// +127 and the rest of the payload family, for +201 on the whole library. One
-// check on the authored orientation is smaller than the same check re-derived
-// in six decoders, which is why it is here.
+// Whether two payloads are of different kinds, which is what puts two readings
+// of a link on the table - store the source's value in the target, or open the
+// source and hand its payload over. Which applies is `opens` on the target
+// (CONTENT_CODEC_SPEC.md rules 1 to 3, all written down as the link is made);
+// neither is rule 4, asked below.
 export const B_contentDiffers = (from?: Internal, to?: Internal): boolean =>
   from !== U && to !== U && from !== to && !(from.bc && to.bc);
+
+// CONTENT_CODEC_SPEC.md rule 4, asked while compiling by the schemas that
+// declare a payload - `json`, `jsonString`, `base64`, `uint8Array`, `file` -
+// and by a union carrying its `.to` into one. Two payload declarations of
+// different kinds and nothing settling which reading applies: between two
+// renderings the caller picks with a slot, and where a slot has nowhere to go
+// - a union on either side, or `S.json`, the document itself with no opened
+// form - the pair is undecodable as written.
+//
+// Asked here rather than by `S.to`, which is what makes the chained spelling
+// legal: `S.file.with(S.to, S.jsonString).with(S.to, S.array(x))` grows the
+// `.to` that settles it only on the second call, and a link-time check rejects
+// a pipeline the compiler can see is fine. Inlined at each caller rather than
+// wrapped around their decoders: a wrapper applied at module scope makes every
+// operation reach the payload schemas, and `parseOrThrow` grew 10,988 gz.
+//
+// `from` is the node that authored the link into `to`, which is not `input.s`:
+// a union case parses its arm from the type narrow, and a bytes read from text
+// types its result as the format singleton, so `input.s` there is a schema with
+// no `.to` at all - and the question would go unasked, leaving rule 2 to apply
+// in silence. The `.to` step of the parse loop refines from the node it just
+// finished, so `prev.e` is that node wherever the loop reached `to`; a union
+// names itself, since its own decoder is what splits the link per arm.
+//
+// Not `@__NO_SIDE_EFFECTS__`: the call is the effect, and a bundler honouring
+// the annotation would drop the statement as an unused pure call.
+export const B_rejectUnsettled = (input: Val, to: Internal, from = input.prev && input.prev.e): void => {
+  if (
+    from &&
+    from.to === to &&
+    to.opens === U &&
+    B_contentDiffers(B_contentNode(from).content, B_contentNode(to).content)
+  ) {
+    !from.jn && !to.jn && B_contentNode(from) === from && B_contentNode(to) === to
+      ? B_invalidOperation(
+          input,
+          `Ambiguous ${inputExpression(from)} -> ${inputExpression(to)}. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"`,
+        )
+      : B_unsupportedDecode(input, from, to);
+  }
+};
 
 export const B_invalidOperation = (val: Val, description: string): never =>
   B_throw({ code: "invalid_operation", reason: description, path: val.path });

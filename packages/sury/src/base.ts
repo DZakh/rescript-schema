@@ -379,7 +379,7 @@ export type Internal = {
   // becomes true, since `reverse` re-points `.to` and would lose it), and by
   // the document piece a field is stored into (rule 2, `jsonPiece`). Absent on
   // a link between two payloads of different kinds is therefore rule 4, and
-  // the payload schemas reject it while compiling.
+  // the payload schemas reject it while compiling (`B_rejectUnsettled`).
   opens?: boolean;
   // Properties of every value a string schema admits, which let generated code
   // skip work: 1 escape-free (no `"`, `\`, controls or lone surrogates, so

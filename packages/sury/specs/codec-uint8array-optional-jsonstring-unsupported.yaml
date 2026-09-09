@@ -15,4 +15,4 @@ operations:
     creationError: "SuryError: Can't decode Uint8Array -> JSON string | undefined. Define custom codec with S.to"
   decode: eq-to-parse
   encode:
-    creationError: 'SuryError: Ambiguous JSON string -> Uint8Array. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'
+    creationError: "SuryError: Can't decode JSON string | undefined -> Uint8Array. Define custom codec with S.to"

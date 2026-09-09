@@ -57,6 +57,7 @@ import {
   B_merge,
   B_pushCheck,
   B_refine,
+  B_rejectUnsettled,
   B_scope,
   B_throw,
   failInvalidType,
@@ -1519,6 +1520,10 @@ const unionResolve = (
   variants: Internal[],
   target: Internal
 ): (Internal | undefined)[] => {
+  // A union arm has nowhere to take a reading, so a link the union carries into
+  // a payload of another kind is rejected whole, before the arms could each
+  // meet the target as a pair a slot would settle.
+  B_rejectUnsettled(input, target, source);
   if (source.perVariant) {
     return variants.map(() => target);
   }

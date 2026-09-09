@@ -256,9 +256,14 @@ decoder as the same pair, and only the slot tells them apart.
 
 Rule 4 is then asked while compiling, by the schemas that declare a payload -
 `json`, `jsonString`, `base64`, `uint8Array`, `file` - each in its own decoder
-and encoder (`B_rejectUnsettled`). A link between two payloads of different
+and encoder, and by a union carrying its `.to` into one, before it splits the
+link per arm (`B_rejectUnsettled`). A link between two payloads of different
 kinds with no reading on either end is the error; a bundle that ships none of
-those schemas ships none of this, and `S.to` is a link and nothing more.
+those schemas ships none of this, and `S.to` is a link and nothing more. The
+link is found from the parse loop's own step rather than from the val's source
+type: a union case parses its arm from the type narrow and a bytes read from
+text types its result as the format singleton, so the source there is a schema
+with no `.to` at all.
 
 What the rejection *says* comes from the pair. Two renderings name the slots,
 since a slot is what settles them; a pair no slot resolves - a union arm's
