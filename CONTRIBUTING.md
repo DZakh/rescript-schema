@@ -374,14 +374,11 @@ instead of silently working around it.
   instead.
 - `operations` names one schema's `parse`/`decode`/`encode`, so a **pipeline**
   - `S.decodeOrThrow(a, b, c)`, the multi-schema form `docs/js-usage.md`
-  documents - has no golden anywhere. It is not a niche path: the fold is right
-  associative, which makes `S.decodeOrThrow(base64, jsonString, string)` emit
-  byte for byte what `S.base64.with(S.to, S.jsonString.with(S.to, S.string))`
-  does (rule 3's pipeline spelling), while the left associated
-  `S.base64.with(S.to, S.jsonString).with(S.to, S.string)` is a rule 4 error.
-  Nothing pins that, so a refactor that folds the other way passes the whole
-  suite. A `ts.pipeline` beside `ts.schema`, taking the argument list, would
-  cover it.
+  documents - has no golden anywhere. It is not a niche path:
+  `S.decodeOrThrow(base64, jsonString, string)` emits byte for byte what
+  `S.base64.with(S.to, S.jsonString).with(S.to, S.string)` does, through a
+  fold of its own (`compileChain`), and nothing pins that the two agree.
+  A `ts.pipeline` beside `ts.schema`, taking the argument list, would cover it.
 - `fuzz:union --ref=<commit>` reports 3 `acceptance` diffs on the pinned
   `issue-392` case even when the working tree *is* that commit, so the
   changelog cannot be read as a signal without running it on an unchanged tree
