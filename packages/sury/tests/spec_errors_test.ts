@@ -389,10 +389,7 @@ test("full op block claimed but the operation actually compiles to identity", as
               error: Expected string, received null
         decode:
     -     expression: ""
-    +     expression: |-
-    +       function noopOperation(i) {
-    +         return i;
-    +       }
+    +     expression: (i) => i
           examples: {}
         encode: identity
 
@@ -587,7 +584,7 @@ test("_skip on an operation is rejected with a guiding message", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        schema: Failed at ["operations"]["parse"]: Expected "identity" | { isAsync: true | undefined; expression: string | { _skip: string; }; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received { _skip: "not-applicable"; }
+        schema: Failed at ["operations"]["parse"]: Expected "identity" | { isAsync: true | undefined; expression: string | { _skip: string; }; resultExpression: string | undefined; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; } | { input: string; errorConstructor: string; whenChecked: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received { _skip: "not-applicable"; }
     - At ["operations"]["parse"]["expression"]: Expected string | { _skip: string; }, received undefined
     - At ["operations"]["parse"]["creationError"]: Expected string, received undefined
         operations.parse: _skip is not valid on an operation - use identity, eq-to-parse, a full block with examples, or a creationError",
@@ -603,7 +600,7 @@ test("schema source doesn't evaluate (syntax error)", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        ts.schema did not evaluate: Unexpected token '>>>'",
+        ts.schema did not evaluate: Unexpected token '>>>' — if this panic is the contract, add ts.constructionError",
       "stdout": "",
     }
   `);

@@ -29,12 +29,12 @@ This section describes the internal architecture of Sury to help with understand
 The internal representation of a type schema, containing:
 
 - `tag`: Type identifier (e.g., `stringTag`, `objectTag`, `arrayTag`)
-- `decoder`: Builder function for input validation (type checking)
-- `encoder`: Builder function for converting from different schema types
-- `parser`: Builder function for transformations after decoding (used by `S.shape`, `S.to`)
-- `serializer`: Builder function for reverse transformations
-- `inputRefiner`: User validations run on the typed input, before the decoder
-- `refiner`: User validations run on the assembled output, after the decoder (`S.reverse` swaps `inputRefiner` ↔ `refiner`)
+- `dc` (decoder): Builder function for input validation (type checking)
+- `en` (encoder): Builder function for converting from different schema types
+- `pr` (parser): Builder function for transformations after decoding (used by `S.shape`, `S.to`)
+- `sz` (serializer): Builder function for reverse transformations
+- `ir` (inputRefiner): User validations run on the typed input, before the decoder
+- `rf` (refiner): User validations run on the assembled output, after the decoder (`S.reverse` swaps `ir` ↔ `rf`)
 - `to`: Target schema for transformations (set by `S.shape`, `S.to`)
 - `from`: Path array indicating where this value comes from in shaped schemas
 - `properties`: For object schemas, a dict of field name to schema
@@ -87,7 +87,7 @@ Input Schema
 │     - continue the chain inside `.then(...)`                 │
 │                                                              │
 │  else if val.isOutput (decoded, may still have `.to`):       │
-│     - follow `.to`: run `expected.parser` (custom decoder)   │
+│     - follow `.to`: run `expected.pr` (custom decoder)       │
 │       or `refine` onto `.to` (default encoder coercion)      │
 │                                                              │
 │  else (not yet decoded):                                     │
@@ -134,7 +134,7 @@ Checks emit as `cond || e[n](x);` (throw when the condition is false), not as
 - `B_next(prev, code, schema, expected)`: Creates the next val one step down the transform chain
 - `B_refine(val, schema?, checks?)`: Clones a val to attach `checks` while preserving the var-allocation link
 - `B_hoistDecl(owner, decl)`: Attaches a `let` declaration to a still-open owner val (prev/parent/self) that dominates and outlives the materialized value, replacing the old `allocate` side-channel
-- `B_markOutput(val, valInput)`: Applies `inputRefiner`/`refiner` and marks the val as output
+- `B_markOutput(val, valInput)`: Applies `ir`/`rf` and marks the val as output
 - `B_embed(val, value)`: Embeds a runtime value (function, object) and returns a reference like `e[0]`
 
 ### Shaped Schemas (S.shape, S.object with definer)
@@ -382,7 +382,6 @@ instead of silently working around it.
   is `undefined`, rather than comparing against a no-op. The accompanying
   `behavior changed - baseline accepted it, now rejected` lines have the same
   cause: a no-op accepts every input, valid or not.
-
 ## License
 
 By contributing your code to the rescript-schema GitHub repository, you agree to license your contribution under the MIT license.

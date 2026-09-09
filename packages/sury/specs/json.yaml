@@ -13,6 +13,7 @@ vs:
 operations:
   parse:
     expression: i=>{e[0](i);return i}
+    resultExpression: i=>{try{e[0](i);return {success:true,value:i,error:void 0}}catch(v0){return {success:false,value:void 0,error:e[1](v0)}}}
     examples:
       valid-object:
         input: '{ a: [1, "x", true, null] }'
@@ -43,3 +44,63 @@ operations:
         error: Expected JSON, received Function
   decode: identity
   encode: identity
+  assert:
+    expression: i=>{e[0](i);return void 0}
+    examples:
+      valid-object:
+        input: '{ a: [1, "x", true, null] }'
+        output: undefined
+      valid-null:
+        input: "null"
+        output: undefined
+      valid-number:
+        input: "1.5"
+        output: undefined
+      invalid-undefined:
+        input: undefined
+        error: Expected JSON, received undefined
+      invalid-bigint:
+        input: 5n
+        error: Expected JSON, received 5n
+      invalid-nan:
+        input: NaN
+        error: Expected JSON, received NaN
+      invalid-non-finite:
+        input: Infinity
+        error: Expected JSON, received Infinity
+      invalid-nested-non-finite:
+        input: "{ a: Infinity }"
+        error: "Failed at a: Expected JSON, received Infinity"
+      invalid-function:
+        input: () => {}
+        error: Expected JSON, received Function
+  is:
+    expression: i=>{try{e[0](i);return true}catch(v0){return false}}
+    examples:
+      valid-object:
+        input: '{ a: [1, "x", true, null] }'
+        output: "true"
+      valid-null:
+        input: "null"
+        output: "true"
+      valid-number:
+        input: "1.5"
+        output: "true"
+      invalid-undefined:
+        input: undefined
+        output: "false"
+      invalid-bigint:
+        input: 5n
+        output: "false"
+      invalid-nan:
+        input: NaN
+        output: "false"
+      invalid-non-finite:
+        input: Infinity
+        output: "false"
+      invalid-nested-non-finite:
+        input: "{ a: Infinity }"
+        output: "false"
+      invalid-function:
+        input: () => {}
+        output: "false"

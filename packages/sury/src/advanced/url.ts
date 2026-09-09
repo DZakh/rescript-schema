@@ -43,7 +43,7 @@ const urlFromString = (value: string) => {
 const uriString: Internal = /* @__PURE__ */ initSchema(stringTag, stringDecoderFn, (s) => {
   s.format = "uri";
   // `urlToUri` percent-encodes everything outside RFC 3986's ASCII repertoire.
-  s.formatFlag = 1;
+  s.fg = 1;
 });
 
 // The decoder names `url` rather than the `init` callback's `s`: it is built
@@ -156,7 +156,7 @@ export const url: Internal = /* @__PURE__ */ initSchema(
       return out;
     };
     s.class = URL;
-    s.encoder = (input, target) => {
+    s.en = (input, target) => {
       const toTagFlag = tagFlags[target.type]!;
       if ((toTagFlag & 2)) {
         // B_refine, not the bare B_next: a check emits against its val's *prev*

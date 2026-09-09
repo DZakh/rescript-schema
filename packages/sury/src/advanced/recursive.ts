@@ -12,12 +12,10 @@ import {
   type Val
 } from "../base";
 import {
-  _var,
   B_embed,
   B_mergeWithPathPrepend,
-  B_next,
-  B_refine,
-  B_varWithoutAllocation
+  B_nextVar,
+  B_refine
 } from "../builder";
 import {
  addOpNode,
@@ -66,8 +64,8 @@ export const recursiveDecoder: Builder = (input) => {
       existing.v === 0 ? B_embed(input, existing) + ".v" : B_embed(input, existing.v);
   } else {
     // Optimistic compilation with recompile if assumptions were wrong
-    let assumedHasTransform = !!def.hasTransform;
-    let assumedIsAsync = !!def.isAsync;
+    let assumedHasTransform = !!def.ht;
+    let assumedIsAsync = !!def.ia;
     let compileNeeded = true;
     const node = addOpNode(def, [inputSchema, def], key, 0);
 
@@ -77,11 +75,11 @@ export const recursiveDecoder: Builder = (input) => {
 
         // Set optimistic values on def before compiling (if not already set)
         // Inner circular references will read these values
-        if (def.hasTransform === U) {
-          def.hasTransform = assumedHasTransform;
+        if (def.ht === U) {
+          def.ht = assumedHasTransform;
         }
-        if (def.isAsync === U) {
-          def.isAsync = assumedIsAsync;
+        if (def.ia === U) {
+          def.ia = assumedIsAsync;
         }
 
         // Back to in-progress: a recompile's inner circular references must
@@ -91,8 +89,8 @@ export const recursiveDecoder: Builder = (input) => {
         node.v = compileDecoder(inputSchema, def, flag, defs);
 
         // Check if actual values differ from assumed
-        const actualHasTransform = def.hasTransform!;
-        const actualIsAsync = def.isAsync!;
+        const actualHasTransform = def.ht!;
+        const actualIsAsync = def.ia!;
 
         if (
           actualHasTransform !== assumedHasTransform ||
@@ -115,21 +113,18 @@ export const recursiveDecoder: Builder = (input) => {
     recOperation = B_embed(input, node.v);
   }
 
-  const hasTransform = def.hasTransform === true;
-  const isAsync = def.isAsync!;
+  const hasTransform = def.ht === true;
+  const isAsync = def.ia!;
 
   // Result var decl, prepended after the re-merge below so it sits outside the
   // try/catch mergeWithPathPrepend may wrap the assignment in (stays in scope).
   let outputDecl = "";
   let output: Val;
   if (hasTransform || isAsync) {
-    const outputVar = B_varWithoutAllocation(input.g);
-    outputDecl = `let ${outputVar};`;
+    output = B_nextVar(input, expectedSchema);
+    outputDecl = `let ${output.i};`;
 
-    output = B_next(input, outputVar, expectedSchema, expectedSchema);
-    output.v = _var;
-
-    output.cp = `${outputVar}=${recOperation}(${input.i});`;
+    output.cp = `${output.i}=${recOperation}(${input.i});`;
 
     if (isAsync) {
       output.f |= 1;

@@ -17,7 +17,6 @@ import {
   B_computed,
   B_embed,
   B_next,
-  B_readOnce,
   B_readsPayload,
   B_refine,
   B_unsupportedDecode
@@ -44,8 +43,8 @@ export const uint8Array: Internal = /* @__PURE__ */ initSchema(
     const sourceTagFlag = tagFlags[source.type]!;
 
     if ((sourceTagFlag & 2)) {
-      const value = B_readOnce(input);
-      const toBytes = source.content?.bc?.toBytes;
+      const value = input.v();
+      const toBytes = source.ct?.bc?.toBytes;
       return B_next(
         input,
         toBytes
@@ -74,7 +73,7 @@ export const uint8Array: Internal = /* @__PURE__ */ initSchema(
     s.class = Uint8Array;
     setContent(s, base64Content);
 
-    s.encoder = (input, target) => {
+    s.en = (input, target) => {
       const targetTagFlag = tagFlags[target.type]!;
       if ((targetTagFlag & 8192)) {
         // Another binary carrier holds these very bytes, rather than a
@@ -84,9 +83,9 @@ export const uint8Array: Internal = /* @__PURE__ */ initSchema(
       // A value position (or base64 itself) stores the bytes as base64. The
       // test comes before the string one because a JSON document is a value
       // position without being string-tagged.
-      if (target.content !== U && (target.content.bc || !B_readsPayload(target))) {
+      if (target.ct !== U && (target.ct.bc || !B_readsPayload(target))) {
         const { format: asFormat, fromBytes } = bytesTarget(target, base64Content);
-        const code = `${B_embed(input, fromBytes)}(${B_readOnce(input)})`;
+        const code = `${B_embed(input, fromBytes)}(${input.v()})`;
         // A var when the next stage still runs (jsonString's escape-free splice
         // needs an identifier). The format singleton itself is done: mark output
         // so the manufactured text is not re-tested.
@@ -105,8 +104,8 @@ export const uint8Array: Internal = /* @__PURE__ */ initSchema(
         ? B_refine(
             B_computed(
               input,
-              `${B_embed(input, new TextDecoder())}.decode(${B_readOnce(input)})`,
-              target.content !== U ? openedText(target) : string,
+              `${B_embed(input, new TextDecoder())}.decode(${input.v()})`,
+              target.ct !== U ? openedText(target) : string,
             )
           )
         : input;

@@ -22,7 +22,6 @@ import {
   B_makeInvalidConversionDetails,
   B_markAsync,
   B_next,
-  B_readOnce,
   B_readsPayload,
   B_throw,
   B_unsupportedDecode
@@ -59,7 +58,7 @@ const fromArrayBuffer =
 // parse loop to unwrap: the awaited value is what the target asked for, not the
 // `ArrayBuffer` the platform hands back.
 //
-// The method is read off `B_readOnce`'s var rather than the val's expression:
+// The method is read off `v()`'s var rather than the val's expression:
 // that is what makes `.`'s precedence a non-question, where a val handed over as
 // a ternary would otherwise have the method read off the wrong branch.
 const read = (input: Val, call: string, schema: Internal): Val => {
@@ -82,7 +81,7 @@ const read = (input: Val, call: string, schema: Internal): Val => {
       });
   const output = B_computed(
     input,
-    `${B_readOnce(input)}${call}${failFn === U ? `` : `.catch(${failFn})`}`,
+    `${input.v()}${call}${failFn === U ? `` : `.catch(${failFn})`}`,
     schema,
     failFn === U ? U : `${failFn}(x)`,
   );
@@ -101,16 +100,16 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
     (input: Val): Val => {
       const source = input.s;
       const sourceTagFlag = tagFlags[source.type]!;
-      // `B_readOnce` inside each branch that uses it: materializing the var up
+      // `v()` inside each branch that uses it: materializing the var up
       // front left a dead `let vN = …` on the two paths below, which take the
       // value as it stands.
-      const toBytes = source.content?.bc?.toBytes;
+      const toBytes = source.ct?.bc?.toBytes;
       const parts = (sourceTagFlag & 2)
         ? toBytes
-          ? `${B_embed(input, toBytes)}(${B_readOnce(input)})`
-          : B_readOnce(input)
+          ? `${B_embed(input, toBytes)}(${input.v()})`
+          : input.v()
         : (sourceTagFlag & 8192) && source.class === Uint8Array
-          ? B_readOnce(input)
+          ? input.v()
           : U;
       if (parts !== U) {
         return B_next(input, `new ${B_embed(input, input.e.class)}([${parts}]${nameArg})`, input.e);
@@ -135,12 +134,12 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
       // import.
       s.class = (globalThis as unknown as Record<string, unknown>)[global];
       setContent(s, base64Content);
-      s.jsonSchema = binaryJSONSchema;
+      s.js = binaryJSONSchema;
       if (s.class === U) {
         unsupportedInstance(s, name);
       }
 
-      s.encoder = (input, target) => {
+      s.en = (input, target) => {
         const targetTagFlag = tagFlags[target.type]!;
         // A union picks its variant before an asynchronous read resolves, so the
         // arm's own checks would run against the promise. The axis stops here,
@@ -159,7 +158,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
         // A value position (or base64 itself) stores the bytes as base64;
         // anything else after a string wants the text they spell, which is also
         // what a format opened by rule 3 is handed.
-        if (target.content !== U && (target.content.bc || !B_readsPayload(target))) {
+        if (target.ct !== U && (target.ct.bc || !B_readsPayload(target))) {
           const { format: asFormat, fromBytes } = bytesTarget(target, base64Content);
           const output = read(
             input,
@@ -175,7 +174,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
         // A format being opened (rule 3) is handed its own document, so it
         // parses the text instead of escaping it.
         return (targetTagFlag & 2)
-          ? read(input, `.text()`, target.content !== U ? openedText(target) : string)
+          ? read(input, `.text()`, target.ct !== U ? openedText(target) : string)
           : input;
       };
     },

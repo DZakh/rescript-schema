@@ -172,8 +172,8 @@ let rec cleanUpSchema = schema => {
   ->Array.forEach(((key, value)) => {
     switch key {
     | "output"
-    | "isAsync"
-    | "hasTransform"
+    | "ia"
+    | "ht"
     | "seq" => ()
     // ditemToItem leftovers FIXME:
     | "k" | "p" | "of" | "r" => ()

@@ -25,6 +25,7 @@ import {
   recomputeGoldens,
   evalSchema,
   identityViolations,
+  buildOps,
   scaffoldJsonSchema,
   scaffoldOperations,
   deriveTypeInfo,
@@ -273,6 +274,10 @@ const measurePerf = async (
 const cmdCheck = async (): Promise<void> => {
   const { write, perf, against, ids } = parseCheckArgs(rest);
   let failed = 0;
+  const failOne = (name: string, details: string[]): void => {
+    failed++;
+    console.error(formatFailure(name, details));
+  };
 
   // Ahead of the --perf=only split: a malformed scenario is a target the perf
   // half cannot build - deriveTargets would surface it as an unattributed
@@ -282,10 +287,7 @@ const cmdCheck = async (): Promise<void> => {
   // every one would tax the tight `spec check <id>` loop. CI and spec_test.ts
   // run unnarrowed, so that gate still holds.
   const scenarioErrs = ids.length ? [] : checkScenarios();
-  if (scenarioErrs.length) {
-    failed++;
-    console.error(formatFailure("scenarios.yaml", scenarioErrs));
-  }
+  if (scenarioErrs.length) failOne("scenarios.yaml", scenarioErrs);
 
   // Splits the run in two for CI, where the goldens gate and the (advisory,
   // comment-posting) perf report want different jobs and different exit
@@ -310,19 +312,13 @@ const cmdCheck = async (): Promise<void> => {
   for (const [path, emit] of EMITTED_SCHEMAS) {
     const exists = existsSync(path);
     if (exists && readFileSync(path, "utf8") === emit()) continue;
-    failed++;
-    console.error(
-      formatFailure(basename(path), [
-        exists ? "stale - run `pnpm spec schema`" : "missing - run `pnpm spec schema`",
-      ]),
-    );
+    failOne(basename(path), [
+      exists ? "stale — run `pnpm spec schema`" : "missing — run `pnpm spec schema`",
+    ]);
   }
 
   const dirErrs = lintSpecsDir();
-  if (dirErrs.length) {
-    failed++;
-    console.error(formatFailure("specs dir", dirErrs));
-  }
+  if (dirErrs.length) failOne("specs dir", dirErrs);
 
   let bundleSizeChange: BundleSizeChange | undefined;
   const bundleSize = await bundleSizePromise;
@@ -336,8 +332,7 @@ const cmdCheck = async (): Promise<void> => {
       console.log("wrote bundleSize.yaml");
       bundleSizeChange = { before: bundleSize.before, after: bundleSize.after! };
     } else {
-      failed++;
-      console.error(formatFailure("bundleSize.yaml", bundleSize.errs));
+      failOne("bundleSize.yaml", bundleSize.errs);
     }
   }
 
@@ -352,29 +347,37 @@ const cmdCheck = async (): Promise<void> => {
       let knownFresh: string | undefined;
       let change: SpecChange | undefined;
 
+      const persist = (next: Spec): void => {
+        knownFresh = serialize(next, collectComments(raw));
+        if (knownFresh === raw) return;
+        writeFileSync(file, knownFresh);
+        change = { id, before: obj, after: next };
+        raw = knownFresh;
+        obj = readSpec(file);
+        console.log(`wrote ${id}`);
+      };
+
       if (write) {
         let schema: any;
         let evaluated = false;
         try {
           schema = evalSchema(obj.ts.schema);
           evaluated = true;
-        } catch {
-          // fall through - checkSpec below reports the real problem
+        } catch (e) {
+          if (obj.ts.constructionError !== undefined) {
+            persist({
+              ...obj,
+              ts: { ...obj.ts, constructionError: (e as Error).message },
+            });
+          }
         }
         // `evaluated`, not `schema` truthiness - ts.schema could evaluate to
         // a legitimately falsy value (e.g. `0`).
         if (evaluated) {
           try {
-            if (identityViolations(schema, obj).length === 0) {
-              const recomputed = await recomputeGoldens(obj);
-              knownFresh = serialize(recomputed, collectComments(raw));
-              if (knownFresh !== raw) {
-                writeFileSync(file, knownFresh);
-                change = { id, before: obj, after: recomputed };
-                raw = knownFresh;
-                obj = readSpec(file);
-                console.log(`wrote ${id}`);
-              }
+            const compiled = buildOps(schema);
+            if (identityViolations(schema, obj, compiled).length === 0) {
+              persist(await recomputeGoldens(obj, compiled));
             }
           } catch {
             knownFresh = undefined;
@@ -390,12 +393,8 @@ const cmdCheck = async (): Promise<void> => {
   );
 
   for (const { id, errs } of results) {
-    if (errs.length) {
-      failed++;
-      console.error(formatFailure(id, errs));
-    } else {
-      console.log(green(`✓ ${id}`));
-    }
+    if (errs.length) failOne(id, errs);
+    else console.log(green(`✓ ${id}`));
   }
 
   // What moved, ranked - so the metrics ratchet can be read off the run itself

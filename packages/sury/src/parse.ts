@@ -57,6 +57,7 @@ import {
   instanceofCond,
   isArrayCond,
   nanCond,
+  numberTagCond,
   objectTagCond,
   typeofCond
 } from "./primitives";
@@ -75,12 +76,9 @@ export const parse = (input: Val): Val => {
     const defs = loopInput.e["$defs"];
     if (defs) loopInput.g.d ? Object.assign(loopInput.g.d, defs) : (loopInput.g.d = defs);
 
-    if (
-      loopInput.f & 1 // valFlagAsync
-      // FIXME: is the `valFlagAsync` check alone sufficient here, or was
-      // there originally a second condition (dropped during the ReScript
-      // port) that this branch also needs? Unconfirmed - see PR discussion.
-    ) {
+    // valFlagAsync. ReScript also had `step !== #convert` (`!io`). No
+    // schema in the suite produces an async val that is already `io`.
+    if (loopInput.f & 1) {
       const operationInputVar = loopInput.v();
       const operationInput = B_scope(loopInput);
       const operationOutput = parse(operationInput);
@@ -97,11 +95,10 @@ export const parse = (input: Val): Val => {
       result.f |= 1;
       result.io = true;
     } else if (loopInput.io) {
-      // It's guaranteed that to is not undefined, because it's checked in the while condition
       const to = loopInput.e.to!;
-      result = loopInput.e.parser ? loopInput.e.parser(loopInput) : B_refine(result, U, U, to);
+      result = loopInput.e.pr ? loopInput.e.pr(loopInput) : B_refine(result, U, U, to);
     } else {
-      const maybeEncoder = loopInput.s.encoder;
+      const maybeEncoder = loopInput.s.en;
       if (
         maybeEncoder &&
         maybeEncoder !== appliedEncoder &&
@@ -111,7 +108,6 @@ export const parse = (input: Val): Val => {
         // whole document (`S.json`, whose parse is the only check it has) or
         // when the operation discards it anyway (S.assertInputOrThrow's `undefined` result
         // sentinel). Every other such target still gets its conversion:
-        // `noValidation` drops the checks, not the re-representation.
         !(loopInput.e.noValidation && (loopInput.e.name === jsonName || loopInput.e.type === undefinedTag))
       ) {
         result = maybeEncoder(loopInput, loopInput.e);
@@ -121,7 +117,7 @@ export const parse = (input: Val): Val => {
       // otherwise let's start the loop from the beginning
       if (loopInput !== result) appliedEncoderRef = maybeEncoder!;
       else {
-        result = loopInput.e.decoder(loopInput);
+        result = loopInput.e.dc(loopInput);
         // Primitive decoder (no internal transforms): apply refiners here.
         // Advanced decoders set isOutput themselves and own refiner application.
         if (!result.io) result = B_markOutput(result, result);
@@ -215,8 +211,8 @@ export const compileDecoder = (
   const output = parse(input);
   const code = B_merge(output);
   const isAsync = !!(output.f & 1);
-  expected.isAsync = isAsync;
-  expected.hasTransform = output.t === true;
+  expected.ia = isAsync;
+  expected.ht = output.t === true;
 
   const body = emitTail(input, code, output.i, isAsync, flag, !!defs);
   if (!body) return noopOperation;
@@ -267,9 +263,9 @@ Object.defineProperty(schemaPrototype, reversedKey, {
       const next = mut.to;
       reversedHead ? (mut.to = reversedHead) : delete mut.to;
       const record = mut as unknown as Record<string, unknown>;
-      reverseSwap(record, "parser", "serializer");
-      reverseSwap(record, "refiner", "inputRefiner");
-      reverseSwap(record, "opens", "opensBack");
+      reverseSwap(record, "pr", "sz");
+      reverseSwap(record, "rf", "ir");
+      reverseSwap(record, "op", "ob");
       // Deleted, not parked in a holding field: encode has no absent-input arm,
       // and double reversal reads the cache below rather than re-deriving, so
       // nothing needs the old value back.
@@ -419,10 +415,10 @@ const compileChain = (
       // spelling `codecTo` offers - this form has nowhere to write one, and a
       // custom coder is what answers it.
       if (
-        B_contentDiffers(B_contentNode(mut).content, B_contentNode(to).content) &&
+        B_contentDiffers(B_contentNode(mut).ct, B_contentNode(to).ct) &&
         !to.to
       ) {
-        mut.parser = (input: Val) => B_unsupportedDecode(input, mut, to);
+        mut.pr = (input: Val) => B_unsupportedDecode(input, mut, to);
       }
     });
   }
@@ -508,7 +504,7 @@ export const nestedOptionParser: Builder = (input: Val) => {
 export const instanceDecoder: Builder = (input: Val) => {
   const inputTagFlag = tagFlags[input.s.type]!;
   return (inputTagFlag & 1)
-    ? B_refine(input, input.e, [{ c: instanceofCond(input, input.e.class), f: failInvalidType }])
+    ? B_refine(input, input.e, [{ c: (v) => instanceofCond(input, input.e.class, v), f: failInvalidType }])
     : (inputTagFlag & 8192) && input.s.class === input.e.class
       ? input
       : B_unsupportedDecode(input, input.s, input.e);
@@ -551,17 +547,10 @@ export const instance = (class_: unknown): Internal => {
 // to an object member.
 export const typeCheckCond = (input: Val, schema: Internal, inputVar: string): string => {
   const tagFlag = tagFlags[schema.type]!;
-  if ((tagFlag & 64)) {
-    return `${objectTagCond(inputVar)}&&!${isArrayCond(inputVar)}`;
-  }
+  if ((tagFlag & 64)) return objectTagCond(inputVar);
   if ((tagFlag & 128)) return isArrayCond(inputVar);
-  if ((tagFlag & 8192)) return instanceofCond(input, schema.class)(inputVar);
-  if ((tagFlag & 4)) {
-    const typeofCheck = typeofCond(numberTag)(inputVar);
-    return (input.g.o & 2)
-      ? typeofCheck
-      : `${typeofCheck}&&${inputVar}===${inputVar}`;
-  }
+  if ((tagFlag & 8192)) return instanceofCond(input, schema.class, inputVar);
+  if ((tagFlag & 4)) return numberTagCond(inputVar, !!(input.g.o & 2));
   if ((tagFlag & 2048)) return nanCond(inputVar);
   if ((tagFlag & (16 | 32))) {
     // null/undefined reuse literalDecoder's inline-const form (=== null / void 0)

@@ -360,6 +360,8 @@ ASCII-only fixtures are what hid the corruption above.
 | `codec-jsonstring-object-text-uint8array`, `codec-jsonstring-object-optional-text-uint8array` | rule 2 through a field storing the same payload as the source - text stays text, with or without the union arm `S.optional` adds |
 | `codec-uint8array-optional-base64`, `codec-uint8array-optional-string` | a payload arm keeping its marker through the union narrow, and an arm with no payload still taking the text |
 | `codec-base64-trim-uint8array` | the marker surviving a `S.trim` link into bytes |
+| `string-to-file`, `file-to-string`, `file-to-uint8array`, `file-to-jsonstring-object` | a `File` to and from text, bytes, and a JSON document it carries |
+| `union-file-read-fail`, `object-file-read-fail`, `object-optional-file-read-fail` | a `File` whose read rejects: a union does not treat that as a miss, a required field takes the path, an optional field stays the raw exception |
 
 `tests/content_test.ts` holds the rest, and only because the spec format can't:
 a golden can't hold a `Blob` or `File`, and every compiled operation must run

@@ -9,6 +9,7 @@ import {
   type Builder,
   type Check,
   copySchema,
+  copyTo,
   functionTag,
   getOrRethrow,
   inputExpression,
@@ -73,7 +74,7 @@ const nestedNone = (): Internal => {
   mut.required = [nestedLoc];
   mut.properties = properties;
   mut.additionalItems = "strip";
-  mut.serializer = (input: Val) => {
+  mut.sz = (input: Val) => {
     const nextSchema = input.e.to!;
     return B_nextConst(input, nextSchema, nextSchema);
   };
@@ -83,7 +84,7 @@ const nestedNone = (): Internal => {
 const nestedOption = (item: Internal): Internal => {
   return updateOutput<Internal>(item, (mut) => {
     mut.to = nestedNone();
-    mut.parser = nestedOptionParser;
+    mut.pr = nestedOptionParser;
   });
 }
 
@@ -148,8 +149,6 @@ export const option = (item: Internal): Internal => {
   return optionFactory(item, unit);
 }
 
-// PORT-NOTE: `module Metadata` → flat `Metadata_*` functions. `Id.t<'metadata>` is a string at
-// runtime; `unionToKey` was `%identity` and is dropped.
 export type MetadataId = string;
 
 // @__NO_SIDE_EFFECTS__
@@ -176,12 +175,9 @@ export const Metadata_set = (schema: Internal, id: MetadataId, metadata: unknown
 // @__NO_SIDE_EFFECTS__
 export const noValidation = (schema: Internal, value: boolean): Internal => {
   const mut = copySchema(schema);
-
-  // TODO: Test for discriminant literal
-  // TODO: Better test reverse
   mut.noValidation = value;
   return mut;
-}
+};
 
 export const internalRefine = (
   schema: Internal,
@@ -189,15 +185,15 @@ export const internalRefine = (
 ): Internal => {
   return updateOutput(schema, (mut) => {
     const refiner = makeRefiner(mut);
-    const existingRefiner = mut.refiner;
+    const existingRefiner = mut.rf;
     if (existingRefiner !== U) {
-      mut.refiner = (input) => {
+      mut.rf = (input) => {
         const arr = existingRefiner(input);
         arr.push(...refiner(input));
         return arr;
       };
     } else {
-      mut.refiner = refiner;
+      mut.rf = refiner;
     }
   });
 }
@@ -253,8 +249,8 @@ export const refineInput = (
         },
       ];
     };
-    const existing = mut.inputRefiner;
-    mut.inputRefiner =
+    const existing = mut.ir;
+    mut.ir =
       existing !== U
         ? (input) => {
             const arr = existing(input);
@@ -294,7 +290,7 @@ export const codecTo = (
     // and `S.json` has no opened form of its own, so those say what every
     // undecodable pair says instead.
     const ambiguous =
-      B_contentDiffers(B_contentNode(mut).content, B_contentNode(target).content) &&
+      B_contentDiffers(B_contentNode(mut).ct, B_contentNode(target).ct) &&
       target.to === U
       ? B_contentNode(mut) === mut &&
         B_contentNode(target) === target &&
@@ -326,48 +322,41 @@ export const codecTo = (
       // shared `string` singleton. Stop copying here and it corrupts one.
       const targetMut = copySchema(target);
       if (serializer !== U) {
-        targetMut.serializer = serializer;
+        targetMut.sz = serializer;
       }
       if (opened) {
-        targetMut.opens = decode as boolean;
+        targetMut.op = decode as boolean;
       }
       mut.to = targetMut;
     } else {
       mut.to = target;
     }
     if (parser !== U) {
-      mut.parser = parser;
+      mut.pr = parser;
     }
     if (typeof encode === "boolean") {
-      // `opensBack`, not `opens`: this node is the *source* of the link, and it
-      // may later be some other link's target - where `opens` would then be
+      // `ob`, not `op`: this node is the *source* of the link, and it
+      // may later be some other link's target — where `op` would then be
       // read as that link's decode reading. `reverse` moves it across.
-      mut.opensBack = encode;
+      mut.ob = encode;
     }
   });
-  // copySchema carries a cached isAsync/hasTransform from the source and a
+  // copySchema carries a cached ia/ht from the source and a
   // custom slot can change both, so let the next compile re-derive them.
   // Slotless links keep the fast path: a built-in conversion can turn async now
   // that a container reads its payload, but only where the source itself is
   // already one, and the cache is read off the link's own head - nothing that
   // reaches here carries a value for either.
   if (decode !== U || encode !== U) {
-    delete root.isAsync;
-    delete root.hasTransform;
+    delete root.ia;
+    delete root.ht;
   }
   return root;
 };
 
 // Not initSchema: that would stamp the self-reverse marker, and this codec's
-// reverse (unit -> null) must stay lazily derived - copySchema drops
-// nullLiteral's non-enumerable `r` on purpose.
-export const nullAsUnit: Internal = /* @__PURE__ */ (() => {
-  // PORT-NOTE: local `s` renamed to `schema` - `s` is the module-level error
-  // identity symbol in this file.
-  const schema = copySchema(nullLiteral);
-  schema.to = unit;
-  return schema;
-})();
+// reverse (unit -> null) must stay lazily derived — copySchema drops it.
+export const nullAsUnit: Internal = /* @__PURE__ */ copyTo(nullLiteral, unit);
 
 // A default is either an eager value or a lazily-called callback - used only
 // within this module, never exposed to callers.
@@ -470,8 +459,6 @@ export const Option_getOr = (schema: Internal, defaultValue: unknown): Internal 
 export const Option_getOrWith = (schema: Internal, defaultCb: () => unknown): Internal =>
   Option_getWithDefault(schema, { type: "callback", callback: defaultCb });
 
-// PORT-NOTE: `Object.s` (the object ctx record) → `ObjectCtx`; field names are
-// the runtime names from `@as` (`f` for `field`, others unchanged).
 export type ObjectCtx = {
   // @as("f") - field
   f: (location: string, schema: Internal) => unknown;
@@ -549,11 +536,6 @@ export const deepStrict = (schema: Internal): Internal => {
   return Object_setAdditionalItems(schema, "strict", true);
 }
 
-export type TupleCtx = {
-  item: (idx: number, schema: Internal) => unknown;
-  tag: (idx: number, value: unknown) => void;
-};
-
 export type Meta<TValue> = {
   name?: string;
   title?: string;
@@ -563,7 +545,6 @@ export type Meta<TValue> = {
   errorMessage?: SchemaErrorMessage;
 };
 
-// TODO: Better test reverse
 // @__NO_SIDE_EFFECTS__
 export const meta = <TValue>(schema: Internal, data: Meta<TValue>): Internal => {
   const mut = copySchema(schema);
