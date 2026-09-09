@@ -181,6 +181,19 @@ const userId = S.makeOutputOrThrow(userIdSchema, "f81d4fae-7dec-11d0-a765-00a0c9
 //? S.Brand<string, "UserId">
 ```
 
+A schema also says what makes two of your values the same value, so that compiles too:
+
+```ts
+const isSameSession = S.isEqualOutput(S.schema({ id: S.string, startedAt: S.date }));
+//? (a, b) => a === b || (a.id === b.id && +a.startedAt === +b.startedAt)
+
+isSameSession(
+  { id: "s1", startedAt: new Date("2026-01-01") },
+  { id: "s1", startedAt: new Date("2026-01-01") },
+);
+// => true, two Date objects for the same instant
+```
+
 Every operation that looks at one side of a schema says which side in its name - `S.makeOutputOrThrow` and `S.isInput`, `S.toInputJSONSchemaOrThrow` for the wire and `S.toOutputJSONSchemaOrThrow` for your types.
 
 Reading a `File` is asynchronous, so a pipeline that starts from one becomes async too:
@@ -362,6 +375,7 @@ Independent benchmarks and conformance suites that include Sury:
 | **Inferred TS type** (what you hover)    | `S.Schema<{foo: string}, {foo: string}>` | `z.ZodObject<{foo: z.ZodString}, $strip>` | `TObject<{foo: TString}>` | `v.ObjectSchema<{readonly foo: v.StringSchema<undefined>}, undefined>` | `Type<{foo: string}, {}>` |
 | **JSON Schema**                          | both directions + `S.fromJSONSchemaOrThrow`     | `z.toJSONSchema`                          | 👑                        | `@valibot/to-json-schema`                                             | `myType.toJsonSchema()`   |
 | **Validated constructor** (from your types) | ✅                                    | ❌                                        | ⭕ unvalidated            | ❌                                                                    | ❌                        |
+| **Compiled equality** (from your schema) | ✅                                       | ❌                                        | ⭕ interpreted            | ❌                                                                    | ❌                        |
 | **Standard Schema**                      | ✅                                       | ✅                                        | ❌                        | ✅                                                                    | ✅                        |
 | **Codegen-free** (doesn't need compiler) | ✅                                       | ✅                                        | ✅                        | ✅                                                                    | ✅                        |
 | **Eval-free**                            | ❌                                       | ⭕ opt-out                                | ⭕ opt-in                 | ✅                                                                    | ⭕ opt-out                |

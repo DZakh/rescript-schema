@@ -8,6 +8,9 @@ jsonSchema:
   input: '{ type: "object", properties: { a: { type: "object", properties: { s: { type: "string" } } } } }'
   output: '{ type: "object", properties: { a: { type: "object", properties: { s: { type: "string" } }, additionalProperties: false } }, additionalProperties: false }'
   fromOutputType: "{ a?: { s?: string | undefined; } | undefined; }"
+isEqual:
+  input: (a,b)=>a===b||(a.a===void 0?b.a===void 0:b.a!==void 0&&a.a.s===b.a.s)
+  output: (a,b)=>a===b||e[0](a,b)
 vs:
   zod:
     _skip: not-applicable

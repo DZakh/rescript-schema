@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "string", format: "uri", pattern: "^[hH][tT][tT][pP][sS]?:" }'
   output: '{ type: "string", format: "uri", pattern: "^[hH][tT][tT][pP][sS]?:" }'
+isEqual: strictEqual
 vs:
   zod: z.httpUrl()
 operations:

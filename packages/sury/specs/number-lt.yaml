@@ -10,6 +10,7 @@ jsonSchema:
   openapi-3.0:
     input: '{ type: "number", maximum: 5, exclusiveMaximum: true }'
     output: '{ type: "number", maximum: 5, exclusiveMaximum: true }'
+isEqual: strictEqual
 vs:
   zod: z.number().lt(5)
 operations:

@@ -10,6 +10,7 @@ jsonSchema:
   openapi-3.0:
     input: '{ type: "object", properties: { f: { type: "string" } } }'
     output: '{ type: "object", properties: { f: { type: "string" } } }'
+isEqual: (a,b)=>a===b||a.f===b.f
 vs:
   zod:
     _skip: not-applicable

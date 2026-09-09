@@ -38,12 +38,15 @@ import {
   JSON_SCHEMA_KEY_ORDER,
   JSON_SCHEMA_DIALECT_KEY_ORDER,
   JSON_SCHEMA_TARGETS,
+  IS_EQUAL_KEY_ORDER,
   type JsonSchemaDialect,
   type JsonSchemaTargetName,
+  type IsEqualSides,
   SKIP_REASONS,
   isSkip,
   isZodOverwrite,
   isCreationError,
+  isEqualSidesForm,
   validate,
   validateBundleSize,
   validateScenarios,
@@ -140,30 +143,44 @@ const boundNames = (code: string): Set<string> => {
   return out;
 };
 
-// An operation that assigns a name it never bound writes a *global*: Sury
+// Generated code that assigns a name it never bound writes a *global*: Sury
 // builds its functions with `new Function`, whose body is sloppy mode, so
 // nothing reports it and two operations end up sharing the slot. The goldens
 // are the only place the generated code is written down, so this is where it
 // gets caught.
+const scanAssignments = (code: string, where: string, extra: string[], out: string[]): void => {
+  const bound = boundNames(code);
+  for (const name of extra) bound.add(name);
+  const leaked = new Set<string>();
+  for (const [, name] of code.matchAll(/[({,;&|?:!= ]([A-Za-z_$][\w$]*)\s*=(?![=>])/g)) {
+    if (!bound.has(name!)) leaked.add(name!);
+  }
+  if (leaked.size)
+    out.push(
+      `${where}: assigns ${[...leaked].join(", ")} without declaring ` +
+        "it - generated code runs in sloppy mode, so that lands on globalThis",
+    );
+};
+
 export const undeclaredAssignments = (spec: Spec, out: string[]): void => {
   const ops = spec.operations as Partial<Record<OpName, Operation>> | undefined;
-  if (ops == null) return;
-  for (const opName of OP_ORDER) {
-    const op = ops[opName];
-    if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) continue;
-    const code = op.expression;
-    if (typeof code !== "string") continue;
-    const bound = boundNames(code);
-    const leaked = new Set<string>();
-    for (const [, name] of code.matchAll(/[({,;&|?:!= ]([A-Za-z_$][\w$]*)\s*=(?![=>])/g)) {
-      if (!bound.has(name!)) leaked.add(name!);
+  if (ops != null) {
+    for (const opName of OP_ORDER) {
+      const op = ops[opName];
+      if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) continue;
+      const code = op.expression;
+      if (typeof code !== "string") continue;
+      scanAssignments(code, `operations.${opName}`, [], out);
     }
-    if (leaked.size)
-      out.push(
-        `operations.${opName}: assigns ${[...leaked].join(", ")} without declaring ` +
-          "it - generated code runs in sloppy mode, so that lands on globalThis",
-      );
   }
+  // Equality is compiled as `(a,b)=>…`, so those two are bound rather than free.
+  const eq = spec.isEqual;
+  if (eq == null || isSkip(eq)) return;
+  for (const [side, code] of isEqualSidesForm(eq)
+    ? ([["input", eq.input], ["output", eq.output]] as const)
+    : ([["", eq]] as const))
+    if (typeof code === "string")
+      scanAssignments(code, side ? `isEqual.${side}` : "isEqual", ["a", "b"], out);
 };
 
 // A full op block is chosen over `identity`/`eq-to-parse` precisely because it
@@ -325,6 +342,15 @@ export const scenarioSource = (scenario: Scenario): ScenarioSource => ({
 const NOOP_OPERATION_WHICH_WILL_NEVER_CHANGE = "noopOperation";
 const isNoop = (fn: Function): boolean =>
   fn.name === NOOP_OPERATION_WHICH_WILL_NEVER_CHANGE;
+
+// The comparators eq.ts hands back whole instead of compiling one. Recorded by
+// name for the same reason and with the same risk as `identity` above: a
+// compiled comparator comes out of `new Function` and so has no name at all,
+// which is what makes the reading unambiguous, and a rename in Sury's source
+// turns every spec that claims one stale rather than leaving it silently wrong.
+const SHARED_COMPARATORS = ["alwaysEqual", "strictEqual", "sameValueZeroEqual"];
+const comparatorForm = (fn: Function): string =>
+  SHARED_COMPARATORS.includes(fn.name) ? fn.name : fn.toString();
 
 // Checks the shorthand invariants both ways: a declared `identity`/`eq-to-parse`
 // that doesn't hold, or a full op block that should be a shorthand.
@@ -631,6 +657,14 @@ const opForm = (opName: OpName, built: BuiltOp, parseBuilt: BuiltOp): Operation 
       : clean({ isAsync: built.isAsync ? (true as const) : undefined, expression: built.fn.toString(), examples: {} });
 };
 
+// The equality dimension: one string when both sides compile to the same code,
+// the pair when they don't. Shared by `spec new` and `--write`.
+export const deriveIsEqual = (schema: any): string | IsEqualSides => {
+  const input = comparatorForm(S.isEqualInput(schema));
+  const output = comparatorForm(S.isEqualOutput(schema));
+  return input === output ? input : { input, output };
+};
+
 // Can throw if `schema` isn't actually a usable schema (e.g. `--ts` evaluated
 // to `undefined` from a typo like `S.strng`) - callers decide how to report that.
 export const scaffoldOperations = (schema: any): Spec["operations"] => {
@@ -712,6 +746,8 @@ export const canonicalize = (obj: Spec): Spec => {
       else o.jsonSchema[name] = ordered as JsonSchemaDialect;
     }
   }
+  if (isEqualSidesForm(o.isEqual))
+    o.isEqual = order(o.isEqual as Record<string, unknown>, IS_EQUAL_KEY_ORDER as string[]) as typeof o.isEqual;
   if (o.operations && !isSkip(o.operations)) {
     const ops = order(o.operations, OP_ORDER) as Record<OpName, Operation>;
     for (const name of OP_ORDER) if (ops[name]) ops[name] = canonOp(ops[name]);
@@ -1016,6 +1052,8 @@ export const recomputeGoldens = async (obj: Spec, compiled?: Record<OpName, Buil
     jsonSchemaSides,
     next.ts.schema,
   );
+
+  if (!isSkip(next.isEqual)) next.isEqual = deriveIsEqual(schema);
 
   const builtOps = compiled ?? buildOps(schema);
   const parseBuilt = builtOps.parse;
@@ -1389,6 +1427,21 @@ const describeRef = (r: Ref): string =>
       ? `failed with ${JSON.stringify(r.message)}`
       : `returned ${valueToCodeSafe(r.value)}`;
 
+// Whether a Blob sits anywhere in a value. The schema's own comparator reads
+// one by identity - bytes come back only asynchronously, so a synchronous
+// answer has nothing else to go on - while `sameBlob` above reads the bytes.
+// That is a deliberate difference, so the cross-check below steps around it
+// rather than reporting it on every run.
+const holdsBlob = (v: unknown): boolean => {
+  if (typeof Blob === "undefined" || v === null || typeof v !== "object") return false;
+  if (v instanceof Blob) return true;
+  if (Array.isArray(v)) return v.some(holdsBlob);
+  if (v instanceof FormData) return [...v].some((entry) => holdsBlob(entry[1]));
+  if (v instanceof Set) return [...v].some(holdsBlob);
+  if (Object.getPrototypeOf(v) !== Object.prototype) return false;
+  return Object.values(v as Record<string, unknown>).some(holdsBlob);
+};
+
 // Two runs of the same input agree only on the nose. `sameOutcome` is built for
 // comparing a golden against a spelling, where `boom` and `Error: boom` are one
 // failure written two ways - but an operation that alternates between raising a
@@ -1421,6 +1474,69 @@ const valueToCodeSafe = (v: unknown): string => {
   } catch {
     return Object.prototype.toString.call(v);
   }
+};
+
+const representable = (v: unknown): boolean => {
+  try {
+    valueToCode(v);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// The schema's own comparator for the side an operation lands on, asked the
+// questions the harness already answers for itself. Every `sameValue` the
+// checks below run is a pair of values on one side of one schema, which is
+// exactly what `isEqual*` claims to decide - so running both and requiring
+// them to agree turns the whole spec corpus into the comparator's test suite,
+// with an independently written oracle on the other side of every answer.
+//
+// Which side follows the direction: parse and decode produce the Output side,
+// encode the Input side. `assert` and `is` produce a verdict rather than a
+// value on either, so there is nothing to compare.
+type SideEquality = {
+  name: string;
+  // `undefined` for a pair the comparator is not answerable for; a string when
+  // it threw, which is a finding rather than an answer.
+  answer: (a: unknown, b: unknown) => boolean | string | undefined;
+};
+
+const sideEquality = (schema: any, opName: OpName): SideEquality | undefined => {
+  if (opName === "assert" || opName === "is") return undefined;
+  const encoding = opName === "encode";
+  const usable = (v: unknown): boolean =>
+    // Two Blobs hold the same bytes only asynchronously, so nothing a
+    // synchronous comparator can read tells them apart from identity, while
+    // `sameBlob` reads the bytes. A deliberate difference, not a finding.
+    !holdsBlob(v) &&
+    // A value the harness can't write down has no golden to hold it, and the
+    // spec already fails saying so. A second report would name the wrong thing.
+    representable(v) &&
+    (() => {
+      // The comparator assumes what it is handed conforms, and an example is
+      // free not to: a JSON Schema converted with a `$ref` it can't resolve
+      // parses to a value its own Output side rejects. Asking the validator
+      // first is what keeps that spec's report about the conversion.
+      try {
+        return encoding ? S.isInput(schema, v) : S.isOutput(schema, v);
+      } catch {
+        return false;
+      }
+    })();
+  return {
+    name: encoding ? "isEqualInput" : "isEqualOutput",
+    answer: (a, b) => {
+      if (!usable(a) || !usable(b)) return undefined;
+      try {
+        // Wrapped, not bare: each is three overloads, and a union of those has
+        // no signature TypeScript will call.
+        return encoding ? S.isEqualInput(schema, a, b) : S.isEqualOutput(schema, a, b);
+      } catch (e) {
+        return `threw ${JSON.stringify((e as Error).message)}`;
+      }
+    },
+  };
 };
 
 const OUTCOME_FORMS = {
@@ -1727,6 +1843,7 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
     const op = spec.operations?.[opName];
     if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) continue;
     const isAsync = op.isAsync === true;
+    const eq = sideEquality(schema, opName);
     for (const [exName, ex] of Object.entries(op.examples)) {
       if (isSkip(ex)) continue;
       const where = `operations.${opName}.examples.${exName}`;
@@ -1800,10 +1917,31 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
                 ? { ctor: (e as Error).constructor.name }
                 : { message: describeExampleThrow(e) };
           }
-          if (await sameOutcome(expected, actual)) continue;
-          errs.push(
-            `${where}: ${spelling} ${describeRef(actual)}, but the golden ${describeRef(expected)}`,
-          );
+          if (!(await sameOutcome(expected, actual))) {
+            errs.push(
+              `${where}: ${spelling} ${describeRef(actual)}, but the golden ${describeRef(expected)}`,
+            );
+            continue;
+          }
+          // The same two values, put to the schema's own comparator. The pair
+          // is what makes this worth the call: the golden side was evaluated
+          // from the source an author wrote, the actual side was built by the
+          // operation, so agreeing here is reflexivity across every recorded
+          // example rather than across one code path run twice.
+          //
+          // Only the strict direction is reported. A comparator that answers
+          // `true` for two values `sameValue` calls different is caught by the
+          // cross-example pools in `checkEquality`, and reporting it here as
+          // well would put two lines under one problem.
+          if ("value" in expected && "value" in actual) {
+            const answered = eq?.answer(expected.value, actual.value);
+            if (answered !== undefined && answered !== true)
+              errs.push(
+                `${where}: ${spelling} returned a value the golden matches, but S.${eq!.name} ` +
+                  `answered ${valueToCodeSafe(answered)} for the two - the comparator is reading ` +
+                  "its own side wrong",
+              );
+          }
         }
       }
       // Whether the checks agree that this value passes. Only that - `assert`
@@ -1900,6 +2038,7 @@ export const checkExamples = async (
     const op = spec.operations?.[opName];
     if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) continue;
     const built = ops?.[opName] ?? buildOp(opName, schema);
+    const eq = sideEquality(schema, opName);
     const byInput = new Map<string, string>();
     for (const [exName, ex] of Object.entries(op.examples)) {
       const where = `operations.${opName}.examples.${exName}`;
@@ -1935,11 +2074,26 @@ export const checkExamples = async (
       if (!("fn" in built)) continue;
       const first = await runToRef(built.fn, nextData());
       const second = await runToRef(built.fn, nextData());
-      if (!(await sameRun(first, second)))
+      const agreed = await sameRun(first, second);
+      if (!agreed)
         errs.push(
           `${where}: is not deterministic - the same input ${describeRef(first)} once and ` +
             `${describeRef(second)} the next time, so no golden can hold it`,
         );
+      // The schema's own comparator, asked what `sameRun` just answered. This
+      // is the pair it is built for: two values the operation PRODUCED, so both
+      // conform to the side it compares, and two distinct objects, so the
+      // `a === b` it opens with cannot answer for free the way comparing one
+      // value to itself would.
+      else if ("value" in first && "value" in second) {
+        const answered = eq?.answer(first.value, second.value);
+        if (answered !== undefined && answered !== true)
+          errs.push(
+            `${where}: S.${eq!.name} answered ${valueToCodeSafe(answered)} for two runs of this ` +
+              `operation on the same input, which returned equal values ` +
+              `(${valueToCodeSafe(first.value)}) - the comparator is reading its own side wrong`,
+          );
+      }
     }
   }
   return errs;
@@ -2057,6 +2211,213 @@ export const checkZodExamples = async (spec: Spec): Promise<string[]> => {
 };
 
 // Cross-checks a spec's `vs` equivalent against its recorded inferred types,
+// ---- equality --------------------------------------------------------------
+//
+// The `isEqual` golden is one line of source; whether it MEANS anything is
+// whether the values a spec already writes down compare the way they should.
+// So every one of them is run through the compiled comparator against a
+// freshly built copy of itself - which is the reflexivity test worth running,
+// since a fresh copy takes the structural path instead of the `a===b`
+// short-circuit the identical reference would - and against every other value
+// of the same side.
+//
+// The expected answer comes from `structurallyEqual`, an oracle written without
+// reference to the schema: when the two disagree, one of them is wrong, and the
+// report names the two examples whose values show it.
+
+// SameValueZero at the leaves, so it agrees with the emit on NaN (equal to
+// itself) and on -0 (equal to 0) - `isDeepStrictEqual` splits both the other
+// way. An absent key and an `undefined` one are one value: a schema reads an
+// optional property the same either way.
+const structurallyEqual = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+  if (a !== a) return b !== b;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  // The prototype, not `.constructor` - a data key named `constructor` shadows
+  // it, and `object-reserved-names` is a spec precisely because values like
+  // that exist.
+  const proto = Object.getPrototypeOf(a);
+  if (proto !== Object.getPrototypeOf(b)) return false;
+  const ao = a as Record<string, unknown>;
+  const bo = b as Record<string, unknown>;
+  if (Array.isArray(a) || (ArrayBuffer.isView(a) && typeof (a as unknown as ArrayLike<unknown>).length === "number")) {
+    const n = (a as unknown as ArrayLike<unknown>).length;
+    if (n !== (b as unknown as ArrayLike<unknown>).length) return false;
+    for (let i = 0; i < n; i++) if (!structurallyEqual(ao[i], bo[i])) return false;
+    return true;
+  }
+  // The built-ins whose value is their content rather than their identity.
+  if (proto === Date.prototype) return +(a as Date) === +(b as Date);
+  if (proto === URL.prototype) return `${a}` === `${b}`;
+  // A Set by its members, which it already holds by SameValueZero; a FormData
+  // by its entries in order, since a name handed out twice is two of them.
+  if (proto === Set.prototype) {
+    const as = a as Set<unknown>;
+    const bs = b as Set<unknown>;
+    return as.size === bs.size && [...as].every((v) => bs.has(v));
+  }
+  if (proto === FormData.prototype) {
+    const be = [...(b as FormData)];
+    const ae = [...(a as FormData)];
+    return (
+      ae.length === be.length && ae.every((e, i) => e[0] === be[i]![0] && e[1] === be[i]![1])
+    );
+  }
+  // Anything else carrying an identity of its own - a Blob, a class instance -
+  // has already failed `===`, and reading its fields would invent a rule the
+  // compiled comparison doesn't have either.
+  if (proto !== null && proto !== Object.prototype) return false;
+  // Key sets, not key counts, and not a union of both sides' keys either: a name
+  // one side lacks reads `undefined` on both, so `{a: undefined}` and
+  // `{b: undefined}` would pass every value comparison a lenient walk makes.
+  // For a dict or an unknown position the keys ARE the content, which is the
+  // rule `dictFn` and `deepEqual` follow. A declared-optional property is the
+  // one place absent and `undefined` are one value, and no pair here turns on
+  // it: these are values an operation produced, and an operation writes the
+  // property either way.
+  const keys = Object.keys(ao);
+  if (keys.length !== Object.keys(bo).length) return false;
+  for (const key of keys) if (!(key in bo) || !structurallyEqual(ao[key], bo[key])) return false;
+  return true;
+};
+
+type EqValue = { where: string; make: () => unknown };
+
+// Only values the SCHEMA produced, never ones an author wrote: a parse input
+// may carry a key the schema strips, or a spelling it coerces, so two of them
+// can be one value to the schema and two to a structural oracle - a
+// disagreement about the input, not about equality. An operation's output is
+// already canonical for the side it lands on, which is what makes the oracle's
+// blind walk the right answer for it.
+//
+// Which side that is follows the direction: parse and decode produce the
+// Output side, encode the Input side.
+const equalityPools = (spec: Spec): Record<"input" | "output", EqValue[]> => {
+  const pools: Record<"input" | "output", EqValue[]> = { input: [], output: [] };
+  const seen: Record<"input" | "output", Set<string>> = { input: new Set(), output: new Set() };
+  for (const opName of OP_ORDER) {
+    const op = spec.operations?.[opName];
+    if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) continue;
+    // An async direction answers a promise, so its recorded output is not the
+    // value; the sync directions of the same schema carry the same values.
+    if (op.isAsync === true) continue;
+    const side = opName === "encode" ? "input" : "output";
+    for (const [exName, ex] of Object.entries(op.examples)) {
+      // A failed example never produced a value of either side.
+      if (isSkip(ex) || !("output" in ex)) continue;
+      if (seen[side].has(ex.output)) continue;
+      seen[side].add(ex.output);
+      let make: () => unknown;
+      try {
+        make = valueEvaluator(ex.output);
+        make();
+      } catch {
+        continue; // an unevaluatable golden is reported by the checks above
+      }
+      pools[side].push({ where: `operations.${opName}.examples.${exName}.output`, make });
+    }
+  }
+  return pools;
+};
+
+// Pairs are quadratic in the pool, and a spec with dozens of examples of one
+// direction is measuring the same emit over and over by the tenth.
+const EQ_POOL_CAP = 12;
+
+export const checkEquality = (spec: Spec, schema: any): string[] => {
+  const errs: string[] = [];
+  if (isSkip(spec.isEqual)) return errs;
+  const pools = equalityPools(spec);
+  for (const side of ["input", "output"] as const) {
+    const values = pools[side].slice(0, EQ_POOL_CAP);
+    if (!values.length) continue;
+    const name = side === "input" ? "isEqualInput" : "isEqualOutput";
+    const direct = (side === "input" ? S.isEqualInput : S.isEqualOutput) as (
+      ...args: unknown[]
+    ) => boolean;
+    // The comparison assumes both values match the schema, so a value that
+    // doesn't is outside what it answers for - an excess key on a strict
+    // object, a required field an encode example deliberately drops. Those are
+    // findings about the OPERATION, which its own golden already records.
+    // Wrapped, not bare: each guard is nine overloads, and a union of those has
+    // no signature TypeScript will call.
+    const conforms =
+      side === "input"
+        ? (s: any) => S.isInput(s) as unknown as (v: unknown) => boolean
+        : (s: any) => S.isOutput(s) as unknown as (v: unknown) => boolean;
+    let inSide: (v: unknown) => boolean;
+    try {
+      inSide = conforms(schema);
+    } catch {
+      inSide = () => true; // no validator to build: compare what we have
+    }
+    let compiled: (a: unknown, b: unknown) => boolean;
+    try {
+      compiled = direct(schema) as unknown as (a: unknown, b: unknown) => boolean;
+    } catch (e) {
+      errs.push(`isEqual: S.${name}(schema) threw ${JSON.stringify((e as Error).message)}`);
+      continue;
+    }
+    const conforming = values.filter((v) => {
+      try {
+        return inSide(v.make());
+      } catch {
+        return false;
+      }
+    });
+    for (let i = 0; i < conforming.length; i++) {
+      for (let j = i; j < conforming.length; j++) {
+        const left = conforming[i]!;
+        const right = conforming[j]!;
+        const a = left.make();
+        const b = right.make();
+        const want = structurallyEqual(a, b);
+        const pair =
+          i === j ? `${left.where} against a fresh copy of itself` : `${left.where} vs ${right.where}`;
+        // Every comparison here has to reach the structural path. The emit
+        // opens with `a === b`, so handing it one object twice would answer
+        // true without reading a single field, and the whole check would pass
+        // on a comparator that does nothing. `make()` evaluates the source
+        // afresh per side, which is what keeps them distinct; a primitive is
+        // the one thing that legitimately is its own twin.
+        if (a === b && a !== null && typeof a === "object") {
+          errs.push(
+            `isEqual: ${pair}: both sides are the same object, so \`a === b\` answers before the ` +
+              "comparator reads anything - the pair has to be built twice",
+          );
+          continue;
+        }
+        // Both orders, because equality is symmetric, and every call shape,
+        // because the three are one dispatch that has to agree with itself.
+        const spellings: [string, () => unknown][] = [
+          [`S.${name}(schema)(a, b)`, () => compiled(a, b)],
+          [`S.${name}(schema)(b, a)`, () => compiled(b, a)],
+          [`S.${name}(schema, a, b)`, () => direct(schema, a, b)],
+        ];
+        // `S.op(data, ..., schema)` reads a schema in the data slot as a chain -
+        // the one call shape a Sury schema as a value can't take.
+        if (!isUsableSchema(a))
+          spellings.push([`S.${name}(a, b, schema)`, () => direct(a, b, schema)]);
+        for (const [spelling, run] of spellings) {
+          let got: unknown;
+          try {
+            got = run();
+          } catch (e) {
+            errs.push(`isEqual: ${pair}: ${spelling} threw ${JSON.stringify((e as Error).message)}`);
+            continue;
+          }
+          if (got !== want)
+            errs.push(
+              `isEqual: ${pair}: ${spelling} answered ${valueToCodeSafe(got)}, expected ${want}` +
+                ` - a=${valueToCodeSafe(a)}, b=${valueToCodeSafe(b)}`,
+            );
+        }
+      }
+    }
+  }
+  return errs;
+};
+
 // live like checkAliases (no golden of its own). Strict string equality -
 // both sides printed with the same InTypeAlias formatting - so the author
 // writes the `vs` source to match Sury's ordering where it differs (e.g.
@@ -2222,6 +2583,9 @@ export const checkSpec = async (
         );
       errs.push(...(await checkAliases(spec)));
       errs.push(...(await checkVs(spec)));
+      // Not gated on staleness: this asks what the comparator DOES with the
+      // values, which a stale golden line doesn't change.
+      errs.push(...checkEquality(spec, schema));
       // The matrix asks whether every spelling agrees with the golden, which is
       // not a question worth answering against a golden already known to be
       // wrong - it would report the same staleness a dozen more times. A wrong

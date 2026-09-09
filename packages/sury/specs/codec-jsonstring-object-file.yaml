@@ -9,6 +9,9 @@ jsonSchema:
   output: "Failed at avatar: Expected JSON, received File"
   openapi-3.0:
     input: '{ type: "string" }'
+isEqual:
+  input: strictEqual
+  output: (a,b)=>a===b||a.avatar===b.avatar
 vs:
   zod:
     _skip: not-applicable

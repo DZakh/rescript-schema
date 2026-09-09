@@ -10,6 +10,9 @@ jsonSchema:
   output: Expected JSON, received "123" | bigint | string
   openapi-3.0:
     input: '{ anyOf: [{ type: "string", enum: ["123"] }, { type: "string" }] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: strictEqual
 vs:
   zod:
     _skip: not-applicable

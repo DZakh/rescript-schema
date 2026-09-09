@@ -770,6 +770,12 @@ external compileMakeAsResultPromise: (
   ~schema: t<'value>,
 ) => 'value => promise<result<'value, error>> = "$makeAsResultPromise"
 
+// `t<'value>` names the output type, so the output side is THE equality here;
+// the input side has no type to compare against. Compares two values that
+// already have the type - it never validates.
+@module("sury")
+external compileIsEqual: (~schema: t<'value>) => ('value, 'value) => bool = "isEqualOutput"
+
 // The immediate (data-first) forms. The JS dispatch reads a leading non-schema
 // argument as the value, so these are the same imports at their other shape.
 @module("sury") external parseOrThrow: ('any, ~to: t<'value>) => 'value = "parseOrThrow"
@@ -795,6 +801,8 @@ external assertOutputAsPromiseOrReject: ('any, ~schema: t<'value>) => promise<un
 
 @module("sury") external isInput: ('any, ~schema: t<'value>) => bool = "isInput"
 @module("sury") external isOutput: ('any, ~schema: t<'value>) => bool = "isOutput"
+
+@module("sury") external isEqual: ('value, 'value, ~schema: t<'value>) => bool = "isEqualOutput"
 
 @module("sury") external makeOrThrow: ('value, ~schema: t<'value>) => 'value = "makeOutputOrThrow"
 @module("sury")

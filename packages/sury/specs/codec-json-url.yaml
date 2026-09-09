@@ -8,6 +8,9 @@ jsonSchema:
   input: '{ type: "string", format: "uri" }'
   fromInputType: string
   output: Expected JSON, received URL
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a.href===b.href
 vs:
   zod:
     _skip: not-applicable

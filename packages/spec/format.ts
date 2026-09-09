@@ -385,9 +385,38 @@ const jsonSchemaFields = S.schema({
   });
 export type JsonSchemaBlock = S.Output<typeof jsonSchemaFields>;
 
+// The compiled equality of both sides. One string when they compile to the
+// same code - which is most schemas, since only a conversion that changes a
+// value's shape makes the two sides compare differently - and the pair when
+// they don't. Same "record what differs" rule the jsonSchema dialects use.
+const isEqualSides = S.schema({
+  input: S.string.with(S.meta, {
+    description:
+      "`S.isEqualInput(schema)` source, or the name of the shared comparator it is. " +
+      "Only when the two sides differ.",
+  }),
+  output: S.string.with(S.meta, {
+    description:
+      "`S.isEqualOutput(schema)` source, or the name of the shared comparator it is. " +
+      "Only when the two sides differ.",
+  }),
+})
+  .with(S.strict)
+  .with(S.meta, { description: "The two sides' compiled equality, when they differ." });
+export type IsEqualSides = S.Output<typeof isEqualSides>;
+
 export const specSchema = S.schema({
   ts,
   jsonSchema: jsonSchemaFields,
+  isEqual: S.union([S.string, isEqualSides, skip]).with(S.meta, {
+    description:
+      "The value-equality of this schema, as source text - or `alwaysEqual` / `strictEqual` / " +
+      "`sameValueZeroEqual`, the shared comparators Sury hands back whole rather than compiling, " +
+      "named the way a pass-through operation is `identity`. A bare string when both sides " +
+      "agree, `{input, output}` when they differ. Every example value is run " +
+      "through it - each equal to a freshly built copy of itself, and to another example's value " +
+      "only when the two values really are the same. Filled by `spec check --write`.",
+  }),
   vs,
   operations,
 })
@@ -404,7 +433,14 @@ export type OpName = "parse" | "decode" | "encode" | "assert" | "is";
 // `ts`/`operations`/`specSchema` without updating the matching order here is a
 // compile error, not a silently-out-of-order key at serialize time.
 const keyOrder = <T,>(order: Record<keyof T, true>) => Object.keys(order) as (keyof T)[];
-export const KEY_ORDER = keyOrder<Spec>({ ts: true, jsonSchema: true, vs: true, operations: true });
+export const KEY_ORDER = keyOrder<Spec>({
+  ts: true,
+  jsonSchema: true,
+  isEqual: true,
+  vs: true,
+  operations: true,
+});
+export const IS_EQUAL_KEY_ORDER = keyOrder<IsEqualSides>({ input: true, output: true });
 export const VS_KEY_ORDER = keyOrder<Spec["vs"]>({ zod: true });
 export const VS_ZOD_KEY_ORDER = keyOrder<ZodOverwrite>({ schema: true, divergence: true, input: true, output: true });
 export const TS_KEY_ORDER = keyOrder<Spec["ts"]>({
@@ -453,6 +489,10 @@ export const isZodOverwrite = (v: unknown): v is ZodOverwrite => is(zodOverwrite
 // The creation-error operation block - distinguished from an `{expression,
 // examples}` block and the string shorthands by carrying `creationError`.
 export const isCreationError = (v: unknown): v is CreationError => is(operationCreationError, v);
+
+// The two-sided form of `isEqual` - distinguished from the bare string (both
+// sides identical) and from `{_skip}` by carrying `input`/`output`.
+export const isEqualSidesForm = (v: unknown): v is IsEqualSides => is(isEqualSides, v);
 
 // Parse, don't validate: return the parsed value itself, not just a pass/fail
 // flag, so callers work from what Sury confirmed matches the schema instead of

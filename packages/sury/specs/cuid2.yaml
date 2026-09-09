@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "string", pattern: "^[a-z][0-9a-z]*$" }'
   output: '{ type: "string", pattern: "^[a-z][0-9a-z]*$" }'
+isEqual: strictEqual
 vs:
   zod: z.cuid2()
 operations:

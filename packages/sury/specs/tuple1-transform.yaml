@@ -13,6 +13,7 @@ jsonSchema:
   openapi-3.0:
     input: '{ type: "array", minItems: 1, maxItems: 1, items: { anyOf: [{ type: "string" }] } }'
     output: '{ type: "array", minItems: 1, maxItems: 1, items: { anyOf: [{ type: "number" }] } }'
+isEqual: (a,b)=>a===b||a[0]===b[0]
 vs:
   zod:
     _skip: not-applicable

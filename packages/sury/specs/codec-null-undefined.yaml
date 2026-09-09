@@ -9,6 +9,7 @@ jsonSchema:
   output: Expected JSON, received undefined
   openapi-3.0:
     input: "{ enum: [null] }"
+isEqual: alwaysEqual
 vs:
   zod:
     _skip: not-applicable

@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received FormData
   output: "Failed at tags[]: Expected JSON, received string | undefined"
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||e[0](a.tags,b.tags)
 vs:
   zod:
     _skip: not-applicable

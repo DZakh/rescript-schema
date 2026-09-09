@@ -12,6 +12,7 @@ jsonSchema:
   openapi-3.0:
     input: '{ type: "string", enum: ["a"] }'
     output: '{ type: "number", enum: [42] }'
+isEqual: alwaysEqual
 vs:
   zod:
     _skip: not-applicable
