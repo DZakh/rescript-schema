@@ -272,7 +272,9 @@ Object.defineProperty(schemaPrototype, reversedKey, {
       const record = mut as unknown as Record<string, unknown>;
       reverseSwap(record, "parser", "serializer");
       reverseSwap(record, "refiner", "inputRefiner");
-      reverseSwap(record, "opens", "opensBack");
+      // The link into this node is now the one out of it, read the other way:
+      // opening `current` into `next` was storing `next` into `current`.
+      next && next.opens !== U ? (mut.opens = !next.opens) : delete mut.opens;
       // Deleted, not parked in a holding field: encode has no absent-input arm,
       // and double reversal reads the cache below rather than re-deriving, so
       // nothing needs the old value back.

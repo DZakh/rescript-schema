@@ -332,12 +332,6 @@ export const codecTo = (
     if (parser !== U) {
       mut.parser = parser;
     }
-    if (typeof encode === "boolean") {
-      // `opensBack`, not `opens`: this node is the *source* of the link, and it
-      // may later be some other link's target - where `opens` would then be
-      // read as that link's decode reading. `reverse` moves it across.
-      mut.opensBack = encode;
-    }
   });
   return root;
 };

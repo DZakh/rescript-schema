@@ -521,6 +521,12 @@ export const jsonString = /* @__PURE__ */ (() => {
         : jsonStringDecoder(input),
     initJsonString,
   );
+  // A piece is only ever linked into from a field position, which stores the
+  // field's value in the document (rule 2). Said here once rather than on each
+  // link that reaches it: without it the link `fieldPiece` synthesizes reads
+  // as one the caller wrote, and rule 4 would ask about a pair nobody can
+  // answer for.
+  jsonPiece.opens = false;
 
   // `""+x` folds away when the piece lands after an already-string part of a
   // concatenation, which is where every piece lands. The number piece nests
@@ -747,12 +753,6 @@ export const jsonString = /* @__PURE__ */ (() => {
           declared !== U
             ? updateOutput<Internal>(declared, (mut) => {
                 mut.to = jsonPiece;
-                // The position settles the reading - a payload field is stored
-                // as a value in the document - so record it. Without this the
-                // link synthesized here is indistinguishable from one the
-                // caller wrote, and rule 4 would ask about a pair nobody can
-                // answer for.
-                mut.opensBack = false;
               })
             : jsonPiece,
         )

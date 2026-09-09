@@ -369,21 +369,18 @@ export type Internal = {
   // keep `bc` so alphabet recoding still sees it, `S.trim`'s tail included.
   // Short: this name is in `B_contentDiffers`, which ships in every export.
   bc?: BytesCodec;
-  // The reading of a content link (CONTENT_CODEC_SPEC.md). `opens` is the
-  // reading of the link that converts INTO this schema - `true` opens the
-  // source and hands its payload over, `false` stores its value - and
-  // `opensBack` the same for the reversed chain, where this schema is the
-  // target instead. `reverse` trades the two, the way it trades
-  // parser/serializer, so each direction's slot lands on the node the other
-  // direction reads it from.
+  // The reading of the content link that converts INTO this schema
+  // (CONTENT_CODEC_SPEC.md): `true` opens the source and hands its payload
+  // over, `false` stores its value. One field for one link: the encode
+  // reading is its negation, so `reverse` writes each node's from its forward
+  // successor's rather than carrying a second slot.
   // Written by a slot the caller gave (rule 1), by a payload gaining a `.to`
   // (rule 3, materialized by `codecTo` and `compileChain` the moment it
   // becomes true, since `reverse` re-points `.to` and would lose it), and by
-  // a document field's position (rule 2, `fieldPiece`). Absent on a link
-  // between two payloads of different kinds is therefore rule 4, and the
-  // payload schemas reject it while compiling.
+  // the document piece a field is stored into (rule 2, `jsonPiece`). Absent on
+  // a link between two payloads of different kinds is therefore rule 4, and
+  // the payload schemas reject it while compiling.
   opens?: boolean;
-  opensBack?: boolean;
   // Properties of every value a string schema admits, which let generated code
   // skip work: 1 escape-free (no `"`, `\`, controls or lone surrogates, so
   // jsonString splices it between bare quotes with no escaping). Set the bit

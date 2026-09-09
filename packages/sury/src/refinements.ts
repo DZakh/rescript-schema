@@ -1143,7 +1143,6 @@ export const B_rejectUnsettled = (
 ): Val | undefined =>
   from.to === to &&
   to.opens === U &&
-  from.opensBack === U &&
   B_contentDiffers(B_contentNode(from).content, B_contentNode(to).content)
     ? !from.jn && !to.jn && B_contentNode(from) === from && B_contentNode(to) === to
       ? B_invalidOperation(
