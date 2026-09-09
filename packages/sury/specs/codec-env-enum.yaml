@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=./spec.schema.json
+ts:
+  schema: S.env.with(S.to, S.union(["development", "production"]))
+  input: string
+  output: '"development" | "production"'
+  instantiations: 4952
+jsonSchema:
+  input: Expected JSON, received env
+  output: '{ enum: ["development", "production"] }'
+vs:
+  zod:
+    _skip: not-applicable
+operations:
+  parse:
+    expression: i=>{typeof i==="string"||e[2](i);typeof i==="string"||e[0](i);(i==="development"||i==="production")||e[1](i);return i}
+    examples:
+      development:
+        input: '"development"'
+        output: '"development"'
+      production:
+        input: '"production"'
+        output: '"production"'
+      other:
+        input: '"test"'
+        error: Expected "development" | "production", received "test"
+      blank:
+        input: '""'
+        error: Expected "development" | "production", received ""
+  decode:
+    expression: i=>{typeof i==="string"||e[0](i);(i==="development"||i==="production")||e[1](i);return i}
+    examples:
+      development:
+        input: '"development"'
+        output: '"development"'
+  encode:
+    expression: i=>{(typeof i==="string"&&i==="development"||typeof i==="string"&&i==="production")||e[0](i);return i}
+    examples:
+      development:
+        input: '"development"'
+        output: '"development"'
+      other:
+        input: '"test"'
+        error: Expected "development" | "production", received "test"

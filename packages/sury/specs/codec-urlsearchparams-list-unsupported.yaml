@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=./spec.schema.json
+ts:
+  schema: "S.urlSearchParams.with(S.to, S.schema({ tags: S.array(S.optional(S.string)) }))"
+  input: URLSearchParams
+  output: "{ tags: (string | undefined)[]; }"
+  instantiations: 5821
+jsonSchema:
+  input: Expected JSON, received URLSearchParams
+  output: "Failed at tags[]: Expected JSON, received string | undefined"
+vs:
+  zod:
+    _skip: not-applicable
+operations:
+  parse:
+    creationError: "SuryError: Failed at tags: Can't decode search param -> (string | undefined)[]. A repeated key is positional, so every item needs an entry"
+  decode: eq-to-parse
+  encode: eq-to-parse

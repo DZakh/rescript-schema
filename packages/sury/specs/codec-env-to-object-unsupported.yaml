@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=./spec.schema.json
+ts:
+  schema: "S.env.with(S.to, S.schema({ PORT: S.port }))"
+  input: string
+  output: "{ PORT: number; }"
+  instantiations: 5446
+jsonSchema:
+  input: Expected JSON, received env
+  output: '{ type: "object", properties: { PORT: { type: "integer", minimum: 0, maximum: 65535 } }, required: ["PORT"] }'
+vs:
+  zod:
+    _skip: not-applicable
+operations:
+  parse:
+    creationError: "SuryError: Can't decode env -> { PORT: port; }. Define custom codec with S.to"
+  decode: eq-to-parse
+  encode:
+    creationError: "SuryError: Can't decode { PORT: port; } -> env. Define custom codec with S.to"

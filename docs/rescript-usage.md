@@ -1308,13 +1308,13 @@ to it.
 `S.t<S.env>`
 
 ```rescript
-let schema = S.dict(S.env)->S.to(
-  S.schema(s => {
-    port: s.field("PORT", S.port),
-    debug: s.field("DEBUG", S.bool),
-    name: s.field("NAME", S.option(S.string)),
-  }),
-)
+let envSchema = S.schema(s => {
+  port: s.field("PORT", S.port),
+  debug: s.field("DEBUG", S.bool),
+  name: s.field("NAME", S.null(S.string)),
+})
+
+process.env->S.parseOrThrow(~to=S.dict(S.env)->S.to(envSchema))
 ```
 
 A single var is the same coercion:
@@ -1323,8 +1323,8 @@ A single var is the same coercion:
 process.env["PORT"]->S.parseOrThrow(~to=S.env->S.to(S.port))
 ```
 
-A missing key is absent. An empty string is a value. Nested objects fail as
-unsupported.
+A missing key is absent (`S.option`) or null (`S.null`). An empty string is a
+value. Nested objects fail as unsupported.
 
 ### **`urlSearchParams`**
 

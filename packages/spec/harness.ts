@@ -799,6 +799,10 @@ const isFormData = (v: object): boolean => {
   const c = globalClass("FormData");
   return c !== undefined && v instanceof c;
 };
+const isURLSearchParams = (v: object): boolean => {
+  const c = globalClass("URLSearchParams");
+  return c !== undefined && v instanceof c;
+};
 
 // Bytes read best as the text that produced them, which is what a spec author
 // writes; anything else (and anything with a control byte, which YAML would
@@ -857,6 +861,14 @@ const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet(), bytes: B
         return appends
           ? `((f) => (${appends}, f))(new FormData())`
           : "new FormData()";
+      }
+      if (isURLSearchParams(v)) {
+        const appends = [...(v as URLSearchParams).entries()]
+          .map(([k, entry]) => `p.append(${JSON.stringify(k)}, ${valueToCode(entry, seen, bytes)})`)
+          .join(", ");
+        return appends
+          ? `((p) => (${appends}, p))(new URLSearchParams())`
+          : "new URLSearchParams()";
       }
       if (v instanceof Map) return `new Map(${valueToCode([...v], seen, bytes)})`;
       if (v instanceof Set) return `new Set(${valueToCode([...v], seen, bytes)})`;

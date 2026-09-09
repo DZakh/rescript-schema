@@ -629,11 +629,11 @@ export type FormData = typeof globalThis extends {
 export const formData: Schema<FormData, FormData>;
 
 /**
- * An environment variable value. `process.env` is a record of these, so pipe
- * `S.record(S.env)` to an object schema and the coercions are inferred:
- * `"8080"` -> `S.port`, `"true"` -> `S.boolean`, a missing key -> `S.optional`.
+ * An environment variable value. `process.env` is a record of these, so decode
+ * through `S.record(S.env)` and the coercions are inferred: `"8080"` -> `S.port`,
+ * `"true"` -> `S.boolean`, a missing key -> `S.nullable`/`S.optional`.
  * Nested objects, files and repeated keys fail as unsupported.
- * @example S.record(S.env).with(S.to, S.schema({ PORT: S.port, DEBUG: S.boolean, NAME: S.optional(S.string) }))
+ * @example S.decodeOrThrow(process.env, S.record(S.env), S.schema({ PORT: S.port, DEBUG: S.boolean, NAME: S.nullable(S.string) }))
  */
 export const env: Schema<string, string>;
 

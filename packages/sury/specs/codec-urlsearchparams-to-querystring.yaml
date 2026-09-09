@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=./spec.schema.json
+ts:
+  schema: S.urlSearchParams.with(S.to, S.queryString)
+  input: URLSearchParams
+  output: string
+  instantiations: 4432
+jsonSchema:
+  input: Expected JSON, received URLSearchParams
+  output: '{ type: "string" }'
+vs:
+  zod:
+    _skip: not-applicable
+operations:
+  parse:
+    creationError: "SuryError: Can't decode URLSearchParams -> query string. Define custom codec with S.to"
+  decode: eq-to-parse
+  encode:
+    creationError: "SuryError: Can't decode query string -> URLSearchParams. Define custom codec with S.to"

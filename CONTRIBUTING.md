@@ -352,10 +352,6 @@ instead of silently working around it.
   direction of the content axis: the `codec-*` specs for `S.blob` and `S.file`
   carry codegen and error cases only, and `tests/content_test.ts` holds the
   values instead.
-- `URLSearchParams` is the same gap `FormData` already closed: `valueToCode`
-  special-cases `FormData` but throws on `URLSearchParams`. Encode success
-  examples for `S.urlSearchParams` cannot be goldens; `S.queryString` encode
-  covers the same entries as text.
 - An example's `error` is matched verbatim, so one raised by the *platform*
   rather than by Sury pins that engine's wording: `new Blob([Symbol()])` says
   "Cannot convert a Symbol value to a string" on Node 22 and "The argument

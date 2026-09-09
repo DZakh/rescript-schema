@@ -1334,26 +1334,24 @@ sentinel reads as absent, so a required `S.file` reports a missing file,
 `S.env` is an environment variable value. `process.env` is a record of these:
 
 ```ts
-const envSchema = S.record(S.env).with(
-  S.to,
-  S.schema({
-    PORT: S.port,
-    DEBUG: S.boolean,
-    NAME: S.optional(S.string),
-  }),
-);
+const envSchema = S.schema({
+  PORT: S.port,
+  DEBUG: S.boolean,
+  NAME: S.nullable(S.string),
+});
 
-S.decodeOrThrow(envSchema)(process.env);
+S.decodeOrThrow(process.env, S.record(S.env), envSchema);
+// { PORT: "8080", DEBUG: "true" } => { PORT: 8080, DEBUG: true, NAME: null }
 ```
 
 A single var is the same coercion:
 
 ```ts
-S.decodeOrThrow(S.env.with(S.to, S.port))(process.env.PORT);
+S.decodeOrThrow(process.env.PORT, S.env, S.port);
 ```
 
-A missing key is absent. An empty string is a value. Nested objects, files and
-repeated keys fail as unsupported.
+A missing key is absent (`S.optional`) or null (`S.nullable`). An empty string
+is a value. Nested objects, files and repeated keys fail as unsupported.
 
 ## URLSearchParams
 

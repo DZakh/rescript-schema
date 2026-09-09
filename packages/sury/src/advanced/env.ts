@@ -1,5 +1,5 @@
 // `S.env` - an environment variable value. `process.env` is a record of these,
-// so `S.record(S.env).with(S.to, S.schema({ PORT: S.port, DEBUG: S.boolean }))`
+// so `S.decodeOrThrow(process.env, S.record(S.env), S.schema({ PORT: S.port }))`
 // reads the declared keys through the same text coercions a form field uses.
 // Named and instance-tagged so optional fields convert the present arm.
 // Empty string is a value; a missing key is absent. Nested objects, files

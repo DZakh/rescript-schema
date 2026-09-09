@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=./spec.schema.json
+ts:
+  schema: S.queryString.with(S.to, S.urlSearchParams)
+  input: string
+  output: URLSearchParams
+  instantiations: 4432
+jsonSchema:
+  input: '{ type: "string" }'
+  output: Expected JSON, received URLSearchParams
+vs:
+  zod:
+    _skip: not-applicable
+operations:
+  parse:
+    expression: i=>{typeof i==="string"||e[1](i);return new e[0](i)}
+    examples:
+      valid:
+        input: '"q=hi&page=2"'
+        output: ((p) => (p.append("q", "hi"), p.append("page", "2"), p))(new URLSearchParams())
+        whenChecked: fails
+      empty:
+        input: '""'
+        output: new URLSearchParams()
+        whenChecked: fails
+  decode:
+    expression: i=>{return new e[0](i)}
+    examples:
+      valid:
+        input: '"q=hi&page=2"'
+        output: ((p) => (p.append("q", "hi"), p.append("page", "2"), p))(new URLSearchParams())
+  encode:
+    creationError: "SuryError: Can't decode URLSearchParams -> query string. Define custom codec with S.to"
