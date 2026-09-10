@@ -450,6 +450,7 @@ const jsonSchemaFormat = {
   uuidv6: "uuid",
   uuidv7: "uuid",
   "http-url": "uri",
+  env: "",
 } as unknown as Record<string, string | undefined>;
 
 const internalToJSONSchemaBase = (

@@ -5,7 +5,7 @@ ts:
   output: Date
   instantiations: 4419
 jsonSchema:
-  input: Expected JSON, received env
+  input: '{ type: "string" }'
   output: Expected JSON, received Date
 vs:
   zod:
@@ -30,4 +30,8 @@ operations:
         input: '"2024-01-01T00:00:00.000Z"'
         output: new Date("2024-01-01T00:00:00.000Z")
   encode:
-    creationError: "SuryError: Can't decode Date -> env. Define custom codec with S.to"
+    expression: i=>{let v0;try{v0=i.toISOString()}catch(_){e[0](i)}return v0}
+    examples:
+      valid:
+        input: new Date("2024-01-01T00:00:00.000Z")
+        output: '"2024-01-01T00:00:00.000Z"'

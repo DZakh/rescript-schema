@@ -5,7 +5,7 @@ ts:
   output: "{ user: { name: string; }; }"
   instantiations: 6473
 jsonSchema:
-  input: "Failed at []: Expected JSON, received env"
+  input: '{ type: "object", additionalProperties: { type: "string" } }'
   output: '{ type: "object", properties: { user: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } }, required: ["user"] }'
 vs:
   zod:

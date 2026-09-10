@@ -5,7 +5,7 @@ ts:
   output: '"development" | "production"'
   instantiations: 4952
 jsonSchema:
-  input: Expected JSON, received env
+  input: '{ type: "string" }'
   output: '{ enum: ["development", "production"] }'
 vs:
   zod:
@@ -33,7 +33,7 @@ operations:
         input: '"development"'
         output: '"development"'
   encode:
-    expression: i=>{(typeof i==="string"&&i==="development"||typeof i==="string"&&i==="production")||e[0](i);return i}
+    expression: i=>{typeof i==="string"&&(i==="development"||i==="production")||e[0](i);return i}
     examples:
       development:
         input: '"development"'

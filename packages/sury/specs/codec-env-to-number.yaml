@@ -5,7 +5,7 @@ ts:
   output: number
   instantiations: 4419
 jsonSchema:
-  input: Expected JSON, received env
+  input: '{ type: "string" }'
   output: '{ type: "number" }'
 vs:
   zod:

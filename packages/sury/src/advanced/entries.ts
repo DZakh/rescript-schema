@@ -157,32 +157,46 @@ export const convertTextEntry = (
   self: Internal,
   blank?: boolean,
 ): Val => {
+  const present = isAbsent(target) ? presentArm(target) : target;
+  // Same split as a form field: a required `S.string` must choose, an
+  // optional/nullable one reads `""` as absent. `self` is the no-blank
+  // converter so the present arm does not re-enter this check.
+  if (blank && isAbsent(target) && !admitsBlank(present)) {
+    const item = B_scope(input);
+    item.s = self;
+    const wrapped = readWrapped(item, target, present, true);
+    // The form loop does `||void 0` before this wrap. Env fields are already
+    // in the object, so `""` would otherwise survive an optional with no else.
+    if (isOptional(target) && absentArm(target).to === U) {
+      wrapped.cp = `${item.i}=${item.i}||void 0;` + wrapped.cp;
+    }
+    return wrapped;
+  }
   if (blank && !decidesBlank(target)) {
     B_invalidOperation(
       input,
       `Ambiguous "" for ${inputExpression(target)}. Should a blank input be rejected, kept, or read as absent? Choose with S.nonEmpty, S.minLength(0), or S.optional`,
     );
   }
-  const inner = isAbsent(target) ? presentArm(target) : target;
-  const flag = tagFlags[inner.type]!;
+  const flag = tagFlags[present.type]!;
   if (flag & 256) {
-    if (inner.anyOf!.every((variant) => tagFlags[variant.type]! & 2)) {
-      return asText(input, inner);
+    if (present.anyOf!.every((variant) => tagFlags[variant.type]! & 2)) {
+      return asText(input, present);
     }
     if (self !== input.s) {
-      const output = B_next(input, input.i, self, inner);
+      const output = B_next(input, input.i, self, present);
       output.v = _var;
       return output;
     }
-    return B_unsupportedDecode(input, input.s, inner);
+    return B_unsupportedDecode(input, input.s, present);
   }
   if (flag & (64 | 128 | 512 | 8192)) {
-    if ((flag & 8192) && inner.class === Date) {
-      return asText(input, inner);
+    if ((flag & 8192) && present.class === Date) {
+      return asText(input, present);
     }
-    return B_unsupportedDecode(input, input.s, inner);
+    return B_unsupportedDecode(input, input.s, present);
   }
-  return inner.type === unknownTag || (flag & (2 | 16 | 32))
-    ? B_refine(input, unknown, U, inner)
-    : asText(input, inner);
+  return present.type === unknownTag || (flag & (2 | 16 | 32))
+    ? B_refine(input, unknown, U, present)
+    : asText(input, present);
 };

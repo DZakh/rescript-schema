@@ -5,7 +5,7 @@ ts:
   output: "{ PORT: number; }"
   instantiations: 5446
 jsonSchema:
-  input: Expected JSON, received env
+  input: '{ type: "string" }'
   output: '{ type: "object", properties: { PORT: { type: "integer", minimum: 0, maximum: 65535 } }, required: ["PORT"] }'
 vs:
   zod:

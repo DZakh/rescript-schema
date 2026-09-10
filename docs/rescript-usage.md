@@ -1323,8 +1323,9 @@ A single var is the same coercion:
 process.env["PORT"]->S.parseOrThrow(~to=S.env->S.to(S.port))
 ```
 
-A missing key is absent (`S.option`) or null (`S.null`). An empty string is a
-value. Nested objects fail as unsupported.
+A missing key or empty string is absent (`S.option`) or null (`S.null`). A
+required `S.string` must choose `S.nonEmpty` or `S.minLength(0)`. Nested
+objects fail as unsupported.
 
 ### **`urlSearchParams`**
 

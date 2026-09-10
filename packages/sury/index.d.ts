@@ -94,7 +94,8 @@ export type StringFormat =
   | "hex"
   | "cidrv4"
   | "cidrv6"
-  | "http-url";
+  | "http-url"
+  | "env";
 export type ArrayFormat = "compactColumns";
 export type Format = NumberFormat | StringFormat | ArrayFormat;
 
@@ -631,7 +632,8 @@ export const formData: Schema<FormData, FormData>;
 /**
  * An environment variable value. `process.env` is a record of these, so decode
  * through `S.record(S.env)` and the coercions are inferred: `"8080"` -> `S.port`,
- * `"true"` -> `S.boolean`, a missing key -> `S.nullable`/`S.optional`.
+ * `"true"` -> `S.boolean`, a missing key or `""` -> `S.nullable`/`S.optional`.
+ * A required `S.string` must choose `S.nonEmpty` or `S.minLength(0)`.
  * Nested objects, files and repeated keys fail as unsupported.
  * @example S.decodeOrThrow(process.env, S.record(S.env), S.schema({ PORT: S.port, DEBUG: S.boolean, NAME: S.nullable(S.string) }))
  */

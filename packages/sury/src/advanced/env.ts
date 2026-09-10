@@ -1,34 +1,20 @@
-// `S.env` - an environment variable value. `process.env` is a record of these,
-// so `S.decodeOrThrow(process.env, S.record(S.env), S.schema({ PORT: S.port }))`
-// reads the declared keys through the same text coercions a form field uses.
-// Named and instance-tagged so optional fields convert the present arm.
-// Empty string is a value; a missing key is absent. Nested objects, files
-// and repeated keys fail as unsupported.
+// `S.env` - an environment variable value. A string format so JSON Schema
+// is `{ type: "string" }`, not an instance with no document form.
+// Empty string is absent unless the target keeps it with `S.minLength(0)`.
+// A bare `S.string` is ambiguous.
 
-import {
-  initSchema,
-  instanceTag,
-  type Internal,
-  stringTag,
-  tagFlags,
-  type Val
-} from "../base";
-import {
-  B_next,
-  B_refine,
-  B_unsupportedDecode,
-  failInvalidType
-} from "../builder";
-import {
-  typeofCond
-} from "../primitives";
-import {
-  convertTextEntry
-} from "./entries";
+import { initSchema, stringTag, tagFlags, type Internal, type Val } from "../base";
+import { B_next, B_refine, B_unsupportedDecode, failInvalidType } from "../builder";
+import { string, typeofCond } from "../primitives";
+import { convertTextEntry } from "./entries";
 
 const envDecoder = (input: Val): Val => {
   const flag = tagFlags[input.s.type]!;
-  if (input.s === input.e || ((flag & 8192) && input.s.name === "env") || (flag & 16)) {
+  if (input.s === input.e || input.s.format === "env") {
+    return input;
+  }
+  if (flag & 16) {
+    // Omit the key. `""+undefined` is the text "undefined".
     return input;
   }
   if (flag & 1) {
@@ -43,7 +29,8 @@ const envDecoder = (input: Val): Val => {
   return B_unsupportedDecode(input, input.s, input.e);
 };
 
-export const env: Internal = /* @__PURE__ */ initSchema(instanceTag, envDecoder, (s) => {
+export const env: Internal = /* @__PURE__ */ initSchema(stringTag, envDecoder, (s) => {
+  s.format = "env";
   s.name = "env";
-  s.encoder = (input, target) => convertTextEntry(input, target, s);
+  s.encoder = (input, target) => convertTextEntry(input, target, string, true);
 });

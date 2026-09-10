@@ -232,7 +232,8 @@ export type StringFormat =
   | "hex"
   | "cidrv4"
   | "cidrv6"
-  | "http-url";
+  | "http-url"
+  | "env";
 export type ArrayFormat = "compactColumns";
 export type Format = NumberFormat | StringFormat | ArrayFormat;
 

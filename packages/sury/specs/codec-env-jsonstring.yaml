@@ -5,7 +5,7 @@ ts:
   output: "{ FLAGS: { debug: boolean; }; }"
   instantiations: 6654
 jsonSchema:
-  input: "Failed at []: Expected JSON, received env"
+  input: '{ type: "object", additionalProperties: { type: "string" } }'
   output: '{ type: "object", properties: { FLAGS: { type: "object", properties: { debug: { type: "boolean" } }, required: ["debug"] } }, required: ["FLAGS"] }'
 vs:
   zod:
@@ -34,4 +34,4 @@ operations:
     examples:
       built:
         input: "{ FLAGS: { debug: true } }"
-        error: "Failed at FLAGS: Expected string, received { debug: true; }"
+        error: "Failed at FLAGS: Expected env, received { debug: true; }"

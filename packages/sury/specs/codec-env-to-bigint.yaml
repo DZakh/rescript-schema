@@ -5,7 +5,7 @@ ts:
   output: bigint
   instantiations: 4419
 jsonSchema:
-  input: Expected JSON, received env
+  input: '{ type: "string" }'
   output: Expected JSON, received bigint
 vs:
   zod:

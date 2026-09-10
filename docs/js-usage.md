@@ -1350,8 +1350,9 @@ A single var is the same coercion:
 S.decodeOrThrow(process.env.PORT, S.env, S.port);
 ```
 
-A missing key is absent (`S.optional`) or null (`S.nullable`). An empty string
-is a value. Nested objects, files and repeated keys fail as unsupported.
+A missing key or empty string is absent (`S.optional`) or null (`S.nullable`).
+A required `S.string` must choose `S.nonEmpty` or `S.minLength(0)`. Nested
+objects, files and repeated keys fail as unsupported.
 
 ## URLSearchParams
 
