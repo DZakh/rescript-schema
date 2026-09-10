@@ -29,6 +29,23 @@ npm install sury
 
 **API Reference:** [TypeScript](https://github.com/DZakh/sury/blob/main/docs/js-usage.md) | [ReScript](https://github.com/DZakh/sury/blob/main/docs/rescript-usage.md) | [ReScript PPX](https://github.com/DZakh/sury/blob/main/packages/sury-ppx/README.md)
 
+## Sponsors
+
+Sury's sponsors, who make the time to build it possible:
+
+<p>
+  <a href="https://rescript-association.org/"><img alt="ReScript Association" height="30" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/rescript-association.png"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://envio.dev/"><img alt="Envio" height="26" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/envio.png"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.carla.se/"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/carla-dark.png">
+    <img alt="Carla" height="28" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/carla.png">
+  </picture></a>
+</p>
+
+> If you want to support the development of the project, [DM me on X](https://x.com/dzakh_dev) and get your logo here as a gratitude.
+
 ## Why Sury
 
 Describe your data model once - unions, constraints and metadata included, with a type you can actually read on hover:
@@ -240,8 +257,8 @@ Here's what `parseEvent` from above actually runs - a function specialized for t
   }
   if (typeof v0 === "object" && v0 && !Array.isArray(v0)) {
     for (;;) {
-      if (v0["type"] === "user.created") {
-        let v2 = v0["id"], v3 = v0["tags"];
+      if (v0.type === "user.created") {
+        let v2 = v0.id, v3 = v0.tags;
         typeof v2 === "string" || e[2](v2);
         let v1;
         try {
@@ -252,10 +269,10 @@ Here's what `parseEvent` from above actually runs - a function specialized for t
         Array.isArray(v3) || e[6](v3);
         // ...validates each tag, tracking the error path
         v8.length > 0 || e[5](v8); // e[5] throws your nonEmpty message
-        v0 = { type: v0["type"], id: v1, tags: v8 };
+        v0 = { type: v0.type, id: v1, tags: v8 };
         break;
       }
-      if (v0["type"] === "user.deleted") {
+      if (v0.type === "user.deleted") {
         // ...one branch per variant, no loop over union members
       }
       e[9](v0);
@@ -278,9 +295,9 @@ The encoder builds the JSON text directly - no intermediate object, the structur
   if (typeof i === "object" && i && !Array.isArray(i)) {
     for (;;) {
       // ...one branch per variant
-      if (i["type"] === "user.deleted") {
-        let v6 = JSON.stringify(i["payload"]);
-        let v7 = '{"type":"user.deleted","id":"' + i["id"] + '"';
+      if (i.type === "user.deleted") {
+        let v6 = JSON.stringify(i.payload);
+        let v7 = '{"type":"user.deleted","id":"' + i.id + '"';
         if (v6 !== void 0) {
           v7 += ',"payload":' + v6;
         }
@@ -388,21 +405,6 @@ It's short, it's pronounceable, and the 🧬 fits: a schema is the DNA of your d
 ## Contributing
 
 Bug reports, ideas, and pull requests are all welcome - open an [issue](https://github.com/DZakh/sury/issues) to get started.
-
-## Sponsorship
-
-If you're enjoying Sury and want to give back, that would be rad!
-
-The free ways help a lot too: star the repo, write about it, or tell someone who's picking a validation library this week.
-
-If you'd like to donate, GitHub Sponsors isn't available in my country, so **USDT** is the easiest route:
-
-- ERC20: `0x509fCF7C24A94a776eb92B56B9DA4aA145615529`
-- TRC20: `TFg5hKgkdcrFnPHNgYqfbp9yMyx25uaWrF`
-
-Your sponsorship doesn't go towards anything specific - it's simply a wonderful way to say "thank you" and make me happy. 😁
-
-DM me on [X/Twitter](https://x.com/dzakh_dev) if you want to be featured or just to say hi! This would mean so much to me. ✨
 
 ## License
 
