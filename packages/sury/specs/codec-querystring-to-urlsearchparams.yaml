@@ -17,11 +17,9 @@ operations:
       valid:
         input: '"q=hi&page=2"'
         output: ((p) => (p.append("q", "hi"), p.append("page", "2"), p))(new URLSearchParams())
-        whenChecked: fails
       empty:
         input: '""'
         output: new URLSearchParams()
-        whenChecked: fails
   decode:
     expression: i=>{return new e[0](i)}
     examples:
@@ -29,4 +27,11 @@ operations:
         input: '"q=hi&page=2"'
         output: ((p) => (p.append("q", "hi"), p.append("page", "2"), p))(new URLSearchParams())
   encode:
-    creationError: "SuryError: Can't decode URLSearchParams -> query string. Define custom codec with S.to"
+    expression: i=>{return i.toString()}
+    examples:
+      valid:
+        input: ((p) => (p.append("q", "hi"), p.append("page", "2"), p))(new URLSearchParams())
+        output: '"q=hi&page=2"'
+      empty:
+        input: new URLSearchParams()
+        output: '""'

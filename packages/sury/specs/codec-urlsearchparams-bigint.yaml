@@ -30,7 +30,7 @@ operations:
         input: ((p) => (p.append("n", "42"), p))(new URLSearchParams())
         output: "{ n: 42n }"
   encode:
-    expression: i=>{let v0=new e[0]();v0.append("n",""+i["n"]);return v0}
+    expression: i=>{let v0=new e[0]();v0.append("n",""+i.n);return v0}
     examples:
       valid:
         input: "{ n: 42n }"

@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{typeof i==="string"||e[2](i);typeof i==="string"||e[0](i);let v0=+i;v0===v0&&(v0||i.trim())||e[1](i);return v0}
+    expression: i=>{typeof i==="string"||e[2](i);typeof i==="string"||e[0](i);let v0=+i;v0==v0&&(v0||i.trim())||e[1](i);return v0}
     examples:
       valid:
         input: '"42"'
@@ -24,7 +24,7 @@ operations:
         input: '"x"'
         error: Expected number, received "x"
   decode:
-    expression: i=>{typeof i==="string"||e[0](i);let v0=+i;v0===v0&&(v0||i.trim())||e[1](i);return v0}
+    expression: i=>{typeof i==="string"||e[0](i);let v0=+i;v0==v0&&(v0||i.trim())||e[1](i);return v0}
     examples:
       valid:
         input: '"42"'

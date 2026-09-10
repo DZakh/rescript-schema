@@ -239,6 +239,8 @@ const searchParamsToObject = (input: Val, target: Internal): Val => {
           `Can't decode search param -> ${inputExpression(present)} with a default. No entries is the empty list, so the default is never read`,
         );
       }
+    } else if (present.type === unknownTag) {
+      item.cp = `Array.isArray(${readVar})&&${B_embedInvalidInput(item, searchEntry)};`;
     }
     B_addObjectField(
       objectVal,
@@ -265,7 +267,7 @@ export const urlSearchParams: Internal = /* @__PURE__ */ initSchema(
     s.encoder = (input, target) =>
       isObjectTarget(target)
         ? searchParamsToObject(input, target)
-        : (tagFlags[target.type]! & (1 | 8192))
+        : (tagFlags[target.type]! & (1 | 8192)) || target.name === "query string"
           ? input
           : B_unsupportedDecode(input, input.s, target);
   },
@@ -288,7 +290,10 @@ export const queryString: Internal = /* @__PURE__ */ initSchema(
   (s) => {
     s.name = "query string";
     s.encoder = (input, target) => {
-      if (isObjectTarget(target) || target === urlSearchParams) {
+      if (
+        isObjectTarget(target) ||
+        ((tagFlags[target.type]! & 8192) && target.class === urlSearchParams.class)
+      ) {
         const parsed = B_next(
           input,
           `new ${B_embed(input, urlSearchParams.class)}(${input.v()})`,

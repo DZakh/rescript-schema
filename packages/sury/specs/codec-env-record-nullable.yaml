@@ -14,7 +14,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[5](i);for(let v0 in i){try{let v1=i[v0];typeof v1==="string"||e[0](v1);}catch(v2){v2.path=[v0,...v2.path];throw v2}}let v3=i["NAME"],v4=i["PORT"];if(v3!==void 0){if(!v3){v3=null}}else{e[1](v3)}if(v4!==void 0){if(v4){let v5=+v4;v5===v5&&(v5||v4.trim())||e[3](v4);v5>=0&&v5<65536&&v5%1===0||e[2](v5);v4=v5;}else{v4=null}}else{e[4](v4)}return {NAME:v3,PORT:v4}}
+    expression: i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[5](i);for(let v0 in i){try{let v1=i[v0];typeof v1==="string"||e[0](v1);}catch(v2){v2.path=[v0,...v2.path];throw v2}}let v3=i.NAME,v4=i.PORT;if(v3!==void 0){if(!v3){v3=null}}else{e[1](v3)}if(v4!==void 0){if(v4){let v5=+v4;v5==v5&&(v5||v4.trim())||e[3](v4);v5>=0&&v5<65536&&v5%1==0||e[2](v5);v4=v5;}else{v4=null}}else{e[4](v4)}return {NAME:v3,PORT:v4}}
     examples:
       present:
         input: '{ NAME: "Ann", PORT: "8080" }'
@@ -26,7 +26,7 @@ operations:
         input: '{ NAME: "", PORT: "" }'
         output: "{ NAME: null, PORT: null }"
   decode:
-    expression: i=>{let v1=i["NAME"],v2=i["PORT"];if(v1!==void 0){if(!v1){v1=null}}else{e[0](v1)}if(v2!==void 0){if(v2){let v3=+v2;v3===v3&&(v3||v2.trim())||e[2](v2);v3>=0&&v3<65536&&v3%1===0||e[1](v3);v2=v3;}else{v2=null}}else{e[3](v2)}return {NAME:v1,PORT:v2}}
+    expression: i=>{let v1=i.NAME,v2=i.PORT;if(v1!==void 0){if(!v1){v1=null}}else{e[0](v1)}if(v2!==void 0){if(v2){let v3=+v2;v3==v3&&(v3||v2.trim())||e[2](v2);v3>=0&&v3<65536&&v3%1==0||e[1](v3);v2=v3;}else{v2=null}}else{e[3](v2)}return {NAME:v1,PORT:v2}}
     examples:
       present:
         input: '{ NAME: "Ann", PORT: "8080" }'

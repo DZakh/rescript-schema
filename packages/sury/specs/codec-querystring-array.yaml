@@ -33,7 +33,7 @@ operations:
         input: '"q=hi&tags=a&tags=b"'
         output: '{ q: "hi", tags: ["a", "b"] }'
   encode:
-    expression: i=>{let v0=i["q"],v1=i["tags"];v0.length>0||e[0](v0);let v3=new e[1]();v3.append("q",v0);for(let v4=0;v4<v1.length;++v4){v3.append("tags",v1[v4]);}return v3.toString()}
+    expression: i=>{let v0=i.q,v1=i.tags;v0.length>0||e[0](v0);let v3=new e[1]();v3.append("q",v0);for(let v4=0;v4<v1.length;++v4){v3.append("tags",v1[v4]);}return v3.toString()}
     examples:
       repeated:
         input: '{ q: "hi", tags: ["a", "b"] }'

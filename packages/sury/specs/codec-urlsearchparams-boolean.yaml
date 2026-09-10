@@ -36,7 +36,7 @@ operations:
         input: ((p) => (p.append("debug", "true"), p.append("flag", "false"), p))(new URLSearchParams())
         output: "{ debug: true, flag: false }"
   encode:
-    expression: i=>{let v1=i["flag"];let v0=new e[0]();v0.append("debug",""+i["debug"]);if(v1!=null){v0.append("flag",""+v1);}return v0}
+    expression: i=>{let v1=i.flag;let v0=new e[0]();v0.append("debug",""+i.debug);if(v1!=null){v0.append("flag",""+v1);}return v0}
     examples:
       built:
         input: "{ debug: true, flag: false }"
