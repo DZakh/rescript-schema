@@ -5,16 +5,16 @@ description: Develop Sury with the spec CLI. Use whenever changing Sury core log
 
 # Sury specs
 
-One `specs/<id>.yaml` = one schema's contract: its type, its JSON Schema, and per
-operation its generated code and examples. You write the schema, `ts.aliases`,
-`vs.zod` and example *inputs*. **Never hand-write a golden** - `pnpm spec`
-derives every one.
+One `packages/sury/specs/<id>.yaml` = one schema's contract: its type, its JSON
+Schema, and per operation its generated code and examples. You write the schema,
+`ts.aliases`, `vs.zod` and example *inputs*. **Never hand-write a golden** -
+`pnpm spec` derives every one.
 
 ```bash
 pnpm spec new --id <id> --ts "S.string.with(S.minLength, 3)"   # scaffold
 pnpm spec check --write [id…]   # (re)derive goldens, print what moved
 pnpm spec check [id…]           # gate
-pnpm spec schema                # regenerate specs/spec.schema.json
+pnpm spec schema                # regenerate the specs' JSON Schema
 ```
 
 Add a case by writing a named entry with just `input` under an operation's
@@ -48,9 +48,9 @@ nothing.
 
 ## Scenarios
 
-`specs/scenarios.yaml` times a call the way a consumer writes it, so the work
-around a compiled operation is measured too. Add one when a change targets that
-layer.
+`packages/sury/specs/scenarios.yaml` times a call the way a consumer writes it,
+so the work around a compiled operation is measured too. Add one when a change
+targets that layer.
 
 ```yaml
 is:
@@ -67,6 +67,7 @@ specs.
 
 ## Layout
 
-- `packages/sury/specs/*.yaml` - the specs, plus `bundleSize.yaml` and
-  `scenarios.yaml`. They ship as machine-checked documentation.
+- `packages/sury/specs/*.yaml` - the specs, plus `bundleSize.yaml`,
+  `scenarios.yaml` and the generated `spec.schema.json` your editor reads for
+  hover and completion. They ship as machine-checked documentation.
 - `packages/spec/` - the CLI itself. Leave it alone while working on Sury.
