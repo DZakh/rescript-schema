@@ -57,6 +57,7 @@ import {
   B_merge,
   B_pushCheck,
   B_refine,
+  B_rejectUnsettled,
   B_scope,
   B_throw,
   failInvalidType,
@@ -114,16 +115,23 @@ const unionNeverLink = (schema: Internal): boolean => {
 // "Nothing of its own" is a field count, not a list of interesting fields, so an
 // unknown field reads as "carries something" and keeps the union whole - the
 // conservative direction. The 6 are exactly what `unionFactory` sets: `type` and
-// `seq` from `baseSchema`, then `anyOf`, `decoder`, `encoder`, `has`. `isAsync`
-// and `hasTransform` are excluded because the parse loop writes them onto a live
-// schema in place. Changing `unionFactory`'s field set without changing this
-// count stops every union from flattening, which the nested-union goldens catch.
+// `seq` from `baseSchema`, then `anyOf`, `decoder`, `encoder`, `has`. Changing
+// `unionFactory`'s field set without changing this count stops every union from
+// flattening, which the nested-union goldens catch. Nothing may write an
+// enumerable field onto a live schema - which is why a compiled operation's
+// `isAsync`/`hasTransform` live on its cache node instead of on its target.
+//
+// The count cannot be replaced by a marker `unionFactory` stamps. This asks
+// whether a union carries anything of its OWN, which has to stay true of a
+// copy: a reversed union is `copySchema`d node by node and still carries
+// exactly these 6, so it is transparent and must remain so. A marker answers
+// provenance instead - and a non-enumerable one (the only kind that would not
+// itself change the count) is dropped by `copySchema`, which would make every
+// reversed union opaque.
 const unionIsTransparent = (schema: Internal): boolean => {
   if (schema.type !== anyOfTag) return false;
   let fields = 0;
-  for (const key in schema) {
-    if (key !== "isAsync" && key !== "hasTransform") fields++;
-  }
+  for (const _key in schema) fields++;
   return fields === 6;
 };
 
@@ -1367,6 +1375,11 @@ export const unionDecoder: Builder = (input: Val) => {
   // union's own refiners ride along on each variant for the same reason: there
   // is no single pre-conversion output val left to attach them to.
   if (toPerCase !== U) {
+    // A union arm has nowhere to take a reading, so a link the union carries
+    // into a payload of another kind is rejected whole, before the arms could
+    // each meet the target as a pair a slot would settle. Ahead of the target
+    // owning the dispatch, so `S.json` is named against the union too.
+    B_rejectUnsettled(input, toPerCase, self);
     const perCase = unionTargetOwns(toPerCase)
       ? variants.map((v) => (unionOutput(v).type === neverTag ? U : toPerCase))
       : unionResolve(input, self, variants, toPerCase);
@@ -1469,6 +1482,7 @@ const unionTargetOwns = (target: Internal) =>
 // Applied by the parse loop when a union-typed val meets a different expected
 // schema - rules 3 and 4.
 export const unionEncoder: Encoder = (input: Val, target: Internal) => {
+  B_rejectUnsettled(input, target, input.s);
   if (unionTargetOwns(target)) return input;
   const variants = input.s.anyOf!;
   if (target.perVariant && target.anyOf!.length === variants.length) {

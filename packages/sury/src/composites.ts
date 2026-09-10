@@ -21,7 +21,6 @@ import {
   isLiteral,
   isOptional,
   isSchemaObject,
-  jsonName,
   noopDecoder,
   objectTag,
   pathConcat,
@@ -125,7 +124,7 @@ const B_fused = (input: Val, expectedSchema: Internal, item?: Internal): Interna
 // on encode, and would hand a declared payload (CONTENT_CODEC_SPEC.md rule 3)
 // the text it had just escaped instead of parsing it.
 const B_narrowJsonSourcedJsonString = (itemInput: Val): void => {
-  if (itemInput.s.name === jsonName && itemInput.e.format === "json") {
+  if (itemInput.s.isJson && itemInput.e.format === "json") {
     itemInput.s = unknown;
   }
 };
@@ -536,19 +535,24 @@ export const objectDecoder = (unknownInput: Val): Val => {
       ai !== "strict" &&
       (ai !== "strip" || sourceIsDict || Object.keys(input.s.properties!).length !== keysCount);
 
-    // FIXME: hack - detect "JSON-sourced object" via additionalItems=json
-    // (set by jsonEncoderFn) and patch the field read inline to coalesce
-    // `??null`. The proper fix is for the JSON pipeline to treat missing
-    // object keys as the option's empty sentinel, instead of leaving
-    // objectDecoder to sniff the source and rewrite codegen by hand:
+    // A JSON-sourced object (`additionalItems` is json, set by jsonEncoderFn)
+    // coalesces its field reads with `??null`, because:
     //   - jsonEncoderFn rewrites the option arm from `v===void 0` to
-    //     `v===null` because JSON has no undefined,
-    //   - but `i[key]` for a missing key returns undefined, so the
-    //     rewritten arm rejects `{}` for `{foo: option<...>}`.
-    // Detection is fragile (string-compares the schema name) and only
-    // covers the union-with-undefined shape; fold this into a shared
-    // JSON option representation post-release.
-    const isJsonParent = isItemSchema(inputAdditionalItems) && inputAdditionalItems.name === jsonName;
+    //     `v===null`, JSON having no undefined,
+    //   - but `i[key]` for a missing key returns undefined, so the rewritten
+    //     arm would reject `{}` for `{foo: option<...>}`.
+    // FIXME: a shared JSON option representation would remove the sniff - an arm
+    // that accepts both spellings of empty, so nothing has to patch the read.
+    // Two things stand in the way:
+    //   - adding an `undefined` arm beside the `null` one makes ENCODE
+    //     ambiguous, since both produce the same output and only `null` is
+    //     writable to a document - which is why this rewrites rather than adds;
+    //   - loosening the arm's own narrow to `== null` instead means widening
+    //     what `typeCheckCond` emits for a tag, and a union group's shared
+    //     narrow stands in for its members' checks (see the cross-module
+    //     contract on `typeCheckCond`), so a case would start accepting more
+    //     than its acceptance mask claims.
+    const isJsonParent = isItemSchema(inputAdditionalItems) && inputAdditionalItems.isJson;
 
     for (let idx = 0; idx < keysCount; idx++) {
       const key = keys[idx]!;

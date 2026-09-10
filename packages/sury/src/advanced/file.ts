@@ -22,8 +22,9 @@ import {
   B_makeInvalidConversionDetails,
   B_markAsync,
   B_next,
-  B_readsPayload,
+  B_readOnce,
   B_throw,
+  B_rejectUnsettled,
   B_unsupportedDecode
 } from "../builder";
 import type { JSONSchemaT } from "../jsonschema";
@@ -98,6 +99,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
   initSchema(
     instanceTag,
     (input: Val): Val => {
+      B_rejectUnsettled(input, input.e);
       const source = input.s;
       const sourceTagFlag = tagFlags[source.type]!;
       // `v()` inside each branch that uses it: materializing the var up
@@ -140,6 +142,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
       }
 
       s.encoder = (input, target) => {
+        B_rejectUnsettled(input, target);
         const targetTagFlag = tagFlags[target.type]!;
         // A union picks its variant before an asynchronous read resolves, so the
         // arm's own checks would run against the promise. The axis stops here,
@@ -158,7 +161,7 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
         // A value position (or base64 itself) stores the bytes as base64;
         // anything else after a string wants the text they spell, which is also
         // what a format opened by rule 3 is handed.
-        if (target.content !== U && (target.content.bc || !B_readsPayload(target))) {
+        if (target.content !== U && (target.content.bc || !target.opens)) {
           const { format: asFormat, fromBytes } = bytesTarget(target, base64Content);
           const output = read(
             input,

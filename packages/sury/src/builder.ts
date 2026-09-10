@@ -426,7 +426,7 @@ export const B_merge = (val: Val, out?: HoistCond): string => {
       // else the lifted check runs before that producer (the
       // str->to(option(int)) "v0 is not defined" bug class).
       if (out && (!val.t || !val.prev!.t && val.cp === "")) {
-        const inputVar = current!.v();
+        const inputVar = (current || val).v();
         const checks = val.vc;
         let hoisted = "";
         for (let i = 0; i < checks.length; i++) {
@@ -446,7 +446,9 @@ export const B_merge = (val: Val, out?: HoistCond): string => {
           out.h.unshift({ v: val, i: inputVar, c: hoisted });
         }
       } else if (val.e.noValidation !== true) {
-        currentCode = B_emitChecks(val, current!.v());
+        // No prev means this is the operation argument itself, and its own var
+        // already holds the value the checks are about.
+        currentCode = B_emitChecks(val, (current || val).v());
       }
     }
 
@@ -540,23 +542,22 @@ export const B_pushCheck = (val: Val, check: Check): void => {
   (val.vc ??= []).push(check);
 }
 
-// Applies both refiners. Input checks push onto valInput.checks
-// (emit at pre-transform slot); output checks wrap val via refine.
-// When valInput.prev is None, input checks fold into the output
-// wrap so emit has a prev.var(). Sets isOutput on the result.
+// Applies both refiners. Output checks wrap `val` via refine; input checks push
+// onto `valInput.vc`, which emits ahead of the decoder body - they have to read
+// what the decoder was *handed*. A schema that narrows leaves nothing else to
+// read it from: a union assigns its result over the operation argument, so an
+// `allOf` refinement placed after it looks for keys the object arm just
+// stripped. Sets isOutput on the result.
 //
 // The parse loop applies refiners itself only for primitive decoders, so every
 // decoder that sets isOutput - object, array, tuple, union, recursive - has to
 // call this. Not calling it silently drops the user's S.refine.
 export const B_markOutput = (val: Val, valInput: Val): Val => {
-  let inC: Check[] | undefined, outC: Check[] | undefined;
+  let outC: Check[] | undefined;
   const ir = valInput.e.inputRefiner;
   if (ir) {
     const c = ir(valInput);
-    if (c.length) {
-      if (valInput.prev) (valInput.vc ??= []).push(...c);
-      else inC = c;
-    }
+    if (c.length) (valInput.vc ??= []).push(...c);
   }
   const rf = val.e.refiner;
   if (rf) {
@@ -567,11 +568,9 @@ export const B_markOutput = (val: Val, valInput: Val): Val => {
   // is: inside a `.then`, the way the parse loop continues an async val.
   if (outC && (val.f & 1)) {
     const v = val.v();
-    val.i = `${v}.then(${v}=>{${B_merge(
-      B_refine(B_scope(val), U, inC ? inC.concat(outC) : outC),
-    )}return ${v}})`;
+    val.i = `${v}.then(${v}=>{${B_merge(B_refine(B_scope(val), U, outC))}return ${v}})`;
     val.v = _notVar;
-  } else val = inC ? B_refine(val, U, outC ? inC.concat(outC) : inC) : outC ? B_refine(val, U, outC) : val;
+  } else if (outC) val = B_refine(val, U, outC);
   val.io = true;
   return val;
 }
@@ -829,15 +828,6 @@ export const B_neverSlot: Builder = (input: Val) =>
     `Nothing decodes ${inputExpression(input.e)} -> ${inputExpression(input.e.to!)}. It is marked with S.never`,
   );
 
-// CONTENT_CODEC_SPEC.md rules 3 and 4, for the direction a link is written in:
-// two schemas whose payloads disagree (`content`) have two readings of it -
-// store the source's value in the target, or open the source and hand its
-// payload over - and the target naming its own payload with `.to` is what picks
-// the second. Compiling can't tell the two apart, because reversing a chain
-// turns that payload declaration into just another link: the legal
-// `X -> jsonString -> File` and the rejected `jsonString -> File` reach the
-// decoder as the same pair. So the reading is settled where the link is made,
-// and an unreadable one takes a slot that rejects the operation instead.
 // The node a link's content reading comes from: the schema, or the arm that
 // carries one where the schema is a union - which has neither `content` nor
 // `.to` of its own, though linking a carrier to `S.optional(S.jsonString)` puts
@@ -845,24 +835,54 @@ export const B_neverSlot: Builder = (input: Val) =>
 export const B_contentNode = (schema: Internal): Internal =>
   (schema.content === U && schema.anyOf?.find((arm) => arm.content !== U)) || schema;
 
-// Half of CONTENT_CODEC_SPEC.md rule 4's question: whether two payloads are of
-// different kinds, which is what puts two readings on the table - store the
-// source's value in the target, or open the source and hand its payload over.
-// The other half, a `.to` on the target picking the second (rule 3), stays with
-// each caller, along with the `B_contentNode` walk that finds a marker on a
-// union arm. Compiling can't tell the two readings apart,
-// because reversing a chain turns a payload declaration into just another link,
-// so the reading is settled where the link is made - and what to say about it
-// differs by where that was, so the message stays with the caller too.
+// Whether two payloads are of different kinds, which is what puts two readings
+// of a link on the table - store the source's value in the target, or open the
+// source and hand its payload over. Which applies is `opens` on the target
+// (CONTENT_CODEC_SPEC.md rules 1 to 3, all written down as the link is made);
+// neither is rule 4, asked below.
 export const B_contentDiffers = (from?: Internal, to?: Internal): boolean =>
   from !== U && to !== U && from !== to && !(from.bc && to.bc);
 
-// Which reading of a content link applies: a `"pack"`/`"unpack"` slot the caller
-// wrote wins (rule 1), and otherwise a target that names its own payload is what
-// asks for the source to be opened (rule 3). Read by the carriers, never by the
-// formats - the format side only ever asks whether a `content` marker is there.
-export const B_readsPayload = (target: Internal): boolean =>
-  target.opens ?? target.to !== U;
+// CONTENT_CODEC_SPEC.md rule 4, asked while compiling by the schemas that
+// declare a payload - `json`, `jsonString`, `base64`, `uint8Array`, `file` -
+// and by a union carrying its `.to` into one. Two payload declarations of
+// different kinds and nothing settling which reading applies: between two
+// renderings the caller picks with a slot, and where a slot has nowhere to go
+// - a union on either side, or `S.json`, the document itself with no opened
+// form - the pair is undecodable as written.
+//
+// Asked here rather than by `S.to`, which is what makes the chained spelling
+// legal: `S.file.with(S.to, S.jsonString).with(S.to, S.array(x))` grows the
+// `.to` that settles it only on the second call, and a link-time check rejects
+// a pipeline the compiler can see is fine. Inlined at each caller rather than
+// wrapped around their decoders: a wrapper applied at module scope makes every
+// operation reach the payload schemas, and `parseOrThrow` grew 10,988 gz.
+//
+// `from` is the node that authored the link into `to`, which is not `input.s`:
+// a union case parses its arm from the type narrow, and a bytes read from text
+// types its result as the format singleton, so `input.s` there is a schema with
+// no `.to` at all - and the question would go unasked, leaving rule 2 to apply
+// in silence. The `.to` step of the parse loop refines from the node it just
+// finished, so `prev.e` is that node wherever the loop reached `to`; a union
+// names itself, since its own decoder is what splits the link per arm.
+//
+// Not `@__NO_SIDE_EFFECTS__`: the call is the effect, and a bundler honouring
+// the annotation would drop the statement as an unused pure call.
+export const B_rejectUnsettled = (input: Val, to: Internal, from = input.prev && input.prev.e): void => {
+  if (
+    from &&
+    from.to === to &&
+    to.opens === U &&
+    B_contentDiffers(B_contentNode(from).content, B_contentNode(to).content)
+  ) {
+    !from.isJson && !to.isJson && B_contentNode(from) === from && B_contentNode(to) === to
+      ? B_invalidOperation(
+          input,
+          `Ambiguous ${inputExpression(from)} -> ${inputExpression(to)}. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"`,
+        )
+      : B_unsupportedDecode(input, from, to);
+  }
+};
 
 export const B_invalidOperation = (val: Val, description: string): never =>
   B_throw({ code: "invalid_operation", reason: description, path: val.path });

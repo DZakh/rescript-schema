@@ -12,7 +12,6 @@ import {
   instanceTag,
   type Internal,
   isLiteral,
-  jsonName,
   neverTag,
   numberTag,
   objectTag,
@@ -38,8 +37,6 @@ import {
   B_embedInvalidInput,
   B_embedPure,
   B_errorOf,
-  B_contentDiffers,
-  B_contentNode,
   B_inlineConst,
   B_markOutput,
   B_merge,
@@ -76,8 +73,14 @@ export const parse = (input: Val): Val => {
     const defs = loopInput.e["$defs"];
     if (defs) loopInput.g.d ? Object.assign(loopInput.g.d, defs) : (loopInput.g.d = defs);
 
-    // valFlagAsync. ReScript also had `step !== #convert` (`!io`). No
-    // schema in the suite produces an async val that is already `io`.
+    // The val is a promise, so the rest of the chain has to run inside a
+    // `.then`. The flag alone is the right guard: a second condition could only
+    // have been "and there is something to wrap", which is not knowable before
+    // parsing the remainder - so the decision lives below, where the recursive
+    // parse has already answered it, and an empty remainder refines instead of
+    // wrapping. Across the spec corpus the no-wrap arm is reached by exactly one
+    // shape, `S.file.with(S.to, S.uint8Array)`, where reading the file IS the
+    // whole operation.
     if (loopInput.f & 1) {
       const operationInputVar = loopInput.v();
       const operationInput = B_scope(loopInput);
@@ -108,7 +111,8 @@ export const parse = (input: Val): Val => {
         // whole document (`S.json`, whose parse is the only check it has) or
         // when the operation discards it anyway (S.assertInputOrThrow's `undefined` result
         // sentinel). Every other such target still gets its conversion:
-        !(loopInput.e.noValidation && (loopInput.e.name === jsonName || loopInput.e.type === undefinedTag))
+        // `noValidation` drops the checks, not the re-representation.
+        !(loopInput.e.noValidation && (loopInput.e.isJson || loopInput.e.type === undefinedTag))
       ) {
         result = maybeEncoder(loopInput, loopInput.e);
       }
@@ -204,15 +208,18 @@ export const compileDecoder = (
   schema: Internal,
   expected: Internal,
   flag: Flag,
-  defs: Record<string, Internal> | undefined
+  defs: Record<string, Internal> | undefined,
+  node?: OpNode
 ): (input: unknown) => unknown => {
   const input = B_operationArg(isLiteral(schema) ? unknown : schema, expected, flag, defs);
 
   const output = parse(input);
   const code = B_merge(output);
   const isAsync = !!(output.f & 1);
-  expected.isAsync = isAsync;
-  expected.hasTransform = output.t === true;
+  if (node) {
+    node.y = isAsync;
+    node.t = output.t === true;
+  }
 
   const body = emitTail(input, code, output.i, isAsync, flag, !!defs);
   if (!body) return noopOperation;
@@ -265,7 +272,9 @@ Object.defineProperty(schemaPrototype, reversedKey, {
       const record = mut as unknown as Record<string, unknown>;
       reverseSwap(record, "parser", "serializer");
       reverseSwap(record, "refiner", "inputRefiner");
-      reverseSwap(record, "opens", "opensBack");
+      // The link into this node is now the one out of it, read the other way:
+      // opening `current` into `next` was storing `next` into `current`.
+      next && next.opens !== U ? (mut.opens = !next.opens) : delete mut.opens;
       // Deleted, not parked in a holding field: encode has no absent-input arm,
       // and double reversal reads the cache below rather than re-deriving, so
       // nothing needs the old value back.
@@ -342,6 +351,16 @@ export type OpNode = {
   f: Flag;
   v: ((from: unknown) => unknown) | 0;
   n: OpNode | undefined; // next (older) node
+  // @as("t") - hasTransform, @as("y") - isAsync. Facts about the compiled
+  // operation, not about any schema in it: one schema is transforming under
+  // one flag and not under another, and two operations sharing a chain must
+  // not overwrite each other's answer. `recursiveDecoder` writes and reads
+  // them, and needs them mid-compile - which is why they live on the node its
+  // circular reference already finds rather than being returned. Left off the
+  // literal in `addOpNode`: the lookup walk never reads them, so the shape a
+  // recursive compile adds them to is not one it has to stay off.
+  t?: boolean;
+  y?: boolean;
 };
 const memoKey = "c";
 
@@ -409,20 +428,22 @@ const compileChain = (
     const to = schema;
     schema = updateOutput(args[i]!, (mut) => {
       mut.to = to;
-      // Only this direction: an operation compiles the chain the way it runs
-      // it, so the encode side is a chain of its own, built from the reversed
-      // schemas. Reported as a missing decoder rather than with the slot
-      // spelling `codecTo` offers - this form has nowhere to write one, and a
-      // custom coder is what answers it.
-      if (
-        B_contentDiffers(B_contentNode(mut).content, B_contentNode(to).content) &&
-        !to.to
-      ) {
-        mut.parser = (input: Val) => B_unsupportedDecode(input, mut, to);
-      }
+      // Rule 3, materialized exactly as `codecTo` does it, and for the same
+      // reason: `reverse` re-points `.to` and would lose it.
+      if (mut.content !== U && mut.opens === U) mut.opens = true;
     });
   }
-  const f = compileDecoder(schema, schema, flag, U) as (from: unknown) => unknown;
+  // Flag 8: the caller knows nothing about the input, so the chain's own head
+  // is not the source type - `unknown` is, and the head's decoder emits its
+  // type checks against it. Read here rather than in `compileDecoder`, whose
+  // other caller (recursive.ts) passes a source of its own and inherits this
+  // bit through `g.o`.
+  const f = compileDecoder(
+    (flag & 8) ? unknown : schema,
+    schema,
+    flag,
+    U,
+  ) as (from: unknown) => unknown;
   addOpNode(cacheTarget, args, flag, f);
   return f;
 };
@@ -439,8 +460,7 @@ export const getOp = (
   a0: Internal,
   a1?: Internal,
   a2?: Internal,
-  a3?: Internal,
-  a4?: Internal
+  a3?: Internal
 ): (from: unknown) => unknown => {
   const flag = opFlag | globalConfig.f;
   // The cache lives on the newest-seq argument: the one schema every node for
@@ -451,10 +471,7 @@ export const getOp = (
     if (a1!.seq! > seq) (seq = a1!.seq!), (cacheTarget = a1!);
     if (n > 2) {
       if (a2!.seq! > seq) (seq = a2!.seq!), (cacheTarget = a2!);
-      if (n > 3) {
-        if (a3!.seq! > seq) (seq = a3!.seq!), (cacheTarget = a3!);
-        if (n > 4 && a4!.seq! > seq) cacheTarget = a4!;
-      }
+      if (n > 3 && a3!.seq! > seq) cacheTarget = a3!;
     }
   }
 
@@ -467,8 +484,7 @@ export const getOp = (
       a[0] === a0 &&
       (n < 2 || a[1] === a1) &&
       (n < 3 || a[2] === a2) &&
-      (n < 4 || a[3] === a3) &&
-      (n < 5 || a[4] === a4)
+      (n < 4 || a[3] === a3)
     ) {
       return node.v as (from: unknown) => unknown;
     }
@@ -477,7 +493,7 @@ export const getOp = (
 
   // The one allocation, on the miss path only: a compile dwarfs the spare
   // array a `slice` copies out of.
-  return compileChain(cacheTarget, [a0, a1!, a2!, a3!, a4!].slice(0, n), flag);
+  return compileChain(cacheTarget, [a0, a1!, a2!, a3!].slice(0, n), flag);
 };
 
 export const nestedLoc = "BS_PRIVATE_NESTED_SOME_NONE";

@@ -8,13 +8,13 @@ import {
   baseSchema,
   type Builder,
   type Check,
+  configurableValueOptions,
   copySchema,
   copyTo,
   functionTag,
   getOrRethrow,
   inputExpression,
   type Internal,
-  jsonName,
   objectTag,
   panic,
   pathEmpty,
@@ -25,6 +25,7 @@ import {
   unknown,
   updateOutput,
   type Val,
+  valKey,
   type Path,
 } from "./base";
 import {
@@ -273,10 +274,9 @@ export const getMutErrorMessage = (mut: Internal): SchemaErrorMessage => {
 // fields, so the encode coder becomes the reversed chain's parser and double
 // reversal restores every slot. Slot semantics (auto/never/async/the JS
 // shorthand) are resolved by the caller into Builders; a boolean is a content
-// reading (`true` opens the direction's own source) and rides the schema that
-// direction converts into, which is what makes reversal swap those too. `U`
-// means no slot, i.e. the built-in conversion - or, where `B_contentDiffers`
-// says the pair has two readings, the rejection built below.
+// reading (`true` opens the source) and rides the target as `opens`, the one
+// reading a link has. `U` means no slot, i.e. the built-in conversion - and
+// whether that exists is the payload schemas' question, asked while compiling.
 export const codecTo = (
   schema: Internal,
   target: Internal,
@@ -284,42 +284,17 @@ export const codecTo = (
   encode?: Builder | boolean
 ): Internal => {
   const root: Internal = updateOutput(schema, (mut) => {
-    // The slot spelling is worth naming here, where the caller has somewhere to
-    // write one - but only for a pair where writing one resolves it. A union
-    // arm's payload and a reading on the union both stop short of the dispatch,
-    // and `S.json` has no opened form of its own, so those say what every
-    // undecodable pair says instead.
-    const ambiguous =
-      B_contentDiffers(B_contentNode(mut).content, B_contentNode(target).content) &&
-      target.to === U
-      ? B_contentNode(mut) === mut &&
-        B_contentNode(target) === target &&
-        mut.name !== jsonName &&
-        target.name !== jsonName
-        ? (input: Val) =>
-            B_invalidOperation(
-              input,
-              `Ambiguous ${inputExpression(mut)} -> ${inputExpression(target)}. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"`,
-            )
-        : (input: Val) => B_unsupportedDecode(input, mut, target)
-      : U;
     const opened = typeof decode === "boolean";
-    const parser = typeof decode === functionTag ? (decode as Builder) : opened ? U : ambiguous;
-    const serializer =
-      typeof encode === functionTag
-        ? (encode as Builder)
-        : typeof encode === "boolean"
-          ? U
-          : ambiguous;
+    const parser = typeof decode === functionTag ? (decode as Builder) : U;
+    const serializer = typeof encode === functionTag ? (encode as Builder) : U;
     if (serializer !== U || opened) {
       // copySchema keeps `anyOf` shared by reference with the target, and
       // unionResolveToUnion recognizes an arm producing the whole target union
       // by exactly that shared array. A deep copy here would silently break
       // Option.getOr's default arms.
       //
-      // A link built with either slot therefore owns its tail, which is what
-      // lets `trim` stamp a content marker onto the result without touching the
-      // shared `string` singleton. Stop copying here and it corrupts one.
+      // A link built with either slot owns its tail: the slot lands on this
+      // copy, never on a target the caller may link to again.
       const targetMut = copySchema(target);
       if (serializer !== U) {
         targetMut.serializer = serializer;
@@ -331,26 +306,74 @@ export const codecTo = (
     } else {
       mut.to = target;
     }
+    // CONTENT_CODEC_SPEC.md rule 3, written down the moment it becomes true: a
+    // payload that gains a `.to` names what it holds, so the link into it opens
+    // its source. Materialized here rather than read off `.to !== U` by the
+    // payload schemas, because `reverse` re-points `.to` and would lose it,
+    // while it carries `opens` across.
+    if (mut.content !== U && mut.opens === U) mut.opens = true;
     if (parser !== U) {
       mut.parser = parser;
     }
-    if (typeof encode === "boolean") {
-      // `opensBack`, not `opens`: this node is the *source* of the link, and it
-      // may later be some other link's target - where `opens` would then be
-      // read as that link's decode reading. `reverse` moves it across.
-      mut.opensBack = encode;
-    }
   });
-  // copySchema carries a cached isAsync/hasTransform from the source and a
-  // custom slot can change both, so let the next compile re-derive them.
-  // Slotless links keep the fast path: a built-in conversion can turn async now
-  // that a container reads its payload, but only where the source itself is
-  // already one, and the cache is read off the link's own head - nothing that
-  // reaches here carries a value for either.
-  if (decode !== U || encode !== U) {
-    delete root.isAsync;
-    delete root.hasTransform;
+  return root;
+};
+
+type LinkNode = {
+  s: Internal;
+  t: Internal;
+  k: unknown; // the `S.to` reading this link was written with
+  r: Internal;
+  n: LinkNode | undefined;
+};
+const linkKey = "l";
+
+// A slotless link is a pure function of its two arguments, so the chain it
+// builds is shared rather than rebuilt: written inline in a hot path -
+// `S.parseOrThrow(S.jsonString.with(S.to, userSchema))(body)`, once per request
+// - a fresh chain is also a fresh operation-cache target, so the schema
+// recompiled every call. 7.2us against 293ns. Sound only because a compiled
+// operation no longer writes anything back onto the schema it compiled
+// (`OpNode`).
+//
+// Kept apart from `codecTo` so the three callers that always pass slots -
+// `trim`, `list`, `Option_getOr` - carry none of it: each reshapes its own
+// result afterwards, so none could be interned anyway, and sharing one function
+// made them pay up to 60 gzipped bytes for a cache they never reach.
+//
+// `reading` joins the key, because it is bounded by construction: absent or one
+// of two strings, so three entries per pair. A coder object or an inline
+// function is fresh every call and would add a node it can never hit again - on
+// a pair of singletons, which never dies.
+//
+// The node goes on the newer of the pair, non-enumerable, exactly as
+// `addOpNode` stores an operation: `seq` is monotonic, so it lands on the
+// argument that dies first and a long-lived schema paired with throwaways keeps
+// nothing alive.
+// @__NO_SIDE_EFFECTS__
+export const linkTo = (
+  schema: Internal,
+  target: Internal,
+  reading?: unknown,
+  decode?: boolean,
+  encode?: boolean
+): Internal => {
+  const store = schema.seq! > target.seq! ? schema : target;
+  let node = (store as unknown as Record<string, LinkNode | undefined>)[linkKey];
+  while (node) {
+    if (node.s === schema && node.t === target && node.k === reading) return node.r;
+    node = node.n;
   }
+  const root = codecTo(schema, target, decode, encode);
+  const created: LinkNode = {
+    s: schema,
+    t: target,
+    k: reading,
+    r: root,
+    n: (store as unknown as Record<string, LinkNode | undefined>)[linkKey],
+  };
+  (configurableValueOptions as Record<string, unknown>)[valKey] = created;
+  Object.defineProperty(store, linkKey, configurableValueOptions as PropertyDescriptor);
   return root;
 };
 
