@@ -40,7 +40,7 @@ Sury's sponsors, who make the time to build it possible:
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://www.carla.se/"><picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/carla-dark.png">
-    <img alt="Carla" height="34" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/carla.png">
+    <img alt="Carla" height="28" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/carla.png">
   </picture></a>
 </p>
 
