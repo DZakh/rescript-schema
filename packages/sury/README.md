@@ -36,11 +36,11 @@ Sury is built in the open, backed by the teams running it in production:
 <p>
   <a href="https://rescript-association.org/"><img alt="ReScript Association" height="64" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/rescript-association.png"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://envio.dev/"><img alt="Envio" height="32" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/envio.png"></a>
+  <a href="https://envio.dev/"><img alt="Envio" height="26" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/envio.png"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://www.carla.se/"><picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/carla-dark.png">
-    <img alt="Carla" height="32" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/carla.png">
+    <img alt="Carla" height="34" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/carla.png">
   </picture></a>
 </p>
 
