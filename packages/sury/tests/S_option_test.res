@@ -135,7 +135,7 @@ test("Serializes Some(None) to undefined for option nested in null", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{for(;;){if(typeof i==="boolean")break;if(i===void 0){i=null;break}if(typeof i==="object"&&i&&!Array.isArray(i)&&i["BS_PRIVATE_NESTED_SOME_NONE"]===0){i=void 0;break}e[0](i)}return i}`,
+    `i=>{for(;;){if(typeof i==="boolean")break;if(i===void 0){i=null;break}if(typeof i==="object"&&i&&!Array.isArray(i)&&i.BS_PRIVATE_NESTED_SOME_NONE===0){i=void 0;break}e[0](i)}return i}`,
   )
 })
 
@@ -150,7 +150,7 @@ test("Applies valFromOption for Some()", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{for(;;){if(i===void 0)break;if(typeof i==="object"&&i&&!Array.isArray(i)&&i["BS_PRIVATE_NESTED_SOME_NONE"]===0){i=void 0;break}e[0](i)}return i}`,
+    `i=>{for(;;){if(i===void 0)break;if(typeof i==="object"&&i&&!Array.isArray(i)&&i.BS_PRIVATE_NESTED_SOME_NONE===0){i=void 0;break}e[0](i)}return i}`,
   )
 })
 
@@ -170,7 +170,7 @@ test("Nested option support", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{for(;;){if(typeof i==="boolean")break;if(i===void 0)break;if(typeof i==="object"&&i&&!Array.isArray(i)&&i["BS_PRIVATE_NESTED_SOME_NONE"]===0){i=void 0;break}e[0](i)}return i}`,
+    `i=>{for(;;){if(typeof i==="boolean")break;if(i===void 0)break;if(typeof i==="object"&&i&&!Array.isArray(i)&&i.BS_PRIVATE_NESTED_SOME_NONE===0){i=void 0;break}e[0](i)}return i}`,
   )
 })
 
@@ -197,7 +197,7 @@ test("Triple nested option support", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{for(;;){if(typeof i==="boolean")break;if(i===void 0)break;if(typeof i==="object"&&i&&!Array.isArray(i)){for(;;){if(i["BS_PRIVATE_NESTED_SOME_NONE"]===0){i=void 0;break}if(i["BS_PRIVATE_NESTED_SOME_NONE"]===1){i=void 0;break}e[0](i)};break}e[1](i)}return i}`,
+    `i=>{for(;;){if(typeof i==="boolean")break;if(i===void 0)break;if(typeof i==="object"&&i&&!Array.isArray(i)){for(;;){if(i.BS_PRIVATE_NESTED_SOME_NONE===0){i=void 0;break}if(i.BS_PRIVATE_NESTED_SOME_NONE===1){i=void 0;break}e[0](i)};break}e[1](i)}return i}`,
   )
 })
 
@@ -219,7 +219,7 @@ test(
     t->U.assertCompiledCode(
       ~schema,
       ~op=#Encode,
-      `i=>{for(;;){if(i===void 0)break;if(typeof i==="object"&&i&&!Array.isArray(i)&&i["BS_PRIVATE_NESTED_SOME_NONE"]===0){i={};break}e[0](i)}return i}`,
+      `i=>{for(;;){if(i===void 0)break;if(typeof i==="object"&&i&&!Array.isArray(i)&&i.BS_PRIVATE_NESTED_SOME_NONE===0){i={};break}e[0](i)}return i}`,
     )
   },
 )
@@ -271,6 +271,6 @@ test("Option with transformed unknown", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{for(;;){if(typeof i==="object"&&i&&!Array.isArray(i)){i=i["field"];break}if(i===void 0)break;e[0](i)}return i}`,
+    `i=>{for(;;){if(typeof i==="object"&&i&&!Array.isArray(i)){i=i.field;break}if(i===void 0)break;e[0](i)}return i}`,
   )
 })

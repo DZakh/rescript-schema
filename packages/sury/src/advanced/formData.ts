@@ -296,7 +296,8 @@ const formDataToObject = (input: Val, target: Internal): Val => {
       `Can't decode FormData -> ${inputExpression(target)} with S.strict. A browser adds entries no schema declares, so use S.strip`,
     );
   }
-  const objectVal = makeObjectVal(input, target);
+  const objectVal = makeObjectVal(input);
+
   const entriesVar = B_varWithoutAllocation(input.g);
   B_hoistDecl(input, `${entriesVar}=${B_embed(input, readEntries)}(${input.v()})`);
   const properties = target.properties!;

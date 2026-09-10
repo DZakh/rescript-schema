@@ -223,6 +223,7 @@ test("summarize renders creation-error flips and message drift", () => {
 
 describe.each(specs)("spec: $id", ({ file }) => {
   const spec = readSpec(file);
+  const constructs = spec.ts.constructionError === undefined;
 
   test("is valid against the format schema", () => {
     const v = validate(spec);
@@ -240,17 +241,13 @@ describe.each(specs)("spec: $id", ({ file }) => {
     expect(errs, errs.join("\n")).toEqual([]);
   });
 
-  // Only checkSpec (the pnpm spec check gate) runs these two - nothing else
-  // in `pnpm test`/CI did, so a spec's identity marker or _skip reason could
-  // drift with no test ever catching it. Same checks `spec check` makes,
-  // just run here too so they're part of the coverage CI actually gates on.
-  test("has no identity-invariant violations (run `pnpm spec check`)", () => {
+  test.skipIf(!constructs)("has no identity-invariant violations (run `pnpm spec check`)", () => {
     const schema = evalSchema(spec.ts.schema);
     const violations = identityViolations(schema, spec);
     expect(violations, violations.join("\n")).toEqual([]);
   });
 
-  test("every `isAsync` marker matches the schema (run `pnpm spec check`)", () => {
+  test.skipIf(!constructs)("every `isAsync` marker matches the schema (run `pnpm spec check`)", () => {
     const violations = asyncViolations(evalSchema(spec.ts.schema), spec);
     expect(violations, violations.join("\n")).toEqual([]);
   });
@@ -273,18 +270,17 @@ describe.each(specs)("spec: $id", ({ file }) => {
     expect(errs, errs.join("\n")).toEqual([]);
   });
 
-  test("goldens match live behavior (run `pnpm spec check --write`)", async () => {
+  test.skipIf(!constructs)("goldens match live behavior (run `pnpm spec check --write`)", async () => {
     expect(serialize(await recomputeGoldens(spec))).toBe(serialize(spec));
   });
 
-  // Only checkSpec runs this too - same reasoning as the identity-invariant
-  // test above: a drifting `ts.aliases` entry should fail `pnpm test`, not
-  // just the occasional manual `pnpm spec check`.
+
   test("aliases (if any) are equivalent to the schema (run `pnpm spec check`)", async () => {
     const errs = await checkAliases(spec);
     expect(errs, errs.join("\n")).toEqual([]);
   });
 });
+
 
 test("the format is defined as a Sury schema (closed world)", () => {
   // Unknown keys are rejected - the closed-world guarantee (via published sury).

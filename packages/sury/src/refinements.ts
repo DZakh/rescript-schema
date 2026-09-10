@@ -72,6 +72,7 @@ export const nullAsOption = (item: Internal): Internal =>
   optionFactory(item, nullAsUnit);
 // `null` is a reserved word in JS/TS binding position, so this is exported
 // as `null_`.
+// @__NO_SIDE_EFFECTS__
 export const null_ = (item: Internal): Internal =>
   unionFactory([item, nullLiteral]);
 
@@ -354,10 +355,10 @@ const boundsRefiner = (input: Val): Check[] => {
         // the comparison would need (`===0` never matches `0n`).
         cond = (inputVar) => `!(${inputVar}%${lit(mo)})`;
       } else if (exactDivisor(mo)) {
-        // `===0` and not `!(…)`: `Infinity % 2` and `NaN % 2` are NaN, which
-        // is falsy - truthiness would accept exactly the two values this is
+        // `==0` and not `!(…)`: `Infinity % 2` and `NaN % 2` are NaN, which
+        // is falsy — truthiness would accept exactly the two values this is
         // the only check standing against.
-        cond = (inputVar) => `${inputVar}%${lit(mo)}===0`;
+        cond = (inputVar) => `${inputVar}%${lit(mo)}==0`;
       } else {
         const embedded = B_embed(input, multipleOfValidator(mo as number));
         cond = (inputVar) => `${embedded}(${inputVar})`;
@@ -665,6 +666,7 @@ export const minLength = (root: Internal, length: number, maybeMessage?: string)
   // which the text wires read (`decidesBlank` in advanced/formData.ts).
   if (!narrowsSize(schema[key], length, false) && !(length === 0 && schema[key] === U)) {
     return carryMessage(root, (schema.bounds ?? 0) & 1 ? key : U, maybeMessage);
+
   }
   return updateBounds(root, (mut: Internal) => {
     setBoundExpression(mut, schema);
@@ -856,7 +858,7 @@ const stringFormat = (
     s.format = format;
     if (expression) s.expression = () => expression;
     // Conditional so an unflagged format carries no key at all: schemas are
-    // printed by consumers, and `formatFlag: undefined` is noise on every one.
+    // printed by consumers, and `fg: undefined` is noise on every one.
     if (flag) {
       s.formatFlag = flag;
     }
@@ -963,7 +965,7 @@ export const port: Internal = /* @__PURE__ */ initSchema(numberTag, numberDecode
   s.refiner = (_input) => {
     return [
       {
-        c: (inputVar) => `${inputVar}>=0&&${inputVar}<65536&&${inputVar}%1===0`,
+        c: (inputVar) => `${inputVar}>=0&&${inputVar}<65536&&${inputVar}%1==0`,
         f: B_failWithErrorMessage("format"),
       },
     ];
@@ -1200,7 +1202,7 @@ const bytesTextFormat = (
     if (src && src !== codec) {
       const output = B_next(
         input,
-        `${B_embed(input, recodeText(src.toBytes, codec.fromBytes))}(${B_readOnce(input)})`,
+        `${B_embed(input, recodeText(src.toBytes, codec.fromBytes))}(${input.v()})`,
         schema,
       );
       output.io = true;
@@ -1209,7 +1211,7 @@ const bytesTextFormat = (
     if (differs(input.s) && input.s.to !== U) {
       const output = B_next(
         input,
-        `${B_embed(input, utf8ToFormat(codec.fromBytes))}(${B_readOnce(input)})`,
+        `${B_embed(input, utf8ToFormat(codec.fromBytes))}(${input.v()})`,
         schema,
       );
       output.io = true;
@@ -1224,7 +1226,7 @@ const bytesTextFormat = (
     if (dst && dst !== codec) {
       const output = B_next(
         input,
-        `${B_embed(input, recodeText(codec.toBytes, dst.fromBytes))}(${B_readOnce(input)})`,
+        `${B_embed(input, recodeText(codec.toBytes, dst.fromBytes))}(${input.v()})`,
         target,
       );
       output.io = true;
@@ -1233,7 +1235,7 @@ const bytesTextFormat = (
     return differs(target) && target.opens
       ? B_computed(
           input,
-          `${B_embed(input, formatToUtf8(codec.toBytes))}(${B_readOnce(input)})`,
+          `${B_embed(input, formatToUtf8(codec.toBytes))}(${input.v()})`,
           openedText(target)
         )
       : input;

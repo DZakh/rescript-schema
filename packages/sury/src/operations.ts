@@ -382,7 +382,7 @@ export function makeInputAsResultPromise(a?: unknown, b?: unknown, c?: unknown, 
   return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 1 | 8 | 128 | 2048);
 }
 
-export function makeInputAsPromisableResult(
+export const makeInputAsPromisableResult = function (
   a?: unknown,
   b?: unknown,
   c?: unknown,
@@ -407,7 +407,7 @@ export function makeOutputAsResultPromise(a?: unknown, b?: unknown, c?: unknown,
   return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8 | 128 | 2048);
 }
 
-export function makeOutputAsPromisableResult(
+export const makeOutputAsPromisableResult = function (
   a?: unknown,
   b?: unknown,
   c?: unknown,
@@ -446,7 +446,7 @@ export function assertOutputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: u
   return dispatch(arguments.length, a, b, c, d, assertResult, true, 8);
 }
 
-export function assertInputAsPromiseOrReject(
+export const assertInputAsPromiseOrReject = function (
   a?: unknown,
   b?: unknown,
   c?: unknown,
@@ -455,7 +455,7 @@ export function assertInputAsPromiseOrReject(
   return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 1 | 8);
 }
 
-export function assertOutputAsPromiseOrReject(
+export const assertOutputAsPromiseOrReject = function (
   a?: unknown,
   b?: unknown,
   c?: unknown,

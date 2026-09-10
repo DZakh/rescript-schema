@@ -14,7 +14,7 @@ const isTransparentUnion = (schema: Schema): boolean => {
   if (schema.type !== "anyOf") return false;
   let fields = 0;
   for (const key in schema) {
-    if (key !== "isAsync" && key !== "hasTransform") fields++;
+    if (key !== "ia" && key !== "ht") fields++;
   }
   return fields === 6;
 };

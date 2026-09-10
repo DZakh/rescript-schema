@@ -207,6 +207,16 @@ const buildChild = (): Promise<unknown> =>
     logLevel: "silent",
   });
 
+// A missing export on the baseline (`S.xid` before it existed) evaluates to
+// `undefined` without throwing. `parseOrThrow(undefined)` then compiles to
+// `noopOperation`, and the real validator looks thousands of percent slower
+// than a function that returns its input. Throw here so `measure` reports
+// `unsupported` → `new:`, the same path a missing builder already takes.
+export const requireSchema = (schema: unknown): unknown => {
+  if (schema == null) throw new Error("schema expression is not a Sury schema");
+  return schema;
+};
+
 // ---- targets ---------------------------------------------------------------
 
 const SEP = " · ";
@@ -258,7 +268,7 @@ export const deriveTargets = (
 
     for (const op of OP_ORDER) {
       const block = spec.operations[op];
-      if (typeof block === "string") continue;
+      if (block == null || typeof block === "string") continue;
       // Rejected at operation creation: there is no compiled operation to time
       // and no examples to run. Timing how fast it throws would measure error
       // construction, not the schema.

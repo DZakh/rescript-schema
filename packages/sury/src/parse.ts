@@ -54,6 +54,7 @@ import {
   instanceofCond,
   isArrayCond,
   nanCond,
+  numberTagCond,
   objectTagCond,
   typeofCond
 } from "./primitives";
@@ -97,7 +98,6 @@ export const parse = (input: Val): Val => {
       result.f |= 1;
       result.io = true;
     } else if (loopInput.io) {
-      // It's guaranteed that to is not undefined, because it's checked in the while condition
       const to = loopInput.e.to!;
       result = loopInput.e.parser ? loopInput.e.parser(loopInput) : B_refine(result, U, U, to);
     } else {
@@ -112,7 +112,7 @@ export const parse = (input: Val): Val => {
         // when the operation discards it anyway (S.assertInputOrThrow's `undefined` result
         // sentinel). Every other such target still gets its conversion:
         // `noValidation` drops the checks, not the re-representation.
-        !(loopInput.e.noValidation && (loopInput.e.jn || loopInput.e.type === undefinedTag))
+        !(loopInput.e.noValidation && (loopInput.e.isJson || loopInput.e.type === undefinedTag))
       ) {
         result = maybeEncoder(loopInput, loopInput.e);
       }
@@ -520,7 +520,7 @@ export const nestedOptionParser: Builder = (input: Val) => {
 export const instanceDecoder: Builder = (input: Val) => {
   const inputTagFlag = tagFlags[input.s.type]!;
   return (inputTagFlag & 1)
-    ? B_refine(input, input.e, [{ c: instanceofCond(input, input.e.class), f: failInvalidType }])
+    ? B_refine(input, input.e, [{ c: (v) => instanceofCond(input, input.e.class, v), f: failInvalidType }])
     : (inputTagFlag & 8192) && input.s.class === input.e.class
       ? input
       : B_unsupportedDecode(input, input.s, input.e);
@@ -563,17 +563,10 @@ export const instance = (class_: unknown): Internal => {
 // to an object member.
 export const typeCheckCond = (input: Val, schema: Internal, inputVar: string): string => {
   const tagFlag = tagFlags[schema.type]!;
-  if ((tagFlag & 64)) {
-    return `${objectTagCond(inputVar)}&&!${isArrayCond(inputVar)}`;
-  }
+  if ((tagFlag & 64)) return objectTagCond(inputVar);
   if ((tagFlag & 128)) return isArrayCond(inputVar);
-  if ((tagFlag & 8192)) return instanceofCond(input, schema.class)(inputVar);
-  if ((tagFlag & 4)) {
-    const typeofCheck = typeofCond(numberTag)(inputVar);
-    return (input.g.o & 2)
-      ? typeofCheck
-      : `${typeofCheck}&&${inputVar}===${inputVar}`;
-  }
+  if ((tagFlag & 8192)) return instanceofCond(input, schema.class, inputVar);
+  if ((tagFlag & 4)) return numberTagCond(inputVar, !!(input.g.o & 2));
   if ((tagFlag & 2048)) return nanCond(inputVar);
   if ((tagFlag & (16 | 32))) {
     // null/undefined reuse literalDecoder's inline-const form (=== null / void 0)

@@ -79,6 +79,16 @@ export const inlinedObjectKey = (key: string): string =>
       ? key
       : inlinedValueFromString(key);
 
+// Property access: `i.id`, `i["my key"]`, `i["__proto__"]`. Digit-only keys
+// stay quoted unless `numeric`: `obj[00]` is `obj[0]` in sloppy `new Function`,
+// and an object key `"00"` is not `"0"`. Array index sites pass `numeric`.
+export const inlinedProperty = (obj: string, key: string, numeric?: boolean): string =>
+  numeric && /^\d+$/.test(key)
+    ? `${obj}[${key}]`
+    : key === "__proto__" || !jsIdentRe.test(key)
+      ? `${obj}[${inlinedValueFromString(key)}]`
+      : `${obj}.${key}`;
+
 // @__NO_SIDE_EFFECTS__
 export const pathConcat = (path: Path, concatedPath: Path): Path =>
   path.length ? (concatedPath.length ? path.concat(concatedPath) : path) : concatedPath;
@@ -315,22 +325,17 @@ export type SchemaErrorMessage = {
 
 export type Internal = {
   type: Tag;
-  // A serial number for the schema, used for caching operations.
+  // Used as the operation-cache key.
   seq?: number;
   // Builder for transforming to the "to" schema. If missing, should apply
   // coercion logic.
   parser?: Builder;
   // A field on the "to" schema, to turn it into "parser", when reversing.
   serializer?: Builder;
-  // Logic for built-in decoding to the schema type.
   decoder: Builder;
-  // Logic for built-in encoding from the schema type.
   encoder?: Encoder;
-  // Custom validations on input (before decoder).
   inputRefiner?: (input: Val) => Check[];
-  // Custom validations on output (after decoder).
   refiner?: (input: Val) => Check[];
-  // A schema we transform to.
   to?: Internal;
   // When transforming with changing shape, store from which path it came
   // from. For S.object, S.tuple, and S.shape.
@@ -368,7 +373,6 @@ export type Internal = {
   // schema also carries `bc`, so passing one there reads as "same kind" against
   // any bytes marker. Carriers look it up off `content.bc`. Copies of a format
   // keep `bc` so alphabet recoding still sees it, `S.trim`'s tail included.
-  // Short: this name is in `B_contentDiffers`, which `S.to` ships.
   bc?: BytesCodec;
   // The reading of the content link that converts INTO this schema
   // (CONTENT_CODEC_SPEC.md): `true` opens the source and hands its payload
@@ -397,6 +401,7 @@ export type Internal = {
   items?: Internal[];
   required?: string[];
   properties?: Record<string, Internal>;
+
   noValidation?: boolean;
   // Sury's own "this read may be absent" union - a dict value read by a fixed
   // key, modelled as `V | undefined`. The conversion rules (2-4) don't apply to
@@ -465,8 +470,8 @@ export type Internal = {
   // `advanced/json`, whose `S.json` is built at module init from `dictFactory`,
   // so inverting that import leaves the factory in TDZ.
   // Enumerable, so `Object.assign` carries it onto a copy; nothing public
-  // writes it. Short: `isJson` costs ~5 gz on 158 of the 161 export rows.
-  jn?: boolean;
+  // writes it.
+  isJson?: boolean;
   "~standard"?: unknown;
   // Overrides how inputExpression renders this schema. Only for a schema whose
   // expression its tag can't produce - compactColumns, whose columns live on
@@ -597,8 +602,7 @@ export const immutableEmptyObject: Record<string, unknown> = Object.create(null)
 export const isSchemaObject = (obj: unknown): boolean =>
   typeof obj === objectTag && obj !== null && "~standard" in (obj as object);
 
-export const constField = "const";
-export const isLiteral = (schema: Internal): boolean => constField in schema;
+export const isLiteral = (schema: Internal): boolean => "const" in schema;
 
 export const isOptional = (schema: Internal): boolean =>
   schema.type === undefinedTag || (schema.type === anyOfTag && undefinedTag in schema.has!);
@@ -763,7 +767,7 @@ export const inputExpression = (schema: Internal, skipOverride?: boolean): strin
 
 // ── schema ────────────────────────────────────────────────────────────────────
 
-export function Schema(this: Internal): void {}
+export const Schema = function (this: Internal): void {};
 // One of exactly two schema prototypes, both rooted at `Object.create(null)`.
 // `isOwnSchema` (below) recognises a Sury schema by identity against these two,
 // which is what keeps operation dispatch from reading a payload as a schema -
@@ -795,8 +799,8 @@ Schema.prototype = schemaPrototype;
 // "r", not "reversed": internal-only (S.reverse is the public API), and short
 // field names on hot objects survive minification (CLAUDE.md).
 export const reversedKey = "r";
-function SelfReverseSchema(this: Internal): void {}
-// The second (and last) schema prototype - see `isOwnSchema`.
+const SelfReverseSchema = function (this: Internal): void {};
+// The second (and last) schema prototype — see `isOwnSchema`.
 const selfReversePrototype: Record<string, unknown> = Object.create(schemaPrototype);
 Object.defineProperty(selfReversePrototype, reversedKey, {
   get() {
@@ -914,7 +918,7 @@ export const baseSchema = (tag: Tag, selfReverse: boolean, decoder: Builder): In
   schema.seq = seq++;
   schema.decoder = decoder;
   return schema;
-}
+};
 
 export const noopDecoder: Builder = (input: Val) => input;
 
@@ -948,7 +952,13 @@ export const copySchema = (schema: Internal): Internal => {
   if (schema.content !== U) setContent(c, schema.content);
   if (schema.bc !== U) setBytesCodec(c, schema.bc);
   return c;
-}
+};
+
+export const copyTo = (from: Internal, to: Internal): Internal => {
+  const mut = copySchema(from);
+  mut.to = to;
+  return mut;
+};
 
 // `S.base64` and `S.json` are their own content, and an enumerable
 // self-reference makes `JSON.stringify(schema)` - and every error that embeds

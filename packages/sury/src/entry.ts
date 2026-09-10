@@ -14,7 +14,7 @@
 // their own.
 //
 // Built by scripts/pack.ts into index.mjs (the publish step additionally
-// emits a CJS index.js into the artifact for the require condition). The extra
+// emits a CJS index.jsonSchema into the artifact for the require condition). The extra
 // ReScript-binding exports ($-prefixed) are invisible to TS users
 // (index.d.ts is the curated surface) and tree-shake when unused like any
 // other export.
@@ -29,6 +29,7 @@ import {
   initialDefaultFlag,
   initialOnAdditionalItems,
   inputExpression,
+  isOptional,
   type Internal,
   objectTag,
   panic,
@@ -346,8 +347,8 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
       from.content === U ||
       target.content === U ||
       !B_contentDiffers(from.content, target.content) ||
-      from.jn ||
-      target.jn
+      from.isJson ||
+      target.isJson
     ) {
       return panic(`Can't pick a reading for this link. Use {decode, encode} coders instead`);
     }
@@ -395,7 +396,6 @@ export const refine = (
 
 // @__NO_SIDE_EFFECTS__
 export const optional = (definition: unknown, maybeOr: unknown): Internal => {
-  // TODO: maybeOr should be part of the unit schema
   const schema = unionFactory([definitionToSchema(definition), unit]);
   if (maybeOr !== U && typeof maybeOr === functionTag) {
     return Option_getOrWith(schema, maybeOr as () => unknown);
@@ -409,7 +409,6 @@ export const optional = (definition: unknown, maybeOr: unknown): Internal => {
 // @__NO_SIDE_EFFECTS__
 export const nullable = (definition: unknown, maybeOr: unknown): Internal => {
   const schema = definitionToSchema(definition);
-  // TODO: maybeOr should be part of the unit schema
   if (maybeOr !== U) {
     const schema2 = unionFactory([schema, nullAsUnit]);
     if (typeof maybeOr === functionTag) {
@@ -433,22 +432,18 @@ export const merge = (s1: Internal, s2: Internal): Internal => {
   if (!isMergeable(s1) || !isMergeable(s2)) {
     // Recomputed, not cached - this path throws, and the temp measured larger.
     const bad = isMergeable(s1) ? s2 : s1;
-    // TODO: Can theoretically support the transformed case
     return panic(`Can't merge ${bad.to ? "transformed " : ""}${inputExpression(bad)}`);
   }
   const properties = { ...s1.properties!, ...s2.properties! };
 
   const mut = baseSchema(objectTag, false, objectDecoder);
-
-  // TODO: Merge to required fields
-  mut.required = Object.keys(properties);
+  mut.required = Object.keys(properties).filter((k) => !isOptional(properties[k]!));
   mut.properties = properties;
   mut.additionalItems = s1.additionalItems;
   return mut;
 };
 
-// PORT-NOTE: kept the source's `global` name - legal as a module-scoped
-// export even though Node types declare a `global` var.
+// A module export named `global` is legal; Node's `var global` is a different binding.
 export const global = (override: GlobalConfigOverride): void => {
   globalConfig.a =
     override.defaultAdditionalItems !== U

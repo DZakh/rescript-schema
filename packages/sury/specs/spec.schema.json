@@ -15,6 +15,10 @@
           "type": "array",
           "description": "Alternate `.with`-chain sources that must produce a schema equivalent to `schema` - same ts.input/ts.output, jsonSchema, and operations. Checked live (not separately snapshotted) by `spec check`. You write these by hand."
         },
+        "constructionError": {
+          "type": "string",
+          "description": "The error thrown when `ts.schema` is evaluated — a panic at construction, not at operation compile. Filled by `spec check --write`. Omit when the schema constructs."
+        },
         "input": {
           "anyOf": [
             {
@@ -262,6 +266,10 @@
                   ],
                   "description": "Compiled function source (`.toString()`). Filled by `spec check --write`."
                 },
+                "resultExpression": {
+                  "type": "string",
+                  "description": "Compiled `*AsResult` function source. Optional — add when the Result tail (try/absence of try) is what the spec is pinning. Filled by `spec check --write` when present."
+                },
                 "examples": {
                   "type": "object",
                   "additionalProperties": {
@@ -315,9 +323,34 @@
                           "input",
                           "error"
                         ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "string",
+                            "description": "Source text for the input, e.g. '\"hello\"'. Hand-written; `spec check --write` fills output/error."
+                          },
+                          "errorConstructor": {
+                            "type": "string",
+                            "description": "Expected `error.constructor.name` when the message is the platform's (Node 22 vs 24). Filled by `spec check --write` when this key is present."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "input",
+                          "errorConstructor"
+                        ]
                       }
                     ],
-                    "description": "A named example: input plus expected output or error."
+                    "description": "A named example: input plus expected output, error message, or error constructor."
                   },
                   "description": "Named example cases, keyed by a short name (e.g. `valid`, `invalid-type`)."
                 }
@@ -386,6 +419,10 @@
                   ],
                   "description": "Compiled function source (`.toString()`). Filled by `spec check --write`."
                 },
+                "resultExpression": {
+                  "type": "string",
+                  "description": "Compiled `*AsResult` function source. Optional — add when the Result tail (try/absence of try) is what the spec is pinning. Filled by `spec check --write` when present."
+                },
                 "examples": {
                   "type": "object",
                   "additionalProperties": {
@@ -439,9 +476,34 @@
                           "input",
                           "error"
                         ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "string",
+                            "description": "Source text for the input, e.g. '\"hello\"'. Hand-written; `spec check --write` fills output/error."
+                          },
+                          "errorConstructor": {
+                            "type": "string",
+                            "description": "Expected `error.constructor.name` when the message is the platform's (Node 22 vs 24). Filled by `spec check --write` when this key is present."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "input",
+                          "errorConstructor"
+                        ]
                       }
                     ],
-                    "description": "A named example: input plus expected output or error."
+                    "description": "A named example: input plus expected output, error message, or error constructor."
                   },
                   "description": "Named example cases, keyed by a short name (e.g. `valid`, `invalid-type`)."
                 }
@@ -510,6 +572,10 @@
                   ],
                   "description": "Compiled function source (`.toString()`). Filled by `spec check --write`."
                 },
+                "resultExpression": {
+                  "type": "string",
+                  "description": "Compiled `*AsResult` function source. Optional — add when the Result tail (try/absence of try) is what the spec is pinning. Filled by `spec check --write` when present."
+                },
                 "examples": {
                   "type": "object",
                   "additionalProperties": {
@@ -563,9 +629,34 @@
                           "input",
                           "error"
                         ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "string",
+                            "description": "Source text for the input, e.g. '\"hello\"'. Hand-written; `spec check --write` fills output/error."
+                          },
+                          "errorConstructor": {
+                            "type": "string",
+                            "description": "Expected `error.constructor.name` when the message is the platform's (Node 22 vs 24). Filled by `spec check --write` when this key is present."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "input",
+                          "errorConstructor"
+                        ]
                       }
                     ],
-                    "description": "A named example: input plus expected output or error."
+                    "description": "A named example: input plus expected output, error message, or error constructor."
                   },
                   "description": "Named example cases, keyed by a short name (e.g. `valid`, `invalid-type`)."
                 }
@@ -593,6 +684,312 @@
             }
           ],
           "description": "Output → Input (the reverse direction)."
+        },
+        "assert": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "identity"
+            },
+            {
+              "type": "string",
+              "const": "eq-to-parse"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "isAsync": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "`true` if this direction is async (built with the AsPromiseOrReject operations, examples awaited). Written when the block is first created; `spec check` errors when it disagrees with the schema. Omit when sync."
+                },
+                "expression": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "_skip": {
+                          "type": "string",
+                          "description": "Why unasserted: parser-only | serializer-only | lossy | not-applicable | todo(#…)."
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "_skip"
+                      ],
+                      "description": "Explicit opt-out for an unasserted dimension."
+                    }
+                  ],
+                  "description": "Compiled function source (`.toString()`). Filled by `spec check --write`."
+                },
+                "resultExpression": {
+                  "type": "string",
+                  "description": "Compiled `*AsResult` function source. Optional — add when the Result tail (try/absence of try) is what the spec is pinning. Filled by `spec check --write` when present."
+                },
+                "examples": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "string",
+                            "description": "Source text for the input, e.g. '\"hello\"'. Hand-written; `spec check --write` fills output/error."
+                          },
+                          "output": {
+                            "type": "string",
+                            "description": "Expected output source text. Filled by `spec check --write`."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "input",
+                          "output"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "string",
+                            "description": "Source text for the input, e.g. '\"hello\"'. Hand-written; `spec check --write` fills output/error."
+                          },
+                          "error": {
+                            "type": "string",
+                            "description": "Expected error message. Filled by `spec check --write`."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "input",
+                          "error"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "string",
+                            "description": "Source text for the input, e.g. '\"hello\"'. Hand-written; `spec check --write` fills output/error."
+                          },
+                          "errorConstructor": {
+                            "type": "string",
+                            "description": "Expected `error.constructor.name` when the message is the platform's (Node 22 vs 24). Filled by `spec check --write` when this key is present."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "input",
+                          "errorConstructor"
+                        ]
+                      }
+                    ],
+                    "description": "A named example: input plus expected output, error message, or error constructor."
+                  },
+                  "description": "Named example cases, keyed by a short name (e.g. `valid`, `invalid-type`)."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "expression",
+                "examples"
+              ],
+              "description": "Compiled codegen plus its runnable examples."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "creationError": {
+                  "type": "string",
+                  "description": "The Sury error thrown when this operation is compiled (a conversion rejected at operation creation). Filled by `spec check --write`."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "creationError"
+              ],
+              "description": "An operation that can't be compiled - the creation-time error, ratcheted like codegen."
+            }
+          ],
+          "description": "unknown → void: validate and drop the value (`S.assertInputOrThrow`). Optional — add when the void target's handling is what the spec is pinning (JSON, jsonString, noValidation)."
+        },
+        "is": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "identity"
+            },
+            {
+              "type": "string",
+              "const": "eq-to-parse"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "isAsync": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "`true` if this direction is async (built with the AsPromiseOrReject operations, examples awaited). Written when the block is first created; `spec check` errors when it disagrees with the schema. Omit when sync."
+                },
+                "expression": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "_skip": {
+                          "type": "string",
+                          "description": "Why unasserted: parser-only | serializer-only | lossy | not-applicable | todo(#…)."
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "_skip"
+                      ],
+                      "description": "Explicit opt-out for an unasserted dimension."
+                    }
+                  ],
+                  "description": "Compiled function source (`.toString()`). Filled by `spec check --write`."
+                },
+                "resultExpression": {
+                  "type": "string",
+                  "description": "Compiled `*AsResult` function source. Optional — add when the Result tail (try/absence of try) is what the spec is pinning. Filled by `spec check --write` when present."
+                },
+                "examples": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "string",
+                            "description": "Source text for the input, e.g. '\"hello\"'. Hand-written; `spec check --write` fills output/error."
+                          },
+                          "output": {
+                            "type": "string",
+                            "description": "Expected output source text. Filled by `spec check --write`."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "input",
+                          "output"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "string",
+                            "description": "Source text for the input, e.g. '\"hello\"'. Hand-written; `spec check --write` fills output/error."
+                          },
+                          "error": {
+                            "type": "string",
+                            "description": "Expected error message. Filled by `spec check --write`."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "input",
+                          "error"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "string",
+                            "description": "Source text for the input, e.g. '\"hello\"'. Hand-written; `spec check --write` fills output/error."
+                          },
+                          "errorConstructor": {
+                            "type": "string",
+                            "description": "Expected `error.constructor.name` when the message is the platform's (Node 22 vs 24). Filled by `spec check --write` when this key is present."
+                          },
+                          "whenChecked": {
+                            "enum": [
+                              "passes",
+                              "fails"
+                            ],
+                            "description": "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them. `parse` only."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "input",
+                          "errorConstructor"
+                        ]
+                      }
+                    ],
+                    "description": "A named example: input plus expected output, error message, or error constructor."
+                  },
+                  "description": "Named example cases, keyed by a short name (e.g. `valid`, `invalid-type`)."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "expression",
+                "examples"
+              ],
+              "description": "Compiled codegen plus its runnable examples."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "creationError": {
+                  "type": "string",
+                  "description": "The Sury error thrown when this operation is compiled (a conversion rejected at operation creation). Filled by `spec check --write`."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "creationError"
+              ],
+              "description": "An operation that can't be compiled - the creation-time error, ratcheted like codegen."
+            }
+          ],
+          "description": "unknown → boolean (`S.isInput`). Optional — add when the boolean target's handling is what the spec is pinning."
         }
       },
       "additionalProperties": false,
@@ -601,7 +998,7 @@
         "decode",
         "encode"
       ],
-      "description": "The three compiled directions through the schema: parse, decode, encode."
+      "description": "The three compiled directions through the schema (parse, decode, encode), plus optional `assert` and `is`."
     }
   },
   "additionalProperties": false,
