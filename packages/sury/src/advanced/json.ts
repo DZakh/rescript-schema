@@ -39,8 +39,8 @@ import {
   B_mergeWithPathPrepend,
   B_next,
   B_nextConst,
-  B_readsPayload,
   B_refine,
+  B_rejectUnsettled,
   B_unsupportedDecode,
   B_varWithoutAllocation,
   failInvalidType
@@ -87,6 +87,7 @@ const B_stringifyCall = (i: string, space: number | undefined): string =>
   `JSON.stringify(${i}${space ? `,null,${space}` : ""})`;
 
 export const jsonEncoderFn = (input: Val, target: Internal): Val => {
+  B_rejectUnsettled(input, target);
   // A json-formatted string target means "serialize", not "coerce to string":
   // without this branch the string case below would re-validate the JSON value
   // as being a string, making S.json -> S.jsonString reject every non-string.
@@ -212,6 +213,7 @@ const perVariantTo = (
 };
 
 export const jsonDecoderFn = (input: Val): Val => {
+  B_rejectUnsettled(input, input.e);
   const inputTagFlag = tagFlags[input.s.type]!;
 
   if (isJsonable(input.s)) {
@@ -316,11 +318,13 @@ export const json: Internal = /* @__PURE__ */ initSchema(refTag, jsonDecoderFn, 
   const jsonRef = baseSchema(refTag, true, jsonDecoderFn);
   jsonRef["$ref"] = `${defsPath}${jsonName}`;
   jsonRef.name = jsonName;
+  jsonRef.jn = true;
 
   jsonRef.encoder = jsonEncoderFn;
 
   s["$ref"] = jsonRef["$ref"];
   s.name = jsonName;
+  s.jn = true;
   s.encoder = jsonEncoderFn;
   setContent(s, s);
 
@@ -425,7 +429,8 @@ export const jsonString = /* @__PURE__ */ (() => {
 
   const jsonStringEncoder: Encoder = (input, target) => {
     if (target.format !== "json") {
-      if (target.content !== U && target.content !== json && !B_readsPayload(target)) {
+      B_rejectUnsettled(input, target);
+      if (target.content !== U && target.content !== json && !target.opens) {
         // The target stores this document rather than being another rendering
         // of it, so it takes the text as it stands.
         return input;
@@ -514,6 +519,12 @@ export const jsonString = /* @__PURE__ */ (() => {
         : jsonStringDecoder(input),
     initJsonString,
   );
+  // A piece is only ever linked into from a field position, which stores the
+  // field's value in the document (rule 2). Said here once rather than on each
+  // link that reaches it: without it the link `fieldPiece` synthesizes reads
+  // as one the caller wrote, and rule 4 would ask about a pair nobody can
+  // answer for.
+  jsonPiece.opens = false;
 
   // `""+x` folds away when the piece lands after an already-string part of a
   // concatenation, which is where every piece lands. The number piece nests
@@ -1016,7 +1027,7 @@ export const jsonString = /* @__PURE__ */ (() => {
       // document target that goes on to read its own payload does, and adding
       // the check would parse the same text twice - one that stops there (a
       // bare jsonString, or a jsonPiece about to escape it) reads nothing.
-      if (encoded !== stringVal || (to.format === "json" && B_readsPayload(to))) {
+      if (encoded !== stringVal || (to.format === "json" && to.opens)) {
         return encoded;
       }
     }
@@ -1029,6 +1040,7 @@ export const jsonString = /* @__PURE__ */ (() => {
   const jsonStringDecoder: Builder = (input) => {
     const inputTagFlag = tagFlags[input.s.type]!;
     const expectedSchema = input.e;
+    B_rejectUnsettled(input, expectedSchema);
 
     if ((inputTagFlag & 1)) {
       return carriedJsonString(input, expectedSchema);
@@ -1043,7 +1055,7 @@ export const jsonString = /* @__PURE__ */ (() => {
       // the same unverified text. Every other string is a value, and stays one.
       if (
         input.s.content === json ||
-        (input.s.content !== U && B_readsPayload(expectedSchema))
+        (input.s.content !== U && expectedSchema.opens)
       ) {
         return carriedJsonString(input, expectedSchema);
       }

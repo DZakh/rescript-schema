@@ -14,4 +14,5 @@ operations:
   parse:
     creationError: "SuryError: Can't decode Uint8Array -> JSON. Define custom codec with S.to"
   decode: eq-to-parse
-  encode: eq-to-parse
+  encode:
+    creationError: "SuryError: Can't decode JSON -> Uint8Array. Define custom codec with S.to"

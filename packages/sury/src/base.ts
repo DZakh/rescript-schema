@@ -362,21 +362,25 @@ export type Internal = {
   content?: Internal;
   // Bytes-as-text codec on a format singleton (`S.base64`, `S.base64url`).
   // Presence is the payload *kind* `B_contentDiffers` uses, so the two alphabets
-  // are one family without importing either format into builder.ts. Always read
-  // Carriers look it up off `content.bc`. Copies of a format keep `bc` so
-  // alphabet recoding still sees it. `S.trim` targets `string`, which has none.
-  // Short: this name is in `B_contentDiffers`, which ships in every export.
+  // are one family without importing either format into builder.ts - which holds
+  // only while both sides of that comparison are content markers: a format's own
+  // schema also carries `bc`, so passing one there reads as "same kind" against
+  // any bytes marker. Carriers look it up off `content.bc`. Copies of a format
+  // keep `bc` so alphabet recoding still sees it, `S.trim`'s tail included.
+  // Short: this name is in `B_contentDiffers`, which `S.to` ships.
   bc?: BytesCodec;
-  // Which reading of a content link the caller wrote, when they wrote one.
-  // `opens` is the reading of the link that converts INTO this schema - `true`
-  // opens the source and hands its payload over, `false` stores its value -
-  // and `opensBack` the same for the reversed chain, where this schema is the
-  // target instead. `reverse` trades the two, the way it trades
-  // parser/serializer, so each direction's slot lands on the node the other
-  // direction reads it from. Absent means the link's shape decides - see
-  // `B_readsPayload` in builder.ts.
+  // The reading of the content link that converts INTO this schema
+  // (CONTENT_CODEC_SPEC.md): `true` opens the source and hands its payload
+  // over, `false` stores its value. One field for one link: the encode
+  // reading is its negation, so `reverse` writes each node's from its forward
+  // successor's rather than carrying a second slot.
+  // Written by a slot the caller gave (rule 1), by a payload gaining a `.to`
+  // (rule 3, materialized by `codecTo` and `compileChain` the moment it
+  // becomes true, since `reverse` re-points `.to` and would lose it), and by
+  // the document piece a field is stored into (rule 2, `jsonPiece`). Absent on
+  // a link between two payloads of different kinds is therefore rule 4, and
+  // the payload schemas reject it while compiling (`B_rejectUnsettled`).
   opens?: boolean;
-  opensBack?: boolean;
   // Properties of every value a string schema admits, which let generated code
   // skip work: 1 escape-free (no `"`, `\`, controls or lone surrogates, so
   // jsonString splices it between bare quotes with no escaping). Set the bit
@@ -449,16 +453,19 @@ export type Internal = {
   tr?: boolean;
   "$ref"?: string;
   "$defs"?: Record<string, Internal>;
-  // Written by compileDecoder onto the schema it compiled against, read back by
-  // `S.recursive`: a recursive definition compiles optimistically, and these
-  // two are what its inner circular references assume and what the fixpoint
-  // compares to decide whether to recompile. Absent means "this schema has not
-  // been compiled against yet", which is why `codecTo` deletes rather than
-  // clears them. Nothing derives them without compiling, so there is no probe
-  // to ask a schema whether it is async - an operation reports that by
-  // rejecting.
-  isAsync?: boolean;
-  hasTransform?: boolean;
+  // `S.json` and every copy of one: the marker that answers "is this the whole
+  // document rather than a rendering of one", which several structural
+  // decisions turn on. Nothing already on the schema answers it. Identity and
+  // `content === schema` both fail because a chain node that IS json is a
+  // `copySchema` of it; `name` and `$ref` are forgeable, since
+  // `S.recursive("JSON", …)` builds the same `$ref`; and the decoder's
+  // identity, which would need no field at all, is unreachable from `parse`,
+  // `composites` and `modifiers` - all three read this and all three sit above
+  // `advanced/json`, whose `S.json` is built at module init from `dictFactory`,
+  // so inverting that import leaves the factory in TDZ.
+  // Enumerable, so `Object.assign` carries it onto a copy; nothing public
+  // writes it. Short: `isJson` costs ~5 gz on 158 of the 161 export rows.
+  jn?: boolean;
   "~standard"?: unknown;
   // Overrides how inputExpression renders this schema. Only for a schema whose
   // expression its tag can't produce - compactColumns, whose columns live on

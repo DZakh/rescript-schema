@@ -31,8 +31,8 @@ import {
   B_failWithErrorMessage,
   B_next,
   B_readOnce,
-  B_readsPayload,
-  B_refine
+  B_refine,
+  B_rejectUnsettled
 } from "./builder";
 import {
  definitionToSchema
@@ -789,16 +789,15 @@ export const pattern = (schema: Internal, re: RegExp, message: string = `Invalid
 // @__NO_SIDE_EFFECTS__
 export const trim = (schema: Internal): Internal => {
   const transformer = B_conversion((value: unknown) => (value as string).trim());
-  // Trimming does not change what the text *is*: a trimmed base64 payload is
-  // still that payload. The marker has to be carried onto the link's target,
-  // because the next link reads the chain tail - left bare, it would see a
-  // plain string and pack the base64 text itself as bytes.
-  const content = getOutputSchema(schema).content;
-  const root = codecTo(schema, string, transformer, transformer);
-  if (content !== U) {
-    setContent(getOutputSchema(root), content);
-  }
-  return root;
+  // Trimmed text is still the text it was - same type, format, alphabet and
+  // payload - so the link's target is a copy of the tail, not `string`. The
+  // next link then reads a node that can answer for itself, with the format's
+  // own decoder and encoder on it. Its check is dropped: the tail already ran
+  // it, and the copy is the same text with the whitespace gone.
+  const tail = copySchema(getOutputSchema(schema));
+  delete tail.refiner;
+  delete tail.inputRefiner;
+  return codecTo(schema, tail, transformer, transformer);
 }
 
 // @__NO_SIDE_EFFECTS__
@@ -1119,12 +1118,11 @@ const urlCodec = /* @__PURE__ */ (() => {
   };
 })();
 
-// `bc` lives on the format singleton. A trim (or other string) link copies
-// `content` but not `bc`, so recode has to see through that to the alphabet
-// the text still is. A bytes carrier also has `content.bc`, but its value is
-// bytes - only a string-tagged source is text we can recode.
-const codecOf = (s: Internal) =>
-  s.bc ?? (s.type === stringTag ? s.content?.bc : U);
+
+// A bytes carrier also has `content.bc`, but its value is bytes - only a
+// string-tagged source is text we can recode, and every one of those carries
+// its own `bc`.
+const codecOf = (s: Internal) => s.bc;
 
 const recodeText =
   (
@@ -1194,9 +1192,10 @@ const bytesTextFormat = (
 ): Internal => {
   const schema = copySchema(content);
 
-  const differs = (other: Internal): boolean => B_contentDiffers(other.content, schema);
+  const differs = (other: Internal): boolean => B_contentDiffers(other.content, content);
 
   schema.decoder = (input) => {
+    B_rejectUnsettled(input, input.e);
     const src = codecOf(input.s);
     if (src && src !== codec) {
       const output = B_next(
@@ -1220,6 +1219,7 @@ const bytesTextFormat = (
   };
 
   schema.encoder = (input, target) => {
+    B_rejectUnsettled(input, target);
     const dst = codecOf(target);
     if (dst && dst !== codec) {
       const output = B_next(
@@ -1230,7 +1230,7 @@ const bytesTextFormat = (
       output.io = true;
       return output;
     }
-    return differs(target) && B_readsPayload(target)
+    return differs(target) && target.opens
       ? B_computed(
           input,
           `${B_embed(input, formatToUtf8(codec.toBytes))}(${B_readOnce(input)})`,

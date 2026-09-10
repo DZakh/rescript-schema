@@ -35,7 +35,7 @@ operations:
         input: '"4oKs"'
         output: new Uint8Array([226, 130, 172])
   encode:
-    expression: i=>{let v0=e[0](i);let v1;try{v1=e[1](v0)}catch(x){e[2](x)}e[3](v1)||e[4](v1);return v1}
+    expression: i=>{let v0;try{v0=e[1](e[0](i))}catch(x){e[2](x)}e[3](v0)||e[4](v0);return v0}
     examples:
       utf8-bytes:
         input: new Uint8Array([226, 130, 172])

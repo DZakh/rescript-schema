@@ -81,11 +81,36 @@ alternating-lookup:
   # single-slot cache is most at risk of making slower than no cache at all.
   run: (S.parseOrThrow(schema), S.decodeOrThrow(schema))
 
+decode-pipeline-lookup:
+  prepare: |
+    const schema = S.schema({ id: S.string, age: S.number });
+  # A two-schema pipeline, unhoisted. The lookup walks the same memo list as
+  # `parse-lookup` but matches a longer key, so the two together show what the
+  # key's width costs.
+  run: S.decodeOrThrow(S.jsonString, schema)
+
 encode-lookup:
   prepare: |
     const schema = S.schema({ id: S.string, age: S.number.with(S.to, S.string) });
   # Same, through `reverse` - a second cache on a second schema.
   run: S.encodeOrThrow(schema)
+
+inline-pipeline-lookup:
+  prepare: |
+    const item = S.schema({ id: S.string, age: S.number });
+    const data = '{"id":"u1","age":30}';
+  # The schema is built inside the timed call, the way a handler that never
+  # hoists writes it. Every `S.to` here is a cache lookup rather than a chain
+  # rebuild; without that the whole schema recompiles per call.
+  run: S.parseOrThrow(S.jsonString.with(S.to, item))(data)
+
+inline-reading-lookup:
+  prepare: |
+    const data = "eyJhIjoxfQ==";
+  # A content reading written inline, the shape `S.to(a, b, "unpack")` takes in
+  # a handler. The reading joins the link key, so this is a lookup rather than a
+  # chain rebuild and a recompile.
+  run: S.parseOrThrow(S.to(S.base64, S.jsonString, "unpack"))(data)
 
 base64-pack:
   prepare: |

@@ -30,7 +30,6 @@ import {
   initialOnAdditionalItems,
   inputExpression,
   type Internal,
-  jsonName,
   objectTag,
   panic,
   type Path,
@@ -52,6 +51,7 @@ import {
 } from "./composites";
 import {
   codecTo,
+  linkTo,
   nullAsUnit,
   Option_getOr,
   Option_getOrWith,
@@ -344,8 +344,8 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
       from.content === U ||
       target.content === U ||
       !B_contentDiffers(from.content, target.content) ||
-      from.name === jsonName ||
-      target.name === jsonName
+      from.jn ||
+      target.jn
     ) {
       return panic(`Can't pick a reading for this link. Use {decode, encode} coders instead`);
     }
@@ -375,7 +375,13 @@ export const to = (schema: Internal, target: Internal, custom?: unknown) => {
       `The target already converts. Chain S.to instead of passing a custom codec`,
     );
   }
-  return codecTo(schema, target, decode, encode);
+  // Interned when the third argument is bounded by construction - absent, or
+  // one of the two reading strings. A coder is not: `{decode, encode}` and an
+  // inline function are fresh objects, so keying on them would miss every time
+  // and grow the list without bound.
+  return custom === U || typeof custom === stringTag
+    ? linkTo(schema, target, custom, decode as boolean, encode as boolean)
+    : codecTo(schema, target, decode, encode);
 };
 
 // @__NO_SIDE_EFFECTS__
