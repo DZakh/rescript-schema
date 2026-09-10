@@ -877,13 +877,13 @@ Checkout the compiled code yourself:
 
 ```javascript
 (i) => {
-  let v4 = [new Array(i.length), new Array(i.length), new Array(i.length)];
-  for (let v3 = 0; v3 < i.length; ++v3) {
-    v4[0][v3] = i[v3]["id"];
-    v4[1][v3] = i[v3]["name"];
-    v4[2][v3] = i[v3]["deleted"];
+  let v3 = [new Array(i.length), new Array(i.length), new Array(i.length)];
+  for (let v2 = 0; v2 < i.length; ++v2) {
+    v3[0][v2] = i[v2].id;
+    v3[1][v2] = i[v2].name;
+    v3[2][v2] = i[v2].deleted;
   }
-  return v4;
+  return v3;
 };
 ```
 
@@ -1674,7 +1674,7 @@ The `Result` is compiled into the operation rather than wrapped around it, which
 
 ```ts
 S.parseAsResult(S.schema({ id: S.unknown }).with(S.noValidation, true)).toString();
-// => (i) => { return { success: true, value: { id: i["id"] }, error: void 0 } }
+// => (i) => { return { success: true, value: { id: i.id }, error: void 0 } }
 ```
 
 Both branches of a `Result` carry the same keys in the same order, so `const { value, error } = result` narrows and a consumer's `.success` read stays monomorphic.
