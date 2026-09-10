@@ -31,7 +31,7 @@ npm install sury
 
 ## Sponsors
 
-Sury is built in the open, backed by the teams running it in production:
+Sury's sponsors, who make the time to build it possible:
 
 <p>
   <a href="https://rescript-association.org/"><img alt="ReScript Association" height="64" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/rescript-association.png"></a>
@@ -44,7 +44,8 @@ Sury is built in the open, backed by the teams running it in production:
   </picture></a>
 </p>
 
-Sury is free and stays free. If it's carrying your product, [DM me on X](https://x.com/dzakh_dev) to get your logo here, or send USDT to `0x509fCF7C24A94a776eb92B56B9DA4aA145615529` (ERC20) or `TFg5hKgkdcrFnPHNgYqfbp9yMyx25uaWrF` (TRC20). Starring the repo and writing about it help too.
+> [!NOTE]
+> If you want to support the development of the project, [DM me on X](https://x.com/dzakh_dev) and get your logo here as a gratitude.
 
 ## Why Sury
 
