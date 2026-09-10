@@ -16,4 +16,5 @@ operations:
   parse:
     creationError: 'SuryError: Ambiguous File -> JSON string. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'
   decode: eq-to-parse
-  encode: eq-to-parse
+  encode:
+    creationError: 'SuryError: Ambiguous JSON string -> File. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'

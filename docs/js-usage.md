@@ -1411,6 +1411,9 @@ S.parseOrThrow(
   S.base64url.with(S.to, S.jsonString.with(S.to, S.schema({ sub: S.string }))),
 )("eyJzdWIiOiJhIn0");
 // { sub: "a" }
+
+// The same schema, chained
+S.base64url.with(S.to, S.jsonString).with(S.to, S.schema({ sub: S.string }));
 ```
 
 ### Switch base64 alphabets
@@ -1444,9 +1447,9 @@ S.uint8Array.with(S.to, S.jsonString, "pack");
 Sury does not guess when both conversions exist.
 
 ```ts
-S.uint8Array.with(S.to, S.jsonString);
-// Ambiguous Uint8Array -> JSON string. Should the bytes be packed or unpacked?
-// Choose with S.to and "pack" or "unpack"
+S.parseOrThrow(S.uint8Array.with(S.to, S.jsonString));
+// throws: Ambiguous Uint8Array -> JSON string. Should the bytes be packed or
+// unpacked? Choose with S.to and "pack" or "unpack"
 ```
 
 ### UTF-8, the same bytes, parse, or widen

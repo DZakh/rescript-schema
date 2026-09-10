@@ -20,8 +20,7 @@ import {
   panic,
   panicNotSchema,
   U,
-  undefinedTag,
-  unknown
+  undefinedTag
 } from "./base";
 import {
  B_embedErrorOf,
@@ -151,14 +150,17 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
 
 // ── Call-form dispatch ───────────────────────────────────────────────────────
 
-// `head` is the source the compiled chain starts from - `S.unknown` for the
-// operations that accept anything (`parse`, and the check/make families), `U`
-// where the first schema argument is itself the source (`decode`/`encode`).
-// `rev` reverses that first argument, which is what makes an operation run the
+// Flag bit 8 says the operation accepts anything, so the chain's source is
+// `S.unknown` rather than its own head (`parse`, and the check/make families;
+// `decode`/`encode` start from their first schema argument). It is a flag
+// rather than an `S.unknown` schema spliced in front of the chain: that node
+// cost a `copySchema` and a dead pass through `noopDecoder` per compile, and a
+// slot in every one of those operations' cache keys - which is what let `getOp`
+// drop from five schema slots to four.
+// `rev` reverses the first argument, which is what makes an operation run the
 // encode direction. `tail` closes the chain: `assertResult` for the families
 // that validate and discard (`is`, `assert`, `make`).
 const compile = (
-  head: Internal | undefined,
   tail: Internal | undefined,
   rev: boolean,
   flag: Flag,
@@ -179,19 +181,16 @@ const compile = (
     panic("Expected a Sury schema. The data goes first or last");
   }
   const first = (rev ? reverse(s0 as Internal) : s0) as Internal;
-  // The chain, in order: head, the caller's schemas, tail. `getOp` reads
+  // The chain, in order: the caller's schemas, then the tail. `getOp` reads
   // exactly as many positional arguments as it is told, so the tail has to sit
   // right after the last schema - which is why each arity is written out with
   // its own count rather than padded with `U`; it also allocates nothing on a
-  // cache hit. A tail only ever comes with a head (every validate-and-discard
-  // family starts from `S.unknown`), so the headless form has no tail arm.
-  return head
-    ? n > 2
-      ? getOp(flag, tail ? 5 : 4, head, first, s1 as Internal, s2 as Internal, tail)
-      : n > 1
-        ? getOp(flag, tail ? 4 : 3, head, first, s1 as Internal, tail)
-        : getOp(flag, tail ? 3 : 2, head, first, tail)
-    : getOp(flag, n, first, s1 as Internal, s2 as Internal);
+  // cache hit.
+  return n > 2
+    ? getOp(flag, tail ? 4 : 3, first, s1 as Internal, s2 as Internal, tail)
+    : n > 1
+      ? getOp(flag, tail ? 3 : 2, first, s1 as Internal, tail)
+      : getOp(flag, tail ? 2 : 1, first, tail);
 };
 
 // The four call forms, told apart by `arguments.length` and by which arguments
@@ -223,37 +222,36 @@ const dispatch = (
   b: unknown,
   c: unknown,
   d: unknown,
-  head: Internal | undefined,
   tail: Internal | undefined,
   rev: boolean,
   flag: Flag,
 ): unknown => {
   switch (n) {
     case 1:
-      return isOwnSchema(a) ? compile(head, tail, rev, flag, 1, a) : panicNotSchema();
+      return isOwnSchema(a) ? compile(tail, rev, flag, 1, a) : panicNotSchema();
     case 2:
       return isOwnSchema(a)
         ? isOwnSchema(b)
-          ? compile(head, tail, rev, flag, 2, a, b)
-          : compile(head, tail, rev, flag, 1, a)(b)
+          ? compile(tail, rev, flag, 2, a, b)
+          : compile(tail, rev, flag, 1, a)(b)
         : isOwnSchema(b)
-          ? compile(head, tail, rev, flag, 1, b)(a)
+          ? compile(tail, rev, flag, 1, b)(a)
           : panicNotSchema();
     case 3:
       return isOwnSchema(a)
         ? isOwnSchema(c)
-          ? compile(head, tail, rev, flag, 3, a, b, c)
-          : compile(head, tail, rev, flag, 2, a, b)(c)
+          ? compile(tail, rev, flag, 3, a, b, c)
+          : compile(tail, rev, flag, 2, a, b)(c)
         : isOwnSchema(b)
-          ? compile(head, tail, rev, flag, 2, b, c)(a)
+          ? compile(tail, rev, flag, 2, b, c)(a)
           : panicNotSchema();
     case 4:
       return isOwnSchema(a)
         ? isOwnSchema(d)
           ? panicArity()
-          : compile(head, tail, rev, flag, 3, a, b, c)(d)
+          : compile(tail, rev, flag, 3, a, b, c)(d)
         : isOwnSchema(b)
-          ? compile(head, tail, rev, flag, 3, b, c, d)(a)
+          ? compile(tail, rev, flag, 3, b, c, d)(a)
           : panicNotSchema();
     default:
       return n > 4 ? panicArity() : panicNotSchema();
@@ -271,13 +269,12 @@ const tailDispatch = (
   b: unknown,
   c: unknown,
   d: unknown,
-  head: Internal | undefined,
   tail: Internal | undefined,
   rev: boolean,
   flag: Flag,
 ): unknown => {
   __setTail(operationTail);
-  return dispatch(n, a, b, c, d, head, tail, rev, flag);
+  return dispatch(n, a, b, c, d, tail, rev, flag);
 };
 
 // ── Operations ───────────────────────────────────────────────────────────────
@@ -299,19 +296,19 @@ const tailDispatch = (
 // the operation's input (`make*`) · 4096 answer a boolean (`is*`).
 
 export function parseOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return dispatch(arguments.length, a, b, c, d, unknown, U, false, 0);
+  return dispatch(arguments.length, a, b, c, d, U, false, 8);
 }
 
 export function parseAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 128);
+  return tailDispatch(arguments.length, a, b, c, d, U, false, 8 | 128);
 }
 
 export function parseAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1);
+  return tailDispatch(arguments.length, a, b, c, d, U, false, 1 | 8);
 }
 
 export function parseAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1 | 128);
+  return tailDispatch(arguments.length, a, b, c, d, U, false, 1 | 8 | 128);
 }
 
 // The Result outcome without committing to a shape: a synchronous schema
@@ -319,27 +316,27 @@ export function parseAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: 
 // compile covers both, so a caller who doesn't know a schema's async-ness
 // doesn't have to lift every answer into a promise to find out.
 export function parseAsPromisableResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1 | 128 | 512);
+  return tailDispatch(arguments.length, a, b, c, d, U, false, 1 | 8 | 128 | 512);
 }
 
 export function decodeOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return dispatch(arguments.length, a, b, c, d, U, U, false, 0);
+  return dispatch(arguments.length, a, b, c, d, U, false, 0);
 }
 
 export function decodeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, false, 128);
+  return tailDispatch(arguments.length, a, b, c, d, U, false, 128);
 }
 
 export function decodeAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, false, 1);
+  return tailDispatch(arguments.length, a, b, c, d, U, false, 1);
 }
 
 export function decodeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, false, 1 | 128);
+  return tailDispatch(arguments.length, a, b, c, d, U, false, 1 | 128);
 }
 
 export function decodeAsPromisableResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, false, 1 | 128 | 512);
+  return tailDispatch(arguments.length, a, b, c, d, U, false, 1 | 128 | 512);
 }
 
 // Only the first schema is reversed: `S.encodeOrThrow(a, ...rest)` starts from
@@ -347,42 +344,42 @@ export function decodeAsPromisableResult(a?: unknown, b?: unknown, c?: unknown, 
 // reversed schema is written exactly as in `decode`. Compare
 // `S.decodeOrThrow(S.reverse(a), ...rest)`, which is its longhand.
 export function encodeOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return dispatch(arguments.length, a, b, c, d, U, U, true, 0);
+  return dispatch(arguments.length, a, b, c, d, U, true, 0);
 }
 
 export function encodeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 128);
+  return tailDispatch(arguments.length, a, b, c, d, U, true, 128);
 }
 
 export function encodeAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1);
+  return tailDispatch(arguments.length, a, b, c, d, U, true, 1);
 }
 
 export function encodeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 128);
+  return tailDispatch(arguments.length, a, b, c, d, U, true, 1 | 128);
 }
 
 export function encodeAsPromisableResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 128 | 512);
+  return tailDispatch(arguments.length, a, b, c, d, U, true, 1 | 128 | 512);
 }
 
 // The make family validates and hands back the value it was given, rather than
 // the decoded clone `parse` would build: the checks run, their result is
 // discarded, and the value keeps its identity.
 export function makeInputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 8 | 2048);
 }
 
 export function makeInputAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 128 | 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 8 | 128 | 2048);
 }
 
 export function makeInputAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 1 | 8 | 2048);
 }
 
 export function makeInputAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 128 | 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 1 | 8 | 128 | 2048);
 }
 
 export function makeInputAsPromisableResult(
@@ -391,23 +388,23 @@ export function makeInputAsPromisableResult(
   c?: unknown,
   d?: unknown,
 ): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 128 | 512 | 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 1 | 8 | 128 | 512 | 2048);
 }
 
 export function makeOutputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 8 | 2048);
 }
 
 export function makeOutputAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 128 | 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 8 | 128 | 2048);
 }
 
 export function makeOutputAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8 | 2048);
 }
 
 export function makeOutputAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 128 | 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8 | 128 | 2048);
 }
 
 export function makeOutputAsPromisableResult(
@@ -416,7 +413,7 @@ export function makeOutputAsPromisableResult(
   c?: unknown,
   d?: unknown,
 ): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 128 | 512 | 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8 | 128 | 512 | 2048);
 }
 
 // ── Checks ───────────────────────────────────────────────────────────────────
@@ -426,27 +423,27 @@ export function makeOutputAsPromisableResult(
 // `is*AsPromise` resolves to one and never rejects.
 
 export function isInput(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 4096);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 8 | 4096);
 }
 
 export function isOutput(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 4096);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 8 | 4096);
 }
 
 export function isInputAsPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1 | 4096);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 1 | 8 | 4096);
 }
 
 export function isOutputAsPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 4096);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8 | 4096);
 }
 
 export function assertInputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return dispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 0);
+  return dispatch(arguments.length, a, b, c, d, assertResult, false, 8);
 }
 
 export function assertOutputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return dispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 0);
+  return dispatch(arguments.length, a, b, c, d, assertResult, true, 8);
 }
 
 export function assertInputAsPromiseOrReject(
@@ -455,7 +452,7 @@ export function assertInputAsPromiseOrReject(
   c?: unknown,
   d?: unknown,
 ): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, false, 1);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 1 | 8);
 }
 
 export function assertOutputAsPromiseOrReject(
@@ -464,7 +461,7 @@ export function assertOutputAsPromiseOrReject(
   c?: unknown,
   d?: unknown,
 ): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8);
 }
 
 // ── ReScript result surface ──────────────────────────────────────────────────
@@ -476,25 +473,25 @@ export function assertOutputAsPromiseOrReject(
 // so the two shapes tree-shake independently.
 
 export function $parseAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 256);
+  return tailDispatch(arguments.length, a, b, c, d, U, false, 8 | 256);
 }
 
 export function $parseAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, U, false, 1 | 256);
+  return tailDispatch(arguments.length, a, b, c, d, U, false, 1 | 8 | 256);
 }
 
 export function $encodeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 256);
+  return tailDispatch(arguments.length, a, b, c, d, U, true, 256);
 }
 
 export function $encodeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, U, U, true, 1 | 256);
+  return tailDispatch(arguments.length, a, b, c, d, U, true, 1 | 256);
 }
 
 export function $makeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 256 | 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 8 | 256 | 2048);
 }
 
 export function $makeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, unknown, assertResult, true, 1 | 256 | 2048);
+  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8 | 256 | 2048);
 }

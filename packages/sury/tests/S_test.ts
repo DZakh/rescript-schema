@@ -51,6 +51,204 @@ const expectSchemaType = <TSchema extends S.Schema<unknown, unknown>>(
 // Can use genType schema
 // expectSchemaType(stringSchema).toBe<unknown, string>();
 
+// The spec format has no pipeline operation (`operations` is parse/decode/encode
+// on one schema), so the multi-argument entry points are tested here - see
+// CONTRIBUTING.md's Spec Harness Suggestions.
+// Bit 8 ("the source is `S.unknown`") rides through the `& 127` mask that keeps
+// a nested recursive compile from inheriting the outer operation's return mode.
+// These are the shapes that mask exists for; they must stay unaffected by it.
+test("A return mode does not leak into a nested compile", (t) => {
+  t.expect(S.isInput(S.json)(function () {})).toBe(false);
+  t.expect(S.isInput(S.json)({ a: [1, "x"] })).toBe(true);
+  t.expect(S.parseAsResult(S.json, function () {}).success).toBe(false);
+
+  const Node = S.recursive("MaskNode", (self) =>
+    S.schema({ id: S.string, kids: S.array(self) })
+  );
+  const good = { id: "a", kids: [{ id: "b", kids: [] }] };
+  const bad = { id: 1, kids: [] };
+
+  t.expect(S.isInput(Node)(good)).toBe(true);
+  t.expect(S.isInput(Node)(bad)).toBe(false);
+  t.expect(S.parseAsResult(Node, good).value).toEqual(good);
+  t.expect(S.parseAsResult(Node, bad).success).toBe(false);
+  t.expect(S.makeOutputOrThrow(Node, good)).toBe(good);
+  t.expect(() => S.assertInputOrThrow(Node, bad)).toThrow();
+});
+
+// `docs/js-usage.md`: encoding is decoding the reversed schema. Nothing pinned
+// that, and it is the invariant any change to how a link's direction is decided
+// has to preserve - so it is the gate for moving the content axis's reading
+// rules around. Verified to hold across all 434 spec schemas when written
+// (395 identical codegen, 39 rejected identically, 0 asymmetric); these are the
+// shapes where reversal does real work.
+// Several structural decisions turn on "is this schema the whole JSON document
+// rather than a rendering of one". That question used to be asked by comparing
+// `name` to "JSON", which user metadata can forge.
+test("Renaming a schema JSON does not change how it converts", (t) => {
+  const renamed = S.meta(S.jsonString, { name: "JSON" });
+
+  // Both are a carrier meeting a format with a different payload, so both are
+  // rule 4's ambiguous pair. Only the rendered name may differ.
+  const real = (): unknown => S.parseOrThrow(S.to(S.base64, S.jsonString));
+  const forged = (): unknown => S.parseOrThrow(S.to(S.base64, renamed));
+  t.expect(real).toThrow("Ambiguous base64 -> JSON string.");
+  t.expect(forged).toThrow("Ambiguous base64 -> JSON.");
+
+  // `S.json` genuinely has no opened form, so its pair says so instead - the
+  // branch the forged name used to reach.
+  t.expect(() => S.parseOrThrow(S.to(S.uint8Array, S.json))).toThrow(
+    "Can't decode Uint8Array -> JSON"
+  );
+
+  // `S.recursive` builds `$ref` from its argument, so that spelling is forgeable
+  // too; it must stay an ordinary recursive schema.
+  const Forged = S.recursive("JSON", (self) => S.schema({ a: S.optional(self) }));
+  t.expect(S.parseOrThrow(Forged)({ a: { a: undefined } })).toEqual({ a: { a: undefined } });
+
+  // The marker rides copies, which is why identity could not replace the name:
+  // a chain node that IS json is a copy of it.
+  t.expect(S.parseOrThrow(S.json.with(S.to, S.string))("x")).toBe("x");
+  t.expect(
+    S.parseOrThrow(S.jsonString.with(S.to, S.schema({ foo: S.optional(S.string) })))("{}")
+  ).toEqual({});
+});
+
+test("Encoding is decoding the reversed schema", (t) => {
+  const shapes: Record<string, S.Schema<unknown, unknown>> = {
+    codec: S.string.with(S.to, S.number),
+    "codec with coders": S.string.with(S.to, S.number, { decode: Number, encode: String }),
+    "object with a codec field": S.schema({ n: S.number.with(S.to, S.string) }),
+    "array of codecs": S.array(S.string.with(S.to, S.number)),
+    "refined codec": S.string.with(S.to, S.number).with(S.gt, 0),
+    "codec then codec": S.string.with(S.to, S.number).with(S.to, S.string),
+    union: S.union([S.string.with(S.to, S.number), S.boolean]),
+    optional: S.optional(S.string.with(S.to, S.number)),
+    "content payload": S.base64.with(S.to, S.jsonString.with(S.to, S.string)),
+    "content reading": S.to(S.base64, S.jsonString, "unpack"),
+    "bytes transfer": S.base64.with(S.to, S.uint8Array),
+    "json document": S.jsonString.with(S.to, S.schema({ id: S.string })),
+    "unsupported pair": S.boolean.with(S.to, S.number),
+    "ambiguous pair": S.base64.with(S.to, S.jsonString),
+  };
+  for (const [name, schema] of Object.entries(shapes)) {
+    const encode = (): string => String(S.encodeOrThrow(schema));
+    const decodeReversed = (): string => String(S.decodeOrThrow(S.reverse(schema)));
+    let encoded: string | undefined, encodeError: string | undefined;
+    try { encoded = encode(); } catch (e) { encodeError = (e as Error).message; }
+    let decoded: string | undefined, decodeError: string | undefined;
+    try { decoded = decodeReversed(); } catch (e) { decodeError = (e as Error).message; }
+    t.expect({ [name]: encoded, error: encodeError }).toEqual({ [name]: decoded, error: decodeError });
+  }
+});
+
+test("A parse and a decode of one schema stay separate compiled operations", (t) => {
+  const schema = S.schema({ id: S.string });
+
+  t.expect(S.parseOrThrow(schema)).toBe(S.parseOrThrow(schema));
+  t.expect(S.decodeOrThrow(schema)).toBe(S.decodeOrThrow(schema));
+  t.expect(S.parseOrThrow(schema)).not.toBe(S.decodeOrThrow(schema));
+
+  t.expect(() => S.parseOrThrow(schema)({ id: 1 })).toThrow();
+  t.expect(S.decodeOrThrow(schema)({ id: 1 } as never)).toEqual({ id: 1 });
+});
+
+test("A slotless S.to is shared, so an inline pipeline compiles once", (t) => {
+  const item = S.schema({ id: S.string });
+
+  // Identity is the whole point: a fresh chain per call is also a fresh
+  // operation-cache target, so an inline pipeline used to recompile on every
+  // call (16.2us against 68ns hoisted).
+  t.expect(S.to(item, S.unknown)).toBe(S.to(item, S.unknown));
+  t.expect(item.with(S.to, S.jsonString)).toBe(item.with(S.to, S.jsonString));
+  t.expect(S.parseOrThrow(S.jsonString.with(S.to, item))).toBe(
+    S.parseOrThrow(S.jsonString.with(S.to, item))
+  );
+
+  // Direction is part of the key - both orders store on the same schema when
+  // one of them is the newer of the pair.
+  t.expect(S.to(item, S.unknown)).not.toBe(S.to(S.unknown, item));
+
+  t.expect(S.parseOrThrow(S.jsonString.with(S.to, item))('{"id":"a"}')).toEqual({ id: "a" });
+});
+
+test("A reading joins the link key; a coder opts out", (t) => {
+  const nodes = (schema: unknown) => {
+    let n = 0;
+    let node = (schema as { l?: { n?: unknown } }).l;
+    while (node) (n++, (node = node.n as { n?: unknown } | undefined));
+    return n;
+  };
+  const make = () => S.string.with(S.to, S.number, { decode: Number, encode: String });
+
+  // A reading is a string primitive, so it is bounded by construction: at most
+  // three entries per pair, and the two readings do not collide.
+  t.expect(S.to(S.base64, S.jsonString, "unpack")).toBe(
+    S.to(S.base64, S.jsonString, "unpack")
+  );
+  t.expect(S.to(S.base64, S.jsonString, "unpack")).not.toBe(
+    S.to(S.base64, S.jsonString, "pack")
+  );
+
+  // A coder is a fresh object every call, so it must NOT join the key - keying
+  // on it would miss every time and add a node it can never hit again, on a
+  // pair of singletons that never dies.
+  t.expect(make()).not.toBe(make());
+  for (let i = 0; i < 20; i++) S.string.with(S.to, S.number, { decode: Number, encode: String });
+  t.expect(nodes(S.number)).toBe(0);
+
+  // `S.trim` reshapes its own result after building it, so it stays unshared
+  // for a second reason - and the content marker it stamps onto its tail must
+  // not reach the shared `string` singleton. `content` is internal, hence the cast.
+  t.expect(S.base64.with(S.trim)).not.toBe(S.base64.with(S.trim));
+  t.expect((S.string as unknown as { content?: unknown }).content).toBe(undefined);
+});
+
+test("The link cache lands on the argument that dies first", (t) => {
+  const nodes = (schema: unknown) => {
+    let n = 0;
+    let node = (schema as { l?: { n?: unknown } }).l;
+    while (node) (n++, (node = node.n as { n?: unknown } | undefined));
+    return n;
+  };
+  // Both long-lived schemas are this test's own: asserting a node count on a
+  // shared singleton couples the result to whatever else the suite linked to it.
+  const longLived = S.schema({ id: S.string });
+  const longLivedTarget = S.schema({ tag: S.string });
+
+  // `seq` is monotonic, so a fresh partner is always the newer of the pair and
+  // takes the node with it. Neither a long-lived source nor a long-lived target
+  // accumulates anything, which is what makes an unbounded cache safe.
+  for (let i = 0; i < 20; i++) S.to(longLived, S.schema({ n: S.literal(i) }));
+  for (let i = 0; i < 20; i++) S.to(S.schema({ n: S.literal(i) }), longLivedTarget);
+  t.expect(nodes(longLived)).toBe(0);
+  t.expect(nodes(longLivedTarget)).toBe(0);
+
+  // A repeated pair is one node, however many times it is asked for.
+  for (let i = 0; i < 20; i++) S.to(longLived, S.unknown);
+  t.expect(nodes(longLived)).toBe(1);
+
+  // Invisible to everything that walks a schema: `copySchema`'s Object.assign,
+  // `unionIsTransparent`'s field count, and JSON.stringify of an error.
+  t.expect(Object.keys(longLived)).not.toContain("l");
+  t.expect("l" in S.meta(longLived, { title: "t" })).toBe(false);
+  t.expect(typeof JSON.stringify(S.to(longLived, S.unknown))).toBe("string");
+});
+
+test("Deriving from a shared link leaves the shared instance alone", (t) => {
+  const item = S.schema({ id: S.string });
+  const shared = item.with(S.to, S.unknown);
+
+  const described = shared.with(S.meta, { description: "d" });
+  t.expect(described).not.toBe(shared);
+  t.expect(shared.description).toBe(undefined);
+  t.expect(item.with(S.to, S.unknown).description).toBe(undefined);
+
+  // The reverse is cached on the shared instance, which is a second win, not a
+  // leak: it is derived from the same two arguments.
+  t.expect(S.reverse(shared)).toBe(S.reverse(item.with(S.to, S.unknown)));
+});
+
 test("S.to returns the schema itself when the target is the same instance", (t) => {
   const make = () => S.string.with(S.to, S.number, (string) => string.length);
   const schema = make();

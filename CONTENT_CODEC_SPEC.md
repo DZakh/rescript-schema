@@ -111,12 +111,16 @@ The check is on the schema shape (a `content` marker plus `.to` present), so it
 is local and stable: new built-in conversions in later versions can never
 retract it.
 
-**The payload goes inside, not after.** Each link settles when it is written, so
-`S.file.with(S.to, S.jsonString).with(S.to, configSchema)` is rule 4 on its first
-link - at that point nothing has said what the JSON string carries, and the
-second link can't reach back, because reversal would have lost the distinction
-anyway (see the implementation notes). Write the payload inside the format, or
-say which reading you meant with a slot.
+Both spellings say it. Nesting the payload inside the format, as above, or
+chaining it after:
+
+```ts
+S.file.with(S.to, S.jsonString).with(S.to, configSchema);   // the same schema
+```
+
+The first link is rule 4 on its own - nothing has said yet what the JSON string
+carries - and the second link is what settles it. Nothing is decided until the
+schema is compiled, so a link is judged with the whole chain in view.
 
 ## Rule 4: otherwise, error
 
@@ -237,26 +241,36 @@ schema fields carry it:
 | field | meaning |
 | --- | --- |
 | `content` | the schema this value's payload is stored as inside a JSON document - `S.base64` for every bytes carrier, `S.json` for `S.jsonString` and `S.json` itself. Absent means the value carries no payload. |
-| `opens` | the reading a `"pack"`/`"unpack"` slot wrote, on the schema that direction converts *into* - so `reverse`, which copies node by node, carries each direction's slot with it. |
+| `opens` | the reading of the link into this schema, whatever settled it: a slot, a payload gaining its `.to` (rule 3), or the document piece a field is stored into (rule 2). One per link; `reverse`, which copies node by node, writes each node's from its forward successor's, negated. |
 
 Two schemas that agree on `content` carry the same kind of payload, so a link
 between them is a plain transfer; two that disagree have both readings live, and
-`B_readsPayload` answers which one applies: the slot if there is one, otherwise
-the target naming its own payload with `.to` (rule 3).
+`opens` says which applies. Every way a reading gets settled writes it: a slot
+(rule 1), a document field's position (rule 2, in `fieldPiece`), and a payload
+gaining a `.to` (rule 3) - the last written at the two places a `.to` link is
+made, `codecTo` and `compileChain`, the moment it becomes true. Materialized
+rather than read off `.to !== U`, because reversing a chain re-points `.to` and
+would lose it, while `reverse` carries `opens` across like any other slot: the
+legal `X -> jsonString -> File` and the rejected `jsonString -> File` reach the
+decoder as the same pair, and only the slot tells them apart.
 
-`B_contentDiffers` asks rule 4's question at the two places a `.to` link is made
-- `codecTo` for a written `S.to`, `getOp` for an operation given its own
-target - and the empty direction takes a slot that rejects the operation. It
-cannot be left to compile time, because reversing a chain turns the target's
-payload declaration into just another link: the legal `X -> jsonString -> File`
-and the rejected `jsonString -> File` reach the decoder as the same pair.
+Rule 4 is then asked while compiling, by the schemas that declare a payload -
+`json`, `jsonString`, `base64`, `uint8Array`, `file` - each in its own decoder
+and encoder, and by a union carrying its `.to` into one, before it splits the
+link per arm (`B_rejectUnsettled`). A link between two payloads of different
+kinds with no reading on either end is the error; a bundle that ships none of
+those schemas ships none of this, and `S.to` is a link and nothing more. The
+link is found from the parse loop's own step rather than from the val's source
+type: a union case parses its arm from the type narrow and a bytes read from
+text types its result as the format singleton, so the source there is a schema
+with no `.to` at all.
 
-What the rejection *says* is the caller's, not the question's. `codecTo` names
-the slots, because the caller has somewhere to write one; `getOp`'s form
-has nowhere, so it reports the pair as having no decoder - which a coder still
-answers. And `codecTo` says the same for a pair no slot resolves: a union arm's
-payload and a reading written on the union both stop short of the dispatch, and
-`S.json` has no opened form of its own.
+What the rejection *says* comes from the pair. Two renderings name the slots,
+since a slot is what settles them; a pair no slot resolves - a union arm's
+payload, a reading written on the union, either side being `S.json`, which has
+no opened form of its own - reports the pair as having no decoder, which a
+coder still answers. The operation form (`S.decodeOrThrow(a, b, c)`) gets the
+same message as the written `S.to`: it is the same chain.
 
 Everything else is the two markers being read where a decision already happened:
 rule 2 is the carrier's `encoder` being handed a content-format target,

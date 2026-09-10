@@ -1448,9 +1448,9 @@ S.uint8Array->S.to(S.jsonString, ~custom={decode: Pack, encode: Unpack})
 Sury does not guess when both conversions exist.
 
 ```rescript
-S.uint8Array->S.to(S.jsonString)
-// Ambiguous Uint8Array -> JSON string. Should the bytes be packed or unpacked?
-// Choose with S.to and "pack" or "unpack"
+bytes->S.parseOrThrow(~to=S.uint8Array->S.to(S.jsonString))
+// throws: Ambiguous Uint8Array -> JSON string. Should the bytes be packed or
+// unpacked? Choose with S.to and "pack" or "unpack"
 ```
 
 #### UTF-8, the same bytes, parse, or widen

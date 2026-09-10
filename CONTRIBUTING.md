@@ -372,6 +372,23 @@ instead of silently working around it.
   suite green. An `assert` op block, even one holding just an expression and a
   pass/throw example, would have caught it; `tests/content_test.ts` holds it
   instead.
+- `operations` names one schema's `parse`/`decode`/`encode`, so a **pipeline**
+  - `S.decodeOrThrow(a, b, c)`, the multi-schema form `docs/js-usage.md`
+  documents - has no golden anywhere. It is not a niche path:
+  `S.decodeOrThrow(base64, jsonString, string)` emits byte for byte what
+  `S.base64.with(S.to, S.jsonString).with(S.to, S.string)` does, through a
+  fold of its own (`compileChain`), and nothing pins that the two agree.
+  A `ts.pipeline` beside `ts.schema`, taking the argument list, would cover it.
+- `fuzz:union --ref=<commit>` reports 3 `acceptance` diffs on the pinned
+  `issue-392` case even when the working tree *is* that commit, so the
+  changelog cannot be read as a signal without running it on an unchanged tree
+  first. The pinned case builds its member schemas with the working library and
+  hands them to `baseline.union(...)`, so two library instances share one set of
+  schema objects and each writes its own per-compile fields onto them. Building
+  the members with each library separately, the way `diffsForUnion` does for the
+  generated cases, would make the changelog trustworthy. The gate itself is
+  unaffected - it only counts `acceptance`/`exception-kind` from the
+  compiled-vs-reference run.
 - A spec for a *new* export is timed against a baseline that doesn't have it.
   The expression evaluates to `undefined` there, `S.parseOrThrow(undefined)` compiles
   to `noopOperation`, and the real validator is then reported as thousands of

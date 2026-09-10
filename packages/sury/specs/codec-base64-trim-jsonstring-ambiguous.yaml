@@ -17,6 +17,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    creationError: 'SuryError: Ambiguous string -> JSON string. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'
+    creationError: 'SuryError: Ambiguous base64 -> JSON string. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'
   decode: eq-to-parse
-  encode: eq-to-parse
+  encode:
+    creationError: 'SuryError: Ambiguous JSON string -> base64. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'

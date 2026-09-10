@@ -54,7 +54,9 @@ test("FIXME: a three-schema chain decodes but does not encode", async () => {
   expect(
     S.encodeOrThrow(S.file.with(S.to, S.jsonString.with(S.to, S.array(user))))([{ name: "Ann" }]),
   ).toBeInstanceOf(File);
+  // Written as its own pipeline, `jsonString -> file` declares nothing, so the
+  // pair is the ambiguous one rather than the declared one the decode side has.
   expect(() => S.encodeOrThrow(S.array(user), S.jsonString, S.file)).toThrow(
-    "Can't decode JSON string -> File",
+    "Ambiguous JSON string -> File",
   );
 });
