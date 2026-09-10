@@ -10,6 +10,7 @@ import {
   type Check,
   configurableValueOptions,
   copySchema,
+  copyTo,
   functionTag,
   getOrRethrow,
   inputExpression,
@@ -149,8 +150,6 @@ export const option = (item: Internal): Internal => {
   return optionFactory(item, unit);
 }
 
-// PORT-NOTE: `module Metadata` → flat `Metadata_*` functions. `Id.t<'metadata>` is a string at
-// runtime; `unionToKey` was `%identity` and is dropped.
 export type MetadataId = string;
 
 // @__NO_SIDE_EFFECTS__
@@ -177,12 +176,9 @@ export const Metadata_set = (schema: Internal, id: MetadataId, metadata: unknown
 // @__NO_SIDE_EFFECTS__
 export const noValidation = (schema: Internal, value: boolean): Internal => {
   const mut = copySchema(schema);
-
-  // TODO: Test for discriminant literal
-  // TODO: Better test reverse
   mut.noValidation = value;
   return mut;
-}
+};
 
 export const internalRefine = (
   schema: Internal,
@@ -382,15 +378,8 @@ export const linkTo = (
 };
 
 // Not initSchema: that would stamp the self-reverse marker, and this codec's
-// reverse (unit -> null) must stay lazily derived - copySchema drops
-// nullLiteral's non-enumerable `r` on purpose.
-export const nullAsUnit: Internal = /* @__PURE__ */ (() => {
-  // PORT-NOTE: local `s` renamed to `schema` - `s` is the module-level error
-  // identity symbol in this file.
-  const schema = copySchema(nullLiteral);
-  schema.to = unit;
-  return schema;
-})();
+// reverse (unit -> null) must stay lazily derived — copySchema drops it.
+export const nullAsUnit: Internal = /* @__PURE__ */ copyTo(nullLiteral, unit);
 
 // A default is either an eager value or a lazily-called callback - used only
 // within this module, never exposed to callers.
@@ -493,8 +482,6 @@ export const Option_getOr = (schema: Internal, defaultValue: unknown): Internal 
 export const Option_getOrWith = (schema: Internal, defaultCb: () => unknown): Internal =>
   Option_getWithDefault(schema, { type: "callback", callback: defaultCb });
 
-// PORT-NOTE: `Object.s` (the object ctx record) → `ObjectCtx`; field names are
-// the runtime names from `@as` (`f` for `field`, others unchanged).
 export type ObjectCtx = {
   // @as("f") - field
   f: (location: string, schema: Internal) => unknown;
@@ -572,11 +559,6 @@ export const deepStrict = (schema: Internal): Internal => {
   return Object_setAdditionalItems(schema, "strict", true);
 }
 
-export type TupleCtx = {
-  item: (idx: number, schema: Internal) => unknown;
-  tag: (idx: number, value: unknown) => void;
-};
-
 export type Meta<TValue> = {
   name?: string;
   title?: string;
@@ -586,7 +568,6 @@ export type Meta<TValue> = {
   errorMessage?: SchemaErrorMessage;
 };
 
-// TODO: Better test reverse
 // @__NO_SIDE_EFFECTS__
 export const meta = <TValue>(schema: Internal, data: Meta<TValue>): Internal => {
   const mut = copySchema(schema);

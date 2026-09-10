@@ -1,11 +1,5 @@
-// PORT-NOTE: no runtime values had to be imported from JSONSchema.res or
-// StandardSchema.res - everything runtime-relevant there is `%identity`
-// externals (Arrayable.single/array, Mutable.fromReadOnly/toReadOnly,
-// Result casts) or `Object.assign` (Mutable.mixin), all inlined below.
-// Their types are ported as loose TS aliases with the RUNTIME field names
-// (`$ref`, `$schema`, `$defs`, `type`, `if`, `else` - the `@as(...)` names,
-// not the ReScript field names `ref`/`schema`/`defs`/`type_`/`if_`/`else_`).
-// =============================================================================
+// Dialect types use the JSON Schema field names (`$ref`, `$schema`, `$defs`),
+// not ReScript's `ref`/`schema`/`defs` aliases.
 
 import {
   anyOfTag,
@@ -134,17 +128,9 @@ export type JSONSchemaTypeName =
   | "array"
   | "null";
 
-// PORT-NOTE: JSONSchema.Arrayable.t<'item> is an untagged `item | item[]`;
-// `Arrayable.single`/`Arrayable.array` are %identity and are dropped at call
-// sites, `Arrayable.isArray` is Array.isArray, and `Arrayable.classify` is an
-// inline Array.isArray test.
 export type JSONSchemaArrayable<TItem> = TItem | TItem[];
 
-// PORT-NOTE: JSONSchema's `definition` is `@unboxed
-// Schema(t) | @as(false) Never | @as(true) Any` - at runtime a definition is
-// the schema object itself, `false`, or `true`. The `Schema(...)` wrapping
-// at construction sites is a no-op and is dropped; `Never` -> `false`,
-// `Any` -> `true`; the `Schema(t)` pattern -> `typeof d !== "boolean"`.
+
 export type JSONSchemaDefinition = JSONSchemaT | boolean;
 
 /**
@@ -156,10 +142,6 @@ export type JSONSchemaDefinition = JSONSchemaT | boolean;
  *
  * @see https://tools.ietf.org/html/draft-handrews-json-schema-validation-01
  */
-// PORT-NOTE: JSONSchema.t and JSONSchema.Mutable.t are the same runtime
-// object (Mutable.fromReadOnly/toReadOnly are %identity); TS has no
-// readonly/mutable split worth keeping here, so a single mutable type serves
-// both, and Mutable.fromReadOnly/toReadOnly calls are dropped.
 export type JSONSchemaT = {
   $id?: string;
   $ref?: string;
@@ -258,12 +240,7 @@ export type JSONSchemaT = {
   examples?: unknown[];
 };
 
-// PORT-NOTE: StandardSchema.JsonSchema.target is `@unboxed | @as("draft-07")
-// Draft07 | @as("draft-2020-12") Draft202012 | @as("openapi-3.0") OpenApi30 |
-// Unknown(string)` - at runtime it's just a string; the known dialects are
-// compared as string literals, everything else is the `Unknown` case.
-// TODO(integration): if section 06 already declares these two aliases for
-// standardJSONSchemaRef's signature, keep a single declaration.
+
 export type JsonSchemaTarget = "draft-07" | "draft-2020-12" | "openapi-3.0" | (string & {});
 
 // Compared on every emit branch that differs by dialect; naming it once keeps
@@ -274,9 +251,6 @@ export type StandardJsonSchemaOptions = {
   target: JsonSchemaTarget;
   libraryOptions?: Record<string, unknown>;
 };
-
-// internalToJSONSchema / internalToJSONSchemaBase are mutually recursive, so
-// they're standalone rather than nested closures.
 
 const jsonSchemaMetadataId: string = /* @__PURE__ */ Metadata_Id_internal("JSONSchema");
 
@@ -600,7 +574,6 @@ const internalToJSONSchemaBase = (
       typeof d !== "boolean" &&
       (d.type === "null" || (d.enum !== U && d.enum.length === 1 && d.enum[0] === null));
 
-    // TODO: Write a breaking test with itemsNumber === 0
     if (itemsNumber === 1) {
       Object.assign(jsonSchema, items[0]);
     } else if (literals.length === itemsNumber) {
@@ -743,16 +716,6 @@ export const extendJSONSchema = (schema: Internal, jsonSchema: JSONSchemaT): Int
   );
 };
 
-// PORT-NOTE: `castAnySchemaToJsonableS` is a bare `Obj.magic` (a pure no-op
-// type re-cast, `schema<'any> => schema<JSON.t>`). It has no runtime body, so
-// no value is emitted here and every `->castAnySchemaToJsonableS` call below
-// is simply dropped. If the public bindings layer needs the name, it's a TS
-// `as` cast there.
-
-// PORT-NOTE: the `let rec fromJSONSchema = { let helper = ...; jsonSchema => ... }`
-// block-scoped helpers (primitiveToSchema, toIntSchema,
-// definitionToDefaultValue) are hoisted to module-scope functions -
-// same behavior, they close over nothing but module-level bindings.
 
 // `const`/`enum` values. An object or array goes through schemaFactory (what
 // `S.literal` is) so it becomes a structural schema whose fields are literals,
@@ -829,10 +792,9 @@ const withNumericBounds = (schema: Internal, jsonSchema: JSONSchemaT): Internal 
   const exMin = exclusiveBound(jsonSchema.minimum, jsonSchema.exclusiveMinimum);
   const max = inclusiveBound(jsonSchema.maximum, jsonSchema.exclusiveMaximum);
   const exMax = exclusiveBound(jsonSchema.maximum, jsonSchema.exclusiveMaximum);
-  if (min !== U) schema = applyBound(schema, gte, min);
-  if (exMin !== U) schema = applyBound(schema, gt, exMin);
-  if (max !== U) schema = applyBound(schema, lte, max);
-  if (exMax !== U) schema = applyBound(schema, lt, exMax);
+  for (const [v, fn] of [[min, gte], [exMin, gt], [max, lte], [exMax, lt]] as const) {
+    if (v !== U) schema = applyBound(schema, fn, v);
+  }
   // `multipleOf: 1` on an integer schema restates what the format already
   // checks - storing it would emit a keyword the author's document may not
   // have had (the int-schema branches synthesize integer from other spellings).
@@ -991,10 +953,10 @@ const objectSchema = (
       (typeof additionalItems === "string" || !!additionalItems.sr),
     objectDecoder
   );
-  // Every other producer of `required` (builder, factory, composites) means the
+  // fromJSONSchema wraps absent keys in `option` first. `required` is then the
   // non-optional properties in declaration order, not the document's `required`
-  // set - which is the same list only once each absent key has been wrapped in
-  // `option`, and in a different order.
+  // array (different order, and only the same set once those wraps are done).
+  // `S.merge` filters the same way; `S.schema` still lists every key.
   schema.required = Object.keys(properties).filter((key) => !isOptional(properties[key]!));
   schema.properties = properties;
   schema.additionalItems = additionalItems;
@@ -2048,17 +2010,4 @@ export const fromJSONSchema = (
   return schema;
 }
 
-// PORT-NOTE: every one of these is a PURE NO-OP - a bare `Obj.magic` (or
-// `castToPublic` for `unknown`) that re-types an existing function/value from
-// its `internal`-returning form to the public `t<'x>`-returning form without
-// touching the runtime value. In this TS port the runtime object is `Internal`
-// everywhere and the public typing lives in the bindings layer, so NO runtime
-// code is emitted for any of them. Listed for completeness (all no-ops):
-//
-//   nullAsUnit, never_, unknown (castToPublic of the `unknown` schema const),
-//   unit, nullLiteral, nan, string, bool, int, float, bigint, symbol, date,
-//   json, jsonString, jsonStringWithSpace, uint8Array, isoDateTime, port,
-//   email, uuid, cuid, url
-//
-// The bindings layer (Sury.res / index.d.ts) should re-export the already-defined
-// functions of the same names under their public types.
+

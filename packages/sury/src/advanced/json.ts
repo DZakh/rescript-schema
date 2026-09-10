@@ -8,6 +8,7 @@ import {
   baseSchema,
   type Builder,
   copySchema,
+  copyTo,
   defsPath,
   type Encoder,
   initSchema,
@@ -39,6 +40,7 @@ import {
   B_mergeWithPathPrepend,
   B_next,
   B_nextConst,
+  B_nextVar,
   B_refine,
   B_rejectUnsettled,
   B_unsupportedDecode,
@@ -81,10 +83,14 @@ import {
 } from "./recursive";
 
 // The one JSON.stringify call shape: space 0/undefined omits the indent
-// argument. Both jsonEncoderFn and the pretty-print fallback go through it so
-// the space convention can't diverge.
+// argument. Encoder, pretty-print fallback, and the jsonString aggregator
+// go through it so the space convention can't diverge.
 const B_stringifyCall = (i: string, space: number | undefined): string =>
   `JSON.stringify(${i}${space ? `,null,${space}` : ""})`;
+
+// The one JSON.parse call shape used for jsonString decodes and the
+// "is this valid JSON text" guard in jsonString's string piece.
+const B_parseCall = (i: string): string => `JSON.parse(${i})`;
 
 export const jsonEncoderFn = (input: Val, target: Internal): Val => {
   B_rejectUnsettled(input, target);
@@ -95,33 +101,25 @@ export const jsonEncoderFn = (input: Val, target: Internal): Val => {
     return B_next(input, B_stringifyCall(input.i, target.space), target, target);
   }
   const toTagFlag = tagFlags[target.type]!;
+  const copyVia = (schema: Internal): Val =>
+    parse(B_refine(input, unknown, U, copyTo(schema, target)));
+  const asJsonContainer = (o: Val) => {
+    o.s.additionalItems = json;
+    o.e = target;
+    o.io = false;
+    return o;
+  };
 
   if (
     (toTagFlag & (2 | 8 | 4 | 32))
   ) {
     return parse(B_refine(input, unknown, U, target));
   } else if ((toTagFlag & (16 | 2048))) {
-    const jsonExpected = copySchema(nullLiteral);
-    jsonExpected.to = target;
-    return parse(B_refine(input, unknown, U, jsonExpected));
-  } else if ((toTagFlag & 128)) {
-    // Validate that the input is an array
-    // and then update the schema to be an array of json instead of array of unknown
-    const jsonExpected = arrayFactory(unknown);
+    return copyVia(nullLiteral);
+  } else if ((toTagFlag & (128 | 64))) {
+    const jsonExpected = (toTagFlag & 128) ? arrayFactory(unknown) : dictFactory(unknown);
     const output = parse(B_refine(input, unknown, U, jsonExpected));
-    output.s.additionalItems = json;
-    output.e = target;
-    output.io = false;
-    return output;
-  } else if ((toTagFlag & 64)) {
-    // Validate that the input is an object
-    // and then update the schema to be an object of json instead of object of unknown
-    const jsonExpected = dictFactory(unknown);
-    const output = parse(B_refine(input, unknown, U, jsonExpected));
-    output.s.additionalItems = json;
-    output.e = target;
-    output.io = false;
-    return output;
+    return asJsonContainer(output);
   } else if ((toTagFlag & (256 | 512))) {
     // A variant that stores a payload is read out of a document exactly like a
     // lone one is (CONTENT_CODEC_SPEC.md rule 2) - but the dispatch works from
@@ -154,9 +152,7 @@ export const jsonEncoderFn = (input: Val, target: Internal): Val => {
           // A bare `.to`, not `codecTo`: the pair is this module's own - a
           // schema and the very content marker it names - so there is no
           // reading for the content rules to be asked about.
-          const stored = copySchema(from);
-          stored.to = variant;
-          return stored;
+          return copyTo(from, variant);
         })
       );
       stored.perVariant = true;
@@ -167,26 +163,22 @@ export const jsonEncoderFn = (input: Val, target: Internal): Val => {
     // For non-JSON types (bigint, instance, etc.), decode through the schema
     // the target is stored as - a plain string, unless it carries a payload of
     // its own and names how a document holds it (bytes as base64).
-    const jsonExpected = copySchema(target.content !== U ? target.content : string);
-    jsonExpected.to = target;
-    return parse(B_refine(input, unknown, U, jsonExpected));
+    return copyVia(target.content !== U ? target.content : string);
   }
 }
 
 export const isJsonable = (schema: Internal): boolean => {
   const tagFlag = tagFlags[schema.type]!;
+  const rest = schema.additionalItems;
+  const restOk = typeof rest !== "object" || isJsonable(rest);
   return (
     (tagFlag & (2 | 4 | 8 | 32)) !== 0 ||
     schema["$ref"] === json["$ref"] ||
     ((tagFlag & 256) !== 0 && schema.anyOf!.every(isJsonable)) ||
-    ((tagFlag & 128) !== 0 &&
-      (typeof schema.additionalItems === "object" ? isJsonable(schema.additionalItems) : true) &&
-      schema.items!.every(isJsonable)) ||
-    ((tagFlag & 64) !== 0 &&
-      (typeof schema.additionalItems === "object" ? isJsonable(schema.additionalItems) : true) &&
-      Object.values(schema.properties!).every(isJsonable))
+    ((tagFlag & 128) !== 0 && restOk && schema.items!.every(isJsonable)) ||
+    ((tagFlag & 64) !== 0 && restOk && Object.values(schema.properties!).every(isJsonable))
   );
-}
+};
 
 // Per-variant conversion instead of a generic `undefined | X` check: the
 // variants `keep` names stay as they are (an undefined one, so the object
@@ -235,15 +227,14 @@ export const jsonDecoderFn = (input: Val): Val => {
       expected.to = input.e.to;
       return parse(B_refine(input, U, U, expected));
     } else {
-      const jsonVal = makeObjectVal(input, input.s);
+      const jsonVal = makeObjectVal(input);
       jsonVal.e = json;
       if (input.e.to) {
-        jsonVal.e = copySchema(jsonVal.e);
-        jsonVal.e.to = input.e.to;
+        jsonVal.e = copyTo(jsonVal.e, input.e.to);
       }
 
       const keys = Object.keys(input.s.properties!);
-      for (let idx = 0; idx <= keys.length - 1; idx++) {
+      for (let idx = 0; idx < keys.length; idx++) {
         const key = keys[idx]!;
         const itemVal = valGet(input, key);
         itemVal.io = false;
@@ -266,7 +257,7 @@ export const jsonDecoderFn = (input: Val): Val => {
       return completeObjectVal(jsonVal);
     }
   } else if ((inputTagFlag & 512)) {
-    // FIXME: Should be a unified solution for ref inputs
+    // `$ref`: same nested compile as `S.recursive`.
     return recursiveDecoder(input);
   } else if ((inputTagFlag & 256)) {
     // Each variant decodes to JSON separately, and an `undefined` one becomes
@@ -279,15 +270,11 @@ export const jsonDecoderFn = (input: Val): Val => {
     return parse(unionRewriteTo(input, input.e));
   } else if ((inputTagFlag & 1)) {
     const to = input.e.to!;
-    // Whether we can optimize encoding during decoding. Encoding into a
-    // concrete type validates implicitly - except a json-format target, whose
-    // JSON.stringify accepts (or silently drops) anything, so it still needs
-    // the JSON validation here.
-    // FIXME: should this also check !input.e.refiner, like `carriedJsonString`'s caller does?
-    // The `undefined` sentinel `S.assertInputOrThrow` targets is `noValidation` and reads
-    // nothing, so encoding into it asserts nothing either - `S.isInput(S.json, x)`
-    // answered true for a function. A `noValidation` document is a different
-    // thing: it still holds the value, and the encode is how it is described.
+    // Encoding into a concrete type validates implicitly — except a json-format
+    // target, whose JSON.stringify accepts (or silently drops) anything, so it
+    // still needs the JSON validation here.
+    // The `undefined` sentinel `S.assertInputOrThrow` targets is `noValidation`
+    // and reads nothing, so encoding into it asserts nothing either.
     const preEncode: boolean =
       !!to &&
       to.format !== "json" &&
@@ -303,14 +290,15 @@ export const jsonDecoderFn = (input: Val): Val => {
       return recursiveDecoder(input);
     }
   } else {
-    try {
-      const expected = copySchema(string);
-      expected.to = input.e;
-      input.e = expected;
-      return parse(input);
-    } catch {
-      return B_unsupportedDecode(input, input.s, json);
-    }
+    const parseViaString = (to: Internal): Val => {
+      try {
+        input.e = copyTo(string, to);
+        return parse(input);
+      } catch {
+        return B_unsupportedDecode(input, input.s, to);
+      }
+    };
+    return parseViaString(json);
   }
 }
 
@@ -318,13 +306,13 @@ export const json: Internal = /* @__PURE__ */ initSchema(refTag, jsonDecoderFn, 
   const jsonRef = baseSchema(refTag, true, jsonDecoderFn);
   jsonRef["$ref"] = `${defsPath}${jsonName}`;
   jsonRef.name = jsonName;
-  jsonRef.jn = true;
+  jsonRef.isJson = true;
 
   jsonRef.encoder = jsonEncoderFn;
 
   s["$ref"] = jsonRef["$ref"];
   s.name = jsonName;
-  s.jn = true;
+  s.isJson = true;
   s.encoder = jsonEncoderFn;
   setContent(s, s);
 
@@ -441,17 +429,12 @@ export const jsonString = /* @__PURE__ */ (() => {
         jsonStringConstSchema.to = target;
         return B_refine(input, U, U, jsonStringConstSchema);
       } else {
-        const outputVar = B_varWithoutAllocation(input.g);
+        const nextSchema = copyTo(json, target);
 
-        const nextSchema = copySchema(json);
-        nextSchema.to = target;
-
-        const output = B_next(input, outputVar, nextSchema, nextSchema);
+        const output = B_nextVar(input, nextSchema);
         output.io = true;
-        output.v = _var;
-
         const inputVar = input.v();
-        output.cp = `let ${outputVar};try{${outputVar}=JSON.parse(${inputVar})}catch(t){${B_embedInvalidInput(
+        output.cp = `let ${output.i};try{${output.i}=${B_parseCall(inputVar)}}catch(t){${B_embedInvalidInput(
           input,
           input.s,
         )}}`;
@@ -487,6 +470,7 @@ export const jsonString = /* @__PURE__ */ (() => {
     s.fz = (input, container, item) => {
       if (
         input.s.additionalItems === unknown &&
+        container &&
         !container.to!.space &&
         !(input.g.o & 1) &&
         (item !== U
@@ -564,11 +548,11 @@ export const jsonString = /* @__PURE__ */ (() => {
         continue;
       }
       if (c !== '"') {
-        i = i + 1;
+        i++;
         continue;
       }
       let j = litEnd(i);
-      out = out + code.slice(from, i);
+      out += code.slice(from, i);
       let lit = code.slice(i, j);
       const prev = out[out.length - 1];
       if (prev !== "-" && prev !== "*" && prev !== "/" && prev !== "%") {
@@ -578,7 +562,7 @@ export const jsonString = /* @__PURE__ */ (() => {
           j = k;
         }
       }
-      out = out + lit;
+      out += lit;
       from = j;
       i = j;
     }
@@ -597,10 +581,8 @@ export const jsonString = /* @__PURE__ */ (() => {
     if (/^[\w$]+$/.test(inputVar)) {
       return itemVal;
     }
-    const localVar = B_varWithoutAllocation(itemVal.g);
-    const local = B_next(itemVal, localVar, itemVal.s, itemVal.e);
-    local.v = _var;
-    local.cp = `let ${localVar}=${inputVar};`;
+    const local = B_nextVar(itemVal, itemVal.s, itemVal.e);
+    local.cp = `let ${local.i}=${inputVar};`;
     return local;
   };
 
@@ -660,13 +642,11 @@ export const jsonString = /* @__PURE__ */ (() => {
       detached.prev = U;
       const jsonVal = parse(B_refine(detached, U, U, json));
       const validation = B_merge(jsonVal);
-      const outputVar = B_varWithoutAllocation(itemVal.g);
-      const p = B_next(itemVal, outputVar, jsonString, jsonString);
-      p.v = _var;
+      const p = B_nextVar(itemVal, jsonString);
       p.cp = isArr
-        ? `let ${outputVar}="null";if(${inputVar}!==void 0){${validation}${outputVar}=JSON.stringify(${jsonVal.i})??"null"}`
-        : `let ${outputVar};if(${inputVar}!==void 0){${validation}${outputVar}=JSON.stringify(${jsonVal.i})}`;
-      return { p, g: isArr ? U : outputVar };
+        ? `let ${p.i}="null";if(${inputVar}!==void 0){${validation}${p.i}=${B_stringifyCall(jsonVal.i, U)}??"null"}`
+        : `let ${p.i};if(${inputVar}!==void 0){${validation}${p.i}=${B_stringifyCall(jsonVal.i, U)}}`;
+      return { p, g: isArr ? U : p.i };
     };
     if ((tagFlags[cur.type]! & 1)) {
       return guardedJsonPiece(itemVal);
@@ -678,17 +658,15 @@ export const jsonString = /* @__PURE__ */ (() => {
       if (isArr) {
         const p = B_next(
           jsonVal,
-          `(JSON.stringify(${jsonVal.i})??"null")`,
+          `(${B_stringifyCall(jsonVal.i, U)}??"null")`,
           jsonString,
           jsonString,
         );
         return { p, g: U };
       }
-      const outputVar = B_varWithoutAllocation(itemVal.g);
-      const p = B_next(jsonVal, outputVar, jsonString, jsonString);
-      p.v = _var;
-      p.cp = `let ${outputVar}=JSON.stringify(${jsonVal.i});`;
-      return { p, g: outputVar };
+      const p = B_nextVar(jsonVal, jsonString);
+      p.cp = `let ${p.i}=${B_stringifyCall(jsonVal.i, U)};`;
+      return { p, g: p.i };
     }
     if (cur.type === anyOfTag && cur.to === U) {
       const variants = cur.anyOf!;
@@ -807,12 +785,12 @@ export const jsonString = /* @__PURE__ */ (() => {
       // Named before the merge locks its code, so the piece reads as a plain
       // identifier the `.then` can rebind (as B_addObjectField does).
       if (p.f & 1) asyncNames.push(p.v());
-      code = code + B_merge(p);
+      code += B_merge(p);
       entries.push({ p, g });
     }
     // A fused strict object's scan (see objectDecoder), after its fields.
     if (schema.uv && schema.additionalItems === "strict" && !isArr) {
-      code = code + B_unrecognizedKeys(input, keys!, B_varWithoutAllocation(input.g), "let ");
+      code += B_unrecognizedKeys(input, keys!, B_varWithoutAllocation(input.g), "let ");
     }
 
     // JS-expression accumulator: alternating raw JSON text chunks and pieces.
@@ -820,7 +798,7 @@ export const jsonString = /* @__PURE__ */ (() => {
     let chunk = "";
     const flush = (): void => {
       if (chunk !== "") {
-        expr = expr + (expr === "" ? "" : "+") + inlinedValueFromString(chunk);
+        expr += (expr === "" ? "" : "+") + inlinedValueFromString(chunk);
         chunk = "";
       }
     };
@@ -832,7 +810,7 @@ export const jsonString = /* @__PURE__ */ (() => {
     const keyText = (idx: number): string =>
       isArr ? "" : JSON.stringify(keys![idx]) + ":";
     const emitEntry = (idx: number, comma: string): void => {
-      chunk = chunk + comma + keyText(idx);
+      chunk += comma + keyText(idx);
       push(entries[idx]!.p.i);
     };
 
@@ -925,7 +903,7 @@ export const jsonString = /* @__PURE__ */ (() => {
       if (dynamicItem !== U) {
         push(dynAcc);
       }
-      chunk = chunk + (isArr ? "]" : "}");
+      chunk += isArr ? "]" : "}";
       flush();
       const text = mergeStrLits(expr);
       const output = B_next(
@@ -958,7 +936,7 @@ export const jsonString = /* @__PURE__ */ (() => {
         if (stmts === "" && accInit === U) {
           accInit = expr;
         } else {
-          stmts = stmts + `${accVar}+=${expr};`;
+          stmts += `${accVar}+=${expr};`;
         }
         expr = "";
       }
@@ -1016,7 +994,6 @@ export const jsonString = /* @__PURE__ */ (() => {
     // reads the text, so neither can stand in for the parse below.
     if (
       to !== U &&
-      to.type !== unknownTag &&
       !(to.noValidation && to.type === undefinedTag) &&
       !expectedSchema.parser &&
       !expectedSchema.refiner
@@ -1031,9 +1008,8 @@ export const jsonString = /* @__PURE__ */ (() => {
         return encoded;
       }
     }
-    const stringVar = stringVal.v();
     const output = B_refine(stringVal, expectedSchema);
-    output.cp = `try{JSON.parse(${stringVar})}catch(t){${B_embedInvalidInput(stringVal)}}`;
+    output.cp = `try{${B_parseCall(stringVal.v())}}catch(t){${B_embedInvalidInput(stringVal)}}`;
     return output;
   };
 
@@ -1071,9 +1047,7 @@ export const jsonString = /* @__PURE__ */ (() => {
         expectedSchema,
       );
     } else if ((inputTagFlag & 8)) {
-      const output = inputToString(input);
-      output.s = expectedSchema;
-      return output;
+      return inputToString(input, expectedSchema);
     } else if ((inputTagFlag & 4)) {
       // JSON has no non-finite numbers: number validation admits Infinity and
       // typed inputs skip it entirely, so an unchecked `""+x` would splice
@@ -1147,8 +1121,7 @@ export const jsonString = /* @__PURE__ */ (() => {
     } else {
       // Same fallback `json` uses: decode to string first (covers instances
       // with a string representation, e.g. Date), then serialize that.
-      const stringTarget = copySchema(string);
-      stringTarget.to = expectedSchema;
+      const stringTarget = copyTo(string, expectedSchema);
       try {
         input.e = stringTarget;
         return parse(input);
@@ -1158,9 +1131,7 @@ export const jsonString = /* @__PURE__ */ (() => {
         // whose branch compiles away rather than converting anything. Keep its
         // own schema and hang the string target off its `.to`.
         try {
-          const viaSelf = copySchema(input.s);
-          viaSelf.to = stringTarget;
-          input.e = viaSelf;
+          input.e = copyTo(input.s, stringTarget);
           return parse(input);
         } catch {
           return B_unsupportedDecode(input, input.s, expectedSchema);

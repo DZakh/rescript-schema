@@ -14,6 +14,7 @@ import {
   immutableEmptyArray,
   immutableEmptyObject,
   inlinedObjectKey,
+  inlinedProperty,
   inlinedValueFromString,
   instanceTag,
   type Internal,
@@ -49,6 +50,7 @@ import {
   B_merge,
   B_mergeWithPathPrepend,
   B_next,
+  B_nextVarOutput,
   B_refine,
   B_scope,
   B_unsupportedDecode,
@@ -122,7 +124,7 @@ const B_fused = (input: Val, expectedSchema: Internal, item?: Internal): Interna
 // on encode, and would hand a declared payload (CONTENT_CODEC_SPEC.md rule 3)
 // the text it had just escaped instead of parsing it.
 const B_narrowJsonSourcedJsonString = (itemInput: Val): void => {
-  if (itemInput.s.jn && itemInput.e.format === "json") {
+  if (itemInput.s.isJson && itemInput.e.format === "json") {
     itemInput.s = unknown;
   }
 };
@@ -150,7 +152,7 @@ const B_makeContainerVal = (prev: Val, schema: Internal): Val => ({
   o: U,
 });
 
-export const makeObjectVal = (prev: Val, _schema?: Internal): Val =>
+export const makeObjectVal = (prev: Val): Val =>
   B_makeContainerVal(prev, {
     type: objectTag,
     required: [],
@@ -159,7 +161,7 @@ export const makeObjectVal = (prev: Val, _schema?: Internal): Val =>
     decoder: objectDecoder,
   } as Internal);
 
-export const makeArrayVal = (prev: Val, _schema?: Internal): Val =>
+export const makeArrayVal = (prev: Val): Val =>
   B_makeContainerVal(prev, {
     type: arrayTag,
     items: [],
@@ -178,7 +180,7 @@ export const completeObjectVal = (objectVal: Val): Val => {
     const key = keys[idx]!;
     const val = objectVal.d![key]!;
     if ((val.f & 1)) {
-      promiseAllContent = promiseAllContent + val.i + ",";
+      promiseAllContent += val.i + ",";
     }
     if (val.o) {
       const existingFn = optionalSettingCode as ((objectVar: string) => string) | undefined;
@@ -187,7 +189,7 @@ export const completeObjectVal = (objectVal: Val): Val => {
           (existingFn === U ? "" : existingFn(objectVar)) +
           (key === "__proto__"
             ? `if(${val.v()}!==void 0){${objectVar}={...${objectVar},["__proto__"]:${val.i}}}`
-            : `if(${val.v()}!==void 0){${objectVar}[${inlinedValueFromString(key)}]=${val.i}}`)
+            : `if(${val.v()}!==void 0){${inlinedProperty(objectVar, key, isArray)}=${val.i}}`)
         );
       };
     } else {
@@ -200,13 +202,9 @@ export const completeObjectVal = (objectVal: Val): Val => {
 
   objectVal.i = isArray ? "[" + inline.slice(0, -1) + "]" : "{" + inline.slice(0, -1) + "}";
 
-  // FIXME: Test whether re-asserting `additionalItems = "strict"` here is
-  // needed, now that the object's properties are already fully assembled.
-  const valWithRequired = objectVal;
-
   if (promiseAllContent) {
     promiseAllContent = promiseAllContent.slice(0, -1);
-    const operationInput = B_scope(valWithRequired);
+    const operationInput = B_scope(objectVal);
     operationInput.io = true;
     const operationOutput = parse(operationInput);
     let operationCode = B_merge(operationOutput);
@@ -224,21 +222,21 @@ export const completeObjectVal = (objectVal: Val): Val => {
     }
 
     if (operationCode === "" && promiseAllContent === result) {
-      valWithRequired.i = result;
+      objectVal.i = result;
     } else {
-      valWithRequired.i = `Promise.all([${promiseAllContent}]).then(([${promiseAllContent}])=>{${operationCode}return ${result}})`;
+      objectVal.i = `Promise.all([${promiseAllContent}]).then(([${promiseAllContent}])=>{${operationCode}return ${result}})`;
     }
-    valWithRequired.f |= 1;
-    valWithRequired.s = operationOutput.s;
-    valWithRequired.e = operationOutput.e;
-    valWithRequired.io = true;
-    return valWithRequired;
+    objectVal.f |= 1;
+    objectVal.s = operationOutput.s;
+    objectVal.e = operationOutput.e;
+    objectVal.io = true;
+    return objectVal;
   } else {
     if (optionalSettingCode === U) {
-      return valWithRequired;
+      return objectVal;
     } else {
-      const code = optionalSettingCode(valWithRequired.v());
-      const output = B_refine(valWithRequired);
+      const code = optionalSettingCode(objectVal.v());
+      const output = B_refine(objectVal);
       output.cp = output.cp + code;
       return output;
     }
@@ -302,11 +300,7 @@ export const arrayDecoder = (unknownInput: Val): Val => {
     // Apply refine also when there are no checks,
     // so literals for union cases don't mutate input
     // FIXME: This should be removed and validation attached to output instead
-    if (checks.length > 0) {
-      input = B_refine(unknownInput, schema, checks);
-    } else {
-      input = B_refine(unknownInput, schema);
-    }
+    input = B_refine(unknownInput, schema, checks.length ? checks : U);
   } else {
     input = B_unsupportedDecode(unknownInput, unknownInput.s, expectedSchema);
   }
@@ -360,7 +354,7 @@ export const arrayDecoder = (unknownInput: Val): Val => {
       }
     }
   } else {
-    const objectVal = makeArrayVal(input, expectedSchema);
+    const objectVal = makeArrayVal(input);
     const fused = B_fused(input, expectedSchema);
     const ai = expectedSchema.additionalItems;
     // A fused tuple is read slot by slot off this val, so a rebuilt array
@@ -417,7 +411,7 @@ export const arrayDecoder = (unknownInput: Val): Val => {
 // rebuilds, so an array would decode to `{}`) but that widens the union
 // acceptance mask.
 const objectTypeCheck: Check = {
-  c: (inputVar) => `${objectTagCond(inputVar)}&&!${isArrayCond(inputVar)}`,
+  c: objectTagCond,
   f: failInvalidType,
 };
 
@@ -515,7 +509,7 @@ export const objectDecoder = (unknownInput: Val): Val => {
     // the SOURCE's keys, coercing every value to the dict's value schema.
     // `completeObjectVal` drops a field that is still optional after coercion.
     // (A dict source took the dynamic branch above, so the source is an object.)
-    const objectVal = makeObjectVal(input, expectedSchema);
+    const objectVal = makeObjectVal(input);
     const keys = Object.keys(input.s.properties!);
     for (let idx = 0; idx < keys.length; idx++) {
       const key = keys[idx]!;
@@ -533,7 +527,7 @@ export const objectDecoder = (unknownInput: Val): Val => {
     const keys = Object.keys(properties);
     const keysCount = keys.length;
 
-    const objectVal = makeObjectVal(input, expectedSchema);
+    const objectVal = makeObjectVal(input);
     const ai = expectedSchema.additionalItems;
     const fused = B_fused(input, expectedSchema);
     let shouldRecreateInput =
@@ -558,7 +552,7 @@ export const objectDecoder = (unknownInput: Val): Val => {
     //     narrow stands in for its members' checks (see the cross-module
     //     contract on `typeCheckCond`), so a case would start accepting more
     //     than its acceptance mask claims.
-    const isJsonParent = isItemSchema(inputAdditionalItems) && inputAdditionalItems.jn;
+    const isJsonParent = isItemSchema(inputAdditionalItems) && inputAdditionalItems.isJson;
 
     for (let idx = 0; idx < keysCount; idx++) {
       const key = keys[idx]!;
@@ -567,7 +561,7 @@ export const objectDecoder = (unknownInput: Val): Val => {
       const itemInput = valGet(input, key);
       itemInput.e = schema;
       itemInput.io = false;
-      itemInput.u = isUnion; // We want to control validation on the decoder side
+      itemInput.u = isUnion;
       if (isJsonParent && schema.type === anyOfTag && schema.has![undefinedTag]) {
         itemInput.i = `(${itemInput.i}??null)`;
       }
@@ -628,6 +622,7 @@ export const dict = (item: unknown): Internal => dictFactory(definitionToSchema(
 // An already-built schema is the overwhelmingly common argument, so it exits
 // here instead of paying traverseDefinition's typeof/null checks on top of the
 // ones isSchemaObject just made.
+// @__NO_SIDE_EFFECTS__
 export const definitionToSchema = (definition: unknown): Internal =>
   isSchemaObject(definition)
     ? (definition as Internal)
@@ -707,10 +702,7 @@ const missingKeyEncoder: Encoder = (input, target) => {
 
   // Optional field: leave `undefined` as-is (None). Required field: reject.
   const absentCode = isOptional(target) ? "" : B_embedInvalidInput(input, target);
-
-  const output = B_next(input, v, getOutputSchema(target), target);
-  output.v = _var;
-  output.io = true;
+  const output = B_nextVarOutput(input, v, getOutputSchema(target), target);
   const presentBody = presentCode + presentAssign;
   output.cp =
     presentBody === ""
@@ -733,17 +725,8 @@ const wrapDictMissingKeyLight = (s: Internal): Internal => {
   return mut;
 };
 
-const wrapMissingDictKey = wrapDictMissingKeyLight;
-
 export const valGet = (parent: Val, location: string): Val => {
-  let vals: Record<string, Val>;
-  if (parent.d !== U) {
-    vals = parent.d;
-  } else {
-    const d: Record<string, Val> = Object.create(null);
-    parent.d = d;
-    vals = d;
-  }
+  const vals: Record<string, Val> = (parent.d ??= Object.create(null));
 
   const existing = vals[location];
   if (existing !== U) {
@@ -774,7 +757,7 @@ export const valGet = (parent: Val, location: string): Val => {
           !(tagFlags[s.type]! & 512) &&
           !isOptional(s)
         ) {
-          schema = wrapMissingDictKey(s);
+          schema = wrapDictMissingKeyLight(s);
         } else {
           schema = s;
         }
@@ -783,7 +766,11 @@ export const valGet = (parent: Val, location: string): Val => {
       }
     }
 
-    const accessor = `[${inlinedValueFromString(location)}]`;
+    const accessor = inlinedProperty(
+      "",
+      location,
+      parent.s.type === arrayTag,
+    );
 
     // Canonical Val field order (see B_operationArg in builder.ts).
     const item: Val = {

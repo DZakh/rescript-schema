@@ -80,7 +80,7 @@ test("Successfully parses schema with transformation", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{for(;;){if(typeof i==="number"&&i===i)break;if(i===void 0){i=-123;break}e[0](i)}let v0;try{v0=e[1](i)}catch(x){e[2](x)}for(;;){if(typeof v0==="string")break;if(v0===void 0){v0="not positive";break}e[3](v0)}return v0}`,
+    `i=>{for(;;){if(typeof i==="number"&&i==i)break;if(i===void 0){i=-123;break}e[0](i)}let v0;try{v0=e[1](i)}catch(x){e[2](x)}for(;;){if(typeof v0==="string")break;if(v0===void 0){v0="not positive";break}e[3](v0)}return v0}`,
   )
 })
 
@@ -358,13 +358,13 @@ test("Multi-member union with transformed members + getOr", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{for(;;){let r;if(typeof i==="string"){try{let v0=+i;v0===v0&&(v0||i.trim())||e[0](i);i=v0;break}catch(x){(r||(r=[])).push(e[2](x))}try{let v1;try{v1=BigInt(i)}catch(_){e[1](i)}v1||i.trim()||e[1](i);i=v1;break}catch(x){(r||(r=[])).push(e[2](x))}}if(typeof i==="boolean")break;if(i===void 0){i=true;break}e[3](i,...(r||[]))}return i}`,
+    `i=>{for(;;){let r;if(typeof i==="string"){try{let v0=+i;v0==v0&&(v0||i.trim())||e[0](i);i=v0;break}catch(x){(r||(r=[])).push(e[2](x))}try{let v1;try{v1=BigInt(i)}catch(_){e[1](i)}v1||i.trim()||e[1](i);i=v1;break}catch(x){(r||(r=[])).push(e[2](x))}}if(typeof i==="boolean")break;if(i===void 0){i=true;break}e[3](i,...(r||[]))}return i}`,
   )
 
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{for(;;){if(typeof i==="number"&&i===i){i=""+i;break}if(typeof i==="bigint"){i=""+i;break}if(typeof i==="boolean")break;e[0](i)}return i}`,
+    `i=>{for(;;){if(typeof i==="number"&&i==i){i=""+i;break}if(typeof i==="bigint"){i=""+i;break}if(typeof i==="boolean")break;e[0](i)}return i}`,
   )
 })
 

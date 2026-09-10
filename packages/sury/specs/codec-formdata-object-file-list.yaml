@@ -30,7 +30,7 @@ operations:
         input: ((f) => (f.append("attachments", "x"), f.append("note", ""), f))(new FormData())
         error: 'Failed at attachments[0]: Expected File, received "x"'
   encode:
-    expression: i=>{let v0=i["attachments"],v3=i["docs"];let v2=new e[0]();if(v3!=null){for(let v4=0;v4<v3.length;++v4){v2.append("docs",v3[v4]);}}for(let v5=0;v5<v0.length;++v5){v2.append("attachments",v0[v5]);}v2.append("note",i["note"]);return v2}
+    expression: i=>{let v0=i.attachments,v3=i.docs;let v2=new e[0]();if(v3!=null){for(let v4=0;v4<v3.length;++v4){v2.append("docs",v3[v4]);}}for(let v5=0;v5<v0.length;++v5){v2.append("attachments",v0[v5]);}v2.append("note",i.note);return v2}
     examples:
       empty-lists:
         input: '{ docs: [], attachments: [], note: "" }'

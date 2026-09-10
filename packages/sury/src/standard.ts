@@ -23,9 +23,7 @@ import {
  getOp,
  reverse
 } from "./parse";
-// PORT-NOTE: StandardSchema/JSONSchema types are ported as loose, type-only
-// aliases (no runtime import allowed here). `JSONSchemaT` stands in for
-// JSONSchema.t.
+// Type-only: a value import would pull jsonschema.ts into every `~standard` getter.
 export type StandardIssue = {
   message: string;
   path?: unknown[];

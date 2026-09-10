@@ -32,6 +32,7 @@ import {
   VS_KEY_ORDER,
   VS_ZOD_KEY_ORDER,
   OP_ORDER,
+  REQUIRED_OPS,
   OP_BLOCK_KEY_ORDER,
   BUNDLE_SIZE_KEY_ORDER,
   JSON_SCHEMA_KEY_ORDER,
@@ -167,11 +168,12 @@ export const undeclaredAssignments = (spec: Spec, out: string[]): void => {
 // has real codegen - and nothing ever runs that codegen until an example does,
 // so an empty map snapshots an expression no test executes.
 export const lintExamples = (spec: Spec, out: string[]): void => {
-  const ops = spec.operations as Partial<Record<OpName, Operation>> | undefined;
-  if (ops == null) return;
+  const ops = spec.operations;
+  if (ops == null || isSkip(ops)) return;
   for (const opName of OP_ORDER) {
     const op = ops[opName];
     if (op == null) {
+      if (!(REQUIRED_OPS as readonly OpName[]).includes(opName)) continue;
       out.push(
         `operations.${opName}: missing - a spec must declare parse, decode, and encode ` +
           "(run `pnpm spec new` to scaffold them, or add the block)",
@@ -237,15 +239,18 @@ export const parseSpec = (raw: string): Spec => parseYaml(raw) as Spec;
 export const readSpec = (file: string): Spec => parseSpec(readFileSync(file, "utf8"));
 
 // transpileModule (syntax-only, no type info) strips TS-only syntax like
-// `as const` so aliases can use it - `new Function` only ever sees plain JS.
+// `as const` so aliases can use it — `new Function` only ever sees plain JS.
+const TS_STRIP = {
+  compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
+};
+const transpile = (tsSource: string): string =>
+  ts.transpileModule(tsSource, TS_STRIP).outputText.trim();
 // The source is parenthesized before stripping (not after) so a bare object
 // literal parses as an expression, not a block statement with a labeled
 // statement inside - and the trailing `;\n` transpileModule always emits
 // comes off since it's re-wrapped in `return … ;` below.
 export const stripTypes = (tsSource: string): string =>
-  ts.transpileModule(`(${tsSource})`, {
-    compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
-  }).outputText.trim().replace(/;$/, "");
+  transpile(`(${tsSource})`).replace(/;$/, "");
 
 // A re-runnable evaluator for one source string, transpiled once. The matrix
 // runs an example through a dozen spellings and hands each its OWN value: an
@@ -261,10 +266,7 @@ export const evalSchema = (tsSource: string): any => valueEvaluator(tsSource)();
 // A scenario's `prepare` is statements, not an expression, so it goes through
 // transpileModule directly - stripTypes' parenthesization exists only to keep
 // a bare object literal from parsing as a block, which statements must not get.
-const stripStatements = (tsSource: string): string =>
-  ts.transpileModule(tsSource, {
-    compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
-  }).outputText.trim();
+const stripStatements = (tsSource: string): string => transpile(tsSource);
 
 export const scenarioSource = (scenario: Scenario): ScenarioSource => ({
   prepareSrc: scenario.prepare === undefined ? undefined : stripStatements(scenario.prepare),
@@ -281,14 +283,16 @@ const isNoop = (fn: Function): boolean =>
 
 // Checks the shorthand invariants both ways: a declared `identity`/`eq-to-parse`
 // that doesn't hold, or a full op block that should be a shorthand.
-export const identityViolations = (schema: any, spec: Spec): string[] => {
+export const identityViolations = (schema: any, spec: Spec, ops?: Record<OpName, BuiltOp>): string[] => {
   const out: string[] = [];
-  const parseBuilt = buildOp("parse", schema);
+  if (isSkip(spec.operations)) return out;
+  const builtOps = ops ?? buildOps(schema);
+  const parseBuilt = builtOps.parse;
   const parseCode = "fn" in parseBuilt ? parseBuilt.fn.toString() : undefined;
   for (const opName of OP_ORDER) {
     const op = spec.operations[opName];
     if (op == null) continue;
-    const built = opName === "parse" ? parseBuilt : buildOp(opName, schema);
+    const built = builtOps[opName];
     // Rejected at operation creation: no compiled form, so the shorthand
     // invariants don't apply. recomputeGoldens records/refreshes the
     // `creationError` message, and the staleness diff carries any shape
@@ -333,12 +337,13 @@ export const identityViolations = (schema: any, spec: Spec): string[] => {
 // never compiles to Sury's noop, so identityViolations already reports it),
 // `eq-to-parse` inherits parse's block, and a `{creationError}` block has no
 // compiled operation to be async.
-export const asyncViolations = (schema: any, spec: Spec): string[] => {
+export const asyncViolations = (schema: any, spec: Spec, ops?: Record<OpName, BuiltOp>): string[] => {
   const out: string[] = [];
+  const builtOps = ops ?? buildOps(schema);
   for (const opName of OP_ORDER) {
     const op = spec.operations[opName];
     if (op == null || typeof op === "string" || isCreationError(op)) continue;
-    const built = buildOp(opName, schema);
+    const built = builtOps[opName];
     // Rejected at creation: reported by the creationError golden instead, and
     // an operation that doesn't compile can't be async.
     if (!("fn" in built)) continue;
@@ -431,15 +436,20 @@ const deriveJsonSchemaTarget = async (
   );
   const defaultFromInput = defaultTypes.fromInput ?? types.input;
   const defaultFromOutput = defaultTypes.fromOutput ?? types.output;
+  const pick = (
+    differs: boolean,
+    schemaSrc: string,
+    from: string | undefined,
+    fallback: string,
+    schemaKey: "input" | "output",
+    fromKey: "fromInputType" | "fromOutputType",
+  ) => ({
+    ...(differs ? { [schemaKey]: schemaSrc } : {}),
+    ...(differs && from !== undefined && from !== fallback ? { [fromKey]: from } : {}),
+  });
   return {
-    ...(inputDiffers ? { input: input.schema } : {}),
-    ...(inputDiffers && roundTrip.fromInput !== undefined && roundTrip.fromInput !== defaultFromInput
-      ? { fromInputType: roundTrip.fromInput }
-      : {}),
-    ...(outputDiffers ? { output: output.schema } : {}),
-    ...(outputDiffers && roundTrip.fromOutput !== undefined && roundTrip.fromOutput !== defaultFromOutput
-      ? { fromOutputType: roundTrip.fromOutput }
-      : {}),
+    ...pick(inputDiffers, input.schema, roundTrip.fromInput, defaultFromInput, "input", "fromInputType"),
+    ...pick(outputDiffers, output.schema, roundTrip.fromOutput, defaultFromOutput, "output", "fromOutputType"),
   };
 };
 
@@ -457,15 +467,16 @@ const deriveJsonSchema = async (
   const outputInferred = combinedInfo.fromOutput;
   const inputMatches = combinedInfo.inputMatches ?? inputInferred === types.input;
   const outputMatches = combinedInfo.outputMatches ?? outputInferred === types.output;
+  const fromType = (
+    inferred: string | undefined,
+    matches: boolean,
+    key: "fromInputType" | "fromOutputType",
+  ) => (inferred === undefined || matches ? {} : { [key]: inferred });
   const doc: Spec["jsonSchema"] = {
     input: sides.input.schema,
-    ...(inputInferred === undefined || inputMatches
-      ? {}
-      : { fromInputType: inputInferred }),
+    ...fromType(inputInferred, inputMatches, "fromInputType"),
     output: sides.output.schema,
-    ...(outputInferred === undefined || outputMatches
-      ? {}
-      : { fromOutputType: outputInferred }),
+    ...fromType(outputInferred, outputMatches, "fromOutputType"),
   };
   if (schemaTs === undefined) return doc;
   for (const target of JSON_SCHEMA_TARGETS) {
@@ -526,6 +537,12 @@ const buildOp = (opName: OpName, schema: any): BuiltOp => {
   }
 };
 
+export const buildOps = (schema: any): Record<OpName, BuiltOp> => {
+  const out = {} as Record<OpName, BuiltOp>;
+  for (const name of OP_ORDER) out[name] = buildOp(name, schema);
+  return out;
+};
+
 // Reduce a built op to its canonical form against parse:
 // - rejected at creation → a `{creationError}` block, or `eq-to-parse` when a
 //   non-parse direction is rejected with parse's exact message. A direction
@@ -554,9 +571,10 @@ const opForm = (opName: OpName, built: BuiltOp, parseBuilt: BuiltOp): Operation 
 // Can throw if `schema` isn't actually a usable schema (e.g. `--ts` evaluated
 // to `undefined` from a typo like `S.strng`) - callers decide how to report that.
 export const scaffoldOperations = (schema: any): Spec["operations"] => {
-  const parseBuilt = buildOp("parse", schema);
+  const builtOps = buildOps(schema);
+  const parseBuilt = builtOps.parse;
   return Object.fromEntries(
-    OP_ORDER.map((opName) => [opName, opForm(opName, opName === "parse" ? parseBuilt : buildOp(opName, schema), parseBuilt)]),
+    REQUIRED_OPS.map((opName) => [opName, opForm(opName, builtOps[opName], parseBuilt)]),
   ) as Spec["operations"];
 };
 
@@ -586,7 +604,7 @@ const reformatIfEvaluable = (text: string): string => {
 // Individual named examples are never `_skip` - only the enclosing operation
 // block is (the format schema has no `orSkip` on the examples map's values).
 const canonExample = (ex: Example): Example => {
-  const o = order(ex, ["input", "output", "error", "whenChecked"]) as Example;
+  const o = order(ex, ["input", "output", "error", "errorConstructor", "whenChecked"]) as Example;
   o.input = reformatIfEvaluable(o.input);
   if ("output" in o) o.output = reformatIfEvaluable(o.output);
   return o;
@@ -612,8 +630,8 @@ export const canonicalize = (obj: Spec): Spec => {
     if (isZodOverwrite(o.vs.zod))
       o.vs.zod = order(o.vs.zod as Record<string, unknown>, VS_ZOD_KEY_ORDER as string[]) as typeof o.vs.zod;
   }
-  if (o.jsonSchema) {
-    o.jsonSchema = order(o.jsonSchema as Record<string, unknown>, JSON_SCHEMA_KEY_ORDER as string[]) as Spec["jsonSchema"];
+  if (o.jsonSchema && !isSkip(o.jsonSchema)) {
+    o.jsonSchema = order(o.jsonSchema as Record<string, unknown>, JSON_SCHEMA_KEY_ORDER as string[]) as typeof o.jsonSchema;
     for (const name of JSON_SCHEMA_TARGETS) {
       const block = o.jsonSchema[name];
       if (!block) {
@@ -625,10 +643,10 @@ export const canonicalize = (obj: Spec): Spec => {
       else o.jsonSchema[name] = ordered as JsonSchemaDialect;
     }
   }
-  if (o.operations) {
+  if (o.operations && !isSkip(o.operations)) {
     const ops = order(o.operations, OP_ORDER) as Record<OpName, Operation>;
     for (const name of OP_ORDER) if (ops[name]) ops[name] = canonOp(ops[name]);
-    o.operations = ops as Spec["operations"];
+    o.operations = ops as typeof o.operations;
   }
   return o;
 };
@@ -824,6 +842,10 @@ const blobToCode = (v: object, bytes: Bytes): string => {
     : `new Blob([${bytesToCode(own)}]${options})`;
 };
 
+const recordToCode = (parts: string[]): string =>
+  parts.length === 0 ? "{}" : `{ ${parts.join(", ")} }`;
+
+
 const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet(), bytes: Bytes = new WeakMap()): string => {
   if (v === undefined) return "undefined";
   if (typeof v === "bigint") return `${v}n`;
@@ -873,14 +895,14 @@ const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet(), bytes: B
         if (!Object.getOwnPropertyDescriptor(v, sym)!.enumerable) continue;
         parts.push(`[${valueToCode(sym, seen, bytes)}]: ${valueToCode((v as Record<symbol, unknown>)[sym], seen, bytes)}`);
       }
-      if (parts.length === 0) return "{}";
-      return `{ ${parts.join(", ")} }`;
+      return recordToCode(parts);
     } finally {
       seen.delete(v);
     }
   }
   throw new Error(`cannot represent a ${typeof v} as spec source code`);
 };
+
 
 const ZOD_IMPORT = `import * as z from "zod";\n`;
 
@@ -891,7 +913,7 @@ const clean = <T extends Record<string, unknown>>(o: T): T => {
 };
 
 // The author owns inputs and skips; the harness owns every derived answer.
-export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
+export const recomputeGoldens = async (obj: Spec, compiled?: Record<OpName, BuiltOp>): Promise<Spec> => {
   const next: Spec = structuredClone(obj);
   const schema = evalSchema(next.ts.schema);
   const jsonSchemaSides = deriveJsonSchemaSides(schema);
@@ -902,11 +924,9 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
     jsonSchemaSides.output.source,
   );
 
-  if (!isSkip(next.ts.input) || !isSkip(next.ts.output) || !isSkip(next.ts.instantiations)) {
-    if (!isSkip(next.ts.input)) next.ts.input = info.input;
-    if (!isSkip(next.ts.output)) next.ts.output = info.output;
-    if (!isSkip(next.ts.instantiations)) next.ts.instantiations = info.instantiations;
-  }
+  if (!isSkip(next.ts.input)) next.ts.input = info.input;
+  if (!isSkip(next.ts.output)) next.ts.output = info.output;
+  if (!isSkip(next.ts.instantiations)) next.ts.instantiations = info.instantiations;
 
   // The overwrite form of `vs.zod` records Zod's inferred types as goldens for
   // the side(s) that diverge from ts; the harness owns those, so fill from the
@@ -928,7 +948,8 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
     next.ts.schema,
   );
 
-  const parseBuilt = buildOp("parse", schema);
+  const builtOps = compiled ?? buildOps(schema);
+  const parseBuilt = builtOps.parse;
   // Indexing by a `OpName` union narrows the value type to the intersection of
   // the three fields (which drops `eq-to-parse`), so reassignments below go
   // through this widened view.
@@ -936,7 +957,7 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
   for (const opName of OP_ORDER) {
     const op = next.operations[opName];
     if (op == null) continue;
-    const built = opName === "parse" ? parseBuilt : buildOp(opName, schema);
+    const built = builtOps[opName];
     if ("creationError" in built) {
       // Rejected at creation - take the canonical creationError form (a block,
       // or `eq-to-parse` on a co-failing direction). Any recorded
@@ -956,6 +977,20 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
       continue;
     }
     if (!isSkip(op.expression)) op.expression = fn.toString();
+    if (op.resultExpression !== undefined) {
+      const resultFn = (
+        { parse: S.parseAsResult, decode: S.decodeAsResult, encode: S.encodeAsResult } as Partial<
+          Record<OpName, (schema: any) => (input: any) => any>
+        >
+      )[opName];
+      if (resultFn) {
+        try {
+          op.resultExpression = resultFn(schema).toString();
+        } catch {
+          // async or rejected at creation — the matrix already covers outcomes
+        }
+      }
+    }
     for (const [name, ex] of Object.entries(op.examples)) {
       let value: unknown;
       try {
@@ -985,7 +1020,9 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
         if (e instanceof Error && e.message.startsWith("cannot represent ")) throw e;
         op.examples[name] = clean({
           input: ex.input,
-          error: (e as Error).message,
+          ...("errorConstructor" in ex
+            ? { errorConstructor: (e as Error).constructor.name }
+            : { error: (e as Error).message }),
           ...(await refreshDivergences(opName, op.isAsync === true, schema, ex)),
         });
       }
@@ -997,6 +1034,7 @@ export const recomputeGoldens = async (obj: Spec): Promise<Spec> => {
 
 const jsonSchemaTypePresenceViolations = (spec: Spec, expected: Spec): string[] => {
   const errs: string[] = [];
+  if (isSkip(spec.jsonSchema) || isSkip(expected.jsonSchema)) return errs;
   for (const { field, side } of [
     { field: "fromInputType", side: "input" },
     { field: "fromOutputType", side: "output" },
@@ -1103,25 +1141,29 @@ export const checkAliases = async (spec: Spec): Promise<string[]> => {
         jsonSchemaSides,
         aliasSrc,
       );
-      if (js.input !== spec.jsonSchema.input)
-        errs.push(`${label}: jsonSchema.input differs:\n${diffText(spec.jsonSchema.input, js.input)}`);
-      if (js.output !== spec.jsonSchema.output)
-        errs.push(`${label}: jsonSchema.output differs:\n${diffText(spec.jsonSchema.output, js.output)}`);
-      for (const name of JSON_SCHEMA_TARGETS) {
-        if (JSON.stringify(js[name] ?? null) !== JSON.stringify(spec.jsonSchema[name] ?? null))
-          errs.push(
-            `${label}: jsonSchema[${JSON.stringify(name)}] differs:\n${diffText(
-              JSON.stringify(spec.jsonSchema[name] ?? null),
-              JSON.stringify(js[name] ?? null),
-            )}`,
-          );
+      if (!isSkip(spec.jsonSchema)) {
+        if (js.input !== spec.jsonSchema.input)
+          errs.push(`${label}: jsonSchema.input differs:\n${diffText(spec.jsonSchema.input, js.input)}`);
+        if (js.output !== spec.jsonSchema.output)
+          errs.push(`${label}: jsonSchema.output differs:\n${diffText(spec.jsonSchema.output, js.output)}`);
+        for (const name of JSON_SCHEMA_TARGETS) {
+          if (JSON.stringify(js[name] ?? null) !== JSON.stringify(spec.jsonSchema[name] ?? null))
+            errs.push(
+              `${label}: jsonSchema[${JSON.stringify(name)}] differs:\n${diffText(
+                JSON.stringify(spec.jsonSchema[name] ?? null),
+                JSON.stringify(js[name] ?? null),
+              )}`,
+            );
+        }
       }
-
-      const aliasParseBuilt = buildOp("parse", aliasSchema);
+      if (isSkip(spec.operations)) continue;
+      const aliasOps = buildOps(aliasSchema);
+      const aliasParseBuilt = aliasOps.parse;
       const aliasParseCode = "fn" in aliasParseBuilt ? aliasParseBuilt.fn.toString() : undefined;
       for (const opName of OP_ORDER) {
         const op = spec.operations[opName];
-        const built = opName === "parse" ? aliasParseBuilt : buildOp(opName, aliasSchema);
+        if (op == null) continue;
+        const built = aliasOps[opName];
         if (isCreationError(op)) {
           if ("fn" in built)
             errs.push(`${label}: operations.${opName} is a \`creationError\` on schema but compiles on this alias`);
@@ -1190,16 +1232,81 @@ export const checkAliases = async (spec: Spec): Promise<string[]> => {
 
 // A `Ref` is what one spelling answered: a value, or the message it failed
 // with. How it failed (a throw, a rejection, a `{success: false}`) is the
-// spelling's own business - that is what makes the outcomes comparable.
-type Ref = { value: unknown } | { message: string };
+// spelling's own business — that is what makes the outcomes comparable.
+type Ref = { value: unknown } | { message: string } | { ctor: string };
 
-const sameOutcome = (a: Ref, b: Ref): boolean =>
-  "message" in a
-    ? "message" in b && a.message === b.message
-    : !("message" in b) && isDeepStrictEqual(a.value, b.value);
+const sameBlob = async (a: unknown, b: unknown): Promise<boolean> => {
+  if (typeof Blob === "undefined" || !(a instanceof Blob) || !(b instanceof Blob)) return false;
+  if (a.constructor !== b.constructor) return false;
+  if (typeof File !== "undefined" && a instanceof File && b instanceof File && a.name !== b.name)
+    return false;
+  const [aa, bb] = await Promise.all([a.arrayBuffer(), b.arrayBuffer()]);
+  return isDeepStrictEqual(new Uint8Array(aa), new Uint8Array(bb));
+};
+
+const sameValue = async (a: unknown, b: unknown): Promise<boolean> => {
+  if (a === b) return true;
+  if (typeof Blob !== "undefined" && a instanceof Blob) return sameBlob(a, b);
+  if (typeof Blob !== "undefined" && b instanceof Blob) return false;
+  if (isDeepStrictEqual(a, b)) return true;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (!(await sameValue(a[i], b[i]))) return false;
+    return true;
+  }
+  if (
+    a !== null &&
+    b !== null &&
+    typeof a === "object" &&
+    typeof b === "object" &&
+    Object.getPrototypeOf(a) === Object.prototype &&
+    Object.getPrototypeOf(b) === Object.prototype
+  ) {
+    const ak = Object.keys(a);
+    const bk = Object.keys(b);
+    if (ak.length !== bk.length) return false;
+    const ao = a as Record<string, unknown>;
+    const bo = b as Record<string, unknown>;
+    for (const k of ak) {
+      if (!Object.prototype.hasOwnProperty.call(b, k)) return false;
+      if (!(await sameValue(ao[k], bo[k]))) return false;
+    }
+    return true;
+  }
+  return false;
+};
+
+// Result wraps a foreign Error as `Name: message` (`B_foreignDetails`); throw
+// stays `message`. Same failure, two spellings of it.
+const sameMessage = (a: string, b: string): boolean => {
+  if (a === b) return true;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return (
+    long.endsWith(short) && /^[A-Za-z][\w]*: $/.test(long.slice(0, long.length - short.length))
+  );
+};
+
+const ctorMatchesMessage = (ctor: string, message: string): boolean =>
+  message === ctor || message.startsWith(`${ctor}: `);
+
+const sameOutcome = async (a: Ref, b: Ref): Promise<boolean> => {
+  if ("ctor" in a) {
+    if ("ctor" in b) return a.ctor === b.ctor;
+    return "message" in b && ctorMatchesMessage(a.ctor, b.message);
+  }
+  if ("message" in a) {
+    if ("message" in b) return sameMessage(a.message, b.message);
+    return "ctor" in b && ctorMatchesMessage(b.ctor, a.message);
+  }
+  return !("message" in b) && !("ctor" in b) && (await sameValue(a.value, b.value));
+};
 
 const describeRef = (r: Ref): string =>
-  "message" in r ? `failed with ${JSON.stringify(r.message)}` : `returned ${valueToCodeSafe(r.value)}`;
+  "ctor" in r
+    ? `failed with ${r.ctor}`
+    : "message" in r
+      ? `failed with ${JSON.stringify(r.message)}`
+      : `returned ${valueToCodeSafe(r.value)}`;
 
 // The matrix runs on values a spec chose, which includes ones the golden
 // serializer can't write down (a Blob's bytes are only readable
@@ -1213,7 +1320,6 @@ const valueToCodeSafe = (v: unknown): string => {
   }
 };
 
-// The five outcomes, per verb.
 const OUTCOME_FORMS = {
   parse: {
     OrThrow: S.parseOrThrow,
@@ -1236,6 +1342,14 @@ const OUTCOME_FORMS = {
     AsResultPromise: S.encodeAsResultPromise,
     AsPromisableResult: S.encodeAsPromisableResult,
   },
+  assert: {
+    OrThrow: S.assertInputOrThrow,
+    AsPromiseOrReject: S.assertInputAsPromiseOrReject,
+  },
+  is: {
+    Sync: S.isInput,
+    AsPromise: S.isInputAsPromise,
+  },
 } as const satisfies Record<OpName, Record<string, unknown>>;
 
 // The golden builders: the throwing outcome of each verb, and - for a schema
@@ -1247,11 +1361,15 @@ const OP_BUILDER: Record<OpName, (schema: any) => (input: any) => any> = {
   parse: OUTCOME_FORMS.parse.OrThrow,
   decode: OUTCOME_FORMS.decode.OrThrow,
   encode: OUTCOME_FORMS.encode.OrThrow,
+  assert: OUTCOME_FORMS.assert.OrThrow,
+  is: OUTCOME_FORMS.is.Sync,
 };
 const ASYNC_OP_BUILDER: Record<OpName, (schema: any) => (input: any) => Promise<any>> = {
   parse: OUTCOME_FORMS.parse.AsPromiseOrReject,
   decode: OUTCOME_FORMS.decode.AsPromiseOrReject,
   encode: OUTCOME_FORMS.encode.AsPromiseOrReject,
+  assert: OUTCOME_FORMS.assert.AsPromiseOrReject,
+  is: OUTCOME_FORMS.is.AsPromise,
 };
 
 // What a Result carries: a failure OF THE VALUE it was handed (index.d.ts,
@@ -1266,7 +1384,7 @@ const RESULT_SHAPED = new Set(["AsResult", "AsResultPromise", "AsPromisableResul
 // An async direction compiles only through the outcomes that carry the async
 // flag; the other two are rejected at operation creation, which
 // `asyncViolations` already covers.
-const ASYNC_OUTCOMES = new Set(["AsPromiseOrReject", "AsResultPromise", "AsPromisableResult"]);
+const ASYNC_OUTCOMES = new Set(["AsPromiseOrReject", "AsResultPromise", "AsPromisableResult", "AsPromise"]);
 
 const CALL_FORMS = [
   ["op(schema)(data)", (op: any, schema: any, data: unknown) => op(schema)(data)],
@@ -1352,12 +1470,27 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
       if (isSkip(ex)) continue;
       const where = `operations.${opName}.examples.${exName}`;
       let nextData: () => unknown;
+      let given: unknown;
       let golden: Ref;
       try {
         nextData = valueEvaluator(ex.input);
-        nextData();
-        golden = "error" in ex ? { message: ex.error } : { value: evalSchema(ex.output) };
-      } catch {
+        given = nextData();
+        golden =
+          "errorConstructor" in ex
+            ? { ctor: ex.errorConstructor }
+            : "error" in ex
+              ? { message: ex.error }
+              : {
+                  value: ex.output === ex.input ? given : evalSchema(ex.output),
+                };
+      } catch (e) {
+        if ("errorConstructor" in ex) {
+          if ((e as Error).constructor.name !== ex.errorConstructor)
+            errs.push(
+              `${where}: input threw ${(e as Error).constructor.name}, expected ${ex.errorConstructor}`,
+            );
+          continue;
+        }
         continue; // an unevaluatable golden is reported by the checks above
       }
 
@@ -1367,7 +1500,7 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
       // `op(data, schema)` reads two schemas as a chain - the one call form a
       // Sury schema in the data slot can't take (see index.d.ts). Documented,
       // not a finding.
-      const skipDataFirst = isUsableSchema(nextData());
+      const skipDataFirst = isUsableSchema(given);
 
       for (const [outcome, factory] of Object.entries(OUTCOME_FORMS[opName])) {
         // A sync direction runs all five; an async one only the outcomes that
@@ -1382,7 +1515,7 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
           const spelling = `${opName}${outcome} as ${form}`;
           let actual: Ref;
           try {
-            const raw = await call(factory, schema, nextData());
+            const raw = await call(factory, schema, given);
             if (RESULT_SHAPED.has(outcome)) {
               if (raw === null || typeof raw !== "object" || typeof (raw as any).success !== "boolean") {
                 errs.push(`${where}: ${spelling} answered ${valueToCodeSafe(raw)}, not a Result`);
@@ -1404,9 +1537,11 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
               );
               continue;
             }
-            actual = { message: (e as Error).message };
+            actual = "ctor" in expected
+              ? { ctor: (e as Error).constructor.name }
+              : { message: (e as Error).message };
           }
-          if (sameOutcome(expected, actual)) continue;
+          if (await sameOutcome(expected, actual)) continue;
           errs.push(
             `${where}: ${spelling} ${describeRef(actual)}, but the golden ${describeRef(expected)}`,
           );
@@ -1429,19 +1564,20 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
         continue;
       }
       const passed = verdicts[0]!.passed;
-      const expectPass = ex.whenChecked !== undefined ? ex.whenChecked === "passes" : !("error" in ex);
+      const parseFailed = "error" in ex || "errorConstructor" in ex;
+      const expectPass = ex.whenChecked !== undefined ? ex.whenChecked === "passes" : !parseFailed;
       if (passed !== expectPass) {
         const verdict = passed ? "passes" : "fails";
         errs.push(
           ex.whenChecked === undefined
             ? `${where}: the checks ${verdicts[0]!.passed ? "passed" : `failed${verdicts[0]!.detail}`}, but parse ` +
-              `${"error" in ex ? `failed with ${JSON.stringify(ex.error)}` : "succeeded"} - ` +
+              `${parseFailed ? `failed with ${"error" in ex ? JSON.stringify(ex.error) : ex.errorConstructor}` : "succeeded"} - ` +
               `add \`whenChecked: ${verdict}\``
             : `${where}: whenChecked says \`${ex.whenChecked}\` but the checks ${verdict}`,
         );
         continue;
       }
-      if (ex.whenChecked !== undefined && passed === !("error" in ex))
+      if (ex.whenChecked !== undefined && passed === !parseFailed)
         errs.push(`${where}: whenChecked agrees with parse - remove it`);
       // `make` hands the value back rather than decoding it. `Object.is`, not
       // `!==`: a spec whose example is NaN is exactly the case that matters.
@@ -1489,35 +1625,28 @@ export const checkVs = async (spec: Spec): Promise<string[]> => {
       );
       return errs;
     }
-    if (!isSkip(spec.ts.input)) {
-      if (!hasInput && info.input !== spec.ts.input)
+    for (const side of ["input", "output"] as const) {
+      if (isSkip(spec.ts[side])) continue;
+      const has = vs.zod[side] !== undefined;
+      const z = info[side];
+      const t = spec.ts[side];
+      if (!has && z !== t)
         errs.push(
-          `vs.zod: input omitted (no divergence) but Zod infers ${JSON.stringify(info.input)} !== ts.input ` +
-            `${JSON.stringify(spec.ts.input)} - add \`input\` to record the divergent type.`,
+          `vs.zod: ${side} omitted (no divergence) but Zod infers ${JSON.stringify(z)} !== ts.${side} ` +
+            `${JSON.stringify(t)} - add \`${side}\` to record the divergent type.`,
         );
-      else if (hasInput && info.input === spec.ts.input)
+      else if (has && z === t)
         errs.push(
-          `vs.zod.input equals ts.input ${JSON.stringify(spec.ts.input)} - it matches Sury, so omit \`input\`.`,
-        );
-    }
-    if (!isSkip(spec.ts.output)) {
-      if (!hasOutput && info.output !== spec.ts.output)
-        errs.push(
-          `vs.zod: output omitted (no divergence) but Zod infers ${JSON.stringify(info.output)} !== ts.output ` +
-            `${JSON.stringify(spec.ts.output)} - add \`output\` to record the divergent type.`,
-        );
-      else if (hasOutput && info.output === spec.ts.output)
-        errs.push(
-          `vs.zod.output equals ts.output ${JSON.stringify(spec.ts.output)} - it matches Sury, so omit \`output\`.`,
+          `vs.zod.${side} equals ts.${side} ${JSON.stringify(t)} - it matches Sury, so omit \`${side}\`.`,
         );
     }
     return errs;
   }
 
-  if (!isSkip(spec.ts.input) && info.input !== spec.ts.input)
-    errs.push(`vs.zod: input type ${JSON.stringify(info.input)} !== ts.input ${JSON.stringify(spec.ts.input)}`);
-  if (!isSkip(spec.ts.output) && info.output !== spec.ts.output)
-    errs.push(`vs.zod: output type ${JSON.stringify(info.output)} !== ts.output ${JSON.stringify(spec.ts.output)}`);
+  for (const side of ["input", "output"] as const) {
+    if (!isSkip(spec.ts[side]) && info[side] !== spec.ts[side])
+      errs.push(`vs.zod: ${side} type ${JSON.stringify(info[side])} !== ts.${side} ${JSON.stringify(spec.ts[side])}`);
+  }
   return errs;
 };
 
@@ -1564,21 +1693,37 @@ export const checkSpec = async (
     schema = evalSchema(spec.ts.schema);
     evaluated = true;
   } catch (e) {
-    errs.push(`ts.schema did not evaluate: ${(e as Error).message}`);
+    const message = (e as Error).message;
+    if (spec.ts.constructionError !== undefined) {
+      if (spec.ts.constructionError !== message)
+        errs.push(`ts.constructionError differs:\n${diffText(spec.ts.constructionError, message)}`);
+    } else {
+      errs.push(
+        `ts.schema did not evaluate: ${message} - if this panic is the contract, add ts.constructionError`,
+      );
+    }
+  }
+  if (evaluated && spec.ts.constructionError !== undefined) {
+    errs.push(`ts.constructionError is set but ts.schema evaluated - omit constructionError`);
   }
   if (evaluated && !isUsableSchema(schema)) {
     errs.push(`ts.schema evaluated but isn't a Sury schema`);
-  } else if (v.ok && evaluated && OP_ORDER.every((op) => spec.operations?.[op] != null)) {
+  } else if (
+    v.ok &&
+    evaluated &&
+    REQUIRED_OPS.every((op) => spec.operations?.[op] != null)
+  ) {
     try {
-      const violations = identityViolations(schema, spec);
+      const compiled = buildOps(schema);
+      const violations = identityViolations(schema, spec, compiled);
       for (const violation of violations) errs.push(violation);
       // Not part of `violations`: a wrong `isAsync` doesn't block `--write`
       // (which builder a direction uses is derived from the schema, so the
       // recomputed goldens are right either way) - only the marker needs the
       // author's hand.
-      const asyncErrs = asyncViolations(schema, spec);
+      const asyncErrs = asyncViolations(schema, spec, compiled);
       errs.push(...asyncErrs);
-      const recomputed = knownFresh === undefined ? await recomputeGoldens(spec) : undefined;
+      const recomputed = knownFresh === undefined ? await recomputeGoldens(spec, compiled) : undefined;
       if (recomputed) errs.push(...jsonSchemaTypePresenceViolations(spec, recomputed));
       const fresh = knownFresh ?? serialize(recomputed!, comments);
       const stale = fresh !== canon;

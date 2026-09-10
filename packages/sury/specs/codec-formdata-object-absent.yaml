@@ -27,7 +27,7 @@ operations:
         input: ((f) => (f.append("name", "n"), f))(new FormData())
         output: '{ name: "n", nothing: undefined, none: null }'
   encode:
-    expression: i=>{let v0=i["name"];v0.length>0||e[0](v0);let v1=new e[1]();v1.append("name",v0);return v1}
+    expression: i=>{let v0=i.name;v0.length>0||e[0](v0);let v1=new e[1]();v1.append("name",v0);return v1}
     examples:
       writes-only-what-the-wire-carries:
         input: '{ name: "n", none: null }'

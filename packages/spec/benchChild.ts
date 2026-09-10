@@ -13,6 +13,17 @@
 import type { ChildPayload, ChildResult, Target } from "./bench";
 import { buildScenarioRunner } from "./scenario";
 
+// A missing export on the baseline (`S.xid` before it existed) evaluates to
+// `undefined` without throwing. `parseOrThrow(undefined)` then compiles to
+// `noopOperation`, and the real validator looks thousands of percent slower
+// than a function that returns its input. Throw here so `measure` reports
+// `unsupported` → `new:`, the same path a missing builder already takes.
+const requireSchema = (schema: unknown): unknown => {
+  if (schema == null) throw new Error("schema expression is not a Sury schema");
+  return schema;
+};
+
+
 // Two spellings per builder: a baseline built from a ref older than the
 // operations rename carries the first, the current library the second. Both
 // sides of a comparison have to name the same operation, so the lookup falls
@@ -21,6 +32,8 @@ const OP_BUILDER = {
   parse: ["parseOrThrow", "parser"],
   decode: ["decodeOrThrow", "decoder"],
   encode: ["encodeOrThrow", "encoder"],
+  assert: ["assertInputOrThrow"],
+  is: ["isInput", "is"],
 } as const;
 // An async schema compiles only through these, so a `create+compile` target for
 // one has to name the builder its spec's `isAsync` declares. (There are no
@@ -29,6 +42,8 @@ const ASYNC_OP_BUILDER = {
   parse: ["parseAsPromiseOrReject", "asyncParser"],
   decode: ["decodeAsPromiseOrReject", "asyncDecoder"],
   encode: ["encodeAsPromiseOrReject", "asyncEncoder"],
+  assert: ["assertInputAsPromiseOrReject"],
+  is: ["isInputAsPromise"],
 } as const;
 
 // Every measured value is stored into a box so V8 can't delete the work as
@@ -63,6 +78,7 @@ const buildRunner = (
     };
 
   const factory = new Function("S", `return ${target.schemaSrc};`) as (s: any) => unknown;
+  requireSchema(factory(S));
 
   if (target.phase === "create")
     return {

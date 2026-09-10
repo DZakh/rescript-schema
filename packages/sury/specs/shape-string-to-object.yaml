@@ -27,7 +27,7 @@ operations:
         input: '"bar"'
         output: '{ foo: "bar" }'
   encode:
-    expression: i=>{return i["foo"]}
+    expression: i=>{return i.foo}
     examples:
       round-trip:
         input: '{ foo: "bar" }'

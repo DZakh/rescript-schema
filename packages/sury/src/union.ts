@@ -22,7 +22,7 @@ import {
   getOrRethrow,
   immutableEmptyArray,
   immutableEmptyObject,
-  inlinedValueFromString,
+  inlinedProperty,
   inputExpression,
   type Internal,
   isLiteral,
@@ -1120,7 +1120,7 @@ const unionEmit = (
       // `===` can't match a NaN discriminant (`x===NaN` is always false), which
       // made the member unreachable and rejected a value it declares. The
       // hoisted-check path this replaces used the same NaN-aware form.
-      const dRead = `${source.v()}[${inlinedValueFromString(trustedD[0])}]`;
+      const dRead = inlinedProperty(source.v(), trustedD[0]);
       const dCond =
         dSchema.type === nanTag
           ? `Number.isNaN(${dRead})`
@@ -1535,7 +1535,6 @@ const unionResolve = (
   // Rule 3 - every source variant gets its own built-in decoder to the target.
   // Two targets are never ambiguous: `unknown`, the top type, which decodes
   // nothing; and a `noValidation` target (S.assertInputOrThrow's result sentinel), which
-  // discards the value entirely.
   if (!(tagFlags[target.type]! & 1) && !target.noValidation) {
     unionCheckPartial(input, source, target, variants, true);
   }
