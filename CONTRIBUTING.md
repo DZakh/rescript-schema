@@ -56,7 +56,7 @@ Encoders take an extra `target` argument (the schema being coerced into): `(inpu
 
 A compilation-time representation of a value being processed. Key fields:
 
-- `inline`: The generated code expression (e.g., `i["foo"]`, `v0`)
+- `inline`: The generated code expression (e.g., `i.foo`, `v0`)
 - `var()`: Function to allocate/retrieve a variable name (use when value is referenced multiple times)
 - `schema`: The schema of the current value
 - `expected`: The schema we're trying to parse/convert into
@@ -87,7 +87,7 @@ Input Schema
 │     - continue the chain inside `.then(...)`                 │
 │                                                              │
 │  else if val.isOutput (decoded, may still have `.to`):       │
-│     - follow `.to`: run `expected.pr` (custom decoder)       │
+│     - follow `.to`: run `expected.parser` (custom decoder)       │
 │       or `refine` onto `.to` (default encoder coercion)      │
 │                                                              │
 │  else (not yet decoded):                                     │
@@ -114,7 +114,7 @@ For `S.object(s => s.field("foo", S.string))` the generated parse function is:
 ```javascript
 i => {
   typeof i === "object" && i || e[1](i); // object validation
-  let v0 = i["foo"];                     // field access
+  let v0 = i.foo;                        // field access
   typeof v0 === "string" || e[0](v0);    // string validation
   return v0;                             // return parsed value
 };
