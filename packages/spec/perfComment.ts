@@ -79,7 +79,14 @@ export const renderComment = (
   const out = [`### ${heading}`, ""];
 
   if (!header) {
-    out.push("_report could not be parsed - see the full report below._", "");
+    // Only promise a report there is one to reach: the drift job renders into a
+    // run summary with nothing uploaded and no link to add below.
+    out.push(
+      artifactUrl
+        ? "_report could not be parsed - see the full report below._"
+        : "_report could not be parsed, and no full report was uploaded._",
+      "",
+    );
     if (artifactUrl) out.push(`[Full report ↗](${artifactUrl})`, "");
     return out.join("\n");
   }

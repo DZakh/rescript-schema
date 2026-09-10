@@ -93,6 +93,21 @@ test("checkScenarios reports a bad shape, a colliding id, and one that throws", 
 // Same reasoning as the spec.schema.json freshness test above: CI runs
 // `pnpm test`, not `pnpm spec check`, so without this the bundle-size ratchet
 // would only bite on a manual run.
+// buildScenarioRunner executes a scenario once while constructing it, so
+// reporting this one without skipping it would still reconfigure the shared
+// library for every scenario and spec after it - the exact thing the rule
+// exists to prevent. Reported by CodeRabbit on #434.
+test("a scenario that calls S.global is reported and never run", () => {
+  const errs = checkScenarios(
+    ["bad:", "  run: S.global({}) ?? S.parseOrThrow(S.string)"].join("\n"),
+    [],
+  );
+  expect(errs).toEqual([
+    "bad: run calls S.global - it sets process-wide configuration that every spec and " +
+      "scenario in the run then compiles against",
+  ]);
+});
+
 test("bundleSize.yaml is fresh (run `pnpm spec check --write`)", async () => {
   const { errs } = await checkBundleSize();
   expect(errs, errs.join("\n")).toEqual([]);

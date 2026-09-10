@@ -701,6 +701,26 @@ test("an example whose operation answers differently each time is reported as th
   expect(stderr).toContain("so no golden can hold it");
 });
 
+test("an example input that calls S.global is refused before anything evaluates it", async () => {
+  // An input is evaluated with the same `S` the schema is, so the rule has to
+  // cover it too. Reported by CodeRabbit on #434.
+  // Spliced into the text rather than built with `serialize`: canonicalizing
+  // an example evaluates its input, so serializing this one here would run the
+  // very call the test is about.
+  const raw = serialize(mutate(() => {})).replace(
+    "  decode: identity",
+    [
+      "      sneaky:",
+      `        input: 'S.global({ disableNanNumberCheck: true }) ?? "x"'`,
+      `        output: '"x"'`,
+      "  decode: identity",
+    ].join("\n"),
+  );
+  const { stderr } = await runCheck("string", raw);
+  expect(stderr).toContain("operations.parse.examples.sneaky.input: calls S.global");
+  expect(stderr).not.toContain("goldens stale");
+});
+
 test("a spec that calls S.global is refused before anything evaluates it", async () => {
   // One library instance is shared by every spec in a run, so this one would
   // change what its neighbours compile. The check reports it and stops - the

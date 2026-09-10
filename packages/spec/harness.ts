@@ -209,6 +209,17 @@ export const lintGlobal = (spec: Spec, out: string[]): void => {
   const aliases = spec.ts?.aliases;
   if (Array.isArray(aliases))
     aliases.forEach((alias, i) => sources.push([`ts.aliases[${i}]`, alias]));
+  // An example's input is evaluated with the same `S` the schema is (see
+  // valueEvaluator), so it reaches `global` exactly as the schema source does.
+  // Covering only the schema would leave the rule with a hole the size of every
+  // example in the suite.
+  const ops = spec.operations as Partial<Record<OpName, Operation>> | undefined;
+  for (const opName of OP_ORDER) {
+    const op = ops?.[opName];
+    if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) continue;
+    for (const [exName, ex] of Object.entries(op.examples ?? {}))
+      sources.push([`operations.${opName}.examples.${exName}.input`, ex?.input]);
+  }
   for (const [path, source] of sources)
     if (typeof source === "string" && GLOBAL_CALL.test(source))
       out.push(
@@ -1380,6 +1391,17 @@ const describeRef = (r: Ref): string =>
       ? `failed with ${JSON.stringify(r.message)}`
       : `returned ${valueToCodeSafe(r.value)}`;
 
+// Two runs of the same input agree only on the nose. `sameOutcome` is built for
+// comparing a golden against a spelling, where `boom` and `Error: boom` are one
+// failure written two ways - but an operation that alternates between raising a
+// SuryError and letting a foreign one through is not deterministic, whatever
+// the messages read. A value still goes through `sameOutcome`, which is what
+// compares a Blob by its bytes rather than by identity.
+const sameRun = async (a: Ref, b: Ref): Promise<boolean> =>
+  "message" in a || "message" in b
+    ? "message" in a && "message" in b && a.message === b.message
+    : sameOutcome(a, b);
+
 // One run of a built operation, reduced to the same two shapes an example
 // records. `await` on a sync result is a no-op, so both kinds share the path.
 const runToRef = async (fn: (input: any) => any, data: unknown): Promise<Ref> => {
@@ -1853,7 +1875,7 @@ export const checkExamples = async (
       if (!("fn" in built)) continue;
       const first = await runToRef(built.fn, nextData());
       const second = await runToRef(built.fn, nextData());
-      if (!(await sameOutcome(first, second)))
+      if (!(await sameRun(first, second)))
         errs.push(
           `${where}: is not deterministic - the same input ${describeRef(first)} once and ` +
             `${describeRef(second)} the next time, so no golden can hold it`,
@@ -2083,6 +2105,12 @@ export const checkSpec = async (
   const globalErrs: string[] = [];
   lintGlobal(spec, globalErrs);
   errs.push(...globalErrs);
+  // Before ANY of the work below, `serialize` included: canonicalizing an
+  // example reformats its input by evaluating it (see reformatIfEvaluable), so
+  // returning any later than this would already have run the call the rule
+  // exists to refuse. Such a spec gets no canonical-form or golden report,
+  // which is the point - it is not processed at all.
+  if (globalErrs.length) return errs;
 
   // Collected before the canonical form is built (rather than dropped) so a
   // disallowed comment is reported as itself, not as a "not canonical" diff -
@@ -2095,8 +2123,6 @@ export const checkSpec = async (
     errs.push(
       `not canonical - run \`pnpm spec format ${id}\` (or \`pnpm spec check ${id} --write\`, which also refreshes goldens):\n${diffText(raw, canon)}`,
     );
-
-  if (globalErrs.length) return errs;
 
   let schema: any;
   let evaluated = false;
@@ -2268,15 +2294,21 @@ export const checkScenarios = (
     if (taken.has(id)) errs.push(`${id}: id collides with a spec of the same name`);
     if (!VALID_ID_RE.test(id))
       errs.push(`${id}: invalid scenario id (only letters, digits, and - allowed)`);
-    for (const [field, source] of [
-      ["prepare", scenario.prepare],
-      ["run", scenario.run],
-    ] as const)
-      if (typeof source === "string" && GLOBAL_CALL.test(source))
-        errs.push(
-          `${id}: ${field} calls S.global - it sets process-wide configuration that every spec and ` +
-            "scenario in the run then compiles against",
-        );
+    // Reported AND skipped: buildScenarioRunner runs the scenario once while
+    // constructing it, so merely reporting this one would still let it
+    // reconfigure the library for every scenario and spec after it - the exact
+    // thing the rule exists to prevent. checkSpec stops before evaluating for
+    // the same reason.
+    const callsGlobal = (["prepare", "run"] as const).filter((field) => {
+      const source = scenario[field];
+      return typeof source === "string" && GLOBAL_CALL.test(source);
+    });
+    for (const field of callsGlobal)
+      errs.push(
+        `${id}: ${field} calls S.global - it sets process-wide configuration that every spec and ` +
+          "scenario in the run then compiles against",
+      );
+    if (callsGlobal.length) continue;
     try {
       // Built exactly as benchChild.ts builds it (and buildScenarioRunner runs
       // it once), so what passes here is what the perf pass can measure.
