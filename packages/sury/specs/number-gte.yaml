@@ -28,6 +28,9 @@ operations:
       infinity:
         input: Infinity
         output: Infinity
+        divergence:
+          reason: z.number() rejects the non-finite numbers; S.number takes them
+          zod: "Invalid input: expected number, received number"
       nan:
         input: NaN
         error: Expected number >= 5, received NaN

@@ -30,7 +30,7 @@ operations:
         output: new Blob(["hi"])
       not-a-part:
         input: '{ toString: () => { throw new Error("boom") } }'
-        error: boom
+        error: "Error: boom"
   encode:
     isAsync: true
     expression: i=>{try{let v0;try{v0=i.text().catch(e[0])}catch(x){e[0](x)}return v0}catch(v1){return Promise.reject(v1)}}

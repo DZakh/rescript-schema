@@ -65,21 +65,66 @@ const outcome = S.union([
   S.schema({ error: S.string }).with(S.strict),
 ]);
 
-// Two spellings of one operation can legitimately disagree, and `spec check`
-// re-runs every example through all of them (see checkOperationMatrix). The
-// divergence below is documented library behaviour, not a bug, so it is
-// recorded and ratcheted rather than left to go unnoticed.
+// An example is re-run by every cross-check `spec check` makes - the other
+// spellings of its own operation (checkOperationMatrix), the recorded JSON
+// Schema (checkJsonSchemaExamples) and the `vs` equivalent (checkZodExamples).
+// Each verifier is expected to agree with parse, so `divergence` exists only
+// where one legitimately does not: documented behaviour, recorded and ratcheted
+// rather than left to go unnoticed.
 //
-// Declared, not refreshed - the `isAsync` rule: `--write` keeps a present
-// field's content fresh, but adding or removing one is the author's call,
-// because that is the moment a divergence appears or goes away.
-const divergences = {
-  whenChecked: S.optional(S.union(["passes", "fails"])).with(S.meta, {
-    description:
-      "What `assertInput*`/`isInput*`/`makeInput*` answer for this example, when they " +
-      "disagree with parse. They validate without building an output, so a failure that " +
-      "only arises while building one is invisible to them. `parse` only.",
-  }),
+// One field rather than one per verifier, because the reason is usually the
+// same sentence for all of them and a marker without it says nothing a reader
+// can act on. `reason` is the author's - `--write` never touches it - while the
+// verdicts beside it are kept fresh the way `creationError` is. Adding or
+// removing the field stays the author's call, following the `isAsync` rule:
+// that is the moment a divergence appears or goes away.
+//
+// `parse` only. decode and encode trust their input where every verifier
+// validates it, and assert/is build no output to compare, so a divergence
+// recorded on another direction is a misuse rather than a fact.
+const divergence = {
+  divergence: S.optional(
+    S.schema({
+      reason: S.string.with(S.meta, {
+        description:
+          "Why the verifiers below read this example differently from parse. Hand-written, " +
+          "never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug.",
+      }),
+      // What each verifier ANSWERED, not a pass/fail marker: the answer is the
+      // thing a reader wants and the thing that quietly changes under a
+      // refactor. `check` and `ajv` build no output, so `true` is the whole of
+      // what they say when they accept.
+      //
+      // Spelled out one by one rather than through a shared helper: this file's
+      // header says why a description wrapper is a trap here.
+      check: S.optional(S.union([S.schema(true), S.string])).with(S.meta, {
+        description:
+          "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: " +
+          "`true` when they accept, else the message they reject with. They validate without " +
+          "building an output, so a failure that only arises while building one is invisible " +
+          "to them. Filled by `spec check --write`.",
+      }),
+      ajv: S.optional(S.union([S.schema(true), S.string])).with(S.meta, {
+        description:
+          "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` " +
+          "when they accept, else the validator's own words, per side. JSON Schema is allowed " +
+          "to describe a WIDER set than the parser (a refinement has no keyword), so only an " +
+          "accepted example is asked. Filled by `spec check --write`.",
+      }),
+      zod: S.optional(S.string).with(S.meta, {
+        description:
+          "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it " +
+          "returns, as source, or the message it rejects with - the two libraries reading the " +
+          "same input differently (coercion, bounds units, format strictness). Filled by " +
+          "`spec check --write`.",
+      }),
+    })
+      .with(S.strict)
+      .with(S.meta, {
+        description:
+          "A recorded disagreement between parse and the verifiers that re-run this example.",
+      }),
+  ),
 };
 
 const exampleOutput = S.schema({
@@ -87,12 +132,12 @@ const exampleOutput = S.schema({
   output: S.string.with(S.meta, {
     description: "Expected output source text. Filled by `spec check --write`.",
   }),
-  ...divergences,
+  ...divergence,
 }).with(S.strict);
 const exampleError = S.schema({
   input: S.string.with(S.meta, { description: inputDescription }),
   error: S.string.with(S.meta, { description: "Expected error message. Filled by `spec check --write`." }),
-  ...divergences,
+  ...divergence,
 }).with(S.strict);
 const exampleErrorConstructor = S.schema({
   input: S.string.with(S.meta, { description: inputDescription }),
@@ -100,7 +145,7 @@ const exampleErrorConstructor = S.schema({
     description:
       "Expected `error.constructor.name` when the message is the platform's (Node 22 vs 24). Filled by `spec check --write` when this key is present.",
   }),
-  ...divergences,
+  ...divergence,
 }).with(S.strict);
 const example = S.union([exampleOutput, exampleError, exampleErrorConstructor]).with(S.meta, {
   description: "A named example: input plus expected output, error message, or error constructor.",
@@ -265,8 +310,10 @@ export type ZodOverwrite = S.Output<typeof zodOverwrite>;
 
 // Cross-library equivalent, checked live like `ts.aliases` (no golden). A
 // required dimension: each spec declares a real Zod equivalent or an explicit
-// `zod: { _skip }`. Only inferred types are asserted - codegen, JSON Schema,
-// errors, coercion diverge by design.
+// `zod: { _skip }`. Two things are asserted: the inferred types, and whether
+// Zod accepts each parse example that Sury does (an example where the two
+// genuinely read the input differently carries `divergence.zod`). Codegen, JSON Schema
+// and error wording are Sury's own and are never compared.
 const vs = S.schema({
   zod: S.union([S.string, zodOverwrite, skip]).with(S.meta, {
     description:

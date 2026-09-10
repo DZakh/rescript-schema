@@ -87,7 +87,7 @@ Input Schema
 │     - continue the chain inside `.then(...)`                 │
 │                                                              │
 │  else if val.isOutput (decoded, may still have `.to`):       │
-│     - follow `.to`: run `expected.parser` (custom decoder)       │
+│     - follow `.to`: run `expected.parser` (custom decoder)   │
 │       or `refine` onto `.to` (default encoder coercion)      │
 │                                                              │
 │  else (not yet decoded):                                     │
@@ -337,41 +337,23 @@ case the harness *should* have caught or guided better - a missing check, a weak
 error message, a strictness gap that let a bad spec through - add a bullet here
 instead of silently working around it.
 
-- A spec still pins one schema's *codegen* per direction, so the Result modes'
-  generated bodies (`parseAsResult`'s `try`, and its absence when the raise
-  counter says the body can't fail) have no golden. `spec check` now RUNS every
-  example through all of them and compares outcomes (see checkOperationMatrix),
-  which is what the gap was really about; a `resultExpression` golden beside
-  `expression` would additionally ratchet the emitted text.
-- An operation whose output holds a `Blob` or `File` (`S.blob`/`S.file`
-  decoding, or the reverse of any conversion into them) can't be specced: the
-  golden writer raises "cannot represent a Blob instance as spec source code",
-  and an op has no way to opt out. `Uint8Array` is written as a constructor
-  call, but a binary container's bytes are only readable asynchronously, so the
-  writer would have to await the example before rendering it. It costs a whole
-  direction of the content axis: the `codec-*` specs for `S.blob` and `S.file`
-  carry codegen and error cases only, and `tests/content_test.ts` holds the
-  values instead.
-- An example's `error` is matched verbatim, so one raised by the *platform*
-  rather than by Sury pins that engine's wording: `new Blob([Symbol()])` says
-  "Cannot convert a Symbol value to a string" on Node 22 and "The argument
-  'value' is invalid" on Node 24, and the golden passed locally while failing
-  CI. Write such an example so the message is ours - an input whose own
-  `toString` throws - or the check could compare only the error's constructor
-  when the spec says the failure is the platform's.
-- `ts.schema` has to evaluate, so a schema whose *construction* panics - every
-  argument the public API rejects outright, including the `"pack"`/`"unpack"`
-  pairs that don't name two readings - has no spec at all, only a
-  `creationError` for the ones that survive construction and fail at the
-  operation. `tests/content_test.ts` holds those. A `ts.constructionError`
-  beside `creationError` would keep them with the schema they reject.
-- `operations` names `parse`, `decode` and `encode` only, so `S.assertInputOrThrow` and
-  `S.isInput` have no golden anywhere. Both compile through the same builder chain
-  under a different result target, and a change to that target's handling broke
-  every `S.assertInputOrThrow(..., S.json)` and `S.isInput(S.jsonString)(...)` call with the whole
-  suite green. An `assert` op block, even one holding just an expression and a
-  pass/throw example, would have caught it; `tests/content_test.ts` holds it
-  instead.
+- An example's `error` is matched verbatim, and `errorConstructor` is the
+  opt-out for a message that belongs to the platform rather than to Sury.
+  Nothing points an author at it: the failure is a golden that passed locally
+  and differs on the CI runner's Node, and the diff names the wording without
+  saying whose it is. The class prefix a foreign throw now carries is the
+  signal to key on - a mismatch on an `error` golden whose two sides share a
+  class could say "this message is the platform's; record `errorConstructor`
+  instead".
+
+- `operations` has an `assert` and an `is` slot and no spec fills either, so
+  `S.assertInputOrThrow` and `S.isInput` still have no golden anywhere. Both
+  compile through the same builder chain under a different result target, and a
+  change to that target's handling broke every `S.assertInputOrThrow(..., S.json)`
+  and `S.isInput(S.jsonString)(...)` call with the whole suite green. One block,
+  holding just an expression and a pass/throw example, would have caught it;
+  `tests/content_test.ts` holds it instead.
+
 - `operations` names one schema's `parse`/`decode`/`encode`, so a **pipeline**
   - `S.decodeOrThrow(a, b, c)`, the multi-schema form `docs/js-usage.md`
   documents - has no golden anywhere. It is not a niche path:
@@ -379,6 +361,7 @@ instead of silently working around it.
   `S.base64.with(S.to, S.jsonString).with(S.to, S.string)` does, through a
   fold of its own (`compileChain`), and nothing pins that the two agree.
   A `ts.pipeline` beside `ts.schema`, taking the argument list, would cover it.
+
 - `fuzz:union --ref=<commit>` reports 3 `acceptance` diffs on the pinned
   `issue-392` case even when the working tree *is* that commit, so the
   changelog cannot be read as a signal without running it on an unchanged tree
@@ -389,6 +372,7 @@ instead of silently working around it.
   generated cases, would make the changelog trustworthy. The gate itself is
   unaffected - it only counts `acceptance`/`exception-kind` from the
   compiled-vs-reference run.
+
 - A spec for a *new* export is timed against a baseline that doesn't have it.
   The expression evaluates to `undefined` there, `S.parseOrThrow(undefined)` compiles
   to `noopOperation`, and the real validator is then reported as thousands of
@@ -399,6 +383,47 @@ instead of silently working around it.
   is `undefined`, rather than comparing against a no-op. The accompanying
   `behavior changed - baseline accepted it, now rejected` lines have the same
   cause: a no-op accepts every input, valid or not.
+
+- What decides whether a `divergence` exists at all is accept-or-reject, so an
+  example both libraries accept records nothing, and a value difference there is
+  invisible. Once one exists its `zod` answer is a golden like any other - a
+  changed value is reported against the one it replaced - but an author who
+  notices the difference first and records it is told `divergence.zod agrees
+  with parse - remove it`. Comparing that answer against the example's own
+  `output` is what would close it, and would turn every coercion difference into
+  a finding; the reason it is not done today is noise, not principle, and now
+  that the answers are recorded the size of that noise is measurable first.
+
+- `divergence.ajv` gates only the direction that is a promise: a document that
+  rejects what the parser accepts. The other direction is deliberately unasked,
+  because JSON Schema is allowed to describe a wider set (a refinement has no
+  keyword) - but that also means a document far wider than the parser, one that
+  accepts everything, passes silently. A count of how many *rejected* examples
+  each document turns away would rank the specs where it has drifted furthest
+  without ever failing one.
+
+- Only the default draft-07 emit is validated against the examples. The
+  `draft-2020-12` and `openapi-3.0` blocks record just the fields that differ
+  from it, so there is no whole document to hand a validator - reassembling one
+  by merging the sparse block over the default would extend the same check to
+  both dialects, and those are the targets a consumer is most likely to publish.
+
+- The `vs` dimension names Zod alone. `checkZodExamples` reads it through
+  Standard Schema (`~standard`), not a Zod API, so a `vs.valibot` or
+  `vs.arktype` would need only the import line and a key in the format - the
+  cross-check itself would work unchanged.
+
+- Nothing measures which *branch* of a generated operation an example reaches.
+  Every failure path calls an embedded function (`e[0](i)`), so wrapping the
+  embed array with counters during a recompute would give per-operation branch
+  coverage for free, and an uncovered failure site is exactly the check no
+  example exercises.
+
+- `checkAliases` compares `fn.toString()`, but a compiled operation also carries
+  the `embedded` array every `e[k]` in that text indexes into. Two schemas whose
+  code is identical and whose embeds differ (a different refinement closure, a
+  different error message) read as equivalent.
+
 ## License
 
 By contributing your code to the rescript-schema GitHub repository, you agree to license your contribution under the MIT license.

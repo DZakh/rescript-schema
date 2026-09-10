@@ -19,9 +19,15 @@ operations:
   parse:
     expression: i=>{e[3](i)||e[4](i);for(;;){if(typeof i==="string")break;if(typeof i==="number"&&i==i)break;if(typeof i==="object"&&i&&!Array.isArray(i)){let v0=i.bar;typeof v0==="number"&&v0%1==0||e[0](v0);i={bar:v0};break}if(Array.isArray(i)){for(let v1=0;v1<i.length;++v1){try{e[1](i[v1]);}catch(v2){v2.path=[v1,...v2.path];throw v2}};break}if(typeof i==="boolean")break;if(i===null)break;e[2](i)}return i}
     examples:
+      # FIXME: the same strip the encode block below describes, seen from the
+      # other side - the object arm drops `foo`, so what parse returns fails the
+      # `allOf` that its own jsonSchema.output still requires.
       base-and-allof-satisfied:
         input: '{ foo: "quux", bar: 2 }'
         output: "{ bar: 2 }"
+        divergence:
+          reason: the object arm strips `foo` before the allOf refinement reads it, so what parse returns fails the document parse itself publishes
+          ajv: "output: data must have required property 'foo'"
       allof-unsatisfied:
         input: "{ bar: 2 }"
         error: Should pass for all schemas of the allOf property.

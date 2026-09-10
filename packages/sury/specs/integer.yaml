@@ -28,6 +28,9 @@ operations:
       valid-above-safe-integer:
         input: "1e+21"
         output: "1e+21"
+        divergence:
+          reason: z.int() caps at Number.MAX_SAFE_INTEGER; S.integer takes any integral number
+          zod: "Too big: expected int to be <=9007199254740991"
       invalid-float:
         input: "42.5"
         error: Expected integer, received 42.5

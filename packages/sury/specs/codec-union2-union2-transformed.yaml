@@ -17,15 +17,21 @@ operations:
       number-decoded:
         input: "123"
         output: '"123"'
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: Ambiguous number -> number | string. Should string be decoded or ignored? Choose with S.to for number -> string, or S.never -> string
       string:
         input: '"abc"'
         output: '"abc"'
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: Ambiguous number -> number | string. Should string be decoded or ignored? Choose with S.to for number -> string, or S.never -> string
       float-decoded:
         input: "1.5"
         output: '"1.5"'
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: Ambiguous number -> number | string. Should string be decoded or ignored? Choose with S.to for number -> string, or S.never -> string
   decode: eq-to-parse
   encode:
     expression: i=>{for(;;){let r;if(typeof i==="string"){try{let v0=+i;v0==v0&&(v0||i.trim())||e[0](i);i=v0;break}catch(x){(r||(r=[])).push(e[1](x))}break}e[2](i,...(r||[]))}return i}

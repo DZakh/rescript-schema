@@ -22,6 +22,9 @@ operations:
       emoji:
         input: '"😀"'
         output: '"😀"'
+        divergence:
+          reason: minLength counts code points and S.length counts JS characters, so the emoji is one short of the document's bound
+          ajv: "input: data must NOT have fewer than 2 characters; output: data must NOT have fewer than 2 characters"
       zwj-sequence:
         input: '"👨‍👩"'
         error: Expected string.length == 2, received "👨‍👩"
