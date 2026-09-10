@@ -425,6 +425,7 @@ const jsonSchemaFormat = {
   uuidv7: "uuid",
   "http-url": "uri",
   env: "",
+  queryString: "",
 } as unknown as Record<string, string | undefined>;
 
 const internalToJSONSchemaBase = (

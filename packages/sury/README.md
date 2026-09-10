@@ -21,7 +21,7 @@ await S.encodeAsPromiseOrReject(signupsFileSchema)(signups);
 // => a File, from the same declaration - input and return strictly typed
 ```
 
-Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.file` and `S.blob`. Coming next: env and protobuf.
+Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.env`, `S.urlSearchParams`, `S.queryString`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.file` and `S.blob`. Coming next: `S.request`, `S.response`, `S.protobuf`, `S.capnp`, `S.rkyv`, `S.toon`.
 
 ```sh
 npm install sury
@@ -175,7 +175,7 @@ await S.parseAsPromiseOrReject(configSchema, new File(['{"theme":"dark"}'], "con
 // => { theme: "dark" }
 ```
 
-`process.env` is strings; your config isn't. Decode through `S.record(S.env)`:
+No need for a separate library to decode your env vars:
 
 ```ts
 const envSchema = S.schema({

@@ -95,7 +95,8 @@ export type StringFormat =
   | "cidrv4"
   | "cidrv6"
   | "http-url"
-  | "env";
+  | "env"
+  | "queryString";
 export type ArrayFormat = "compactColumns";
 export type Format = NumberFormat | StringFormat | ArrayFormat;
 

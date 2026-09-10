@@ -289,6 +289,7 @@ export const queryString: Internal = /* @__PURE__ */ initSchema(
   queryStringDecoder,
   (s) => {
     s.name = "query string";
+    s.format = "queryString";
     s.encoder = (input, target) => {
       if (
         isObjectTarget(target) ||

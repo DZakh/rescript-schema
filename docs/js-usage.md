@@ -1347,7 +1347,7 @@ S.decodeOrThrow(process.env, S.record(S.env), envSchema);
 A single var is the same coercion:
 
 ```ts
-S.decodeOrThrow(process.env.PORT, S.env, S.port);
+S.decodeOrThrow(process.env.PORT, S.optional(S.env.with(S.to, S.port)));
 ```
 
 A missing key or empty string is absent (`S.optional`) or null (`S.nullable`).

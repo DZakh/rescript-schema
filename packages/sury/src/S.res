@@ -73,6 +73,7 @@ type stringFormat =
   | @as("cidrv6") Cidrv6
   | @as("http-url") HttpUrl
   | @as("env") Env
+  | @as("queryString") QueryString
 type arrayFormat = | @as("compactColumns") CompactColumns
 
 type format = | ...numberFormat | ...stringFormat | ...arrayFormat

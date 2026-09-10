@@ -71,7 +71,7 @@ export const FUZZ_EXPORTS: Record<string, FuzzExport> = {
   email: schema((S) => S.email),
   enableStandardJSONSchema: skip("mutates global JSON Schema converter"),
   enum: build(),
-  env: skip("text-entry field codec, used as S.record(S.env), not a union member"),
+  env: schema((S) => S.env),
   extendJSONSchema: skip("JSON Schema document helper, not a schema factory"),
   file: schema((S) => S.file),
   formData: schema((S) => S.formData),
