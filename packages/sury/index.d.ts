@@ -386,8 +386,8 @@ type SchemaLike<TInput, TOutput> = {
 };
 // Decode/encode/make capture the schema as `S` so `data` is `Input<S>` /
 // `Output<S>` and cannot be wider than the schema. A chain is `SInput` then
-// `SOutput`; schemas in the middle are untyped. `parse*`/`assert*`/`is*` still
-// take `unknown`.
+// `SOutput`; schemas in the middle are untyped. Make takes one schema.
+// `parse*`/`assert*`/`is*` still take `unknown`.
 type AnySchema = SchemaLike<any, any>;
 
 export type Brand<T, TId extends string> = T & {
@@ -1760,10 +1760,6 @@ export function encodeAsPromisableResult<SInput extends AnySchema, SOutput exten
 export function makeInputOrThrow<S extends AnySchema>(
   schema: S
 ): (data: Unbranded<Input<S>>) => Input<S>;
-export function makeInputOrThrow<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema
-): (data: Unbranded<Input<SInput>>) => Input<SInput>;
 export function makeInputOrThrow<S extends AnySchema>(
   schema: S,
   data: Unbranded<Input<S>>
@@ -1772,33 +1768,6 @@ export function makeInputOrThrow<S extends AnySchema>(
   data: Unbranded<Input<S>>,
   schema: S
 ): Input<S>;
-export function makeInputOrThrow<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): (data: Unbranded<Input<SInput>>) => Input<SInput>;
-export function makeInputOrThrow<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  data: Unbranded<Input<SInput>>
-): Input<SInput>;
-export function makeInputOrThrow<SInput extends AnySchema>(
-  data: Unbranded<Input<SInput>>,
-  s1: SInput,
-  s2: AnySchema
-): Input<SInput>;
-export function makeInputOrThrow<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema,
-  data: Unbranded<Input<SInput>>
-): Input<SInput>;
-export function makeInputOrThrow<SInput extends AnySchema>(
-  data: Unbranded<Input<SInput>>,
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): Input<SInput>;
 
 /**
  * Validates a value against the schema's Input and hands back the value
@@ -1813,10 +1782,6 @@ export function makeInputOrThrow<SInput extends AnySchema>(
 export function makeInputAsResult<S extends AnySchema>(
   schema: S
 ): (data: Unbranded<Input<S>>) => Result<Input<S>>;
-export function makeInputAsResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema
-): (data: Unbranded<Input<SInput>>) => Result<Input<SInput>>;
 export function makeInputAsResult<S extends AnySchema>(
   schema: S,
   data: Unbranded<Input<S>>
@@ -1825,33 +1790,6 @@ export function makeInputAsResult<S extends AnySchema>(
   data: Unbranded<Input<S>>,
   schema: S
 ): Result<Input<S>>;
-export function makeInputAsResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): (data: Unbranded<Input<SInput>>) => Result<Input<SInput>>;
-export function makeInputAsResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  data: Unbranded<Input<SInput>>
-): Result<Input<SInput>>;
-export function makeInputAsResult<SInput extends AnySchema>(
-  data: Unbranded<Input<SInput>>,
-  s1: SInput,
-  s2: AnySchema
-): Result<Input<SInput>>;
-export function makeInputAsResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema,
-  data: Unbranded<Input<SInput>>
-): Result<Input<SInput>>;
-export function makeInputAsResult<SInput extends AnySchema>(
-  data: Unbranded<Input<SInput>>,
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): Result<Input<SInput>>;
 
 /**
  * Validates a value against the schema's Input and hands back the value
@@ -1866,10 +1804,6 @@ export function makeInputAsResult<SInput extends AnySchema>(
 export function makeInputAsPromiseOrReject<S extends AnySchema>(
   schema: S
 ): (data: Unbranded<Input<S>>) => Promise<Input<S>>;
-export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema
-): (data: Unbranded<Input<SInput>>) => Promise<Input<SInput>>;
 export function makeInputAsPromiseOrReject<S extends AnySchema>(
   schema: S,
   data: Unbranded<Input<S>>
@@ -1878,33 +1812,6 @@ export function makeInputAsPromiseOrReject<S extends AnySchema>(
   data: Unbranded<Input<S>>,
   schema: S
 ): Promise<Input<S>>;
-export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): (data: Unbranded<Input<SInput>>) => Promise<Input<SInput>>;
-export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  data: Unbranded<Input<SInput>>
-): Promise<Input<SInput>>;
-export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
-  data: Unbranded<Input<SInput>>,
-  s1: SInput,
-  s2: AnySchema
-): Promise<Input<SInput>>;
-export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema,
-  data: Unbranded<Input<SInput>>
-): Promise<Input<SInput>>;
-export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
-  data: Unbranded<Input<SInput>>,
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): Promise<Input<SInput>>;
 
 /**
  * Validates a value against the schema's Input and hands back the value
@@ -1917,10 +1824,6 @@ export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
 export function makeInputAsResultPromise<S extends AnySchema>(
   schema: S
 ): (data: Unbranded<Input<S>>) => Promise<Result<Input<S>>>;
-export function makeInputAsResultPromise<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema
-): (data: Unbranded<Input<SInput>>) => Promise<Result<Input<SInput>>>;
 export function makeInputAsResultPromise<S extends AnySchema>(
   schema: S,
   data: Unbranded<Input<S>>
@@ -1929,33 +1832,6 @@ export function makeInputAsResultPromise<S extends AnySchema>(
   data: Unbranded<Input<S>>,
   schema: S
 ): Promise<Result<Input<S>>>;
-export function makeInputAsResultPromise<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): (data: Unbranded<Input<SInput>>) => Promise<Result<Input<SInput>>>;
-export function makeInputAsResultPromise<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  data: Unbranded<Input<SInput>>
-): Promise<Result<Input<SInput>>>;
-export function makeInputAsResultPromise<SInput extends AnySchema>(
-  data: Unbranded<Input<SInput>>,
-  s1: SInput,
-  s2: AnySchema
-): Promise<Result<Input<SInput>>>;
-export function makeInputAsResultPromise<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema,
-  data: Unbranded<Input<SInput>>
-): Promise<Result<Input<SInput>>>;
-export function makeInputAsResultPromise<SInput extends AnySchema>(
-  data: Unbranded<Input<SInput>>,
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): Promise<Result<Input<SInput>>>;
 
 /**
  * Validates a value against the schema's Input and hands back the value
@@ -1973,10 +1849,6 @@ export function makeInputAsResultPromise<SInput extends AnySchema>(
 export function makeInputAsPromisableResult<S extends AnySchema>(
   schema: S
 ): (data: Unbranded<Input<S>>) => Promisable<Result<Input<S>>>;
-export function makeInputAsPromisableResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema
-): (data: Unbranded<Input<SInput>>) => Promisable<Result<Input<SInput>>>;
 export function makeInputAsPromisableResult<S extends AnySchema>(
   schema: S,
   data: Unbranded<Input<S>>
@@ -1985,33 +1857,6 @@ export function makeInputAsPromisableResult<S extends AnySchema>(
   data: Unbranded<Input<S>>,
   schema: S
 ): Promisable<Result<Input<S>>>;
-export function makeInputAsPromisableResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): (data: Unbranded<Input<SInput>>) => Promisable<Result<Input<SInput>>>;
-export function makeInputAsPromisableResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  data: Unbranded<Input<SInput>>
-): Promisable<Result<Input<SInput>>>;
-export function makeInputAsPromisableResult<SInput extends AnySchema>(
-  data: Unbranded<Input<SInput>>,
-  s1: SInput,
-  s2: AnySchema
-): Promisable<Result<Input<SInput>>>;
-export function makeInputAsPromisableResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema,
-  data: Unbranded<Input<SInput>>
-): Promisable<Result<Input<SInput>>>;
-export function makeInputAsPromisableResult<SInput extends AnySchema>(
-  data: Unbranded<Input<SInput>>,
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): Promisable<Result<Input<SInput>>>;
 
 /**
  * `makeInput` for the Output side.
@@ -2021,10 +1866,6 @@ export function makeInputAsPromisableResult<SInput extends AnySchema>(
 export function makeOutputOrThrow<S extends AnySchema>(
   schema: S
 ): (data: Unbranded<Output<S>>) => Output<S>;
-export function makeOutputOrThrow<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema
-): (data: Unbranded<Output<SInput>>) => Output<SInput>;
 export function makeOutputOrThrow<S extends AnySchema>(
   schema: S,
   data: Unbranded<Output<S>>
@@ -2033,33 +1874,6 @@ export function makeOutputOrThrow<S extends AnySchema>(
   data: Unbranded<Output<S>>,
   schema: S
 ): Output<S>;
-export function makeOutputOrThrow<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): (data: Unbranded<Output<SInput>>) => Output<SInput>;
-export function makeOutputOrThrow<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  data: Unbranded<Output<SInput>>
-): Output<SInput>;
-export function makeOutputOrThrow<SInput extends AnySchema>(
-  data: Unbranded<Output<SInput>>,
-  s1: SInput,
-  s2: AnySchema
-): Output<SInput>;
-export function makeOutputOrThrow<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema,
-  data: Unbranded<Output<SInput>>
-): Output<SInput>;
-export function makeOutputOrThrow<SInput extends AnySchema>(
-  data: Unbranded<Output<SInput>>,
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): Output<SInput>;
 
 /**
  * `makeInput` for the Output side.
@@ -2071,10 +1885,6 @@ export function makeOutputOrThrow<SInput extends AnySchema>(
 export function makeOutputAsResult<S extends AnySchema>(
   schema: S
 ): (data: Unbranded<Output<S>>) => Result<Output<S>>;
-export function makeOutputAsResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema
-): (data: Unbranded<Output<SInput>>) => Result<Output<SInput>>;
 export function makeOutputAsResult<S extends AnySchema>(
   schema: S,
   data: Unbranded<Output<S>>
@@ -2083,33 +1893,6 @@ export function makeOutputAsResult<S extends AnySchema>(
   data: Unbranded<Output<S>>,
   schema: S
 ): Result<Output<S>>;
-export function makeOutputAsResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): (data: Unbranded<Output<SInput>>) => Result<Output<SInput>>;
-export function makeOutputAsResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  data: Unbranded<Output<SInput>>
-): Result<Output<SInput>>;
-export function makeOutputAsResult<SInput extends AnySchema>(
-  data: Unbranded<Output<SInput>>,
-  s1: SInput,
-  s2: AnySchema
-): Result<Output<SInput>>;
-export function makeOutputAsResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema,
-  data: Unbranded<Output<SInput>>
-): Result<Output<SInput>>;
-export function makeOutputAsResult<SInput extends AnySchema>(
-  data: Unbranded<Output<SInput>>,
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): Result<Output<SInput>>;
 
 /**
  * `makeInput` for the Output side.
@@ -2121,10 +1904,6 @@ export function makeOutputAsResult<SInput extends AnySchema>(
 export function makeOutputAsPromiseOrReject<S extends AnySchema>(
   schema: S
 ): (data: Unbranded<Output<S>>) => Promise<Output<S>>;
-export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema
-): (data: Unbranded<Output<SInput>>) => Promise<Output<SInput>>;
 export function makeOutputAsPromiseOrReject<S extends AnySchema>(
   schema: S,
   data: Unbranded<Output<S>>
@@ -2133,33 +1912,6 @@ export function makeOutputAsPromiseOrReject<S extends AnySchema>(
   data: Unbranded<Output<S>>,
   schema: S
 ): Promise<Output<S>>;
-export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): (data: Unbranded<Output<SInput>>) => Promise<Output<SInput>>;
-export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  data: Unbranded<Output<SInput>>
-): Promise<Output<SInput>>;
-export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
-  data: Unbranded<Output<SInput>>,
-  s1: SInput,
-  s2: AnySchema
-): Promise<Output<SInput>>;
-export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema,
-  data: Unbranded<Output<SInput>>
-): Promise<Output<SInput>>;
-export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
-  data: Unbranded<Output<SInput>>,
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): Promise<Output<SInput>>;
 
 /**
  * `makeInput` for the Output side.
@@ -2169,10 +1921,6 @@ export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
 export function makeOutputAsResultPromise<S extends AnySchema>(
   schema: S
 ): (data: Unbranded<Output<S>>) => Promise<Result<Output<S>>>;
-export function makeOutputAsResultPromise<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema
-): (data: Unbranded<Output<SInput>>) => Promise<Result<Output<SInput>>>;
 export function makeOutputAsResultPromise<S extends AnySchema>(
   schema: S,
   data: Unbranded<Output<S>>
@@ -2181,33 +1929,6 @@ export function makeOutputAsResultPromise<S extends AnySchema>(
   data: Unbranded<Output<S>>,
   schema: S
 ): Promise<Result<Output<S>>>;
-export function makeOutputAsResultPromise<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): (data: Unbranded<Output<SInput>>) => Promise<Result<Output<SInput>>>;
-export function makeOutputAsResultPromise<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  data: Unbranded<Output<SInput>>
-): Promise<Result<Output<SInput>>>;
-export function makeOutputAsResultPromise<SInput extends AnySchema>(
-  data: Unbranded<Output<SInput>>,
-  s1: SInput,
-  s2: AnySchema
-): Promise<Result<Output<SInput>>>;
-export function makeOutputAsResultPromise<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema,
-  data: Unbranded<Output<SInput>>
-): Promise<Result<Output<SInput>>>;
-export function makeOutputAsResultPromise<SInput extends AnySchema>(
-  data: Unbranded<Output<SInput>>,
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): Promise<Result<Output<SInput>>>;
 
 /**
  * `makeInput` for the Output side.
@@ -2222,10 +1943,6 @@ export function makeOutputAsResultPromise<SInput extends AnySchema>(
 export function makeOutputAsPromisableResult<S extends AnySchema>(
   schema: S
 ): (data: Unbranded<Output<S>>) => Promisable<Result<Output<S>>>;
-export function makeOutputAsPromisableResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema
-): (data: Unbranded<Output<SInput>>) => Promisable<Result<Output<SInput>>>;
 export function makeOutputAsPromisableResult<S extends AnySchema>(
   schema: S,
   data: Unbranded<Output<S>>
@@ -2234,33 +1951,6 @@ export function makeOutputAsPromisableResult<S extends AnySchema>(
   data: Unbranded<Output<S>>,
   schema: S
 ): Promisable<Result<Output<S>>>;
-export function makeOutputAsPromisableResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): (data: Unbranded<Output<SInput>>) => Promisable<Result<Output<SInput>>>;
-export function makeOutputAsPromisableResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  data: Unbranded<Output<SInput>>
-): Promisable<Result<Output<SInput>>>;
-export function makeOutputAsPromisableResult<SInput extends AnySchema>(
-  data: Unbranded<Output<SInput>>,
-  s1: SInput,
-  s2: AnySchema
-): Promisable<Result<Output<SInput>>>;
-export function makeOutputAsPromisableResult<SInput extends AnySchema>(
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema,
-  data: Unbranded<Output<SInput>>
-): Promisable<Result<Output<SInput>>>;
-export function makeOutputAsPromisableResult<SInput extends AnySchema>(
-  data: Unbranded<Output<SInput>>,
-  s1: SInput,
-  s2: AnySchema,
-  s3: AnySchema
-): Promisable<Result<Output<SInput>>>;
 
 /**
  * Whether the value is a valid Input for the schema. Never throws for a failed

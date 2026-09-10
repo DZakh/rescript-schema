@@ -286,6 +286,11 @@ test("the public types resolve to the right call form", () => {
   S.makeInputOrThrow(S.string, maybe);
   // @ts-expect-error wider than number output
   S.makeOutputOrThrow(Str, num);
+  const _noMakeChain = () => {
+    // @ts-expect-error make takes one schema
+    const makeChain: (data: string) => string = S.makeOutputOrThrow(S.string, S.string);
+  };
+  void _noMakeChain;
 
   S.parseOrThrow(S.string, maybe);
   S.assertInputOrThrow(S.string, maybe);
@@ -333,6 +338,12 @@ test("make compiles to the checks plus the value, with no wrapper", () => {
   );
   // Nothing to check: the operation is the identity itself.
   expect(S.makeInputOrThrow(S.unknown)).toBe(S.parseOrThrow(S.unknown));
+  expect(() => (S.makeOutputOrThrow as (...args: unknown[]) => unknown)(S.string, S.number)).toThrow(
+    "Expected a single schema and a value",
+  );
+  expect(() => (S.makeInputOrThrow as (...args: unknown[]) => unknown)(S.string, S.number, "x")).toThrow(
+    "Expected a single schema and a value",
+  );
 });
 
 test("is answers a boolean from one compiled operation", () => {
