@@ -277,6 +277,18 @@ const tailDispatch = (
   return dispatch(n, a, b, c, d, tail, rev, flag);
 };
 
+const makeDispatch = (
+  n: number,
+  a: unknown,
+  b: unknown,
+  tail: Internal | undefined,
+  rev: boolean,
+  flag: Flag,
+): unknown =>
+  n > 2 || (n === 2 && isOwnSchema(a) && isOwnSchema(b))
+    ? panic("Expected a single schema and a value. Chain with .with(S.to, ...) first")
+    : tailDispatch(n, a, b, U, U, tail, rev, flag);
+
 // ── Operations ───────────────────────────────────────────────────────────────
 //
 // NEVER annotate one of these `@__NO_SIDE_EFFECTS__`. The immediate call forms
@@ -365,21 +377,22 @@ export function encodeAsPromisableResult(a?: unknown, b?: unknown, c?: unknown, 
 
 // The make family validates and hands back the value it was given, rather than
 // the decoded clone `parse` would build: the checks run, their result is
-// discarded, and the value keeps its identity.
+// discarded, and the value keeps its identity. One schema only: a chain is
+// `.with(S.to, ...)` on the schema first.
 export function makeInputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 8 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, false, 8 | 2048);
 }
 
 export function makeInputAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 8 | 128 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, false, 8 | 128 | 2048);
 }
 
 export function makeInputAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 1 | 8 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, false, 1 | 8 | 2048);
 }
 
 export function makeInputAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 1 | 8 | 128 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, false, 1 | 8 | 128 | 2048);
 }
 
 export const makeInputAsPromisableResult = function (
@@ -388,23 +401,23 @@ export const makeInputAsPromisableResult = function (
   c?: unknown,
   d?: unknown,
 ): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, false, 1 | 8 | 128 | 512 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, false, 1 | 8 | 128 | 512 | 2048);
 }
 
 export function makeOutputOrThrow(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 8 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, true, 8 | 2048);
 }
 
 export function makeOutputAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 8 | 128 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, true, 8 | 128 | 2048);
 }
 
 export function makeOutputAsPromiseOrReject(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, true, 1 | 8 | 2048);
 }
 
 export function makeOutputAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8 | 128 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, true, 1 | 8 | 128 | 2048);
 }
 
 export const makeOutputAsPromisableResult = function (
@@ -413,7 +426,7 @@ export const makeOutputAsPromisableResult = function (
   c?: unknown,
   d?: unknown,
 ): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8 | 128 | 512 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, true, 1 | 8 | 128 | 512 | 2048);
 }
 
 // ── Checks ───────────────────────────────────────────────────────────────────
@@ -489,9 +502,9 @@ export function $encodeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?
 }
 
 export function $makeAsResult(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 8 | 256 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, true, 8 | 256 | 2048);
 }
 
 export function $makeAsResultPromise(a?: unknown, b?: unknown, c?: unknown, d?: unknown): unknown {
-  return tailDispatch(arguments.length, a, b, c, d, assertResult, true, 1 | 8 | 256 | 2048);
+  return makeDispatch(arguments.length, a, b, assertResult, true, 1 | 8 | 256 | 2048);
 }
