@@ -384,14 +384,15 @@ instead of silently working around it.
   `behavior changed - baseline accepted it, now rejected` lines have the same
   cause: a no-op accepts every input, valid or not.
 
-- `divergence.zod` now records the value the equivalent returns, but the gate
-  around it is still accept-or-reject: two libraries that both accept an input
-  and hand back different values agree as far as the check is concerned, and
-  `divergence.zod agrees with parse - remove it` is what an author who recorded
-  the difference is told. Comparing that value against the example's own
-  `output` would turn every coercion difference into a finding - the reason it
-  is not done today is noise, not principle, and the answers are now recorded,
-  so the size of that noise can be measured before deciding.
+- What decides whether a `divergence` exists at all is accept-or-reject, so an
+  example both libraries accept records nothing, and a value difference there is
+  invisible. Once one exists its `zod` answer is a golden like any other - a
+  changed value is reported against the one it replaced - but an author who
+  notices the difference first and records it is told `divergence.zod agrees
+  with parse - remove it`. Comparing that answer against the example's own
+  `output` is what would close it, and would turn every coercion difference into
+  a finding; the reason it is not done today is noise, not principle, and now
+  that the answers are recorded the size of that noise is measurable first.
 
 - `divergence.ajv` gates only the direction that is a promise: a document that
   rejects what the parser accepts. The other direction is deliberately unasked,
