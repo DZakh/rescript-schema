@@ -27,7 +27,7 @@ operations:
         error: Expected ulid, received "8ZZZZZZZZZZZZZZZZZZZZZZZZZ"
         divergence:
           reason: z.ulid() does not bound the timestamp; S.ulid rejects a first character above 7
-          zod: passes
+          zod: '"8ZZZZZZZZZZZZZZZZZZZZZZZZZ"'
       excluded-letter-i:
         input: '"01ARZ3NDEKTSV4RRFFQ69G5FAI"'
         error: Expected ulid, received "01ARZ3NDEKTSV4RRFFQ69G5FAI"

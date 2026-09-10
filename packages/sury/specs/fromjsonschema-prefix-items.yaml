@@ -30,13 +30,13 @@ operations:
         output: '["a"]'
         divergence:
           reason: "the default draft-07 target has no prefixItems, so the emitted `items: false` rejects every non-empty array the schema accepts"
-          ajv: fails
+          ajv: "input: data/0 boolean schema is false; output: data/0 boolean schema is false"
       full-prefix:
         input: '["a", 1]'
         output: '["a", 1]'
         divergence:
           reason: "the default draft-07 target has no prefixItems, so the emitted `items: false` rejects every non-empty array the schema accepts"
-          ajv: fails
+          ajv: "input: data/0 boolean schema is false; output: data/0 boolean schema is false"
       additional-item-rejected:
         input: '["a", 1, true]'
         error: Should pass the positional and additional item schemas.

@@ -90,25 +90,33 @@ const divergence = {
           "Why the verifiers below read this example differently from parse. Hand-written, " +
           "never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug.",
       }),
-      // Spelled out one by one rather than through a shared `verdict(description)`
-      // helper: this file's header says why a description wrapper is a trap here.
-      check: S.optional(S.union(["passes", "fails"])).with(S.meta, {
+      // What each verifier ANSWERED, not a pass/fail marker: the answer is the
+      // thing a reader wants and the thing that quietly changes under a
+      // refactor. `check` and `ajv` build no output, so `true` is the whole of
+      // what they say when they accept.
+      //
+      // Spelled out one by one rather than through a shared helper: this file's
+      // header says why a description wrapper is a trap here.
+      check: S.optional(S.union([S.schema(true), S.string])).with(S.meta, {
         description:
-          "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. " +
-          "They validate without building an output, so a failure that only arises while " +
-          "building one is invisible to them.",
+          "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: " +
+          "`true` when they accept, else the message they reject with. They validate without " +
+          "building an output, so a failure that only arises while building one is invisible " +
+          "to them. Filled by `spec check --write`.",
       }),
-      ajv: S.optional(S.union(["passes", "fails"])).with(S.meta, {
+      ajv: S.optional(S.union([S.schema(true), S.string])).with(S.meta, {
         description:
-          "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON " +
-          "Schema is allowed to describe a WIDER set than the parser (a refinement has no " +
-          "keyword), so only an accepted example is asked and only `fails` is ever recorded.",
+          "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` " +
+          "when they accept, else the validator's own words, per side. JSON Schema is allowed " +
+          "to describe a WIDER set than the parser (a refinement has no keyword), so only an " +
+          "accepted example is asked. Filled by `spec check --write`.",
       }),
-      zod: S.optional(S.union(["passes", "fails"])).with(S.meta, {
+      zod: S.optional(S.string).with(S.meta, {
         description:
-          "What the `vs.zod` equivalent answers, when it disagrees with parse - the two " +
-          "libraries reading the same input differently (coercion, bounds units, format " +
-          "strictness).",
+          "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it " +
+          "returns, as source, or the message it rejects with - the two libraries reading the " +
+          "same input differently (coercion, bounds units, format strictness). Filled by " +
+          "`spec check --write`.",
       }),
     })
       .with(S.strict)

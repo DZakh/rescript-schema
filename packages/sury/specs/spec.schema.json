@@ -293,25 +293,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -346,25 +353,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -399,25 +413,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -530,25 +551,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -583,25 +611,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -636,25 +671,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -767,25 +809,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -820,25 +869,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -873,25 +929,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -1004,25 +1067,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -1057,25 +1127,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -1110,25 +1187,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -1241,25 +1325,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -1294,25 +1385,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,
@@ -1347,25 +1445,32 @@
                                 "description": "Why the verifiers below read this example differently from parse. Hand-written, never filled by `spec check --write`. Add a `FIXME:` comment too when it is a bug."
                               },
                               "check": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse. They validate without building an output, so a failure that only arises while building one is invisible to them."
+                                "description": "What `assertInput*`/`isInput*`/`makeInput*` answer, when they disagree with parse: `true` when they accept, else the message they reject with. They validate without building an output, so a failure that only arises while building one is invisible to them. Filled by `spec check --write`."
                               },
                               "ajv": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
+                                "anyOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": true
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
                                 ],
-                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked and only `fails` is ever recorded."
+                                "description": "What the recorded `jsonSchema` documents say, when they disagree with parse: `true` when they accept, else the validator's own words, per side. JSON Schema is allowed to describe a WIDER set than the parser (a refinement has no keyword), so only an accepted example is asked. Filled by `spec check --write`."
                               },
                               "zod": {
-                                "enum": [
-                                  "passes",
-                                  "fails"
-                                ],
-                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse - the two libraries reading the same input differently (coercion, bounds units, format strictness)."
+                                "type": "string",
+                                "description": "What the `vs.zod` equivalent answers, when it disagrees with parse: the value it returns, as source, or the message it rejects with - the two libraries reading the same input differently (coercion, bounds units, format strictness). Filled by `spec check --write`."
                               }
                             },
                             "additionalProperties": false,

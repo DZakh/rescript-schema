@@ -1410,10 +1410,11 @@ const runToRef = async (fn: (input: any) => any, data: unknown): Promise<Ref> =>
   }
 };
 
-// The matrix runs on values a spec chose, which includes ones the golden
-// serializer can't write down (a Blob's bytes are only readable
-// asynchronously). Only the failure message needs them, so a value it can't
-// render is described by its type rather than aborting the check.
+// The matrix and the `vs` equivalent both run on values a spec chose, which
+// includes ones the golden serializer can't write down (a Blob's bytes are only
+// readable asynchronously). Neither a failure message nor a recorded answer is
+// worth aborting a check over, so a value it can't render is described by its
+// type instead.
 const valueToCodeSafe = (v: unknown): string => {
   try {
     return valueToCode(v);
@@ -1522,7 +1523,9 @@ const checkVerdicts = async (
   schema: any,
   nextData: () => unknown,
   isAsync: boolean,
-): Promise<{ name: string; passed: boolean; detail: string; answer?: unknown; given?: unknown }[]> =>
+): Promise<
+  { name: string; passed: boolean; detail: string; message?: string; answer?: unknown; given?: unknown }[]
+> =>
   Promise.all(
     Object.entries(CHECK_FORMS[isAsync ? "async" : "sync"]).map(async ([name, run]) => {
       const given = nextData();
@@ -1537,14 +1540,17 @@ const checkVerdicts = async (
           given,
         };
       } catch (e) {
-        return { name, passed: false, detail: `: ${(e as Error).message}` };
+        return { name, passed: false, detail: `: ${(e as Error).message}`, message: (e as Error).message };
       }
     }),
   );
 
 // ---- the JSON Schema a spec publishes, asked about that spec's own values ---
 
-type Verdict = { passed: boolean; detail: string };
+// `detail` is prose for an error message; `answer` is what gets recorded - the
+// verifier's own words, or `true` where accepting is all it can say.
+type Answer = true | string;
+type Verdict = { passed: boolean; detail: string; answer: Answer };
 type JsonSchemaDocument = { side: "input" | "output"; validate: (v: unknown) => string | undefined };
 
 // The two documents a spec records in full. A side whose golden is a recorded
@@ -1591,6 +1597,7 @@ const jsonSchemaSides = (spec: Spec): { sides: JsonSchemaDocument[]; errs: strin
 const jsonSchemaVerdict = (sides: JsonSchemaDocument[], ex: Example): Verdict | undefined => {
   if (!("output" in ex)) return undefined;
   const failures: string[] = [];
+  const reasons: string[] = [];
   let asked = 0;
   for (const { side, validate } of sides) {
     let value: unknown;
@@ -1602,10 +1609,17 @@ const jsonSchemaVerdict = (sides: JsonSchemaDocument[], ex: Example): Verdict | 
     if (!isJsonValue(value)) continue;
     asked++;
     const reason = validate(value);
-    if (reason !== undefined) failures.push(`jsonSchema.${side} rejects it (${reason})`);
+    if (reason !== undefined) {
+      failures.push(`jsonSchema.${side} rejects it (${reason})`);
+      reasons.push(`${side}: ${reason}`);
+    }
   }
   if (asked === 0) return undefined;
-  return { passed: failures.length === 0, detail: failures.join("; ") };
+  return {
+    passed: failures.length === 0,
+    detail: failures.join("; "),
+    answer: failures.length === 0 ? true : reasons.join("; "),
+  };
 };
 
 // ---- the `vs` equivalent, asked about that spec's own values ---------------
@@ -1640,16 +1654,31 @@ const zodVerdict = async (schema: any, ex: Example): Promise<Verdict | undefined
   }
   try {
     const result = await schema["~standard"].validate(value);
-    return {
-      passed: result.issues === undefined,
-      detail: result.issues === undefined ? "" : (result.issues[0]?.message ?? "rejected"),
-    };
+    // Accepting, the equivalent has a VALUE to show, and it is the interesting
+    // half: two libraries can both accept `""` and hand back different things.
+    if (result.issues === undefined)
+      return { passed: true, detail: "", answer: valueToCodeSafe(result.value) };
+    const message = result.issues[0]?.message ?? "rejected";
+    return { passed: false, detail: message, answer: message };
   } catch (e) {
     // A vendor may throw rather than report - still a rejection, and the
     // wording is the only thing that says why.
-    return { passed: false, detail: describeExampleThrow(e) };
+    const message = describeExampleThrow(e);
+    return { passed: false, detail: message, answer: message };
   }
 };
+
+// What the checks answer, in the form a `divergence` records: `true` when they
+// accept, else the words they reject with. `isInput*` answers a bare `false`,
+// so the message comes from whichever sibling threw one.
+// A recorded answer, as it reads back in a message: `true` bare, a message
+// quoted, so "records true" and "records \"true\"" are not the same sentence.
+const answerToCode = (answer: Answer): string =>
+  answer === true ? "true" : JSON.stringify(answer);
+
+const checksAnswer = (
+  verdicts: { passed: boolean; message?: string }[],
+): Answer => (verdicts[0]!.passed ? true : (verdicts.find((v) => v.message)?.message ?? "rejected"));
 
 // `--write`'s half: a `divergence` that is already there keeps its verdicts
 // fresh, the way `creationError` does. `reason` is never touched, and adding or
@@ -1673,21 +1702,21 @@ const refreshDivergence = async (
   if (was.check !== undefined) {
     out.check =
       opName === "parse"
-        ? (await checkVerdicts(schema, valueEvaluator(ex.input), isAsync))[0]!.passed
-          ? "passes"
-          : "fails"
+        ? checksAnswer(await checkVerdicts(schema, valueEvaluator(ex.input), isAsync))
         : was.check;
   }
   if (was.ajv !== undefined) {
     const verdict = opName === "parse" ? jsonSchemaVerdict(jsonSchemaSides(spec).sides, ex) : undefined;
-    out.ajv = verdict === undefined ? was.ajv : verdict.passed ? "passes" : "fails";
+    out.ajv = verdict === undefined ? was.ajv : verdict.answer;
   }
   if (was.zod !== undefined) {
     const vs = spec.vs?.zod;
     const source = vs === undefined || isSkip(vs) ? undefined : isZodOverwrite(vs) ? vs.schema : vs;
     const built = opName === "parse" && source !== undefined ? zodSchemaFor(source) : undefined;
     const verdict = built && "schema" in built ? await zodVerdict(built.schema, ex) : undefined;
-    out.zod = verdict === undefined ? was.zod : verdict.passed ? "passes" : "fails";
+    // `zod` holds a value or a message, never `true` - the equivalent always
+    // has words of its own, so there is nothing for a bare `true` to mean.
+    out.zod = verdict === undefined ? was.zod : String(verdict.answer);
   }
   return { divergence: out };
 };
@@ -1796,20 +1825,24 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
       const passed = verdicts[0]!.passed;
       const parseFailed = "error" in ex || "errorConstructor" in ex;
       const recorded = ex.divergence?.check;
-      const expectPass = recorded !== undefined ? recorded === "passes" : !parseFailed;
-      if (passed !== expectPass) {
-        const verdict = passed ? "passes" : "fails";
-        errs.push(
-          recorded === undefined
-            ? `${where}: the checks ${verdicts[0]!.passed ? "passed" : `failed${verdicts[0]!.detail}`}, but parse ` +
+      if (passed === !parseFailed) {
+        if (recorded !== undefined)
+          errs.push(`${where}: divergence.check agrees with parse - remove it`);
+      } else {
+        const answer = checksAnswer(verdicts);
+        if (recorded === undefined)
+          errs.push(
+            `${where}: the checks ${passed ? "passed" : `failed${verdicts[0]!.detail}`}, but parse ` +
               `${parseFailed ? `failed with ${"error" in ex ? JSON.stringify(ex.error) : ex.errorConstructor}` : "succeeded"} - ` +
-              `record it with \`divergence: { reason: ..., check: ${verdict} }\``
-            : `${where}: divergence.check says \`${recorded}\` but the checks ${verdict}`,
-        );
-        continue;
+              `record it with \`divergence: { reason: ..., check: ${answerToCode(answer)} }\``,
+          );
+        else if (recorded !== answer)
+          errs.push(
+            `${where}: divergence.check records ${answerToCode(recorded)} but the checks answer ` +
+              answerToCode(answer),
+          );
+        if (recorded !== answer) continue;
       }
-      if (recorded !== undefined && passed === !parseFailed)
-        errs.push(`${where}: divergence.check agrees with parse - remove it`);
       // `make` hands the value back rather than decoding it. `Object.is`, not
       // `!==`: a spec whose example is NaN is exactly the case that matters.
       const made = verdicts.find((v) => v.name.startsWith("make"));
@@ -1942,12 +1975,17 @@ export const checkJsonSchemaExamples = (spec: Spec): string[] => {
       if (recorded !== undefined) errs.push(`${where}: divergence.ajv agrees with parse - remove it`);
       continue;
     }
-    if (recorded !== "fails")
+    if (recorded === undefined)
       errs.push(
         `${where}: parse accepts this value but ${verdict.detail} - a consumer validating with the ` +
           "document this spec publishes would turn away input the library itself takes. Fix the " +
-          "document, or record it with `divergence: { reason: ..., ajv: fails }` and a `FIXME:` if " +
-          "it is a bug",
+          `document, or record it with \`divergence: { reason: ..., ajv: ${answerToCode(verdict.answer)} }\` ` +
+          "and a `FIXME:` if it is a bug",
+      );
+    else if (recorded !== verdict.answer)
+      errs.push(
+        `${where}: divergence.ajv records ${answerToCode(recorded)} but the documents answer ` +
+          answerToCode(verdict.answer),
       );
   }
   return errs;
@@ -1998,15 +2036,21 @@ export const checkZodExamples = async (spec: Spec): Promise<string[]> => {
       if (recorded !== undefined) errs.push(`${where}: divergence.zod agrees with parse - remove it`);
       continue;
     }
-    const answered = verdict.passed ? "passes" : "fails";
-    const answer = verdict.passed
-      ? "accepts it"
+    const answered = String(verdict.answer);
+    const reads = verdict.passed
+      ? `accepts it, returning ${answered}`
       : `rejects it${verdict.detail ? ` (${verdict.detail})` : ""}`;
-    if (recorded !== answered)
+    if (recorded === undefined)
       errs.push(
         `${where}: parse ${suryPassed ? "accepts" : "rejects"} this value and the \`vs.zod\` ` +
-          `equivalent ${answer} - if the two libraries genuinely read it differently, record it ` +
-          `with \`divergence: { reason: ..., zod: ${answered} }\`; if not, the equivalent is the wrong one`,
+          `equivalent ${reads} - if the two libraries genuinely read it differently, record it ` +
+          `with \`divergence: { reason: ..., zod: ${JSON.stringify(answered)} }\`; if not, the ` +
+          "equivalent is the wrong one",
+      );
+    else if (recorded !== answered)
+      errs.push(
+        `${where}: divergence.zod records ${JSON.stringify(recorded)} but the \`vs.zod\` ` +
+          `equivalent answers ${JSON.stringify(answered)}`,
       );
   }
   return errs;

@@ -24,13 +24,13 @@ operations:
         output: "0.3"
         divergence:
           reason: multipleOf divides exactly, and the IEEE-754 remainder S.multipleOf takes is not zero for these
-          ajv: fails
+          ajv: "input: data must be multiple of 0.1; output: data must be multiple of 0.1"
       valid-negative:
         input: "-0.7"
         output: "-0.7"
         divergence:
           reason: multipleOf divides exactly, and the IEEE-754 remainder S.multipleOf takes is not zero for these
-          ajv: fails
+          ajv: "input: data must be multiple of 0.1; output: data must be multiple of 0.1"
       valid-zero:
         input: "0"
         output: "0"

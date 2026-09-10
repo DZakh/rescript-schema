@@ -36,13 +36,13 @@ operations:
         error: Expected bigint, received ""
         divergence:
           reason: the equivalent is a bare transform with nothing validating its result, and BigInt("") is 0n
-          zod: passes
+          zod: 0n
       whitespace-string:
         input: '"   "'
         error: Expected bigint, received "   "
         divergence:
           reason: the equivalent is a bare transform with nothing validating its result, and BigInt("") is 0n
-          zod: passes
+          zod: 0n
       not-a-string:
         input: "123"
         error: Expected string, received 123

@@ -27,13 +27,13 @@ operations:
         output: Infinity
         divergence:
           reason: z.number() rejects the non-finite numbers; S.number takes them
-          zod: fails
+          zod: "Invalid input: expected number, received number"
       valid-negative-infinity:
         input: -Infinity
         output: -Infinity
         divergence:
           reason: z.number() rejects the non-finite numbers; S.number takes them
-          zod: fails
+          zod: "Invalid input: expected number, received number"
       invalid-nan:
         input: NaN
         error: Expected number, received NaN

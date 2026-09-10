@@ -33,7 +33,7 @@ operations:
         error: "Expected { a: boolean; } | null, received undefined"
         divergence:
           reason: the equivalent's `.default()` fills in for undefined; a S.nullable definition stands in for null alone
-          zod: passes
+          zod: "{ a: false }"
   decode: eq-to-parse
   encode:
     expression: i=>{if(typeof i==="object"&&i&&!Array.isArray(i)){let v0=i.a;typeof v0==="boolean"||e[0](v0);i={a:v0}}else{e[1](i)}return i}

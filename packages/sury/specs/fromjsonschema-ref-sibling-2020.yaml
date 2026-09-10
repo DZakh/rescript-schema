@@ -21,13 +21,13 @@ operations:
         error: Should pass the keywords adjacent to the $ref.
         divergence:
           reason: the equivalent is a plain z.string(), the only spelling zod has for this document, so it accepts every value the refinements reject
-          zod: passes
+          zod: '"ab"'
       sibling-composition-rejects:
         input: '"abd"'
         error: Should pass at least one schema according to the anyOf property.
         divergence:
           reason: the equivalent is a plain z.string(), the only spelling zod has for this document, so it accepts every value the refinements reject
-          zod: passes
+          zod: '"abd"'
       ref-still-rejects-type:
         input: "123"
         error: Expected string, received 123

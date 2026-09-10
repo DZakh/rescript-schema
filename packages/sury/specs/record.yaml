@@ -34,7 +34,7 @@ operations:
         output: '{ [Symbol.for("k")]: 123 }'
         divergence:
           reason: zod validates a record's symbol keys; S.record reads its string keys only
-          zod: fails
+          zod: Invalid key in record
       invalid-value:
         input: "{ a: 1 }"
         error: "Failed at a: Expected string, received 1"

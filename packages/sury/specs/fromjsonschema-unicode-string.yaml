@@ -21,19 +21,19 @@ operations:
         error: Expected string.length == 2, received "𐐀𐐁"
         divergence:
           reason: the equivalent is a plain z.string(), the only spelling zod has for this document, so it accepts every value the refinements reject
-          zod: passes
+          zod: '"𐐀𐐁"'
       one-code-point:
         input: '"😀"'
         error: Invalid pattern
         divergence:
           reason: the equivalent is a plain z.string(), the only spelling zod has for this document, so it accepts every value the refinements reject
-          zod: passes
+          zod: '"😀"'
       three-code-points:
         input: '"éab"'
         error: Expected string.length == 2, received "éab"
         divergence:
           reason: the equivalent is a plain z.string(), the only spelling zod has for this document, so it accepts every value the refinements reject
-          zod: passes
+          zod: '"éab"'
   decode:
     expression: i=>{i.length===2||e[1](i);e[0].test(i)||e[2](i);return i}
     examples:

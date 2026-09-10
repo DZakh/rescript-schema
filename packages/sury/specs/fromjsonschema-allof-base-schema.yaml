@@ -27,7 +27,7 @@ operations:
         output: "{ bar: 2 }"
         divergence:
           reason: the object arm strips `foo` before the allOf refinement reads it, so what parse returns fails the document parse itself publishes
-          ajv: fails
+          ajv: "output: data must have required property 'foo'"
       allof-unsatisfied:
         input: "{ bar: 2 }"
         error: Should pass for all schemas of the allOf property.

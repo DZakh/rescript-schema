@@ -26,7 +26,7 @@ operations:
         error: Expected number, received "abc"
         divergence:
           reason: the equivalent is a bare transform with nothing validating its result, and Number("") is 0 while Number("abc") is NaN
-          zod: passes
+          zod: NaN
       zero:
         input: '"0"'
         output: "0"
@@ -41,13 +41,13 @@ operations:
         error: Expected number, received ""
         divergence:
           reason: the equivalent is a bare transform with nothing validating its result, and Number("") is 0 while Number("abc") is NaN
-          zod: passes
+          zod: "0"
       whitespace-string:
         input: '"   "'
         error: Expected number, received "   "
         divergence:
           reason: the equivalent is a bare transform with nothing validating its result, and Number("") is 0 while Number("abc") is NaN
-          zod: passes
+          zod: "0"
       not-a-string:
         input: "123"
         error: Expected string, received 123
