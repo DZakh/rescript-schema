@@ -3,7 +3,9 @@
 // run time and calls straight into the harness, so example execution and
 // jsonSchema/instantiations drift are exercised (and covered) by this real
 // Vitest run, same as any hand-written test.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test, expect, describe, vi } from "vitest";
 import {
   SCHEMA_PATH,
@@ -11,16 +13,7 @@ import {
   specId,
   readSpec,
   serialize,
-  recomputeGoldens,
-  evalSchema,
-  identityViolations,
-  asyncViolations,
-  checkAliases,
-  collectComments,
-  lintComments,
-  lintExamples,
-  lintSkips,
-  undeclaredAssignments,
+  checkSpec,
   lintSpecsDir,
   checkBundleSize,
   checkScenarios,
@@ -42,6 +35,20 @@ const specs = listSpecFiles().map((file) => ({ id: specId(file), file }));
 
 test("there is at least one spec", () => {
   expect(specs.length).toBeGreaterThan(0);
+});
+
+// Every golden in this file is computed from index.mjs, the bundle pack.ts
+// builds out of src/. `pnpm test` and `pnpm coverage` rebuild it first, but a
+// bare `vitest run` does not - and against a stale bundle the whole suite
+// passes on code nobody is editing, which is the one failure a golden cannot
+// show as a diff.
+test("index.mjs is not older than src/ (run `pnpm build:entry`)", () => {
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const built = statSync(join(root, "index.mjs")).mtimeMs;
+  const newer = readdirSync(join(root, "src"), { recursive: true, encoding: "utf8" })
+    .filter((file) => file.endsWith(".ts"))
+    .filter((file) => statSync(join(root, "src", file)).mtimeMs > built);
+  expect(newer, `changed since index.mjs was built: ${newer.join(", ")}`).toEqual([]);
 });
 
 // Otherwise only `pnpm spec check` (which CI doesn't run) would notice a
@@ -86,6 +93,21 @@ test("checkScenarios reports a bad shape, a colliding id, and one that throws", 
 // Same reasoning as the spec.schema.json freshness test above: CI runs
 // `pnpm test`, not `pnpm spec check`, so without this the bundle-size ratchet
 // would only bite on a manual run.
+// buildScenarioRunner executes a scenario once while constructing it, so
+// reporting this one without skipping it would still reconfigure the shared
+// library for every scenario and spec after it - the exact thing the rule
+// exists to prevent. Reported by CodeRabbit on #434.
+test("a scenario that calls S.global is reported and never run", () => {
+  const errs = checkScenarios(
+    ["bad:", "  run: S.global({}) ?? S.parseOrThrow(S.string)"].join("\n"),
+    [],
+  );
+  expect(errs).toEqual([
+    "bad: run calls S.global - it sets process-wide configuration that every spec and " +
+      "scenario in the run then compiles against",
+  ]);
+});
+
 test("bundleSize.yaml is fresh (run `pnpm spec check --write`)", async () => {
   const { errs } = await checkBundleSize();
   expect(errs, errs.join("\n")).toEqual([]);
@@ -221,62 +243,16 @@ test("summarize renders creation-error flips and message drift", () => {
   `);
 });
 
-describe.each(specs)("spec: $id", ({ file }) => {
-  const spec = readSpec(file);
-  const constructs = spec.ts.constructionError === undefined;
-
-  test("is valid against the format schema", () => {
-    const v = validate(spec);
-    expect(v.ok, v.ok ? "" : v.error).toBe(true);
-  });
-
-  test("is in canonical form (run `pnpm spec format`)", () => {
+// One call to the function `pnpm spec check` itself runs, rather than a
+// hand-kept list of the checks it makes. The list drifted: the operation
+// matrix, `vs.zod`, and the jsonSchema round-trip type rules were checked by
+// nothing but a manual run, so a divergence in any of them reached main with
+// the whole suite green. There is one answer to "what is wrong with this
+// spec", and this is where CI asks for it.
+describe.each(specs)("spec: $id", ({ id, file }) => {
+  test("passes `pnpm spec check`", async () => {
     const raw = readFileSync(file, "utf8");
-    expect(raw).toBe(serialize(spec, collectComments(raw)));
-  });
-
-  test("every comment is a `FIXME:` (run `pnpm spec check`)", () => {
-    const errs: string[] = [];
-    lintComments(collectComments(readFileSync(file, "utf8")), errs);
-    expect(errs, errs.join("\n")).toEqual([]);
-  });
-
-  test.skipIf(!constructs)("has no identity-invariant violations (run `pnpm spec check`)", () => {
-    const schema = evalSchema(spec.ts.schema);
-    const violations = identityViolations(schema, spec);
-    expect(violations, violations.join("\n")).toEqual([]);
-  });
-
-  test.skipIf(!constructs)("every `isAsync` marker matches the schema (run `pnpm spec check`)", () => {
-    const violations = asyncViolations(evalSchema(spec.ts.schema), spec);
-    expect(violations, violations.join("\n")).toEqual([]);
-  });
-
-  test("every _skip reason is valid (run `pnpm spec check`)", () => {
-    const errs: string[] = [];
-    lintSkips(spec, "", errs);
-    expect(errs, errs.join("\n")).toEqual([]);
-  });
-
-  test("no compiled op assigns an undeclared var (run `pnpm spec check`)", () => {
-    const errs: string[] = [];
-    undeclaredAssignments(readSpec(file), errs);
-    expect(errs).toEqual([]);
-  });
-
-  test("every compiled op block has examples (run `pnpm spec check`)", () => {
-    const errs: string[] = [];
-    lintExamples(spec, errs);
-    expect(errs, errs.join("\n")).toEqual([]);
-  });
-
-  test.skipIf(!constructs)("goldens match live behavior (run `pnpm spec check --write`)", async () => {
-    expect(serialize(await recomputeGoldens(spec))).toBe(serialize(spec));
-  });
-
-
-  test("aliases (if any) are equivalent to the schema (run `pnpm spec check`)", async () => {
-    const errs = await checkAliases(spec);
+    const errs = await checkSpec(id, readSpec(file), raw);
     expect(errs, errs.join("\n")).toEqual([]);
   });
 });

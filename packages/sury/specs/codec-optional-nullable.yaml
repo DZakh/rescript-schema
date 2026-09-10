@@ -19,11 +19,15 @@ operations:
       string:
         input: '"abc"'
         output: '"abc"'
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: Ambiguous string -> string | null. Should null be decoded or ignored? Choose with S.to for string -> null, or S.never -> null
       undefined-bridges-to-null:
         input: undefined
         output: "null"
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: Ambiguous string -> string | null. Should null be decoded or ignored? Choose with S.to for string -> null, or S.never -> null
   decode: eq-to-parse
   encode:
     expression: i=>{for(;;){if(typeof i==="string")break;if(i===null){i=void 0;break}e[0](i)}return i}

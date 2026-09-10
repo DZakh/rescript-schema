@@ -63,6 +63,8 @@ import {
   type TypeInfo,
 } from "./introspect";
 import { deriveBundleSize } from "./bundleSize";
+import { documentValidator, isJsonValue } from "./jsonSchemaValidator";
+import * as z from "zod";
 
 const here = (rel: string) => fileURLToPath(new URL(rel, import.meta.url));
 // The spec suite lives in the sury package (specs ship with it).
@@ -196,6 +198,36 @@ export const lintExamples = (spec: Spec, out: string[]): void => {
   }
 };
 
+// `S.global` sets process-wide configuration, and one library instance is
+// shared by every spec in a run (cli.ts checks them under Promise.all, and
+// spec_test.ts in one Vitest worker). A spec that calls it changes what its
+// neighbours compile, in an order nothing controls - so the failure surfaces on
+// some other spec, intermittently, and never on the one that caused it.
+const GLOBAL_CALL = /\bS\s*\.\s*global\b/;
+export const lintGlobal = (spec: Spec, out: string[]): void => {
+  const sources: [string, unknown][] = [["ts.schema", spec.ts?.schema]];
+  const aliases = spec.ts?.aliases;
+  if (Array.isArray(aliases))
+    aliases.forEach((alias, i) => sources.push([`ts.aliases[${i}]`, alias]));
+  // An example's input is evaluated with the same `S` the schema is (see
+  // valueEvaluator), so it reaches `global` exactly as the schema source does.
+  // Covering only the schema would leave the rule with a hole the size of every
+  // example in the suite.
+  const ops = spec.operations as Partial<Record<OpName, Operation>> | undefined;
+  for (const opName of OP_ORDER) {
+    const op = ops?.[opName];
+    if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) continue;
+    for (const [exName, ex] of Object.entries(op.examples ?? {}))
+      sources.push([`operations.${opName}.examples.${exName}.input`, ex?.input]);
+  }
+  for (const [path, source] of sources)
+    if (typeof source === "string" && GLOBAL_CALL.test(source))
+      out.push(
+        `${path}: calls S.global - it sets process-wide configuration that every other spec in the ` +
+          "run then compiles against, so the failure lands somewhere else and only sometimes",
+      );
+};
+
 export const specId = (file: string): string =>
   basename(file).replace(/\.yaml$/, "");
 
@@ -239,12 +271,25 @@ export const parseSpec = (raw: string): Spec => parseYaml(raw) as Spec;
 export const readSpec = (file: string): Spec => parseSpec(readFileSync(file, "utf8"));
 
 // transpileModule (syntax-only, no type info) strips TS-only syntax like
-// `as const` so aliases can use it — `new Function` only ever sees plain JS.
+// `as const` so aliases can use it - `new Function` only ever sees plain JS.
+//
+// Diagnostics are reported and thrown, because transpiling REPAIRS what it
+// cannot parse: `{ a: "hello"` (a missing brace) comes back as a complete
+// object literal, and the golden then records a passing result for an input
+// nobody wrote. transpileModule builds no program, so everything it reports is
+// syntactic - source that does not parse, never a type error.
 const TS_STRIP = {
+  reportDiagnostics: true,
   compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
 };
-const transpile = (tsSource: string): string =>
-  ts.transpileModule(tsSource, TS_STRIP).outputText.trim();
+const transpile = (tsSource: string): string => {
+  const out = ts.transpileModule(tsSource, TS_STRIP);
+  // The first only: one unbalanced brace cascades into four diagnostics, and
+  // the rest describe the wreckage rather than the mistake.
+  const [first] = out.diagnostics ?? [];
+  if (first) throw new SyntaxError(ts.flattenDiagnosticMessageText(first.messageText, " "));
+  return out.outputText.trim();
+};
 // The source is parenthesized before stripping (not after) so a bare object
 // literal parses as an expression, not a block statement with a labeled
 // statement inside - and the trailing `;\n` transpileModule always emits
@@ -515,6 +560,24 @@ export const scaffoldJsonSchema = (
 type BuiltOp = { fn: (input: any) => any; isAsync: boolean } | { creationError: string };
 const describeThrow = (e: unknown): string =>
   `${(e as Error).constructor.name}: ${(e as Error).message}`;
+
+// A rejection Sury raises is recorded by its message alone: the message is the
+// product surface, and stamping one constant class name onto every error golden
+// in the suite would cost bytes on every line to say what the format already
+// guarantees. Anything else is a leak - an internal TypeError, a RangeError out
+// of a Date, a foreign exception thrown by user code in a custom codec - and
+// carries its class, so the golden shows WHAT threw, a fix that turns a crash
+// into a real rejection reads as a diff, and a message whose wording belongs to
+// the platform rather than to Sury is visible as such. Same form as
+// `describeThrow` above, which does this unconditionally for creation errors.
+const SURY_ERROR_NAME = "SuryError";
+export const describeExampleThrow = (e: unknown): string => {
+  // A thrown non-Error (user code doing `throw "nope"`) is itself a leak worth
+  // naming, and has no class to name it with.
+  if (!(e instanceof Error)) return `${typeof e}: ${String(e)}`;
+  const name = e.constructor?.name;
+  return name === undefined || name === SURY_ERROR_NAME ? e.message : `${name}: ${e.message}`;
+};
 // Sury has no `isAsync` probe - a schema's combinations are open-ended, so no
 // static answer covers them - and the sync builder rejecting is what tells a
 // caller to switch. The harness does the same, per direction, which matters
@@ -604,7 +667,13 @@ const reformatIfEvaluable = (text: string): string => {
 // Individual named examples are never `_skip` - only the enclosing operation
 // block is (the format schema has no `orSkip` on the examples map's values).
 const canonExample = (ex: Example): Example => {
-  const o = order(ex, ["input", "output", "error", "errorConstructor", "whenChecked"]) as Example;
+  const o = order(ex, [
+    "input",
+    "output",
+    "error",
+    "errorConstructor",
+    "divergence",
+  ]) as Example;
   o.input = reformatIfEvaluable(o.input);
   if ("output" in o) o.output = reformatIfEvaluable(o.output);
   return o;
@@ -992,9 +1061,21 @@ export const recomputeGoldens = async (obj: Spec, compiled?: Record<OpName, Buil
       }
     }
     for (const [name, ex] of Object.entries(op.examples)) {
+      // Evaluated OUTSIDE the try below: an input that does not parse, or that
+      // names something undefined, is an authoring mistake. Recording the
+      // evaluator's own complaint as this example's `error` golden would pin
+      // the typo instead of the schema - green forever, running nothing.
+      // Aborting here is what keeps `--write` from minting that golden;
+      // checkExamples reports the same thing pointedly, per example.
       let value: unknown;
       try {
         value = evalSchema(ex.input);
+      } catch (e) {
+        throw new Error(
+          `operations.${opName}.examples.${name}: input did not evaluate: ${(e as Error).message}`,
+        );
+      }
+      try {
         // `await` on a sync operation's result is a no-op, so both kinds run
         // through one path. An async operation can still throw synchronously
         // (the top-level type check runs before the first await), which the
@@ -1014,7 +1095,7 @@ export const recomputeGoldens = async (obj: Spec, compiled?: Record<OpName, Buil
         op.examples[name] = clean({
           input: ex.input,
           output: out === value ? ex.input : valueToCode(out, new WeakSet(), bytes),
-          ...(await refreshDivergences(opName, op.isAsync === true, schema, ex)),
+          ...(await refreshDivergence(opName, op.isAsync === true, schema, ex, next)),
         });
       } catch (e) {
         if (e instanceof Error && e.message.startsWith("cannot represent ")) throw e;
@@ -1022,8 +1103,8 @@ export const recomputeGoldens = async (obj: Spec, compiled?: Record<OpName, Buil
           input: ex.input,
           ...("errorConstructor" in ex
             ? { errorConstructor: (e as Error).constructor.name }
-            : { error: (e as Error).message }),
-          ...(await refreshDivergences(opName, op.isAsync === true, schema, ex)),
+            : { error: describeExampleThrow(e) }),
+          ...(await refreshDivergence(opName, op.isAsync === true, schema, ex, next)),
         });
       }
     }
@@ -1308,10 +1389,32 @@ const describeRef = (r: Ref): string =>
       ? `failed with ${JSON.stringify(r.message)}`
       : `returned ${valueToCodeSafe(r.value)}`;
 
-// The matrix runs on values a spec chose, which includes ones the golden
-// serializer can't write down (a Blob's bytes are only readable
-// asynchronously). Only the failure message needs them, so a value it can't
-// render is described by its type rather than aborting the check.
+// Two runs of the same input agree only on the nose. `sameOutcome` is built for
+// comparing a golden against a spelling, where `boom` and `Error: boom` are one
+// failure written two ways - but an operation that alternates between raising a
+// SuryError and letting a foreign one through is not deterministic, whatever
+// the messages read. A value still goes through `sameOutcome`, which is what
+// compares a Blob by its bytes rather than by identity.
+const sameRun = async (a: Ref, b: Ref): Promise<boolean> =>
+  "message" in a || "message" in b
+    ? "message" in a && "message" in b && a.message === b.message
+    : sameOutcome(a, b);
+
+// One run of a built operation, reduced to the same two shapes an example
+// records. `await` on a sync result is a no-op, so both kinds share the path.
+const runToRef = async (fn: (input: any) => any, data: unknown): Promise<Ref> => {
+  try {
+    return { value: await fn(data) };
+  } catch (e) {
+    return { message: describeExampleThrow(e) };
+  }
+};
+
+// The matrix and the `vs` equivalent both run on values a spec chose, which
+// includes ones the golden serializer can't write down (a Blob's bytes are only
+// readable asynchronously). Neither a failure message nor a recorded answer is
+// worth aborting a check over, so a value it can't render is described by its
+// type instead.
 const valueToCodeSafe = (v: unknown): string => {
   try {
     return valueToCode(v);
@@ -1420,7 +1523,9 @@ const checkVerdicts = async (
   schema: any,
   nextData: () => unknown,
   isAsync: boolean,
-): Promise<{ name: string; passed: boolean; detail: string; answer?: unknown; given?: unknown }[]> =>
+): Promise<
+  { name: string; passed: boolean; detail: string; message?: string; answer?: unknown; given?: unknown }[]
+> =>
   Promise.all(
     Object.entries(CHECK_FORMS[isAsync ? "async" : "sync"]).map(async ([name, run]) => {
       const given = nextData();
@@ -1435,29 +1540,185 @@ const checkVerdicts = async (
           given,
         };
       } catch (e) {
-        return { name, passed: false, detail: `: ${(e as Error).message}` };
+        return { name, passed: false, detail: `: ${(e as Error).message}`, message: (e as Error).message };
       }
     }),
   );
 
-// `--write`'s half: a divergence field that is already there is kept fresh, the
-// way `creationError` is. Adding or removing one stays the author's call - that
-// is the moment a divergence appears or goes away, and it should be read by a
-// person, not written by a tool.
-const refreshDivergences = async (
+// ---- the JSON Schema a spec publishes, asked about that spec's own values ---
+
+// `detail` is prose for an error message; `answer` is what gets recorded - the
+// verifier's own words, or `true` where accepting is all it can say.
+type Answer = true | string;
+type Verdict = { passed: boolean; detail: string; answer: Answer };
+type JsonSchemaDocument = { side: "input" | "output"; validate: (v: unknown) => string | undefined };
+
+// The two documents a spec records in full. A side whose golden is a recorded
+// conversion error rather than a document (`Expected JSON, received bigint`)
+// simply has nothing to ask; one that IS a document but which Ajv cannot
+// compile is a finding about the document itself, reported once for the spec
+// rather than against whichever example happened to reach it first.
+const jsonSchemaSides = (spec: Spec): { sides: JsonSchemaDocument[]; errs: string[] } => {
+  const sides: JsonSchemaDocument[] = [];
+  const errs: string[] = [];
+  for (const side of ["input", "output"] as const) {
+    const source = spec.jsonSchema?.[side];
+    if (typeof source !== "string") continue;
+    let doc: unknown;
+    try {
+      doc = evalSchema(source);
+    } catch {
+      continue;
+    }
+    if (typeof doc !== "object" || doc === null) continue;
+    const validator = documentValidator(source, doc);
+    if ("error" in validator) {
+      errs.push(
+        `jsonSchema.${side}: is a document no validator can compile: ${validator.error} - ` +
+          "a consumer handed it gets this error instead of a verdict",
+      );
+      continue;
+    }
+    sides.push({ side, validate: validator.validate });
+  }
+  return { sides, errs };
+};
+
+// What the recorded documents say about one example, or `undefined` when there
+// is nothing to ask - a rejected example, or a value outside JSON.
+//
+// ONLY an accepted example is asked. JSON Schema is allowed to describe a wider
+// set than the parser does: a refinement, a coercion rule and a bound in units
+// JSON Schema cannot name all narrow the parser without narrowing the document,
+// so a rejected input validating is by design and carries no information. The
+// other direction is a promise the library makes - a document that turns away
+// data the parser itself accepts is one a consumer would use to reject good
+// input - so that is the direction gated.
+const jsonSchemaVerdict = (sides: JsonSchemaDocument[], ex: Example): Verdict | undefined => {
+  if (!("output" in ex)) return undefined;
+  const failures: string[] = [];
+  const reasons: string[] = [];
+  let asked = 0;
+  for (const { side, validate } of sides) {
+    let value: unknown;
+    try {
+      value = evalSchema(side === "input" ? ex.input : ex.output);
+    } catch {
+      continue;
+    }
+    if (!isJsonValue(value)) continue;
+    asked++;
+    const reason = validate(value);
+    if (reason !== undefined) {
+      failures.push(`jsonSchema.${side} rejects it (${reason})`);
+      reasons.push(`${side}: ${reason}`);
+    }
+  }
+  if (asked === 0) return undefined;
+  return {
+    passed: failures.length === 0,
+    detail: failures.join("; "),
+    answer: failures.length === 0 ? true : reasons.join("; "),
+  };
+};
+
+// ---- the `vs` equivalent, asked about that spec's own values ---------------
+
+// Built once per source: checkZodExamples and `--write`'s refresh both want the
+// same schema, and a spec's examples all share it.
+const zodSchemas = new Map<string, { schema: any } | { error: string }>();
+const zodSchemaFor = (source: string): { schema: any } | { error: string } => {
+  const hit = zodSchemas.get(source);
+  if (hit) return hit;
+  let built: { schema: any } | { error: string };
+  try {
+    built = { schema: new Function("z", `return ${stripTypes(source)};`)(z) };
+  } catch (e) {
+    built = { error: (e as Error).message };
+  }
+  zodSchemas.set(source, built);
+  return built;
+};
+
+// Read through Standard Schema (`~standard`) rather than Zod's own `safeParse`,
+// for the reason deriveVsTypeInfo reads the types that way: the `vs` dimension
+// is about a cross-library equivalent, and every vendor it could name exposes
+// this one interface. `validate` may answer a promise (an async refinement), so
+// both kinds go through one await.
+const zodVerdict = async (schema: any, ex: Example): Promise<Verdict | undefined> => {
+  let value: unknown;
+  try {
+    value = valueEvaluator(ex.input)();
+  } catch {
+    return undefined;
+  }
+  try {
+    const result = await schema["~standard"].validate(value);
+    // Accepting, the equivalent has a VALUE to show, and it is the interesting
+    // half: two libraries can both accept `""` and hand back different things.
+    if (result.issues === undefined)
+      return { passed: true, detail: "", answer: valueToCodeSafe(result.value) };
+    const message = result.issues[0]?.message ?? "rejected";
+    return { passed: false, detail: message, answer: message };
+  } catch (e) {
+    // A vendor may throw rather than report - still a rejection, and the
+    // wording is the only thing that says why.
+    const message = describeExampleThrow(e);
+    return { passed: false, detail: message, answer: message };
+  }
+};
+
+// What the checks answer, in the form a `divergence` records: `true` when they
+// accept, else the words they reject with. `isInput*` answers a bare `false`,
+// so the message comes from whichever sibling threw one.
+// A recorded answer, as it reads back in a message: `true` bare, a message
+// quoted, so "records true" and "records \"true\"" are not the same sentence.
+const answerToCode = (answer: Answer): string =>
+  answer === true ? "true" : JSON.stringify(answer);
+
+const checksAnswer = (
+  verdicts: { passed: boolean; message?: string }[],
+): Answer => (verdicts[0]!.passed ? true : (verdicts.find((v) => v.message)?.message ?? "rejected"));
+
+// `--write`'s half: a `divergence` that is already there keeps its verdicts
+// fresh, the way `creationError` does. `reason` is never touched, and adding or
+// removing the field stays the author's call - that is the moment a divergence
+// appears or goes away, and it should be read by a person, not written by a
+// tool.
+//
+// `parse` only: decode and encode trust their input while every verifier
+// validates, so a divergence on one of those directions is a misuse the checks
+// report rather than a value to refresh.
+const refreshDivergence = async (
   opName: OpName,
   isAsync: boolean,
   schema: any,
   ex: Example,
-): Promise<{ whenChecked?: Example["whenChecked"] }> => {
-  const out: { whenChecked?: Example["whenChecked"] } = {};
-  if (ex.whenChecked === undefined) return out;
-  const nextData = valueEvaluator(ex.input);
-  {
-    const verdicts = await checkVerdicts(schema, nextData, isAsync);
-    out.whenChecked = verdicts[0]!.passed ? "passes" : "fails";
+  spec: Spec,
+): Promise<Pick<Example, "divergence">> => {
+  const was = ex.divergence;
+  if (was === undefined) return {};
+  const out: NonNullable<Example["divergence"]> = { reason: was.reason };
+  if (was.check !== undefined) {
+    out.check =
+      opName === "parse"
+        ? checksAnswer(await checkVerdicts(schema, valueEvaluator(ex.input), isAsync))
+        : was.check;
   }
-  return out;
+  if (was.ajv !== undefined) {
+    const verdict = opName === "parse" ? jsonSchemaVerdict(jsonSchemaSides(spec).sides, ex) : undefined;
+    out.ajv = verdict === undefined ? was.ajv : verdict.answer;
+  }
+  if (was.zod !== undefined) {
+    const vs = spec.vs?.zod;
+    const source = vs === undefined || isSkip(vs) ? undefined : isZodOverwrite(vs) ? vs.schema : vs;
+    const built = opName === "parse" && source !== undefined ? zodSchemaFor(source) : undefined;
+    const verdict = built && "schema" in built ? await zodVerdict(built.schema, ex) : undefined;
+    // `zod` holds a value or a message, never `true` - the equivalent always
+    // has words of its own, so there is nothing for a bare `true` to mean.
+    out.zod = verdict === undefined ? was.zod : String(verdict.answer);
+  }
+  return { divergence: out };
 };
 
 export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<string[]> => {
@@ -1493,9 +1754,6 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
         }
         continue; // an unevaluatable golden is reported by the checks above
       }
-
-      if (opName !== "parse" && ex.whenChecked !== undefined)
-        errs.push(`${where}: whenChecked is \`parse\` only - decode and encode trust their input, so a check disagreeing with them is by design`);
 
       // `op(data, schema)` reads two schemas as a chain - the one call form a
       // Sury schema in the data slot can't take (see index.d.ts). Documented,
@@ -1537,9 +1795,10 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
               );
               continue;
             }
-            actual = "ctor" in expected
-              ? { ctor: (e as Error).constructor.name }
-              : { message: (e as Error).message };
+            actual =
+              "ctor" in expected
+                ? { ctor: (e as Error).constructor.name }
+                : { message: describeExampleThrow(e) };
           }
           if (await sameOutcome(expected, actual)) continue;
           errs.push(
@@ -1565,20 +1824,25 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
       }
       const passed = verdicts[0]!.passed;
       const parseFailed = "error" in ex || "errorConstructor" in ex;
-      const expectPass = ex.whenChecked !== undefined ? ex.whenChecked === "passes" : !parseFailed;
-      if (passed !== expectPass) {
-        const verdict = passed ? "passes" : "fails";
-        errs.push(
-          ex.whenChecked === undefined
-            ? `${where}: the checks ${verdicts[0]!.passed ? "passed" : `failed${verdicts[0]!.detail}`}, but parse ` +
+      const recorded = ex.divergence?.check;
+      if (passed === !parseFailed) {
+        if (recorded !== undefined)
+          errs.push(`${where}: divergence.check agrees with parse - remove it`);
+      } else {
+        const answer = checksAnswer(verdicts);
+        if (recorded === undefined)
+          errs.push(
+            `${where}: the checks ${passed ? "passed" : `failed${verdicts[0]!.detail}`}, but parse ` +
               `${parseFailed ? `failed with ${"error" in ex ? JSON.stringify(ex.error) : ex.errorConstructor}` : "succeeded"} - ` +
-              `add \`whenChecked: ${verdict}\``
-            : `${where}: whenChecked says \`${ex.whenChecked}\` but the checks ${verdict}`,
-        );
-        continue;
+              `record it with \`divergence: { reason: ..., check: ${answerToCode(answer)} }\``,
+          );
+        else if (recorded !== answer)
+          errs.push(
+            `${where}: divergence.check records ${answerToCode(recorded)} but the checks answer ` +
+              answerToCode(answer),
+          );
+        if (recorded !== answer) continue;
       }
-      if (ex.whenChecked !== undefined && passed === !parseFailed)
-        errs.push(`${where}: whenChecked agrees with parse - remove it`);
       // `make` hands the value back rather than decoding it. `Object.is`, not
       // `!==`: a spec whose example is NaN is exactly the case that matters.
       const made = verdicts.find((v) => v.name.startsWith("make"));
@@ -1588,6 +1852,206 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
             "make validates and hands the value back, it does not decode it",
         );
     }
+  }
+  return errs;
+};
+
+// ---- the examples themselves ----------------------------------------------
+
+// What a `divergence` has to be before any verifier is asked about it. Here
+// rather than in the checks that read its verdicts, because those run only once
+// the goldens are fresh, and a field this malformed should be reported as
+// itself.
+const divergenceShapeViolations = (where: string, opName: OpName, ex: Example): string[] => {
+  const d = ex.divergence;
+  if (d === undefined) return [];
+  const errs: string[] = [];
+  if (opName !== "parse")
+    errs.push(
+      `${where}: divergence is \`parse\` only - decode and encode trust their input, so a verifier ` +
+        "disagreeing with them is by design",
+    );
+  if (d.reason.trim() === "")
+    errs.push(
+      `${where}: divergence.reason is empty - the verdict beside it says which verifier disagrees, ` +
+        "and only the reason says why anyone should accept that",
+    );
+  if (d.check === undefined && d.ajv === undefined && d.zod === undefined)
+    errs.push(
+      `${where}: divergence names no verifier - add the one that disagrees (\`check\`, \`ajv\` or ` +
+        "`zod`), or remove the field",
+    );
+  return errs;
+};
+
+
+// What every other check assumes and none of them state: an example's input is
+// source the harness can run, names a case no sibling already covers, and
+// produces the same answer twice. Runs BEFORE the goldens are recomputed, so
+// each of these reads as itself rather than as a staleness diff or as a
+// "goldens could not be computed" with the whole spec's worth of context lost.
+export const checkExamples = async (
+  spec: Spec,
+  schema: any,
+  ops?: Record<OpName, BuiltOp>,
+): Promise<string[]> => {
+  const errs: string[] = [];
+  for (const opName of OP_ORDER) {
+    const op = spec.operations?.[opName];
+    if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) continue;
+    const built = ops?.[opName] ?? buildOp(opName, schema);
+    const byInput = new Map<string, string>();
+    for (const [exName, ex] of Object.entries(op.examples)) {
+      const where = `operations.${opName}.examples.${exName}`;
+      errs.push(...divergenceShapeViolations(where, opName, ex));
+
+      let nextData: () => unknown;
+      try {
+        nextData = valueEvaluator(ex.input);
+        nextData();
+      } catch (e) {
+        errs.push(
+          `${where}: input did not evaluate: ${(e as Error).message} - ` +
+            "an input the harness cannot run would be recorded as an `error` golden that pins the " +
+            "typo rather than the schema, and passes forever while running nothing",
+        );
+        continue;
+      }
+
+      // Byte-identical source, so the two run the same value through the same
+      // operation: one of them is a name with no case behind it.
+      const twin = byInput.get(ex.input);
+      if (twin !== undefined)
+        errs.push(
+          `${where}: input is identical to \`${twin}\`'s - two names for one case, so one of them ` +
+            "covers nothing (give it a different input, or delete it)",
+        );
+      else byInput.set(ex.input, exName);
+
+      // Run twice on two fresh values. A golden derived from the clock, from
+      // `Math.random`, or from iteration order that is not stable would be
+      // rewritten by every `--write` and reported as a staleness diff on every
+      // check, naming the schema instead of the reason.
+      if (!("fn" in built)) continue;
+      const first = await runToRef(built.fn, nextData());
+      const second = await runToRef(built.fn, nextData());
+      if (!(await sameRun(first, second)))
+        errs.push(
+          `${where}: is not deterministic - the same input ${describeRef(first)} once and ` +
+            `${describeRef(second)} the next time, so no golden can hold it`,
+        );
+    }
+  }
+  return errs;
+};
+
+// ---- the recorded JSON Schema, against the recorded examples ---------------
+
+// A spec pins the JSON Schema it publishes and the values its parser accepts,
+// and never puts the two side by side - so a document that contradicts the
+// parser is two green goldens. This asks the document, with a real validator
+// (see jsonSchemaValidator.ts), about the values the same file already holds.
+export const checkJsonSchemaExamples = (spec: Spec): string[] => {
+  const errs: string[] = [];
+
+  const op = spec.operations?.parse;
+  if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) return errs;
+  const { sides, errs: compileErrs } = jsonSchemaSides(spec);
+  errs.push(...compileErrs);
+
+  for (const [exName, ex] of Object.entries(op.examples)) {
+    const where = `operations.parse.examples.${exName}`;
+    const verdict = jsonSchemaVerdict(sides, ex);
+    const recorded = ex.divergence?.ajv;
+    if (verdict === undefined) {
+      if (recorded !== undefined)
+        errs.push(
+          `${where}: divergence.ajv records a disagreement nothing can check - only an accepted ` +
+            "example whose values are JSON is asked, so remove it",
+        );
+      continue;
+    }
+    if (verdict.passed) {
+      if (recorded !== undefined) errs.push(`${where}: divergence.ajv agrees with parse - remove it`);
+      continue;
+    }
+    if (recorded === undefined)
+      errs.push(
+        `${where}: parse accepts this value but ${verdict.detail} - a consumer validating with the ` +
+          "document this spec publishes would turn away input the library itself takes. Fix the " +
+          `document, or record it with \`divergence: { reason: ..., ajv: ${answerToCode(verdict.answer)} }\` ` +
+          "and a `FIXME:` if it is a bug",
+      );
+    else if (recorded !== verdict.answer)
+      errs.push(
+        `${where}: divergence.ajv records ${answerToCode(recorded)} but the documents answer ` +
+          answerToCode(verdict.answer),
+      );
+  }
+  return errs;
+};
+
+// ---- the `vs` equivalent, against the recorded examples --------------------
+
+// `vs.zod` pins what the other library's TYPES say and never runs it, so two
+// libraries that agree on `string` and disagree on which strings are green
+// either way. Accept-or-reject only: the value each produces, the wording of a
+// rejection and which of several failures is reported are Sury's own.
+export const checkZodExamples = async (spec: Spec): Promise<string[]> => {
+  const errs: string[] = [];
+
+  const op = spec.operations?.parse;
+  if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) return errs;
+  const vs = spec.vs?.zod;
+  const source = vs === undefined || isSkip(vs) ? undefined : isZodOverwrite(vs) ? vs.schema : vs;
+
+  if (source === undefined) {
+    for (const [exName, ex] of Object.entries(op.examples))
+      if (ex.divergence?.zod !== undefined)
+        errs.push(
+          `operations.parse.examples.${exName}: divergence.zod records what an equivalent answers, ` +
+            "but `vs.zod` is skipped - there is nothing to disagree with, so remove it",
+        );
+    return errs;
+  }
+
+  const built = zodSchemaFor(source);
+  if ("error" in built) {
+    // Distinct from checkVs's "did not typecheck": this one built a TS program,
+    // that one ran the source. A spec can pass the first and fail this.
+    errs.push(`vs.zod: did not evaluate: ${built.error}`);
+    return errs;
+  }
+
+  for (const [exName, ex] of Object.entries(op.examples)) {
+    const where = `operations.parse.examples.${exName}`;
+    const verdict = await zodVerdict(built.schema, ex);
+    if (verdict === undefined) continue;
+    // `"output" in ex`, not the absence of `error`: an `errorConstructor`
+    // example carries neither, and reading it as a success would compare zod's
+    // rejection against a pass this spec never claimed.
+    const suryPassed = "output" in ex;
+    const recorded = ex.divergence?.zod;
+    if (verdict.passed === suryPassed) {
+      if (recorded !== undefined) errs.push(`${where}: divergence.zod agrees with parse - remove it`);
+      continue;
+    }
+    const answered = String(verdict.answer);
+    const reads = verdict.passed
+      ? `accepts it, returning ${answered}`
+      : `rejects it${verdict.detail ? ` (${verdict.detail})` : ""}`;
+    if (recorded === undefined)
+      errs.push(
+        `${where}: parse ${suryPassed ? "accepts" : "rejects"} this value and the \`vs.zod\` ` +
+          `equivalent ${reads} - if the two libraries genuinely read it differently, record it ` +
+          `with \`divergence: { reason: ..., zod: ${JSON.stringify(answered)} }\`; if not, the ` +
+          "equivalent is the wrong one",
+      );
+    else if (recorded !== answered)
+      errs.push(
+        `${where}: divergence.zod records ${JSON.stringify(recorded)} but the \`vs.zod\` ` +
+          `equivalent answers ${JSON.stringify(answered)}`,
+      );
   }
   return errs;
 };
@@ -1675,6 +2139,20 @@ export const checkSpec = async (
   lintExamples(spec, errs);
   undeclaredAssignments(spec, errs);
 
+  // Collected on its own because it decides whether anything below may RUN.
+  // Every check past this point evaluates `ts.schema`, and the whole point of
+  // the rule is that evaluating this one would reconfigure the library for
+  // every other spec in the process.
+  const globalErrs: string[] = [];
+  lintGlobal(spec, globalErrs);
+  errs.push(...globalErrs);
+  // Before ANY of the work below, `serialize` included: canonicalizing an
+  // example reformats its input by evaluating it (see reformatIfEvaluable), so
+  // returning any later than this would already have run the call the rule
+  // exists to refuse. Such a spec gets no canonical-form or golden report,
+  // which is the point - it is not processed at all.
+  if (globalErrs.length) return errs;
+
   // Collected before the canonical form is built (rather than dropped) so a
   // disallowed comment is reported as itself, not as a "not canonical" diff -
   // and so `--write` never silently deletes one.
@@ -1723,6 +2201,14 @@ export const checkSpec = async (
       // author's hand.
       const asyncErrs = asyncViolations(schema, spec, compiled);
       errs.push(...asyncErrs);
+      // Before the recompute. An input that does not run makes every golden
+      // under it uncomputable, and one that answers differently each time makes
+      // them a coin flip - so without this they surface as "goldens could not be
+      // computed" and as a staleness diff naming the schema, neither of which
+      // says what is actually wrong.
+      const exampleErrs = await checkExamples(spec, schema, compiled);
+      errs.push(...exampleErrs);
+      if (exampleErrs.length) return errs;
       const recomputed = knownFresh === undefined ? await recomputeGoldens(spec, compiled) : undefined;
       if (recomputed) errs.push(...jsonSchemaTypePresenceViolations(spec, recomputed));
       const fresh = knownFresh ?? serialize(recomputed!, comments);
@@ -1741,7 +2227,14 @@ export const checkSpec = async (
       // wrong - it would report the same staleness a dozen more times. A wrong
       // `isAsync` is the same: the marker is what says which outcomes a
       // direction can even be built through.
-      if (!stale && !asyncErrs.length) errs.push(...(await checkOperationMatrix(spec, schema)));
+      if (!stale && !asyncErrs.length) {
+        errs.push(...(await checkOperationMatrix(spec, schema)));
+        // Both read the goldens back and ask something else about them, so they
+        // are gated on the same freshness the matrix is: against a stale golden
+        // they would report the staleness a second and third time.
+        errs.push(...checkJsonSchemaExamples(spec));
+        errs.push(...(await checkZodExamples(spec)));
+      }
     } catch (e) {
       errs.push(`goldens could not be computed: ${(e as Error).message}`);
     }
@@ -1842,6 +2335,21 @@ export const checkScenarios = (
     if (taken.has(id)) errs.push(`${id}: id collides with a spec of the same name`);
     if (!VALID_ID_RE.test(id))
       errs.push(`${id}: invalid scenario id (only letters, digits, and - allowed)`);
+    // Reported AND skipped: buildScenarioRunner runs the scenario once while
+    // constructing it, so merely reporting this one would still let it
+    // reconfigure the library for every scenario and spec after it - the exact
+    // thing the rule exists to prevent. checkSpec stops before evaluating for
+    // the same reason.
+    const callsGlobal = (["prepare", "run"] as const).filter((field) => {
+      const source = scenario[field];
+      return typeof source === "string" && GLOBAL_CALL.test(source);
+    });
+    for (const field of callsGlobal)
+      errs.push(
+        `${id}: ${field} calls S.global - it sets process-wide configuration that every spec and ` +
+          "scenario in the run then compiles against",
+      );
+    if (callsGlobal.length) continue;
     try {
       // Built exactly as benchChild.ts builds it (and buildScenarioRunner runs
       // it once), so what passes here is what the perf pass can measure.

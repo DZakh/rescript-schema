@@ -40,6 +40,9 @@ operations:
       trailing-dot:
         input: '"example."'
         error: Expected hostname, received "example."
+        divergence:
+          reason: z.hostname() takes the trailing dot of a fully qualified name; S.hostname does not
+          zod: '"example."'
       idn-label-separator:
         input: '"example．com"'
         error: Expected hostname, received "example．com"

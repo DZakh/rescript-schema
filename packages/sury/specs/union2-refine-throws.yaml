@@ -16,6 +16,9 @@ operations:
       a-throwing-refine-fails-its-case-so-the-catch-all-matches:
         input: '"x"'
         output: '"x"'
+        divergence:
+          reason: a throwing predicate escapes zod; S.union reads it as its own case failing, so the catch-all matches
+          zod: "TypeError: predicate blew up"
       wrong-type-still-reports-the-union:
         input: "1"
         error: Expected string, received 1
