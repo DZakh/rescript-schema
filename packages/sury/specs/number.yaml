@@ -25,11 +25,15 @@ operations:
       valid-infinity:
         input: Infinity
         output: Infinity
-        whenZod: fails
+        divergence:
+          reason: z.number() rejects the non-finite numbers; S.number takes them
+          zod: fails
       valid-negative-infinity:
         input: -Infinity
         output: -Infinity
-        whenZod: fails
+        divergence:
+          reason: z.number() rejects the non-finite numbers; S.number takes them
+          zod: fails
       invalid-nan:
         input: NaN
         error: Expected number, received NaN

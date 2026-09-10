@@ -19,15 +19,21 @@ operations:
       true-string:
         input: '"true"'
         output: "true"
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
       false-string:
         input: '"false"'
         output: "false"
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
       undefined:
         input: undefined
         output: "null"
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
       invalid:
         input: '"abc"'
         error: Expected boolean, received "abc"

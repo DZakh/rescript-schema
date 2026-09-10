@@ -40,7 +40,9 @@ operations:
       unencoded-space:
         input: '"https://example.com/a b"'
         error: Expected http-url, received "https://example.com/a b"
-        whenZod: passes
+        divergence:
+          reason: z.httpUrl() parses with the WHATWG URL algorithm, which percent-encodes a raw space instead of rejecting it
+          zod: passes
       empty:
         input: '""'
         error: Expected http-url, received ""

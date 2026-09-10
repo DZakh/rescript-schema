@@ -17,15 +17,21 @@ operations:
       bigint:
         input: 123n
         output: 123n
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
       number:
         input: "123.12"
         output: "123.12"
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
       null-bridges-to-undefined:
         input: "null"
         output: undefined
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
   decode: eq-to-parse
   encode:
     expression: i=>{for(;;){if(typeof i==="bigint")break;if(typeof i==="number"&&i==i)break;if(i===void 0){i=null;break}e[0](i)}return i}

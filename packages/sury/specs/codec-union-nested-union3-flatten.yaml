@@ -16,15 +16,21 @@ operations:
       string:
         input: '"a"'
         output: '"a"'
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
       number:
         input: "1"
         output: "1"
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
       boolean:
         input: "true"
         output: "true"
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
       nan-rejected:
         input: NaN
         error: Expected string | number | boolean, received NaN

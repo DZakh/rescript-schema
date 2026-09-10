@@ -22,11 +22,15 @@ operations:
       valid-remainder-near-the-divisor:
         input: "0.3"
         output: "0.3"
-        whenValidated: fails
+        divergence:
+          reason: multipleOf divides exactly, and the IEEE-754 remainder S.multipleOf takes is not zero for these
+          ajv: fails
       valid-negative:
         input: "-0.7"
         output: "-0.7"
-        whenValidated: fails
+        divergence:
+          reason: multipleOf divides exactly, and the IEEE-754 remainder S.multipleOf takes is not zero for these
+          ajv: fails
       valid-zero:
         input: "0"
         output: "0"

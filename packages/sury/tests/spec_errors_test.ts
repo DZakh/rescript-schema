@@ -178,7 +178,7 @@ test("vs.zod overwrite form omits a side that actually diverges from ts (must be
     {
       "stderr": "✗ string
         vs.zod: input omitted (no divergence) but Zod infers "string | null" !== ts.input "string" - add \`input\` to record the divergent type.
-        operations.parse.examples.invalid-null: parse rejects this value and the \`vs.zod\` equivalent accepts it - if the two libraries genuinely read it differently, record it with \`whenZod: passes\`; if not, the equivalent is the wrong one",
+        operations.parse.examples.invalid-null: parse rejects this value and the \`vs.zod\` equivalent accepts it - if the two libraries genuinely read it differently, record it with \`divergence: { reason: ..., zod: passes }\`; if not, the equivalent is the wrong one",
       "stdout": "",
     }
   `);
@@ -571,7 +571,7 @@ test("operations block omits an op the schema supports", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        schema: Failed at ["operations"]["encode"]: Expected "identity" | "eq-to-parse" | { isAsync: true | undefined; expression: string | { _skip: string; }; resultExpression: string | undefined; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; whenValidated: "passes" | "fails" | undefined; whenZod: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; whenValidated: "passes" | "fails" | undefined; whenZod: "passes" | "fails" | undefined; } | { input: string; errorConstructor: string; whenChecked: "passes" | "fails" | undefined; whenValidated: "passes" | "fails" | undefined; whenZod: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received undefined
+        schema: Failed at ["operations"]["encode"]: Expected "identity" | "eq-to-parse" | { isAsync: true | undefined; expression: string | { _skip: string; }; resultExpression: string | undefined; examples: { [key: string]: { input: string; output: string; divergence: { reason: string; check: "passes" | "fails" | undefined; ajv: "passes" | "fails" | undefined; zod: "passes" | "fails" | undefined; } | undefined; } | { input: string; error: string; divergence: { reason: string; check: "passes" | "fails" | undefined; ajv: "passes" | "fails" | undefined; zod: "passes" | "fails" | undefined; } | undefined; } | { input: string; errorConstructor: string; divergence: { reason: string; check: "passes" | "fails" | undefined; ajv: "passes" | "fails" | undefined; zod: "passes" | "fails" | undefined; } | undefined; }; }; } | { creationError: string; }, received undefined
         operations.encode: missing - a spec must declare parse, decode, and encode (run \`pnpm spec new\` to scaffold them, or add the block)",
       "stdout": "",
     }
@@ -585,7 +585,7 @@ test("_skip on an operation is rejected with a guiding message", async () => {
   await expect(runCheck("string", serialize(spec))).resolves.toMatchInlineSnapshot(`
     {
       "stderr": "✗ string
-        schema: Failed at ["operations"]["parse"]: Expected "identity" | { isAsync: true | undefined; expression: string | { _skip: string; }; resultExpression: string | undefined; examples: { [key: string]: { input: string; output: string; whenChecked: "passes" | "fails" | undefined; whenValidated: "passes" | "fails" | undefined; whenZod: "passes" | "fails" | undefined; } | { input: string; error: string; whenChecked: "passes" | "fails" | undefined; whenValidated: "passes" | "fails" | undefined; whenZod: "passes" | "fails" | undefined; } | { input: string; errorConstructor: string; whenChecked: "passes" | "fails" | undefined; whenValidated: "passes" | "fails" | undefined; whenZod: "passes" | "fails" | undefined; }; }; } | { creationError: string; }, received { _skip: "not-applicable"; }
+        schema: Failed at ["operations"]["parse"]: Expected "identity" | { isAsync: true | undefined; expression: string | { _skip: string; }; resultExpression: string | undefined; examples: { [key: string]: { input: string; output: string; divergence: { reason: string; check: "passes" | "fails" | undefined; ajv: "passes" | "fails" | undefined; zod: "passes" | "fails" | undefined; } | undefined; } | { input: string; error: string; divergence: { reason: string; check: "passes" | "fails" | undefined; ajv: "passes" | "fails" | undefined; zod: "passes" | "fails" | undefined; } | undefined; } | { input: string; errorConstructor: string; divergence: { reason: string; check: "passes" | "fails" | undefined; ajv: "passes" | "fails" | undefined; zod: "passes" | "fails" | undefined; } | undefined; }; }; } | { creationError: string; }, received { _skip: "not-applicable"; }
     - At ["operations"]["parse"]["expression"]: Expected string | { _skip: string; }, received undefined
     - At ["operations"]["parse"]["creationError"]: Expected string, received undefined
         operations.parse: _skip is not valid on an operation - use identity, eq-to-parse, a full block with examples, or a creationError",
@@ -644,10 +644,44 @@ test("multiple simultaneous problems all get their own guiding message", async (
 test("a recorded divergence that is no longer true is reported", async () => {
   const spec = mutate((s) => {
     const op = s.operations.parse;
-    if (op !== "identity" && !isCreationError(op)) op.examples.valid!.whenChecked = "passes";
+    if (op !== "identity" && !isCreationError(op))
+      op.examples.valid!.divergence = { reason: "stale", check: "passes" };
   });
   const { stderr } = await runCheck("string", serialize(spec));
-  expect(stderr).toContain("whenChecked agrees with parse - remove it");
+  expect(stderr).toContain("divergence.check agrees with parse - remove it");
+});
+
+test("a divergence that names no verifier is reported", async () => {
+  const spec = mutate((s) => {
+    const op = s.operations.parse;
+    if (op !== "identity" && !isCreationError(op))
+      op.examples.valid!.divergence = { reason: "the verifiers all agree" };
+  });
+  const { stderr } = await runCheck("string", serialize(spec));
+  expect(stderr).toContain("divergence names no verifier");
+});
+
+test("a divergence on a direction other than parse is reported", async () => {
+  // decode and encode trust their input where every verifier validates it, so
+  // a verifier disagreeing with them is by design, not a fact worth recording.
+  const spec = readSpec(listSpecFiles().find((f) => specId(f) === "codec-string-number")!);
+  const op = spec.operations.encode;
+  if (typeof op !== "string" && !isCreationError(op))
+    Object.values(op.examples)[0]!.divergence = { reason: "not parse", zod: "passes" };
+  const { stderr } = await runCheck("codec-string-number", serialize(spec));
+  expect(stderr).toContain("divergence is `parse` only");
+});
+
+test("a divergence whose reason is blank is reported", async () => {
+  // The verdict says which verifier disagrees; without the reason there is
+  // nothing saying why a reader should accept that it does.
+  const spec = mutate((s) => {
+    const op = s.operations.parse;
+    if (op !== "identity" && !isCreationError(op))
+      op.examples.valid!.divergence = { reason: "  ", check: "fails" };
+  });
+  const { stderr } = await runCheck("string", serialize(spec));
+  expect(stderr).toContain("divergence.reason is empty");
 });
 
 // ---- the examples themselves -----------------------------------------------
@@ -743,20 +777,20 @@ test("a JSON Schema that rejects a value parse accepts must be recorded or fixed
   // the published document turns away the emoji the parser takes.
   const spec = readSpec(listSpecFiles().find((f) => specId(f) === "string-minLength")!);
   const op = spec.operations.parse;
-  if (op !== "identity" && !isCreationError(op)) delete op.examples.emoji!.whenValidated;
+  if (op !== "identity" && !isCreationError(op)) delete op.examples.emoji!.divergence;
   const { stderr } = await runCheck("string-minLength", serialize(spec));
   expect(stderr).toContain("parse accepts this value but jsonSchema.input rejects it");
-  expect(stderr).toContain("record the divergence with `whenValidated: fails`");
+  expect(stderr).toContain("record it with `divergence: { reason: ..., ajv: fails }`");
 });
 
 test("a `vs.zod` equivalent that reads a value differently must be recorded", async () => {
   const spec = readSpec(listSpecFiles().find((f) => specId(f) === "integer")!);
   const op = spec.operations.parse;
   if (op !== "identity" && !isCreationError(op))
-    for (const ex of Object.values(op.examples)) delete ex.whenZod;
+    for (const ex of Object.values(op.examples)) delete ex.divergence;
   const { stderr } = await runCheck("integer", serialize(spec));
   expect(stderr).toContain("the `vs.zod` equivalent");
-  expect(stderr).toContain("record it with `whenZod:");
+  expect(stderr).toContain("record it with `divergence: { reason: ..., zod: fails }`");
 });
 
 test("an error thrown by something other than Sury carries its class into the golden", async () => {

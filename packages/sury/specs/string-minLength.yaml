@@ -22,7 +22,9 @@ operations:
       emoji:
         input: '"😀"'
         output: '"😀"'
-        whenValidated: fails
+        divergence:
+          reason: minLength counts code points and S.minLength counts JS characters, so the emoji is one short of the document's bound
+          ajv: fails
       lone-surrogate-pair-halves:
         input: '"\ud83d\ud83d"'
         output: '"\ud83d\ud83d"'

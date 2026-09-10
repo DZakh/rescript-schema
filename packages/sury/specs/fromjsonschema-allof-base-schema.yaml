@@ -25,7 +25,9 @@ operations:
       base-and-allof-satisfied:
         input: '{ foo: "quux", bar: 2 }'
         output: "{ bar: 2 }"
-        whenValidated: fails
+        divergence:
+          reason: the object arm strips `foo` before the allOf refinement reads it, so what parse returns fails the document parse itself publishes
+          ajv: fails
       allof-unsatisfied:
         input: "{ bar: 2 }"
         error: Should pass for all schemas of the allOf property.

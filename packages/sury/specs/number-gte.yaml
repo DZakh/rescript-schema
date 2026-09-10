@@ -28,7 +28,9 @@ operations:
       infinity:
         input: Infinity
         output: Infinity
-        whenZod: fails
+        divergence:
+          reason: z.number() rejects the non-finite numbers; S.number takes them
+          zod: fails
       nan:
         input: NaN
         error: Expected number >= 5, received NaN

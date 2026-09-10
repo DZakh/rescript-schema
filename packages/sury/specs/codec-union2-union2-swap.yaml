@@ -16,11 +16,15 @@ operations:
       string-never-coerced:
         input: '"123"'
         output: '"123"'
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
       number:
         input: "123"
         output: "123"
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
       invalid:
         input: "true"
         error: Expected string | number, received true
@@ -30,7 +34,9 @@ operations:
       negative-zero:
         input: "-0"
         output: "-0"
-        whenChecked: fails
+        divergence:
+          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
+          check: fails
   decode: eq-to-parse
   encode:
     expression: i=>{(typeof i==="number"&&i==i||typeof i==="string")||e[0](i);return i}

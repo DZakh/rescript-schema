@@ -87,7 +87,7 @@ Input Schema
 │     - continue the chain inside `.then(...)`                 │
 │                                                              │
 │  else if val.isOutput (decoded, may still have `.to`):       │
-│     - follow `.to`: run `expected.parser` (custom decoder)       │
+│     - follow `.to`: run `expected.parser` (custom decoder)   │
 │       or `refine` onto `.to` (default encoder coercion)      │
 │                                                              │
 │  else (not yet decoded):                                     │
@@ -384,7 +384,7 @@ instead of silently working around it.
   `behavior changed - baseline accepted it, now rejected` lines have the same
   cause: a no-op accepts every input, valid or not.
 
-- `whenValidated` gates only the direction that is a promise: a document that
+- `divergence.ajv` gates only the direction that is a promise: a document that
   rejects what the parser accepts. The other direction is deliberately unasked,
   because JSON Schema is allowed to describe a wider set (a refinement has no
   keyword) - but that also means a document far wider than the parser, one that

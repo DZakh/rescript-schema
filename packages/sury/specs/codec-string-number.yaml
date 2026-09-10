@@ -24,7 +24,9 @@ operations:
       not-a-number-text:
         input: '"abc"'
         error: Expected number, received "abc"
-        whenZod: passes
+        divergence:
+          reason: the equivalent is a bare transform with nothing validating its result, and Number("") is 0 while Number("abc") is NaN
+          zod: passes
       zero:
         input: '"0"'
         output: "0"
@@ -37,11 +39,15 @@ operations:
       empty-string:
         input: '""'
         error: Expected number, received ""
-        whenZod: passes
+        divergence:
+          reason: the equivalent is a bare transform with nothing validating its result, and Number("") is 0 while Number("abc") is NaN
+          zod: passes
       whitespace-string:
         input: '"   "'
         error: Expected number, received "   "
-        whenZod: passes
+        divergence:
+          reason: the equivalent is a bare transform with nothing validating its result, and Number("") is 0 while Number("abc") is NaN
+          zod: passes
       not-a-string:
         input: "123"
         error: Expected string, received 123

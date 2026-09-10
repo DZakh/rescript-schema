@@ -19,11 +19,15 @@ operations:
       shorter-than-the-default-generator:
         input: '"abc"'
         output: '"abc"'
-        whenZod: fails
+        divergence:
+          reason: z.nanoid() pins the default generator's 21 characters; S.nanoid takes any length of the URL-safe alphabet
+          zod: fails
       url-safe-punctuation-only:
         input: '"_-_-_"'
         output: '"_-_-_"'
-        whenZod: fails
+        divergence:
+          reason: z.nanoid() pins the default generator's 21 characters; S.nanoid takes any length of the URL-safe alphabet
+          zod: fails
       standard-base64-alphabet:
         input: '"a+b/c"'
         error: Expected nanoid, received "a+b/c"

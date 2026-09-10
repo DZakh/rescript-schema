@@ -672,9 +672,7 @@ const canonExample = (ex: Example): Example => {
     "output",
     "error",
     "errorConstructor",
-    "whenChecked",
-    "whenValidated",
-    "whenZod",
+    "divergence",
   ]) as Example;
   o.input = reformatIfEvaluable(o.input);
   if ("output" in o) o.output = reformatIfEvaluable(o.output);
@@ -1097,7 +1095,7 @@ export const recomputeGoldens = async (obj: Spec, compiled?: Record<OpName, Buil
         op.examples[name] = clean({
           input: ex.input,
           output: out === value ? ex.input : valueToCode(out, new WeakSet(), bytes),
-          ...(await refreshDivergences(opName, op.isAsync === true, schema, ex, next)),
+          ...(await refreshDivergence(opName, op.isAsync === true, schema, ex, next)),
         });
       } catch (e) {
         if (e instanceof Error && e.message.startsWith("cannot represent ")) throw e;
@@ -1106,7 +1104,7 @@ export const recomputeGoldens = async (obj: Spec, compiled?: Record<OpName, Buil
           ...("errorConstructor" in ex
             ? { errorConstructor: (e as Error).constructor.name }
             : { error: describeExampleThrow(e) }),
-          ...(await refreshDivergences(opName, op.isAsync === true, schema, ex, next)),
+          ...(await refreshDivergence(opName, op.isAsync === true, schema, ex, next)),
         });
       }
     }
@@ -1653,42 +1651,45 @@ const zodVerdict = async (schema: any, ex: Example): Promise<Verdict | undefined
   }
 };
 
-// `--write`'s half: a divergence field that is already there is kept fresh, the
-// way `creationError` is. Adding or removing one stays the author's call - that
-// is the moment a divergence appears or goes away, and it should be read by a
-// person, not written by a tool.
+// `--write`'s half: a `divergence` that is already there keeps its verdicts
+// fresh, the way `creationError` does. `reason` is never touched, and adding or
+// removing the field stays the author's call - that is the moment a divergence
+// appears or goes away, and it should be read by a person, not written by a
+// tool.
 //
-// `parse` only, for all three: decode and encode trust their input while every
-// cross-check validates, so a marker on one of those directions is a misuse the
-// checks report rather than a value to refresh.
-const refreshDivergences = async (
+// `parse` only: decode and encode trust their input while every verifier
+// validates, so a divergence on one of those directions is a misuse the checks
+// report rather than a value to refresh.
+const refreshDivergence = async (
   opName: OpName,
   isAsync: boolean,
   schema: any,
   ex: Example,
   spec: Spec,
-): Promise<Pick<Example, "whenChecked" | "whenValidated" | "whenZod">> => {
-  const out: Pick<Example, "whenChecked" | "whenValidated" | "whenZod"> = {};
-  if (ex.whenChecked !== undefined) {
-    out.whenChecked =
+): Promise<Pick<Example, "divergence">> => {
+  const was = ex.divergence;
+  if (was === undefined) return {};
+  const out: NonNullable<Example["divergence"]> = { reason: was.reason };
+  if (was.check !== undefined) {
+    out.check =
       opName === "parse"
         ? (await checkVerdicts(schema, valueEvaluator(ex.input), isAsync))[0]!.passed
           ? "passes"
           : "fails"
-        : ex.whenChecked;
+        : was.check;
   }
-  if (ex.whenValidated !== undefined) {
+  if (was.ajv !== undefined) {
     const verdict = opName === "parse" ? jsonSchemaVerdict(jsonSchemaSides(spec).sides, ex) : undefined;
-    out.whenValidated = verdict === undefined ? ex.whenValidated : verdict.passed ? "passes" : "fails";
+    out.ajv = verdict === undefined ? was.ajv : verdict.passed ? "passes" : "fails";
   }
-  if (ex.whenZod !== undefined) {
+  if (was.zod !== undefined) {
     const vs = spec.vs?.zod;
     const source = vs === undefined || isSkip(vs) ? undefined : isZodOverwrite(vs) ? vs.schema : vs;
     const built = opName === "parse" && source !== undefined ? zodSchemaFor(source) : undefined;
     const verdict = built && "schema" in built ? await zodVerdict(built.schema, ex) : undefined;
-    out.whenZod = verdict === undefined ? ex.whenZod : verdict.passed ? "passes" : "fails";
+    out.zod = verdict === undefined ? was.zod : verdict.passed ? "passes" : "fails";
   }
-  return out;
+  return { divergence: out };
 };
 
 export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<string[]> => {
@@ -1724,9 +1725,6 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
         }
         continue; // an unevaluatable golden is reported by the checks above
       }
-
-      if (opName !== "parse" && ex.whenChecked !== undefined)
-        errs.push(`${where}: whenChecked is \`parse\` only - decode and encode trust their input, so a check disagreeing with them is by design`);
 
       // `op(data, schema)` reads two schemas as a chain - the one call form a
       // Sury schema in the data slot can't take (see index.d.ts). Documented,
@@ -1797,20 +1795,21 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
       }
       const passed = verdicts[0]!.passed;
       const parseFailed = "error" in ex || "errorConstructor" in ex;
-      const expectPass = ex.whenChecked !== undefined ? ex.whenChecked === "passes" : !parseFailed;
+      const recorded = ex.divergence?.check;
+      const expectPass = recorded !== undefined ? recorded === "passes" : !parseFailed;
       if (passed !== expectPass) {
         const verdict = passed ? "passes" : "fails";
         errs.push(
-          ex.whenChecked === undefined
+          recorded === undefined
             ? `${where}: the checks ${verdicts[0]!.passed ? "passed" : `failed${verdicts[0]!.detail}`}, but parse ` +
               `${parseFailed ? `failed with ${"error" in ex ? JSON.stringify(ex.error) : ex.errorConstructor}` : "succeeded"} - ` +
-              `add \`whenChecked: ${verdict}\``
-            : `${where}: whenChecked says \`${ex.whenChecked}\` but the checks ${verdict}`,
+              `record it with \`divergence: { reason: ..., check: ${verdict} }\``
+            : `${where}: divergence.check says \`${recorded}\` but the checks ${verdict}`,
         );
         continue;
       }
-      if (ex.whenChecked !== undefined && passed === !parseFailed)
-        errs.push(`${where}: whenChecked agrees with parse - remove it`);
+      if (recorded !== undefined && passed === !parseFailed)
+        errs.push(`${where}: divergence.check agrees with parse - remove it`);
       // `make` hands the value back rather than decoding it. `Object.is`, not
       // `!==`: a spec whose example is NaN is exactly the case that matters.
       const made = verdicts.find((v) => v.name.startsWith("make"));
@@ -1825,6 +1824,33 @@ export const checkOperationMatrix = async (spec: Spec, schema: any): Promise<str
 };
 
 // ---- the examples themselves ----------------------------------------------
+
+// What a `divergence` has to be before any verifier is asked about it. Here
+// rather than in the checks that read its verdicts, because those run only once
+// the goldens are fresh, and a field this malformed should be reported as
+// itself.
+const divergenceShapeViolations = (where: string, opName: OpName, ex: Example): string[] => {
+  const d = ex.divergence;
+  if (d === undefined) return [];
+  const errs: string[] = [];
+  if (opName !== "parse")
+    errs.push(
+      `${where}: divergence is \`parse\` only - decode and encode trust their input, so a verifier ` +
+        "disagreeing with them is by design",
+    );
+  if (d.reason.trim() === "")
+    errs.push(
+      `${where}: divergence.reason is empty - the verdict beside it says which verifier disagrees, ` +
+        "and only the reason says why anyone should accept that",
+    );
+  if (d.check === undefined && d.ajv === undefined && d.zod === undefined)
+    errs.push(
+      `${where}: divergence names no verifier - add the one that disagrees (\`check\`, \`ajv\` or ` +
+        "`zod`), or remove the field",
+    );
+  return errs;
+};
+
 
 // What every other check assumes and none of them state: an example's input is
 // source the harness can run, names a case no sibling already covers, and
@@ -1844,6 +1870,7 @@ export const checkExamples = async (
     const byInput = new Map<string, string>();
     for (const [exName, ex] of Object.entries(op.examples)) {
       const where = `operations.${opName}.examples.${exName}`;
+      errs.push(...divergenceShapeViolations(where, opName, ex));
 
       let nextData: () => unknown;
       try {
@@ -1885,29 +1912,6 @@ export const checkExamples = async (
   return errs;
 };
 
-// A cross-check marker belongs to `parse` alone, and the reason differs by
-// direction: decode and encode trust their input where every verifier validates
-// it, and assert and is build no output to compare. Either way the marker
-// records a disagreement with `parse`, so it belongs on a `parse` example.
-// Shared by the two checks below so the rule cannot come to mean different
-// things in each.
-const parseOnlyMarkers = (
-  spec: Spec,
-  field: "whenValidated" | "whenZod",
-  why: string,
-): string[] => {
-  const errs: string[] = [];
-  for (const opName of OP_ORDER) {
-    if (opName === "parse") continue;
-    const op = spec.operations?.[opName];
-    if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) continue;
-    for (const [exName, ex] of Object.entries(op.examples))
-      if (ex[field] !== undefined)
-        errs.push(`operations.${opName}.examples.${exName}: ${field} is \`parse\` only - ${why}`);
-  }
-  return errs;
-};
-
 // ---- the recorded JSON Schema, against the recorded examples ---------------
 
 // A spec pins the JSON Schema it publishes and the values its parser accepts,
@@ -1915,11 +1919,7 @@ const parseOnlyMarkers = (
 // parser is two green goldens. This asks the document, with a real validator
 // (see jsonSchemaValidator.ts), about the values the same file already holds.
 export const checkJsonSchemaExamples = (spec: Spec): string[] => {
-  const errs = parseOnlyMarkers(
-    spec,
-    "whenValidated",
-    "the documents record what parse takes and returns, and only its accepted examples are asked",
-  );
+  const errs: string[] = [];
 
   const op = spec.operations?.parse;
   if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) return errs;
@@ -1929,24 +1929,25 @@ export const checkJsonSchemaExamples = (spec: Spec): string[] => {
   for (const [exName, ex] of Object.entries(op.examples)) {
     const where = `operations.parse.examples.${exName}`;
     const verdict = jsonSchemaVerdict(sides, ex);
+    const recorded = ex.divergence?.ajv;
     if (verdict === undefined) {
-      if (ex.whenValidated !== undefined)
+      if (recorded !== undefined)
         errs.push(
-          `${where}: whenValidated records a disagreement nothing can check - only an accepted ` +
+          `${where}: divergence.ajv records a disagreement nothing can check - only an accepted ` +
             "example whose values are JSON is asked, so remove it",
         );
       continue;
     }
     if (verdict.passed) {
-      if (ex.whenValidated !== undefined)
-        errs.push(`${where}: whenValidated agrees with parse - remove it`);
+      if (recorded !== undefined) errs.push(`${where}: divergence.ajv agrees with parse - remove it`);
       continue;
     }
-    if (ex.whenValidated !== "fails")
+    if (recorded !== "fails")
       errs.push(
         `${where}: parse accepts this value but ${verdict.detail} - a consumer validating with the ` +
           "document this spec publishes would turn away input the library itself takes. Fix the " +
-          "document, or record the divergence with `whenValidated: fails` and a `FIXME:` if it is a bug",
+          "document, or record it with `divergence: { reason: ..., ajv: fails }` and a `FIXME:` if " +
+          "it is a bug",
       );
   }
   return errs;
@@ -1959,11 +1960,7 @@ export const checkJsonSchemaExamples = (spec: Spec): string[] => {
 // either way. Accept-or-reject only: the value each produces, the wording of a
 // rejection and which of several failures is reported are Sury's own.
 export const checkZodExamples = async (spec: Spec): Promise<string[]> => {
-  const errs = parseOnlyMarkers(
-    spec,
-    "whenZod",
-    "the equivalent is run against parse's examples alone",
-  );
+  const errs: string[] = [];
 
   const op = spec.operations?.parse;
   if (op == null || typeof op === "string" || isCreationError(op) || isSkip(op)) return errs;
@@ -1972,10 +1969,10 @@ export const checkZodExamples = async (spec: Spec): Promise<string[]> => {
 
   if (source === undefined) {
     for (const [exName, ex] of Object.entries(op.examples))
-      if (ex.whenZod !== undefined)
+      if (ex.divergence?.zod !== undefined)
         errs.push(
-          `operations.parse.examples.${exName}: whenZod records what an equivalent answers, but ` +
-            "`vs.zod` is skipped - there is nothing to disagree with, so remove it",
+          `operations.parse.examples.${exName}: divergence.zod records what an equivalent answers, ` +
+            "but `vs.zod` is skipped - there is nothing to disagree with, so remove it",
         );
     return errs;
   }
@@ -1996,20 +1993,20 @@ export const checkZodExamples = async (spec: Spec): Promise<string[]> => {
     // example carries neither, and reading it as a success would compare zod's
     // rejection against a pass this spec never claimed.
     const suryPassed = "output" in ex;
+    const recorded = ex.divergence?.zod;
     if (verdict.passed === suryPassed) {
-      if (ex.whenZod !== undefined) errs.push(`${where}: whenZod agrees with parse - remove it`);
+      if (recorded !== undefined) errs.push(`${where}: divergence.zod agrees with parse - remove it`);
       continue;
     }
-    const marker = verdict.passed ? "passes" : "fails";
+    const answered = verdict.passed ? "passes" : "fails";
     const answer = verdict.passed
       ? "accepts it"
       : `rejects it${verdict.detail ? ` (${verdict.detail})` : ""}`;
-    if (ex.whenZod !== marker)
+    if (recorded !== answered)
       errs.push(
         `${where}: parse ${suryPassed ? "accepts" : "rejects"} this value and the \`vs.zod\` ` +
-          `equivalent ${answer} - ` +
-          `if the two libraries genuinely read it differently, record it with \`whenZod: ${marker}\`; ` +
-          "if not, the equivalent is the wrong one",
+          `equivalent ${answer} - if the two libraries genuinely read it differently, record it ` +
+          `with \`divergence: { reason: ..., zod: ${answered} }\`; if not, the equivalent is the wrong one`,
       );
   }
   return errs;

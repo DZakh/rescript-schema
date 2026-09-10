@@ -34,11 +34,15 @@ operations:
       empty-string:
         input: '""'
         error: Expected bigint, received ""
-        whenZod: passes
+        divergence:
+          reason: the equivalent is a bare transform with nothing validating its result, and BigInt("") is 0n
+          zod: passes
       whitespace-string:
         input: '"   "'
         error: Expected bigint, received "   "
-        whenZod: passes
+        divergence:
+          reason: the equivalent is a bare transform with nothing validating its result, and BigInt("") is 0n
+          zod: passes
       not-a-string:
         input: "123"
         error: Expected string, received 123

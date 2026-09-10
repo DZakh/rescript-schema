@@ -40,7 +40,9 @@ operations:
       non-finite:
         input: '{ id: Infinity, name: "a", tag: "x", flag: true }'
         error: "Failed at id: Expected JSON, received Infinity"
-        whenChecked: passes
+        divergence:
+          reason: the value is rejected while the JSON string is built, and the checks never build one
+          check: passes
   decode:
     expression: i=>{let v0=i.id;return "{\"id\":"+(Number.isFinite(v0)?v0:e[0](v0))+",\"name\":"+e[1](i.name)+",\"tag\":\"x\",\"flag\":"+i.flag+"}"}
     examples:
