@@ -34,7 +34,7 @@ npm install sury
 Sury's sponsors, who make the time to build it possible:
 
 <p>
-  <a href="https://rescript-association.org/"><img alt="ReScript Association" height="64" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/rescript-association.png"></a>
+  <a href="https://rescript-association.org/"><img alt="ReScript Association" height="30" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/rescript-association.png"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://envio.dev/"><img alt="Envio" height="26" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/envio.png"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
@@ -44,7 +44,6 @@ Sury's sponsors, who make the time to build it possible:
   </picture></a>
 </p>
 
-> [!NOTE]
 > If you want to support the development of the project, [DM me on X](https://x.com/dzakh_dev) and get your logo here as a gratitude.
 
 ## Why Sury
