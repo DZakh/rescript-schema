@@ -384,6 +384,11 @@ type SchemaLike<TInput, TOutput> = {
       | undefined;
   };
 };
+// Decode/encode/make capture the schema as `S` so `data` is `Input<S>` /
+// `Output<S>` and cannot be wider than the schema. A chain is `SInput` then
+// `SOutput`; schemas in the middle are untyped. `parse*`/`assert*`/`is*` still
+// take `unknown`.
+type AnySchema = SchemaLike<any, any>;
 
 export type Brand<T, TId extends string> = T & {
   /**
@@ -1246,48 +1251,48 @@ export function parseAsPromisableResult<TOutput>(
  *
  * Throws `S.Error` on failure.
  */
-export function decodeOrThrow<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TInput) => TOutput;
-export function decodeOrThrow<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>
-): (data: TInput) => TOutput;
-export function decodeOrThrow<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: TInput
-): TOutput;
-export function decodeOrThrow<TInput, TOutput>(
-  data: TInput,
-  schema: SchemaLike<TInput, TOutput>
-): TOutput;
-export function decodeOrThrow<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>
-): (data: TInput) => TOutput;
-export function decodeOrThrow<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>,
-  data: TInput
-): TOutput;
-export function decodeOrThrow<TInput, TOutput>(
-  data: TInput,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>
-): TOutput;
-export function decodeOrThrow<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>,
-  data: TInput
-): TOutput;
-export function decodeOrThrow<TInput, TOutput>(
-  data: TInput,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>
-): TOutput;
+export function decodeOrThrow<S extends AnySchema>(
+  schema: S
+): (data: Input<S>) => Output<S>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Input<SInput>) => Output<SOutput>;
+export function decodeOrThrow<S extends AnySchema>(
+  schema: S,
+  data: Input<S>
+): Output<S>;
+export function decodeOrThrow<S extends AnySchema>(
+  data: Input<S>,
+  schema: S
+): Output<S>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Input<SInput>) => Output<SOutput>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Input<SInput>
+): Output<SOutput>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Output<SOutput>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Input<SInput>
+): Output<SOutput>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Output<SOutput>;
 
 /**
  * Runs the schema's decode direction: Input to Output.
@@ -1296,48 +1301,48 @@ export function decodeOrThrow<TInput, TOutput>(
  * wired wrong, which fails for every input - still throws: it is raised where
  * the operation is created.
  */
-export function decodeAsResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TInput) => Result<TOutput>;
-export function decodeAsResult<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>
-): (data: TInput) => Result<TOutput>;
-export function decodeAsResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: TInput
-): Result<TOutput>;
-export function decodeAsResult<TInput, TOutput>(
-  data: TInput,
-  schema: SchemaLike<TInput, TOutput>
-): Result<TOutput>;
-export function decodeAsResult<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>
-): (data: TInput) => Result<TOutput>;
-export function decodeAsResult<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>,
-  data: TInput
-): Result<TOutput>;
-export function decodeAsResult<TInput, TOutput>(
-  data: TInput,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>
-): Result<TOutput>;
-export function decodeAsResult<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>,
-  data: TInput
-): Result<TOutput>;
-export function decodeAsResult<TInput, TOutput>(
-  data: TInput,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>
-): Result<TOutput>;
+export function decodeAsResult<S extends AnySchema>(
+  schema: S
+): (data: Input<S>) => Result<Output<S>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Input<SInput>) => Result<Output<SOutput>>;
+export function decodeAsResult<S extends AnySchema>(
+  schema: S,
+  data: Input<S>
+): Result<Output<S>>;
+export function decodeAsResult<S extends AnySchema>(
+  data: Input<S>,
+  schema: S
+): Result<Output<S>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Input<SInput>) => Result<Output<SOutput>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Input<SInput>
+): Result<Output<SOutput>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Result<Output<SOutput>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Input<SInput>
+): Result<Output<SOutput>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Result<Output<SOutput>>;
 
 /**
  * Runs the schema's decode direction: Input to Output.
@@ -1346,96 +1351,96 @@ export function decodeAsResult<TInput, TOutput>(
  * `S.Error` on failure. A synchronous schema is lifted into a promise too, so
  * the return type holds either way.
  */
-export function decodeAsPromiseOrReject<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TInput) => Promise<TOutput>;
-export function decodeAsPromiseOrReject<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>
-): (data: TInput) => Promise<TOutput>;
-export function decodeAsPromiseOrReject<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: TInput
-): Promise<TOutput>;
-export function decodeAsPromiseOrReject<TInput, TOutput>(
-  data: TInput,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<TOutput>;
-export function decodeAsPromiseOrReject<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>
-): (data: TInput) => Promise<TOutput>;
-export function decodeAsPromiseOrReject<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>,
-  data: TInput
-): Promise<TOutput>;
-export function decodeAsPromiseOrReject<TInput, TOutput>(
-  data: TInput,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>
-): Promise<TOutput>;
-export function decodeAsPromiseOrReject<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>,
-  data: TInput
-): Promise<TOutput>;
-export function decodeAsPromiseOrReject<TInput, TOutput>(
-  data: TInput,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>
-): Promise<TOutput>;
+export function decodeAsPromiseOrReject<S extends AnySchema>(
+  schema: S
+): (data: Input<S>) => Promise<Output<S>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Input<SInput>) => Promise<Output<SOutput>>;
+export function decodeAsPromiseOrReject<S extends AnySchema>(
+  schema: S,
+  data: Input<S>
+): Promise<Output<S>>;
+export function decodeAsPromiseOrReject<S extends AnySchema>(
+  data: Input<S>,
+  schema: S
+): Promise<Output<S>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Input<SInput>) => Promise<Output<SOutput>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Input<SInput>
+): Promise<Output<SOutput>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promise<Output<SOutput>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Input<SInput>
+): Promise<Output<SOutput>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promise<Output<SOutput>>;
 
 /**
  * Runs the schema's decode direction: Input to Output.
  *
  * `AsPromiseOrReject` with the failure in the type instead of the rejection.
  */
-export function decodeAsResultPromise<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TInput) => Promise<Result<TOutput>>;
-export function decodeAsResultPromise<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>
-): (data: TInput) => Promise<Result<TOutput>>;
-export function decodeAsResultPromise<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: TInput
-): Promise<Result<TOutput>>;
-export function decodeAsResultPromise<TInput, TOutput>(
-  data: TInput,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<Result<TOutput>>;
-export function decodeAsResultPromise<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>
-): (data: TInput) => Promise<Result<TOutput>>;
-export function decodeAsResultPromise<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>,
-  data: TInput
-): Promise<Result<TOutput>>;
-export function decodeAsResultPromise<TInput, TOutput>(
-  data: TInput,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>
-): Promise<Result<TOutput>>;
-export function decodeAsResultPromise<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>,
-  data: TInput
-): Promise<Result<TOutput>>;
-export function decodeAsResultPromise<TInput, TOutput>(
-  data: TInput,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>
-): Promise<Result<TOutput>>;
+export function decodeAsResultPromise<S extends AnySchema>(
+  schema: S
+): (data: Input<S>) => Promise<Result<Output<S>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Input<SInput>) => Promise<Result<Output<SOutput>>>;
+export function decodeAsResultPromise<S extends AnySchema>(
+  schema: S,
+  data: Input<S>
+): Promise<Result<Output<S>>>;
+export function decodeAsResultPromise<S extends AnySchema>(
+  data: Input<S>,
+  schema: S
+): Promise<Result<Output<S>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Input<SInput>) => Promise<Result<Output<SOutput>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Input<SInput>
+): Promise<Result<Output<SOutput>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promise<Result<Output<SOutput>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Input<SInput>
+): Promise<Result<Output<SOutput>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promise<Result<Output<SOutput>>>;
 
 /**
  * Runs the schema's decode direction: Input to Output.
@@ -1447,48 +1452,48 @@ export function decodeAsResultPromise<TInput, TOutput>(
  * There is no promisable THROWING variant: two shapes to branch on is
  * already the cost of not knowing, and by then you know.
  */
-export function decodeAsPromisableResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TInput) => Promisable<Result<TOutput>>;
-export function decodeAsPromisableResult<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>
-): (data: TInput) => Promisable<Result<TOutput>>;
-export function decodeAsPromisableResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: TInput
-): Promisable<Result<TOutput>>;
-export function decodeAsPromisableResult<TInput, TOutput>(
-  data: TInput,
-  schema: SchemaLike<TInput, TOutput>
-): Promisable<Result<TOutput>>;
-export function decodeAsPromisableResult<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>
-): (data: TInput) => Promisable<Result<TOutput>>;
-export function decodeAsPromisableResult<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>,
-  data: TInput
-): Promisable<Result<TOutput>>;
-export function decodeAsPromisableResult<TInput, TOutput>(
-  data: TInput,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, TOutput>
-): Promisable<Result<TOutput>>;
-export function decodeAsPromisableResult<TInput, TOutput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>,
-  data: TInput
-): Promisable<Result<TOutput>>;
-export function decodeAsPromisableResult<TInput, TOutput>(
-  data: TInput,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TOutput>
-): Promisable<Result<TOutput>>;
+export function decodeAsPromisableResult<S extends AnySchema>(
+  schema: S
+): (data: Input<S>) => Promisable<Result<Output<S>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Input<SInput>) => Promisable<Result<Output<SOutput>>>;
+export function decodeAsPromisableResult<S extends AnySchema>(
+  schema: S,
+  data: Input<S>
+): Promisable<Result<Output<S>>>;
+export function decodeAsPromisableResult<S extends AnySchema>(
+  data: Input<S>,
+  schema: S
+): Promisable<Result<Output<S>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Input<SInput>) => Promisable<Result<Output<SOutput>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Input<SInput>
+): Promisable<Result<Output<SOutput>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promisable<Result<Output<SOutput>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Input<SInput>
+): Promisable<Result<Output<SOutput>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promisable<Result<Output<SOutput>>>;
 
 /**
  * Runs the schema's encode direction: Output back to Input. Only the first
@@ -1496,48 +1501,48 @@ export function decodeAsPromisableResult<TInput, TOutput>(
  *
  * Throws `S.Error` on failure.
  */
-export function encodeOrThrow<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TOutput) => TInput;
-export function encodeOrThrow<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>
-): (data: TOutput) => TTarget;
-export function encodeOrThrow<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: TOutput
-): TInput;
-export function encodeOrThrow<TInput, TOutput>(
-  data: TOutput,
-  schema: SchemaLike<TInput, TOutput>
-): TInput;
-export function encodeOrThrow<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>
-): (data: TOutput) => TTarget;
-export function encodeOrThrow<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>,
-  data: TOutput
-): TTarget;
-export function encodeOrThrow<TOutput, TTarget>(
-  data: TOutput,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>
-): TTarget;
-export function encodeOrThrow<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>,
-  data: TOutput
-): TTarget;
-export function encodeOrThrow<TOutput, TTarget>(
-  data: TOutput,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>
-): TTarget;
+export function encodeOrThrow<S extends AnySchema>(
+  schema: S
+): (data: Output<S>) => Input<S>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Output<SInput>) => Output<SOutput>;
+export function encodeOrThrow<S extends AnySchema>(
+  schema: S,
+  data: Output<S>
+): Input<S>;
+export function encodeOrThrow<S extends AnySchema>(
+  data: Output<S>,
+  schema: S
+): Input<S>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Output<SInput>) => Output<SOutput>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Output<SInput>
+): Output<SOutput>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Output<SOutput>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Output<SInput>
+): Output<SOutput>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Output<SOutput>;
 
 /**
  * Runs the schema's encode direction: Output back to Input. Only the first
@@ -1547,48 +1552,48 @@ export function encodeOrThrow<TOutput, TTarget>(
  * wired wrong, which fails for every input - still throws: it is raised where
  * the operation is created.
  */
-export function encodeAsResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TOutput) => Result<TInput>;
-export function encodeAsResult<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>
-): (data: TOutput) => Result<TTarget>;
-export function encodeAsResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: TOutput
-): Result<TInput>;
-export function encodeAsResult<TInput, TOutput>(
-  data: TOutput,
-  schema: SchemaLike<TInput, TOutput>
-): Result<TInput>;
-export function encodeAsResult<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>
-): (data: TOutput) => Result<TTarget>;
-export function encodeAsResult<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>,
-  data: TOutput
-): Result<TTarget>;
-export function encodeAsResult<TOutput, TTarget>(
-  data: TOutput,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>
-): Result<TTarget>;
-export function encodeAsResult<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>,
-  data: TOutput
-): Result<TTarget>;
-export function encodeAsResult<TOutput, TTarget>(
-  data: TOutput,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>
-): Result<TTarget>;
+export function encodeAsResult<S extends AnySchema>(
+  schema: S
+): (data: Output<S>) => Result<Input<S>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Output<SInput>) => Result<Output<SOutput>>;
+export function encodeAsResult<S extends AnySchema>(
+  schema: S,
+  data: Output<S>
+): Result<Input<S>>;
+export function encodeAsResult<S extends AnySchema>(
+  data: Output<S>,
+  schema: S
+): Result<Input<S>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Output<SInput>) => Result<Output<SOutput>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Output<SInput>
+): Result<Output<SOutput>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Result<Output<SOutput>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Output<SInput>
+): Result<Output<SOutput>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Result<Output<SOutput>>;
 
 /**
  * Runs the schema's encode direction: Output back to Input. Only the first
@@ -1598,48 +1603,48 @@ export function encodeAsResult<TOutput, TTarget>(
  * `S.Error` on failure. A synchronous schema is lifted into a promise too, so
  * the return type holds either way.
  */
-export function encodeAsPromiseOrReject<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TOutput) => Promise<TInput>;
-export function encodeAsPromiseOrReject<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>
-): (data: TOutput) => Promise<TTarget>;
-export function encodeAsPromiseOrReject<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: TOutput
-): Promise<TInput>;
-export function encodeAsPromiseOrReject<TInput, TOutput>(
-  data: TOutput,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<TInput>;
-export function encodeAsPromiseOrReject<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>
-): (data: TOutput) => Promise<TTarget>;
-export function encodeAsPromiseOrReject<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>,
-  data: TOutput
-): Promise<TTarget>;
-export function encodeAsPromiseOrReject<TOutput, TTarget>(
-  data: TOutput,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>
-): Promise<TTarget>;
-export function encodeAsPromiseOrReject<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>,
-  data: TOutput
-): Promise<TTarget>;
-export function encodeAsPromiseOrReject<TOutput, TTarget>(
-  data: TOutput,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>
-): Promise<TTarget>;
+export function encodeAsPromiseOrReject<S extends AnySchema>(
+  schema: S
+): (data: Output<S>) => Promise<Input<S>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Output<SInput>) => Promise<Output<SOutput>>;
+export function encodeAsPromiseOrReject<S extends AnySchema>(
+  schema: S,
+  data: Output<S>
+): Promise<Input<S>>;
+export function encodeAsPromiseOrReject<S extends AnySchema>(
+  data: Output<S>,
+  schema: S
+): Promise<Input<S>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Output<SInput>) => Promise<Output<SOutput>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Output<SInput>
+): Promise<Output<SOutput>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promise<Output<SOutput>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Output<SInput>
+): Promise<Output<SOutput>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promise<Output<SOutput>>;
 
 /**
  * Runs the schema's encode direction: Output back to Input. Only the first
@@ -1647,48 +1652,48 @@ export function encodeAsPromiseOrReject<TOutput, TTarget>(
  *
  * `AsPromiseOrReject` with the failure in the type instead of the rejection.
  */
-export function encodeAsResultPromise<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TOutput) => Promise<Result<TInput>>;
-export function encodeAsResultPromise<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>
-): (data: TOutput) => Promise<Result<TTarget>>;
-export function encodeAsResultPromise<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: TOutput
-): Promise<Result<TInput>>;
-export function encodeAsResultPromise<TInput, TOutput>(
-  data: TOutput,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<Result<TInput>>;
-export function encodeAsResultPromise<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>
-): (data: TOutput) => Promise<Result<TTarget>>;
-export function encodeAsResultPromise<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>,
-  data: TOutput
-): Promise<Result<TTarget>>;
-export function encodeAsResultPromise<TOutput, TTarget>(
-  data: TOutput,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>
-): Promise<Result<TTarget>>;
-export function encodeAsResultPromise<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>,
-  data: TOutput
-): Promise<Result<TTarget>>;
-export function encodeAsResultPromise<TOutput, TTarget>(
-  data: TOutput,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>
-): Promise<Result<TTarget>>;
+export function encodeAsResultPromise<S extends AnySchema>(
+  schema: S
+): (data: Output<S>) => Promise<Result<Input<S>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Output<SInput>) => Promise<Result<Output<SOutput>>>;
+export function encodeAsResultPromise<S extends AnySchema>(
+  schema: S,
+  data: Output<S>
+): Promise<Result<Input<S>>>;
+export function encodeAsResultPromise<S extends AnySchema>(
+  data: Output<S>,
+  schema: S
+): Promise<Result<Input<S>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Output<SInput>) => Promise<Result<Output<SOutput>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Output<SInput>
+): Promise<Result<Output<SOutput>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promise<Result<Output<SOutput>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Output<SInput>
+): Promise<Result<Output<SOutput>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promise<Result<Output<SOutput>>>;
 
 /**
  * Runs the schema's encode direction: Output back to Input. Only the first
@@ -1701,48 +1706,48 @@ export function encodeAsResultPromise<TOutput, TTarget>(
  * There is no promisable THROWING variant: two shapes to branch on is
  * already the cost of not knowing, and by then you know.
  */
-export function encodeAsPromisableResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TOutput) => Promisable<Result<TInput>>;
-export function encodeAsPromisableResult<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>
-): (data: TOutput) => Promisable<Result<TTarget>>;
-export function encodeAsPromisableResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: TOutput
-): Promisable<Result<TInput>>;
-export function encodeAsPromisableResult<TInput, TOutput>(
-  data: TOutput,
-  schema: SchemaLike<TInput, TOutput>
-): Promisable<Result<TInput>>;
-export function encodeAsPromisableResult<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>
-): (data: TOutput) => Promisable<Result<TTarget>>;
-export function encodeAsPromisableResult<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>,
-  data: TOutput
-): Promisable<Result<TTarget>>;
-export function encodeAsPromisableResult<TOutput, TTarget>(
-  data: TOutput,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, TTarget>
-): Promisable<Result<TTarget>>;
-export function encodeAsPromisableResult<TOutput, TTarget>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>,
-  data: TOutput
-): Promisable<Result<TTarget>>;
-export function encodeAsPromisableResult<TOutput, TTarget>(
-  data: TOutput,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, TTarget>
-): Promisable<Result<TTarget>>;
+export function encodeAsPromisableResult<S extends AnySchema>(
+  schema: S
+): (data: Output<S>) => Promisable<Result<Input<S>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Output<SInput>) => Promisable<Result<Output<SOutput>>>;
+export function encodeAsPromisableResult<S extends AnySchema>(
+  schema: S,
+  data: Output<S>
+): Promisable<Result<Input<S>>>;
+export function encodeAsPromisableResult<S extends AnySchema>(
+  data: Output<S>,
+  schema: S
+): Promisable<Result<Input<S>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Output<SInput>) => Promisable<Result<Output<SOutput>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Output<SInput>
+): Promisable<Result<Output<SOutput>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promisable<Result<Output<SOutput>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Output<SInput>
+): Promisable<Result<Output<SOutput>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promisable<Result<Output<SOutput>>>;
 
 /**
  * Validates a value against the schema's Input and hands back the value
@@ -1752,48 +1757,48 @@ export function encodeAsPromisableResult<TOutput, TTarget>(
  *
  * Throws `S.Error` on failure.
  */
-export function makeInputOrThrow<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: Unbranded<TInput>) => TInput;
-export function makeInputOrThrow<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>
-): (data: Unbranded<TInput>) => TInput;
-export function makeInputOrThrow<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: Unbranded<TInput>
-): TInput;
-export function makeInputOrThrow<TInput, TOutput>(
-  data: Unbranded<TInput>,
-  schema: SchemaLike<TInput, TOutput>
-): TInput;
-export function makeInputOrThrow<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): (data: Unbranded<TInput>) => TInput;
-export function makeInputOrThrow<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  data: Unbranded<TInput>
-): TInput;
-export function makeInputOrThrow<TInput>(
-  data: Unbranded<TInput>,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>
-): TInput;
-export function makeInputOrThrow<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>,
-  data: Unbranded<TInput>
-): TInput;
-export function makeInputOrThrow<TInput>(
-  data: Unbranded<TInput>,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): TInput;
+export function makeInputOrThrow<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Input<S>>) => Input<S>;
+export function makeInputOrThrow<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema
+): (data: Unbranded<Input<SInput>>) => Input<SInput>;
+export function makeInputOrThrow<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Input<S>>
+): Input<S>;
+export function makeInputOrThrow<S extends AnySchema>(
+  data: Unbranded<Input<S>>,
+  schema: S
+): Input<S>;
+export function makeInputOrThrow<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): (data: Unbranded<Input<SInput>>) => Input<SInput>;
+export function makeInputOrThrow<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  data: Unbranded<Input<SInput>>
+): Input<SInput>;
+export function makeInputOrThrow<SInput extends AnySchema>(
+  data: Unbranded<Input<SInput>>,
+  s1: SInput,
+  s2: AnySchema
+): Input<SInput>;
+export function makeInputOrThrow<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema,
+  data: Unbranded<Input<SInput>>
+): Input<SInput>;
+export function makeInputOrThrow<SInput extends AnySchema>(
+  data: Unbranded<Input<SInput>>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): Input<SInput>;
 
 /**
  * Validates a value against the schema's Input and hands back the value
@@ -1805,48 +1810,48 @@ export function makeInputOrThrow<TInput>(
  * wired wrong, which fails for every input - still throws: it is raised where
  * the operation is created.
  */
-export function makeInputAsResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: Unbranded<TInput>) => Result<TInput>;
-export function makeInputAsResult<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>
-): (data: Unbranded<TInput>) => Result<TInput>;
-export function makeInputAsResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: Unbranded<TInput>
-): Result<TInput>;
-export function makeInputAsResult<TInput, TOutput>(
-  data: Unbranded<TInput>,
-  schema: SchemaLike<TInput, TOutput>
-): Result<TInput>;
-export function makeInputAsResult<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): (data: Unbranded<TInput>) => Result<TInput>;
-export function makeInputAsResult<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  data: Unbranded<TInput>
-): Result<TInput>;
-export function makeInputAsResult<TInput>(
-  data: Unbranded<TInput>,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>
-): Result<TInput>;
-export function makeInputAsResult<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>,
-  data: Unbranded<TInput>
-): Result<TInput>;
-export function makeInputAsResult<TInput>(
-  data: Unbranded<TInput>,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): Result<TInput>;
+export function makeInputAsResult<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Input<S>>) => Result<Input<S>>;
+export function makeInputAsResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema
+): (data: Unbranded<Input<SInput>>) => Result<Input<SInput>>;
+export function makeInputAsResult<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Input<S>>
+): Result<Input<S>>;
+export function makeInputAsResult<S extends AnySchema>(
+  data: Unbranded<Input<S>>,
+  schema: S
+): Result<Input<S>>;
+export function makeInputAsResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): (data: Unbranded<Input<SInput>>) => Result<Input<SInput>>;
+export function makeInputAsResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  data: Unbranded<Input<SInput>>
+): Result<Input<SInput>>;
+export function makeInputAsResult<SInput extends AnySchema>(
+  data: Unbranded<Input<SInput>>,
+  s1: SInput,
+  s2: AnySchema
+): Result<Input<SInput>>;
+export function makeInputAsResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema,
+  data: Unbranded<Input<SInput>>
+): Result<Input<SInput>>;
+export function makeInputAsResult<SInput extends AnySchema>(
+  data: Unbranded<Input<SInput>>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): Result<Input<SInput>>;
 
 /**
  * Validates a value against the schema's Input and hands back the value
@@ -1858,48 +1863,48 @@ export function makeInputAsResult<TInput>(
  * `S.Error` on failure. A synchronous schema is lifted into a promise too, so
  * the return type holds either way.
  */
-export function makeInputAsPromiseOrReject<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: Unbranded<TInput>) => Promise<TInput>;
-export function makeInputAsPromiseOrReject<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>
-): (data: Unbranded<TInput>) => Promise<TInput>;
-export function makeInputAsPromiseOrReject<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: Unbranded<TInput>
-): Promise<TInput>;
-export function makeInputAsPromiseOrReject<TInput, TOutput>(
-  data: Unbranded<TInput>,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<TInput>;
-export function makeInputAsPromiseOrReject<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): (data: Unbranded<TInput>) => Promise<TInput>;
-export function makeInputAsPromiseOrReject<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  data: Unbranded<TInput>
-): Promise<TInput>;
-export function makeInputAsPromiseOrReject<TInput>(
-  data: Unbranded<TInput>,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>
-): Promise<TInput>;
-export function makeInputAsPromiseOrReject<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>,
-  data: Unbranded<TInput>
-): Promise<TInput>;
-export function makeInputAsPromiseOrReject<TInput>(
-  data: Unbranded<TInput>,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): Promise<TInput>;
+export function makeInputAsPromiseOrReject<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Input<S>>) => Promise<Input<S>>;
+export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema
+): (data: Unbranded<Input<SInput>>) => Promise<Input<SInput>>;
+export function makeInputAsPromiseOrReject<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Input<S>>
+): Promise<Input<S>>;
+export function makeInputAsPromiseOrReject<S extends AnySchema>(
+  data: Unbranded<Input<S>>,
+  schema: S
+): Promise<Input<S>>;
+export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): (data: Unbranded<Input<SInput>>) => Promise<Input<SInput>>;
+export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  data: Unbranded<Input<SInput>>
+): Promise<Input<SInput>>;
+export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
+  data: Unbranded<Input<SInput>>,
+  s1: SInput,
+  s2: AnySchema
+): Promise<Input<SInput>>;
+export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema,
+  data: Unbranded<Input<SInput>>
+): Promise<Input<SInput>>;
+export function makeInputAsPromiseOrReject<SInput extends AnySchema>(
+  data: Unbranded<Input<SInput>>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): Promise<Input<SInput>>;
 
 /**
  * Validates a value against the schema's Input and hands back the value
@@ -1909,48 +1914,48 @@ export function makeInputAsPromiseOrReject<TInput>(
  *
  * `AsPromiseOrReject` with the failure in the type instead of the rejection.
  */
-export function makeInputAsResultPromise<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: Unbranded<TInput>) => Promise<Result<TInput>>;
-export function makeInputAsResultPromise<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>
-): (data: Unbranded<TInput>) => Promise<Result<TInput>>;
-export function makeInputAsResultPromise<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: Unbranded<TInput>
-): Promise<Result<TInput>>;
-export function makeInputAsResultPromise<TInput, TOutput>(
-  data: Unbranded<TInput>,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<Result<TInput>>;
-export function makeInputAsResultPromise<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): (data: Unbranded<TInput>) => Promise<Result<TInput>>;
-export function makeInputAsResultPromise<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  data: Unbranded<TInput>
-): Promise<Result<TInput>>;
-export function makeInputAsResultPromise<TInput>(
-  data: Unbranded<TInput>,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>
-): Promise<Result<TInput>>;
-export function makeInputAsResultPromise<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>,
-  data: Unbranded<TInput>
-): Promise<Result<TInput>>;
-export function makeInputAsResultPromise<TInput>(
-  data: Unbranded<TInput>,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): Promise<Result<TInput>>;
+export function makeInputAsResultPromise<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Input<S>>) => Promise<Result<Input<S>>>;
+export function makeInputAsResultPromise<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema
+): (data: Unbranded<Input<SInput>>) => Promise<Result<Input<SInput>>>;
+export function makeInputAsResultPromise<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Input<S>>
+): Promise<Result<Input<S>>>;
+export function makeInputAsResultPromise<S extends AnySchema>(
+  data: Unbranded<Input<S>>,
+  schema: S
+): Promise<Result<Input<S>>>;
+export function makeInputAsResultPromise<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): (data: Unbranded<Input<SInput>>) => Promise<Result<Input<SInput>>>;
+export function makeInputAsResultPromise<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  data: Unbranded<Input<SInput>>
+): Promise<Result<Input<SInput>>>;
+export function makeInputAsResultPromise<SInput extends AnySchema>(
+  data: Unbranded<Input<SInput>>,
+  s1: SInput,
+  s2: AnySchema
+): Promise<Result<Input<SInput>>>;
+export function makeInputAsResultPromise<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema,
+  data: Unbranded<Input<SInput>>
+): Promise<Result<Input<SInput>>>;
+export function makeInputAsResultPromise<SInput extends AnySchema>(
+  data: Unbranded<Input<SInput>>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): Promise<Result<Input<SInput>>>;
 
 /**
  * Validates a value against the schema's Input and hands back the value
@@ -1965,96 +1970,96 @@ export function makeInputAsResultPromise<TInput>(
  * There is no promisable THROWING variant: two shapes to branch on is
  * already the cost of not knowing, and by then you know.
  */
-export function makeInputAsPromisableResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: Unbranded<TInput>) => Promisable<Result<TInput>>;
-export function makeInputAsPromisableResult<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>
-): (data: Unbranded<TInput>) => Promisable<Result<TInput>>;
-export function makeInputAsPromisableResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: Unbranded<TInput>
-): Promisable<Result<TInput>>;
-export function makeInputAsPromisableResult<TInput, TOutput>(
-  data: Unbranded<TInput>,
-  schema: SchemaLike<TInput, TOutput>
-): Promisable<Result<TInput>>;
-export function makeInputAsPromisableResult<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): (data: Unbranded<TInput>) => Promisable<Result<TInput>>;
-export function makeInputAsPromisableResult<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  data: Unbranded<TInput>
-): Promisable<Result<TInput>>;
-export function makeInputAsPromisableResult<TInput>(
-  data: Unbranded<TInput>,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>
-): Promisable<Result<TInput>>;
-export function makeInputAsPromisableResult<TInput>(
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>,
-  data: Unbranded<TInput>
-): Promisable<Result<TInput>>;
-export function makeInputAsPromisableResult<TInput>(
-  data: Unbranded<TInput>,
-  s1: SchemaLike<TInput, unknown>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): Promisable<Result<TInput>>;
+export function makeInputAsPromisableResult<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Input<S>>) => Promisable<Result<Input<S>>>;
+export function makeInputAsPromisableResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema
+): (data: Unbranded<Input<SInput>>) => Promisable<Result<Input<SInput>>>;
+export function makeInputAsPromisableResult<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Input<S>>
+): Promisable<Result<Input<S>>>;
+export function makeInputAsPromisableResult<S extends AnySchema>(
+  data: Unbranded<Input<S>>,
+  schema: S
+): Promisable<Result<Input<S>>>;
+export function makeInputAsPromisableResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): (data: Unbranded<Input<SInput>>) => Promisable<Result<Input<SInput>>>;
+export function makeInputAsPromisableResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  data: Unbranded<Input<SInput>>
+): Promisable<Result<Input<SInput>>>;
+export function makeInputAsPromisableResult<SInput extends AnySchema>(
+  data: Unbranded<Input<SInput>>,
+  s1: SInput,
+  s2: AnySchema
+): Promisable<Result<Input<SInput>>>;
+export function makeInputAsPromisableResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema,
+  data: Unbranded<Input<SInput>>
+): Promisable<Result<Input<SInput>>>;
+export function makeInputAsPromisableResult<SInput extends AnySchema>(
+  data: Unbranded<Input<SInput>>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): Promisable<Result<Input<SInput>>>;
 
 /**
  * `makeInput` for the Output side.
  *
  * Throws `S.Error` on failure.
  */
-export function makeOutputOrThrow<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: Unbranded<TOutput>) => TOutput;
-export function makeOutputOrThrow<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>
-): (data: Unbranded<TOutput>) => TOutput;
-export function makeOutputOrThrow<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: Unbranded<TOutput>
-): TOutput;
-export function makeOutputOrThrow<TInput, TOutput>(
-  data: Unbranded<TOutput>,
-  schema: SchemaLike<TInput, TOutput>
-): TOutput;
-export function makeOutputOrThrow<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): (data: Unbranded<TOutput>) => TOutput;
-export function makeOutputOrThrow<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  data: Unbranded<TOutput>
-): TOutput;
-export function makeOutputOrThrow<TOutput>(
-  data: Unbranded<TOutput>,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>
-): TOutput;
-export function makeOutputOrThrow<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>,
-  data: Unbranded<TOutput>
-): TOutput;
-export function makeOutputOrThrow<TOutput>(
-  data: Unbranded<TOutput>,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): TOutput;
+export function makeOutputOrThrow<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Output<S>>) => Output<S>;
+export function makeOutputOrThrow<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema
+): (data: Unbranded<Output<SInput>>) => Output<SInput>;
+export function makeOutputOrThrow<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Output<S>>
+): Output<S>;
+export function makeOutputOrThrow<S extends AnySchema>(
+  data: Unbranded<Output<S>>,
+  schema: S
+): Output<S>;
+export function makeOutputOrThrow<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): (data: Unbranded<Output<SInput>>) => Output<SInput>;
+export function makeOutputOrThrow<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  data: Unbranded<Output<SInput>>
+): Output<SInput>;
+export function makeOutputOrThrow<SInput extends AnySchema>(
+  data: Unbranded<Output<SInput>>,
+  s1: SInput,
+  s2: AnySchema
+): Output<SInput>;
+export function makeOutputOrThrow<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema,
+  data: Unbranded<Output<SInput>>
+): Output<SInput>;
+export function makeOutputOrThrow<SInput extends AnySchema>(
+  data: Unbranded<Output<SInput>>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): Output<SInput>;
 
 /**
  * `makeInput` for the Output side.
@@ -2063,48 +2068,48 @@ export function makeOutputOrThrow<TOutput>(
  * wired wrong, which fails for every input - still throws: it is raised where
  * the operation is created.
  */
-export function makeOutputAsResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: Unbranded<TOutput>) => Result<TOutput>;
-export function makeOutputAsResult<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>
-): (data: Unbranded<TOutput>) => Result<TOutput>;
-export function makeOutputAsResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: Unbranded<TOutput>
-): Result<TOutput>;
-export function makeOutputAsResult<TInput, TOutput>(
-  data: Unbranded<TOutput>,
-  schema: SchemaLike<TInput, TOutput>
-): Result<TOutput>;
-export function makeOutputAsResult<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): (data: Unbranded<TOutput>) => Result<TOutput>;
-export function makeOutputAsResult<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  data: Unbranded<TOutput>
-): Result<TOutput>;
-export function makeOutputAsResult<TOutput>(
-  data: Unbranded<TOutput>,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>
-): Result<TOutput>;
-export function makeOutputAsResult<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>,
-  data: Unbranded<TOutput>
-): Result<TOutput>;
-export function makeOutputAsResult<TOutput>(
-  data: Unbranded<TOutput>,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): Result<TOutput>;
+export function makeOutputAsResult<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Output<S>>) => Result<Output<S>>;
+export function makeOutputAsResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema
+): (data: Unbranded<Output<SInput>>) => Result<Output<SInput>>;
+export function makeOutputAsResult<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Output<S>>
+): Result<Output<S>>;
+export function makeOutputAsResult<S extends AnySchema>(
+  data: Unbranded<Output<S>>,
+  schema: S
+): Result<Output<S>>;
+export function makeOutputAsResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): (data: Unbranded<Output<SInput>>) => Result<Output<SInput>>;
+export function makeOutputAsResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  data: Unbranded<Output<SInput>>
+): Result<Output<SInput>>;
+export function makeOutputAsResult<SInput extends AnySchema>(
+  data: Unbranded<Output<SInput>>,
+  s1: SInput,
+  s2: AnySchema
+): Result<Output<SInput>>;
+export function makeOutputAsResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema,
+  data: Unbranded<Output<SInput>>
+): Result<Output<SInput>>;
+export function makeOutputAsResult<SInput extends AnySchema>(
+  data: Unbranded<Output<SInput>>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): Result<Output<SInput>>;
 
 /**
  * `makeInput` for the Output side.
@@ -2113,96 +2118,96 @@ export function makeOutputAsResult<TOutput>(
  * `S.Error` on failure. A synchronous schema is lifted into a promise too, so
  * the return type holds either way.
  */
-export function makeOutputAsPromiseOrReject<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: Unbranded<TOutput>) => Promise<TOutput>;
-export function makeOutputAsPromiseOrReject<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>
-): (data: Unbranded<TOutput>) => Promise<TOutput>;
-export function makeOutputAsPromiseOrReject<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: Unbranded<TOutput>
-): Promise<TOutput>;
-export function makeOutputAsPromiseOrReject<TInput, TOutput>(
-  data: Unbranded<TOutput>,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<TOutput>;
-export function makeOutputAsPromiseOrReject<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): (data: Unbranded<TOutput>) => Promise<TOutput>;
-export function makeOutputAsPromiseOrReject<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  data: Unbranded<TOutput>
-): Promise<TOutput>;
-export function makeOutputAsPromiseOrReject<TOutput>(
-  data: Unbranded<TOutput>,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>
-): Promise<TOutput>;
-export function makeOutputAsPromiseOrReject<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>,
-  data: Unbranded<TOutput>
-): Promise<TOutput>;
-export function makeOutputAsPromiseOrReject<TOutput>(
-  data: Unbranded<TOutput>,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): Promise<TOutput>;
+export function makeOutputAsPromiseOrReject<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Output<S>>) => Promise<Output<S>>;
+export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema
+): (data: Unbranded<Output<SInput>>) => Promise<Output<SInput>>;
+export function makeOutputAsPromiseOrReject<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Output<S>>
+): Promise<Output<S>>;
+export function makeOutputAsPromiseOrReject<S extends AnySchema>(
+  data: Unbranded<Output<S>>,
+  schema: S
+): Promise<Output<S>>;
+export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): (data: Unbranded<Output<SInput>>) => Promise<Output<SInput>>;
+export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  data: Unbranded<Output<SInput>>
+): Promise<Output<SInput>>;
+export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
+  data: Unbranded<Output<SInput>>,
+  s1: SInput,
+  s2: AnySchema
+): Promise<Output<SInput>>;
+export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema,
+  data: Unbranded<Output<SInput>>
+): Promise<Output<SInput>>;
+export function makeOutputAsPromiseOrReject<SInput extends AnySchema>(
+  data: Unbranded<Output<SInput>>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): Promise<Output<SInput>>;
 
 /**
  * `makeInput` for the Output side.
  *
  * `AsPromiseOrReject` with the failure in the type instead of the rejection.
  */
-export function makeOutputAsResultPromise<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: Unbranded<TOutput>) => Promise<Result<TOutput>>;
-export function makeOutputAsResultPromise<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>
-): (data: Unbranded<TOutput>) => Promise<Result<TOutput>>;
-export function makeOutputAsResultPromise<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: Unbranded<TOutput>
-): Promise<Result<TOutput>>;
-export function makeOutputAsResultPromise<TInput, TOutput>(
-  data: Unbranded<TOutput>,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<Result<TOutput>>;
-export function makeOutputAsResultPromise<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): (data: Unbranded<TOutput>) => Promise<Result<TOutput>>;
-export function makeOutputAsResultPromise<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  data: Unbranded<TOutput>
-): Promise<Result<TOutput>>;
-export function makeOutputAsResultPromise<TOutput>(
-  data: Unbranded<TOutput>,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>
-): Promise<Result<TOutput>>;
-export function makeOutputAsResultPromise<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>,
-  data: Unbranded<TOutput>
-): Promise<Result<TOutput>>;
-export function makeOutputAsResultPromise<TOutput>(
-  data: Unbranded<TOutput>,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): Promise<Result<TOutput>>;
+export function makeOutputAsResultPromise<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Output<S>>) => Promise<Result<Output<S>>>;
+export function makeOutputAsResultPromise<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema
+): (data: Unbranded<Output<SInput>>) => Promise<Result<Output<SInput>>>;
+export function makeOutputAsResultPromise<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Output<S>>
+): Promise<Result<Output<S>>>;
+export function makeOutputAsResultPromise<S extends AnySchema>(
+  data: Unbranded<Output<S>>,
+  schema: S
+): Promise<Result<Output<S>>>;
+export function makeOutputAsResultPromise<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): (data: Unbranded<Output<SInput>>) => Promise<Result<Output<SInput>>>;
+export function makeOutputAsResultPromise<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  data: Unbranded<Output<SInput>>
+): Promise<Result<Output<SInput>>>;
+export function makeOutputAsResultPromise<SInput extends AnySchema>(
+  data: Unbranded<Output<SInput>>,
+  s1: SInput,
+  s2: AnySchema
+): Promise<Result<Output<SInput>>>;
+export function makeOutputAsResultPromise<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema,
+  data: Unbranded<Output<SInput>>
+): Promise<Result<Output<SInput>>>;
+export function makeOutputAsResultPromise<SInput extends AnySchema>(
+  data: Unbranded<Output<SInput>>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): Promise<Result<Output<SInput>>>;
 
 /**
  * `makeInput` for the Output side.
@@ -2214,48 +2219,48 @@ export function makeOutputAsResultPromise<TOutput>(
  * There is no promisable THROWING variant: two shapes to branch on is
  * already the cost of not knowing, and by then you know.
  */
-export function makeOutputAsPromisableResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: Unbranded<TOutput>) => Promisable<Result<TOutput>>;
-export function makeOutputAsPromisableResult<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>
-): (data: Unbranded<TOutput>) => Promisable<Result<TOutput>>;
-export function makeOutputAsPromisableResult<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: Unbranded<TOutput>
-): Promisable<Result<TOutput>>;
-export function makeOutputAsPromisableResult<TInput, TOutput>(
-  data: Unbranded<TOutput>,
-  schema: SchemaLike<TInput, TOutput>
-): Promisable<Result<TOutput>>;
-export function makeOutputAsPromisableResult<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): (data: Unbranded<TOutput>) => Promisable<Result<TOutput>>;
-export function makeOutputAsPromisableResult<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  data: Unbranded<TOutput>
-): Promisable<Result<TOutput>>;
-export function makeOutputAsPromisableResult<TOutput>(
-  data: Unbranded<TOutput>,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>
-): Promisable<Result<TOutput>>;
-export function makeOutputAsPromisableResult<TOutput>(
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>,
-  data: Unbranded<TOutput>
-): Promisable<Result<TOutput>>;
-export function makeOutputAsPromisableResult<TOutput>(
-  data: Unbranded<TOutput>,
-  s1: SchemaLike<unknown, TOutput>,
-  s2: SchemaLike<unknown, unknown>,
-  s3: SchemaLike<unknown, unknown>
-): Promisable<Result<TOutput>>;
+export function makeOutputAsPromisableResult<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Output<S>>) => Promisable<Result<Output<S>>>;
+export function makeOutputAsPromisableResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema
+): (data: Unbranded<Output<SInput>>) => Promisable<Result<Output<SInput>>>;
+export function makeOutputAsPromisableResult<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Output<S>>
+): Promisable<Result<Output<S>>>;
+export function makeOutputAsPromisableResult<S extends AnySchema>(
+  data: Unbranded<Output<S>>,
+  schema: S
+): Promisable<Result<Output<S>>>;
+export function makeOutputAsPromisableResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): (data: Unbranded<Output<SInput>>) => Promisable<Result<Output<SInput>>>;
+export function makeOutputAsPromisableResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  data: Unbranded<Output<SInput>>
+): Promisable<Result<Output<SInput>>>;
+export function makeOutputAsPromisableResult<SInput extends AnySchema>(
+  data: Unbranded<Output<SInput>>,
+  s1: SInput,
+  s2: AnySchema
+): Promisable<Result<Output<SInput>>>;
+export function makeOutputAsPromisableResult<SInput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema,
+  data: Unbranded<Output<SInput>>
+): Promisable<Result<Output<SInput>>>;
+export function makeOutputAsPromisableResult<SInput extends AnySchema>(
+  data: Unbranded<Output<SInput>>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: AnySchema
+): Promisable<Result<Output<SInput>>>;
 
 /**
  * Whether the value is a valid Input for the schema. Never throws for a failed

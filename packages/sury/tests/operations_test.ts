@@ -249,6 +249,47 @@ test("the public types resolve to the right call form", () => {
   const chain = S.parseOrThrow(S.unknown, User); chain satisfies (d: unknown) => { id: string };
   // @ts-expect-error the two-schema form is a chain, never "parse a schema as data"
   const notValue: { id: string } = S.parseOrThrow(S.unknown, User);
+
+  const maybe = "1" as string | undefined;
+  const num = 1 as number | undefined;
+  S.decodeOrThrow(S.string, "1");
+  S.decodeOrThrow("1", S.string);
+  S.decodeOrThrow(S.string)("1");
+  S.decodeOrThrow(S.string, Str, "1");
+  S.decodeAsResult(S.string, "1");
+  // @ts-expect-error wider than string input
+  S.decodeOrThrow(S.string, maybe);
+  // @ts-expect-error wider than string input
+  S.decodeOrThrow(maybe, S.string);
+  // @ts-expect-error wider than string input
+  S.decodeOrThrow(S.string)(maybe);
+  // @ts-expect-error wider than string input
+  S.decodeOrThrow(S.string, Str, maybe);
+  // @ts-expect-error wider than string input
+  S.decodeAsResult(S.string, maybe);
+
+  S.encodeOrThrow(S.string, "1");
+  S.encodeOrThrow(Str, 1);
+  S.encodeAsResult(Str)(1);
+  // @ts-expect-error wider than string output
+  S.encodeOrThrow(S.string, maybe);
+  // @ts-expect-error wider than number output
+  S.encodeOrThrow(Str, num);
+  // @ts-expect-error wider than number output
+  S.encodeOrThrow(Str)(num);
+  // @ts-expect-error wider than number output
+  S.encodeAsResult(Str, num);
+
+  S.makeInputOrThrow(S.string, "1");
+  S.makeOutputOrThrow(Str, 1);
+  // @ts-expect-error wider than string input
+  S.makeInputOrThrow(S.string, maybe);
+  // @ts-expect-error wider than number output
+  S.makeOutputOrThrow(Str, num);
+
+  S.parseOrThrow(S.string, maybe);
+  S.assertInputOrThrow(S.string, maybe);
+  S.isInput(S.string, maybe);
 });
 
 // ── The other verbs ──────────────────────────────────────────────────────────
