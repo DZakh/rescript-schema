@@ -37,6 +37,18 @@ let myFormDataSchema = Sury.formData;
 
 Vitest$1.test("FormData schema", t => U.assertEqualSchemas(t, myFormDataSchema, Sury.formData, undefined));
 
+let myEnvSchema = Sury.env;
+
+Vitest$1.test("Env schema", t => U.assertEqualSchemas(t, myEnvSchema, Sury.env, undefined));
+
+let myUrlSearchParamsSchema = Sury.urlSearchParams;
+
+Vitest$1.test("UrlSearchParams schema", t => U.assertEqualSchemas(t, myUrlSearchParamsSchema, Sury.urlSearchParams, undefined));
+
+let myQueryStringSchema = Sury.queryString;
+
+Vitest$1.test("QueryString schema", t => U.assertEqualSchemas(t, myQueryStringSchema, Sury.queryString, undefined));
+
 let myNonEmptyTagsSchema = Sury.nonEmpty(Sury.array(Sury.string));
 
 Vitest$1.test("NonEmpty schema", t => U.assertEqualSchemas(t, myNonEmptyTagsSchema, Sury.nonEmpty(Sury.array(Sury.string)), undefined));
@@ -125,6 +137,9 @@ export {
   myDateSchema,
   myBlobSchema,
   myFormDataSchema,
+  myEnvSchema,
+  myUrlSearchParamsSchema,
+  myQueryStringSchema,
   myNonEmptyTagsSchema,
   userSchema,
   identifiersSchema,
