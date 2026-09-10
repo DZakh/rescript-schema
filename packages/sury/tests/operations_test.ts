@@ -95,7 +95,7 @@ test("an operation that provably cannot throw emits no try", () => {
   expect(
     S.parseAsResult(S.schema({ id: S.unknown }).with(S.noValidation, true)).toString(),
   ).toMatchInlineSnapshot(
-    `"i=>{return {success:true,value:{id:i["id"]},error:void 0}}"`,
+    `"i=>{return {success:true,value:{id:i.id},error:void 0}}"`,
   );
 });
 
@@ -288,7 +288,7 @@ test("make validates and hands back the value it was given", () => {
 
 test("make compiles to the checks plus the value, with no wrapper", () => {
   expect(S.makeInputOrThrow(user).toString()).toMatchInlineSnapshot(
-    `"i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i["id"];typeof v0==="string"||e[0](v0);return i}"`,
+    `"i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i.id;typeof v0==="string"||e[0](v0);return i}"`,
   );
   // Nothing to check: the operation is the identity itself.
   expect(S.makeInputOrThrow(S.unknown)).toBe(S.parseOrThrow(S.unknown));
@@ -300,7 +300,7 @@ test("is answers a boolean from one compiled operation", () => {
   expect(S.isOutput(strToNum, 1)).toBe(true);
   expect(S.isOutput(strToNum, "1")).toBe(false);
   expect(S.isInput(user).toString()).toMatchInlineSnapshot(
-    `"i=>{try{typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i["id"];typeof v0==="string"||e[0](v0);return true}catch(v1){return false}}"`,
+    `"i=>{try{typeof i==="object"&&i&&!Array.isArray(i)||e[1](i);let v0=i.id;typeof v0==="string"||e[0](v0);return true}catch(v1){return false}}"`,
   );
   // Nothing can fail, so there is nothing to catch.
   expect(S.isInput(S.unknown).toString()).toMatchInlineSnapshot(`"i=>{return true}"`);
@@ -392,7 +392,7 @@ test("make hands back the value it was given, even when the body rebinds it", ()
   expect(S.makeOutputOrThrow(union, 5)).toBe(5);
   expect(S.makeOutputAsResult(union, 5)).toEqual({ success: true, value: 5, error: undefined });
   expect(S.makeOutputOrThrow(union).toString()).toMatchInlineSnapshot(
-    `"i=>{let v1=i;for(;;){if(typeof i==="number"&&i===i){let v0;try{v0=e[0](i)}catch(x){e[1](x)}typeof v0==="string"||e[2](v0);i=v0;break}if(typeof i==="boolean")break;e[3](i)}return v1}"`,
+    `"i=>{let v1=i;for(;;){if(typeof i==="number"&&i==i){let v0;try{v0=e[0](i)}catch(x){e[1](x)}typeof v0==="string"||e[2](v0);i=v0;break}if(typeof i==="boolean")break;e[3](i)}return v1}"`,
   );
   // Nothing to run means nothing can rebind, so the extra binding isn't there
   // and the operation still reads as the identity.

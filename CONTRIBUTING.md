@@ -29,12 +29,12 @@ This section describes the internal architecture of Sury to help with understand
 The internal representation of a type schema, containing:
 
 - `tag`: Type identifier (e.g., `stringTag`, `objectTag`, `arrayTag`)
-- `decoder`: Builder function for input validation (type checking)
-- `encoder`: Builder function for converting from different schema types
-- `parser`: Builder function for transformations after decoding (used by `S.shape`, `S.to`)
-- `serializer`: Builder function for reverse transformations
-- `inputRefiner`: User validations run on the typed input, before the decoder
-- `refiner`: User validations run on the assembled output, after the decoder (`S.reverse` swaps `inputRefiner` ↔ `refiner`)
+- `dc` (decoder): Builder function for input validation (type checking)
+- `en` (encoder): Builder function for converting from different schema types
+- `pr` (parser): Builder function for transformations after decoding (used by `S.shape`, `S.to`)
+- `sz` (serializer): Builder function for reverse transformations
+- `ir` (inputRefiner): User validations run on the typed input, before the decoder
+- `rf` (refiner): User validations run on the assembled output, after the decoder (`S.reverse` swaps `ir` ↔ `rf`)
 - `to`: Target schema for transformations (set by `S.shape`, `S.to`)
 - `from`: Path array indicating where this value comes from in shaped schemas
 - `properties`: For object schemas, a dict of field name to schema
@@ -87,7 +87,7 @@ Input Schema
 │     - continue the chain inside `.then(...)`                 │
 │                                                              │
 │  else if val.isOutput (decoded, may still have `.to`):       │
-│     - follow `.to`: run `expected.parser` (custom decoder)   │
+│     - follow `.to`: run `expected.pr` (custom decoder)       │
 │       or `refine` onto `.to` (default encoder coercion)      │
 │                                                              │
 │  else (not yet decoded):                                     │
@@ -134,7 +134,7 @@ Checks emit as `cond || e[n](x);` (throw when the condition is false), not as
 - `B_next(prev, code, schema, expected)`: Creates the next val one step down the transform chain
 - `B_refine(val, schema?, checks?)`: Clones a val to attach `checks` while preserving the var-allocation link
 - `B_hoistDecl(owner, decl)`: Attaches a `let` declaration to a still-open owner val (prev/parent/self) that dominates and outlives the materialized value, replacing the old `allocate` side-channel
-- `B_markOutput(val, valInput)`: Applies `inputRefiner`/`refiner` and marks the val as output
+- `B_markOutput(val, valInput)`: Applies `ir`/`rf` and marks the val as output
 - `B_embed(val, value)`: Embeds a runtime value (function, object) and returns a reference like `e[0]`
 
 ### Shaped Schemas (S.shape, S.object with definer)
@@ -337,30 +337,22 @@ case the harness *should* have caught or guided better - a missing check, a weak
 error message, a strictness gap that let a bad spec through - add a bullet here
 instead of silently working around it.
 
-- An example's `error` is matched verbatim, so one raised by the *platform*
-  rather than by Sury still pins that engine's wording: `new Blob([Symbol()])`
-  says "Cannot convert a Symbol value to a string" on Node 22 and "The argument
-  'value' is invalid" on Node 24. The golden now names the class of anything
-  that isn't a `SuryError`, so such a throw is visible as a foreign one rather
-  than reading like a Sury rejection - but the message underneath it is still
-  compared byte for byte. Write such an example so the message is ours (an
-  input whose own `toString` throws), or let the check compare the class alone
-  once the golden says the failure is the platform's.
+- An example's `error` is matched verbatim, and `errorConstructor` is the
+  opt-out for a message that belongs to the platform rather than to Sury.
+  Nothing points an author at it: the failure is a golden that passed locally
+  and differs on the CI runner's Node, and the diff names the wording without
+  saying whose it is. The class prefix a foreign throw now carries is the
+  signal to key on - a mismatch on an `error` golden whose two sides share a
+  class could say "this message is the platform's; record `errorConstructor`
+  instead".
 
-- `ts.schema` has to evaluate, so a schema whose *construction* panics - every
-  argument the public API rejects outright, including the `"pack"`/`"unpack"`
-  pairs that don't name two readings - has no spec at all, only a
-  `creationError` for the ones that survive construction and fail at the
-  operation. `tests/content_test.ts` holds those. A `ts.constructionError`
-  beside `creationError` would keep them with the schema they reject.
-
-- `operations` names `parse`, `decode` and `encode` only, so `S.assertInputOrThrow` and
-  `S.isInput` have no golden anywhere. Both compile through the same builder chain
-  under a different result target, and a change to that target's handling broke
-  every `S.assertInputOrThrow(..., S.json)` and `S.isInput(S.jsonString)(...)` call with the whole
-  suite green. An `assert` op block, even one holding just an expression and a
-  pass/throw example, would have caught it; `tests/content_test.ts` holds it
-  instead.
+- `operations` has an `assert` and an `is` slot and no spec fills either, so
+  `S.assertInputOrThrow` and `S.isInput` still have no golden anywhere. Both
+  compile through the same builder chain under a different result target, and a
+  change to that target's handling broke every `S.assertInputOrThrow(..., S.json)`
+  and `S.isInput(S.jsonString)(...)` call with the whole suite green. One block,
+  holding just an expression and a pass/throw example, would have caught it;
+  `tests/content_test.ts` holds it instead.
 
 - `operations` names one schema's `parse`/`decode`/`encode`, so a **pipeline**
   - `S.decodeOrThrow(a, b, c)`, the multi-schema form `docs/js-usage.md`

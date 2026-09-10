@@ -42,6 +42,7 @@ import {
   B_merge,
   B_next,
   B_nextConst,
+  B_nextVarOutput,
   B_scope,
 } from "./builder";
 import {
@@ -54,7 +55,6 @@ import {
   traverseDefinition,
   valGet,
 } from "./composites";
-import { type TupleCtx } from "./modifiers";
 import { getOp, getOutputSchema, parse, reverse } from "./parse";
 import { Literal_parse, unit } from "./primitives";
 import { unionFactory } from "./union";
@@ -65,7 +65,7 @@ type ShapedSerializerAcc = {
   flattened?: ShapedSerializerAcc[];
 };
 
-export type SchemaCtx = {
+type SchemaCtx = {
   m: (schema: Internal) => unknown;
 };
 
@@ -83,12 +83,29 @@ export type AdvancedObjectCtx = {
   flatten: (schema: Internal) => unknown;
 };
 
+type TupleCtx = {
+  item: (idx: number, schema: Internal) => unknown;
+  tag: (idx: number, value: unknown) => void;
+};
+
 const makeTag = (field: (location: string, schema: Internal) => unknown) =>
   (tag: string, asValue: unknown): void => {
     field(tag, definitionToSchema(asValue));
   };
 
-// Field-with-default as `if(v===void 0)v=def` plus the item's own decoder -
+const makeObjectCtx = (
+  field: (fieldName: string, schema: Internal) => unknown,
+  flatten: (schema: Internal) => unknown,
+): AdvancedObjectCtx => ({
+  field,
+  f: field,
+  fieldOr: makeFieldOr(field),
+  tag: makeTag(field),
+  nested: schemaNested,
+  flatten,
+});
+
+// Field-with-default as `if(v===void 0)v=def` plus the item's own decoder —
 // not `union([unit, item])` + Option_getOr. The anyOf/has/undefined shape is
 // what isOptional, JSON Schema (skip the unit arm, emit `default`) and json
 // omit still read; unionDecoder is what would pull the planner into every
@@ -144,13 +161,12 @@ const fieldOrSchema = (schema: Internal, or: unknown): Internal => {
     const itemOutput = parse(itemInput);
     const itemCode = B_merge(itemOutput);
     const assign = itemOutput.i === v ? "" : `${v}=${itemOutput.i};`;
-    const output = B_next(input, v, item, item);
-    output.v = _var;
-    output.io = true;
+    const output = B_nextVarOutput(input, v, item, item);
+    const presentBody = itemCode + assign;
     output.cp =
-      itemCode === "" && assign === ""
+      presentBody === ""
         ? `if(${v}===void 0)${v}=${defCode};`
-        : `if(${v}===void 0){${v}=${defCode}}else{${itemCode}${assign}}`;
+        : `if(${v}===void 0){${v}=${defCode}}else{${presentBody}}`;
     return output;
   };
   return mut;
@@ -211,8 +227,7 @@ export const schemaShape = <TValue>(schema: Internal, definer: (value: unknown) 
   });
 }
 
-function schemaNested(this: AdvancedObjectCtx & Record<string, unknown>, fieldName: string): AdvancedObjectCtx {
-  // TODO: Add a check that `this` is actually bound to a parent ctx?
+const schemaNested = function (this: AdvancedObjectCtx & Record<string, unknown>, fieldName: string): AdvancedObjectCtx {
   const parentCtx = this;
   const cacheId = `~${fieldName}`;
 
@@ -249,9 +264,6 @@ function schemaNested(this: AdvancedObjectCtx & Record<string, unknown>, fieldNa
       );
     };
 
-    const tag = makeTag(field);
-    const fieldOr = makeFieldOr(field);
-
     const flatten = (schema: Internal): unknown => {
       if (schema.type === objectTag) {
         const flattenedProperties = schema.properties;
@@ -271,22 +283,13 @@ function schemaNested(this: AdvancedObjectCtx & Record<string, unknown>, fieldNa
       }
     };
 
-    const ctx: AdvancedObjectCtx = {
-      // js/ts methods
-      field,
-      // methods
-      f: field,
-      fieldOr,
-      tag,
-      nested: schemaNested,
-      flatten,
-    };
+    const ctx = makeObjectCtx(field, flatten);
 
     (parentCtx as Record<string, unknown>)[cacheId] = ctx;
 
     return ctx;
   }
-}
+};
 
 // @__NO_SIDE_EFFECTS__
 export const schemaObject = (
@@ -329,19 +332,7 @@ export const schemaObject = (
     return proxifyShapedSchema(schema, [fieldName]);
   };
 
-  const tag = makeTag(field);
-  const fieldOr = makeFieldOr(field);
-
-  const ctx: AdvancedObjectCtx = {
-    // js/ts methods
-    field,
-    // methods
-    f: field,
-    fieldOr,
-    tag,
-    nested: schemaNested,
-    flatten,
-  };
+  const ctx = makeObjectCtx(field, flatten);
 
   const definition = definer(ctx);
 
@@ -424,7 +415,7 @@ const assembleShapedObject = (
   init?: (output: Val) => void,
   onMissing?: () => void
 ): Val => {
-  const output = schema.type === arrayTag ? makeArrayVal(input, schema) : makeObjectVal(input, schema);
+  const output = schema.type === arrayTag ? makeArrayVal(input) : makeObjectVal(input);
   output.io = true;
   if (init !== U) {
     init(output);
@@ -601,14 +592,12 @@ const getShapedSerializerOutput = (
     const resolvedTargetSchema = acc === U ? getOutputSchema(targetSchema) : targetSchema;
 
     const missingInput = (): never => {
-      // PORT-NOTE: the source shadows `path` here; renamed to `path2` (TS
-      // can't redeclare a parameter in the same scope).
-      const path2 =
+      const locatedPath =
         targetSchema.from !== U ? pathConcat(path, targetSchema.from) : path;
       return B_invalidOperation(
         input,
         `Missing input for ${inputExpression(targetSchema)}` +
-          (path2.length ? ` at ${pathToText(path2)}` : "")
+          (locatedPath.length ? ` at ${pathToText(locatedPath)}` : "")
       );
     };
 
@@ -662,7 +651,7 @@ const getShapedSerializerOutput = (
     // The walk built the head of `targetSchema`'s chain. If the schema also
     // carries a transform of its own, run it here: the assembled head is its
     // input, and nobody else will apply it (a pending operation-level `to`
-    // - `parser` absent - is the compile pipeline's job, not ours).
+    // with no parser is the compile pipeline's job, not ours).
     return targetSchema.parser === U ? assembled : parse(assembled);
   }
 }
@@ -697,18 +686,11 @@ export const schemaDefiner = (definer: (ctx: unknown) => unknown): Internal => {
   return definitionToSchema(definer(schemaCtx));
 }
 
-// Identifier alias (not a `schemaDefiner` property read) so esbuild can
-// tree-shake: a property-read initializer is treated as possibly
-// side-effectful and would retain the whole schema machinery in every bundle.
-// @__NO_SIDE_EFFECTS__
-export const schemaFactory = (definition: unknown): Internal => {
-  return definitionToSchema(definition);
-}
+export { definitionToSchema as schemaFactory } from "./composites";
 
-// PORT-NOTE: `enum` is a reserved word in TS - defined as `enum_` and
-// re-exported under the name `enum` (legal as an export alias).
+// `enum` is reserved in TS. Re-exported as `enum` below.
 // @__NO_SIDE_EFFECTS__
 const enum_ = (values: unknown[]): Internal => {
-  return unionFactory(values.map(schemaFactory));
+  return unionFactory(values.map(definitionToSchema));
 }
 export { enum_ as enum };

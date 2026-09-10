@@ -59,7 +59,7 @@ const fromArrayBuffer =
 // parse loop to unwrap: the awaited value is what the target asked for, not the
 // `ArrayBuffer` the platform hands back.
 //
-// The method is read off `B_readOnce`'s var rather than the val's expression:
+// The method is read off `v()`'s var rather than the val's expression:
 // that is what makes `.`'s precedence a non-question, where a val handed over as
 // a ternary would otherwise have the method read off the wrong branch.
 const read = (input: Val, call: string, schema: Internal): Val => {
@@ -82,7 +82,7 @@ const read = (input: Val, call: string, schema: Internal): Val => {
       });
   const output = B_computed(
     input,
-    `${B_readOnce(input)}${call}${failFn === U ? `` : `.catch(${failFn})`}`,
+    `${input.v()}${call}${failFn === U ? `` : `.catch(${failFn})`}`,
     schema,
     failFn === U ? U : `${failFn}(x)`,
   );
@@ -102,16 +102,16 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
       B_rejectUnsettled(input, input.e);
       const source = input.s;
       const sourceTagFlag = tagFlags[source.type]!;
-      // `B_readOnce` inside each branch that uses it: materializing the var up
+      // `v()` inside each branch that uses it: materializing the var up
       // front left a dead `let vN = …` on the two paths below, which take the
       // value as it stands.
       const toBytes = source.content?.bc?.toBytes;
       const parts = (sourceTagFlag & 2)
         ? toBytes
-          ? `${B_embed(input, toBytes)}(${B_readOnce(input)})`
-          : B_readOnce(input)
+          ? `${B_embed(input, toBytes)}(${input.v()})`
+          : input.v()
         : (sourceTagFlag & 8192) && source.class === Uint8Array
-          ? B_readOnce(input)
+          ? input.v()
           : U;
       if (parts !== U) {
         return B_next(input, `new ${B_embed(input, input.e.class)}([${parts}]${nameArg})`, input.e);

@@ -45,7 +45,7 @@ export const uint8Array: Internal = /* @__PURE__ */ initSchema(
     const sourceTagFlag = tagFlags[source.type]!;
 
     if ((sourceTagFlag & 2)) {
-      const value = B_readOnce(input);
+      const value = input.v();
       const toBytes = source.content?.bc?.toBytes;
       return B_next(
         input,
@@ -88,7 +88,7 @@ export const uint8Array: Internal = /* @__PURE__ */ initSchema(
       // position without being string-tagged.
       if (target.content !== U && (target.content.bc || !target.opens)) {
         const { format: asFormat, fromBytes } = bytesTarget(target, base64Content);
-        const code = `${B_embed(input, fromBytes)}(${B_readOnce(input)})`;
+        const code = `${B_embed(input, fromBytes)}(${input.v()})`;
         // A var when the next stage still runs (jsonString's escape-free splice
         // needs an identifier). The format singleton itself is done: mark output
         // so the manufactured text is not re-tested.
@@ -107,7 +107,7 @@ export const uint8Array: Internal = /* @__PURE__ */ initSchema(
         ? B_refine(
             B_computed(
               input,
-              `${B_embed(input, new TextDecoder())}.decode(${B_readOnce(input)})`,
+              `${B_embed(input, new TextDecoder())}.decode(${input.v()})`,
               target.content !== U ? openedText(target) : string,
             )
           )

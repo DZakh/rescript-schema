@@ -12,12 +12,10 @@ import {
   type Val
 } from "../base";
 import {
-  _var,
   B_embed,
   B_mergeWithPathPrepend,
-  B_next,
-  B_refine,
-  B_varWithoutAllocation
+  B_nextVar,
+  B_refine
 } from "../builder";
 import {
  addOpNode,
@@ -117,13 +115,10 @@ export const recursiveDecoder: Builder = (input) => {
   let outputDecl = "";
   let output: Val;
   if (hasTransform || isAsync) {
-    const outputVar = B_varWithoutAllocation(input.g);
-    outputDecl = `let ${outputVar};`;
+    output = B_nextVar(input, expectedSchema);
+    outputDecl = `let ${output.i};`;
 
-    output = B_next(input, outputVar, expectedSchema, expectedSchema);
-    output.v = _var;
-
-    output.cp = `${outputVar}=${recOperation}(${input.i});`;
+    output.cp = `${output.i}=${recOperation}(${input.i});`;
 
     if (isAsync) {
       output.f |= 1;

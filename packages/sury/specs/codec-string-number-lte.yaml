@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{typeof i==="string"||e[2](i);let v0=+i;v0===v0&&(v0||i.trim())||e[1](i);v0<=100||e[0](v0);return v0}
+    expression: i=>{typeof i==="string"||e[2](i);let v0=+i;v0==v0&&(v0||i.trim())||e[1](i);v0<=100||e[0](v0);return v0}
     examples:
       in-range:
         input: '"50"'
@@ -21,7 +21,7 @@ operations:
         input: '"150"'
         error: Expected number <= 100, received 150
   decode:
-    expression: i=>{let v0=+i;v0===v0&&(v0||i.trim())||e[1](i);v0<=100||e[0](v0);return v0}
+    expression: i=>{let v0=+i;v0==v0&&(v0||i.trim())||e[1](i);v0<=100||e[0](v0);return v0}
     examples:
       in-range:
         input: '"50"'

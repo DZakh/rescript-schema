@@ -75,12 +75,13 @@ const expressionSection = (deltas: ExpressionDelta[]): string[] => {
   ];
 };
 
-const outcome = (ex: Example): string => ("output" in ex ? `output ${ex.output}` : `error ${ex.error}`);
+const outcome = (ex: Example): string =>
+  "output" in ex ? `output ${ex.output}` : "errorConstructor" in ex ? `errorConstructor ${ex.errorConstructor}` : `error ${ex.error}`;
 
 // How an op resolved, for the behavior list - enough to read a flip between
 // compiling and being rejected at operation creation at a glance.
-const opKind = (op: Operation): string =>
-  typeof op === "string" ? op : isCreationError(op) ? `creationError ${op.creationError}` : "compiled";
+const opKind = (op: Operation | undefined): string =>
+  op == null ? "absent" : typeof op === "string" ? op : isCreationError(op) ? `creationError ${op.creationError}` : "compiled";
 
 // `before` is the spec as it was on disk, so a hand-authored one is missing
 // every derived field. Absent is not a value that changed into another one -
@@ -156,8 +157,11 @@ const specDeltas = (
     for (const op of OP_ORDER) {
       const b = before.operations[op];
       const a = after.operations[op];
-      // Rejected at operation creation on both sides: the thrown message is
-      // this op's only golden, so a drifting message IS the behavior change.
+      if (b == null && a == null) continue;
+      if (b == null || a == null) {
+        behavior.push(`${id}.${op}  ${clip(opKind(b))} → ${clip(opKind(a))}`);
+        continue;
+      }
       if (isCreationError(b) && isCreationError(a)) {
         changed(`${id}.${op}.creationError`, b.creationError, a.creationError, behavior);
         continue;
@@ -171,8 +175,6 @@ const specDeltas = (
         behavior.push(`${id}.${op}  ${clip(opKind(b))} → ${clip(opKind(a))}`);
         continue;
       }
-      // An op's shorthand can't change under --write (a shorthand mismatch
-      // blocks the write), so a differing kind here means a hand edit.
       if (typeof b === "string" || typeof a === "string") continue;
       if (
         !isSkip(b.expression) &&

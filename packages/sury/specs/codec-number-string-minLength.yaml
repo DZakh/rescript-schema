@@ -12,7 +12,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{typeof i==="number"&&i===i||e[1](i);let v0=""+i;v0.length>1||e[0](v0);return v0}
+    expression: i=>{typeof i==="number"&&i==i||e[1](i);let v0=""+i;v0.length>1||e[0](v0);return v0}
     examples:
       long-enough:
         input: "42"
@@ -27,7 +27,7 @@ operations:
         input: "42"
         output: '"42"'
   encode:
-    expression: i=>{i.length>1||e[1](i);let v0=+i;v0===v0&&(v0||i.trim())||e[0](i);return v0}
+    expression: i=>{i.length>1||e[1](i);let v0=+i;v0==v0&&(v0||i.trim())||e[0](i);return v0}
     examples:
       long-enough:
         input: '"42"'

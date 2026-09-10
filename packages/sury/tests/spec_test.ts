@@ -242,6 +242,7 @@ describe.each(specs)("spec: $id", ({ id, file }) => {
   });
 });
 
+
 test("the format is defined as a Sury schema (closed world)", () => {
   // Unknown keys are rejected - the closed-world guarantee (via published sury).
   expect(validate({}).ok).toBe(false);

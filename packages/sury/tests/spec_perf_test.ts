@@ -9,7 +9,7 @@
 // commit message, so its behaviour is asserted directly rather than inferred
 // from a rendered report.
 import { test, expect } from "vitest";
-import { conservativePct, deriveTargets, type Perf } from "../../spec/bench";
+import { conservativePct, deriveTargets, requireSchema, type Perf } from "../../spec/bench";
 import { renderPerformance } from "../../spec/summary";
 import { renderComment } from "../../spec/perfComment";
 import { listSpecFiles, readScenarios, specId } from "../../spec/harness";
@@ -40,6 +40,12 @@ test("conservativePct needs unanimity: one dissenting block is enough to report 
 
 test("conservativePct reports 0 below six blocks, so BLOCKS must stay at 6 or above", () => {
   expect(conservativePct(ratios(1.4, 1.3, 1.2, 1.1, 1.05))).toBe(0);
+});
+
+test("requireSchema throws on a missing export so the baseline reports it as new", () => {
+  expect(() => requireSchema(undefined)).toThrow("schema expression is not a Sury schema");
+  expect(() => requireSchema(null)).toThrow("schema expression is not a Sury schema");
+  expect(requireSchema({})).toEqual({});
 });
 
 // ---- targets ---------------------------------------------------------------

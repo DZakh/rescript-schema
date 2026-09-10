@@ -109,8 +109,16 @@ const exampleError = S.schema({
   error: S.string.with(S.meta, { description: "Expected error message. Filled by `spec check --write`." }),
   ...divergences,
 }).with(S.strict);
-const example = S.union([exampleOutput, exampleError]).with(S.meta, {
-  description: "A named example: input plus expected output or error.",
+const exampleErrorConstructor = S.schema({
+  input: S.string.with(S.meta, { description: inputDescription }),
+  errorConstructor: S.string.with(S.meta, {
+    description:
+      "Expected `error.constructor.name` when the message is the platform's (Node 22 vs 24). Filled by `spec check --write` when this key is present.",
+  }),
+  ...divergences,
+}).with(S.strict);
+const example = S.union([exampleOutput, exampleError, exampleErrorConstructor]).with(S.meta, {
+  description: "A named example: input plus expected output, error message, or error constructor.",
 });
 export type Example = S.Output<typeof example>;
 
@@ -130,6 +138,10 @@ const operationExpression = S.schema({
   }),
   expression: orSkip(S.string).with(S.meta, {
     description: "Compiled function source (`.toString()`). Filled by `spec check --write`.",
+  }),
+  resultExpression: S.optional(S.string).with(S.meta, {
+    description:
+      "Compiled `*AsResult` function source. Optional — add when the Result tail (try/absence of try) is what the spec is pinning. Filled by `spec check --write` when present.",
   }),
   examples: S.record(example).with(S.meta, {
     description: "Named example cases, keyed by a short name (e.g. `valid`, `invalid-type`).",
@@ -189,9 +201,29 @@ const operations = S.schema({
     description: "Input → Output, no top-level type narrowing (input is already typed).",
   }),
   encode: operationOrShorthand.with(S.meta, { description: "Output → Input (the reverse direction)." }),
+  // Optional: parse/decode/encode remain the required three. Assert compiles
+  // through the same builder under a void target (`assertResult`), so a change
+  // to that target is invisible to those three — `S.assertInputOrThrow(S.json)`
+  // once broke with every spec green. Present on the specs that cover it.
+  assert: S.optional(
+    S.union(["identity", "eq-to-parse", operationExpression, operationCreationError]),
+  ).with(S.meta, {
+    description:
+      "unknown → void: validate and drop the value (`S.assertInputOrThrow`). Optional — " +
+      "add when the void target's handling is what the spec is pinning (JSON, jsonString, noValidation).",
+  }),
+  is: S.optional(
+    S.union(["identity", "eq-to-parse", operationExpression, operationCreationError]),
+  ).with(S.meta, {
+    description:
+      "unknown → boolean (`S.isInput`). Optional — add when the boolean target's handling is what the spec is pinning.",
+  }),
 })
   .with(S.strict)
-  .with(S.meta, { description: "The three compiled directions through the schema: parse, decode, encode." });
+  .with(S.meta, {
+    description:
+      "The three compiled directions through the schema (parse, decode, encode), plus optional `assert` and `is`.",
+  });
 
 // A future `res` (ReScript) surface would sit alongside this with its own,
 // smaller shape (no `input`, since ReScript's `S.t<'value>` has no separate
@@ -207,6 +239,11 @@ const ts = S.schema({
       "Alternate `.with`-chain sources that must produce a schema equivalent to `schema` - " +
       "same ts.input/ts.output, jsonSchema, and operations. Checked live (not separately " +
       "snapshotted) by `spec check`. You write these by hand.",
+  }),
+  constructionError: S.optional(S.string).with(S.meta, {
+    description:
+      "The error thrown when `ts.schema` is evaluated — a panic at construction, not at " +
+      "operation compile. Filled by `spec check --write`. Omit when the schema constructs.",
   }),
   input: orSkip(S.string).with(S.meta, {
     description: "`S.Input<typeof schema>` as a TS type string. Filled by `spec check --write`.",
@@ -285,39 +322,42 @@ const jsonSchemaDialect = S.schema({
   .with(S.meta, { description: jsonSchemaDialectDescription });
 export type JsonSchemaDialect = S.Output<typeof jsonSchemaDialect>;
 
+const jsonSchemaFields = S.schema({
+  input: S.string.with(S.meta, {
+    description: "S.toInputJSONSchemaOrThrow(schema), as source text, or its conversion error.",
+  }),
+  fromInputType: S.optional(S.string).with(S.meta, {
+    description:
+      "The type inferred by S.fromJSONSchemaOrThrow(input), only when it differs from ts.input; omit when equal or when input is a conversion error.",
+  }),
+  output: S.string.with(S.meta, {
+    description: "S.toOutputJSONSchemaOrThrow(schema), as source text, or its conversion error.",
+  }),
+  fromOutputType: S.optional(S.string).with(S.meta, {
+    description:
+      "The type inferred by S.fromJSONSchemaOrThrow(output), only when it differs from ts.output; omit when equal or when output is a conversion error.",
+  }),
+  "draft-2020-12": S.optional(jsonSchemaDialect).with(S.meta, {
+    description: jsonSchemaDialectDescription,
+  }),
+  "openapi-3.0": S.optional(jsonSchemaDialect).with(S.meta, {
+    description: jsonSchemaDialectDescription,
+  }),
+})
+  .with(S.strict)
+  .with(S.meta, {
+    description:
+      "The JSON Schema of both directions, as one-line source text, plus any divergent " +
+      "output type inferred by S.fromJSONSchemaOrThrow for each generated document. Matching types are " +
+      "omitted; if a direction can't be represented, no round-trip type is recorded. " +
+      "Dialect keys record only the fields that differ from this default after ignoring $schema. " +
+      "Filled by `spec check --write`.",
+  });
+export type JsonSchemaBlock = S.Output<typeof jsonSchemaFields>;
+
 export const specSchema = S.schema({
   ts,
-  jsonSchema: S.schema({
-    input: S.string.with(S.meta, {
-      description: "S.toInputJSONSchemaOrThrow(schema), as source text, or its conversion error.",
-    }),
-    fromInputType: S.optional(S.string).with(S.meta, {
-      description:
-        "The type inferred by S.fromJSONSchemaOrThrow(input), only when it differs from ts.input; omit when equal or when input is a conversion error.",
-    }),
-    output: S.string.with(S.meta, {
-      description: "S.toOutputJSONSchemaOrThrow(schema), as source text, or its conversion error.",
-    }),
-    fromOutputType: S.optional(S.string).with(S.meta, {
-      description:
-        "The type inferred by S.fromJSONSchemaOrThrow(output), only when it differs from ts.output; omit when equal or when output is a conversion error.",
-    }),
-    "draft-2020-12": S.optional(jsonSchemaDialect).with(S.meta, {
-      description: jsonSchemaDialectDescription,
-    }),
-    "openapi-3.0": S.optional(jsonSchemaDialect).with(S.meta, {
-      description: jsonSchemaDialectDescription,
-    }),
-  })
-    .with(S.strict)
-    .with(S.meta, {
-      description:
-        "The JSON Schema of both directions, as one-line source text, plus any divergent " +
-        "output type inferred by S.fromJSONSchemaOrThrow for each generated document. Matching types are " +
-        "omitted; if a direction can't be represented, no round-trip type is recorded. " +
-        "Dialect keys record only the fields that differ from this default after ignoring $schema. " +
-        "Filled by `spec check --write`.",
-    }),
+  jsonSchema: jsonSchemaFields,
   vs,
   operations,
 })
@@ -327,7 +367,7 @@ export const specSchema = S.schema({
   });
 export type Spec = S.Output<typeof specSchema>;
 
-export type OpName = keyof Spec["operations"];
+export type OpName = "parse" | "decode" | "encode" | "assert" | "is";
 
 // Ordered dimension keys - the canonical key order for `spec format`. Built via
 // `Record<keyof T, true>` (not a plain array literal) so adding a field to
@@ -340,14 +380,23 @@ export const VS_ZOD_KEY_ORDER = keyOrder<ZodOverwrite>({ schema: true, divergenc
 export const TS_KEY_ORDER = keyOrder<Spec["ts"]>({
   schema: true,
   aliases: true,
+  constructionError: true,
   input: true,
   output: true,
   instantiations: true,
 });
-export const OP_ORDER = keyOrder<Spec["operations"]>({ parse: true, decode: true, encode: true });
+export const OP_ORDER = keyOrder<Record<OpName, true>>({
+  parse: true,
+  decode: true,
+  encode: true,
+  assert: true,
+  is: true,
+});
+export const REQUIRED_OPS = ["parse", "decode", "encode"] as const satisfies readonly OpName[];
 export const OP_BLOCK_KEY_ORDER = keyOrder<OperationExpression>({
   isAsync: true,
   expression: true,
+  resultExpression: true,
   examples: true,
 });
 export const JSON_SCHEMA_DIALECT_KEY_ORDER = keyOrder<JsonSchemaDialect>({
@@ -356,7 +405,7 @@ export const JSON_SCHEMA_DIALECT_KEY_ORDER = keyOrder<JsonSchemaDialect>({
   output: true,
   fromOutputType: true,
 });
-export const JSON_SCHEMA_KEY_ORDER = keyOrder<Spec["jsonSchema"]>({
+export const JSON_SCHEMA_KEY_ORDER = keyOrder<JsonSchemaBlock>({
   input: true,
   fromInputType: true,
   output: true,
@@ -375,18 +424,19 @@ export const isZodOverwrite = (v: unknown): v is ZodOverwrite => is(zodOverwrite
 // examples}` block and the string shorthands by carrying `creationError`.
 export const isCreationError = (v: unknown): v is CreationError => is(operationCreationError, v);
 
-// Parse, don't validate: return the parsed Spec itself, not just a pass/fail
-// flag, so callers work from the value Sury actually confirmed matches the
-// schema instead of re-trusting the raw input.
-export const validate = (
-  obj: unknown,
-): { ok: true; value: Spec } | { ok: false; error: string } => {
+// Parse, don't validate: return the parsed value itself, not just a pass/fail
+// flag, so callers work from what Sury confirmed matches the schema instead of
+// re-trusting the raw input.
+type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string };
+const tryParse = <T>(fn: (obj: unknown) => T, obj: unknown): ParseResult<T> => {
   try {
-    return { ok: true, value: parse(specSchema)(obj) };
+    return { ok: true, value: fn(obj) };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
 };
+
+export const validate = (obj: unknown): ParseResult<Spec> => tryParse(parse(specSchema), obj);
 
 export const schemaJson = (): string =>
   JSON.stringify(S.toJSONSchema(specSchema), null, 2) + "\n";
@@ -419,15 +469,8 @@ export type BundleSize = S.Output<typeof bundleSizeSchema>;
 
 export const BUNDLE_SIZE_KEY_ORDER = keyOrder<BundleSize>({ total: true, exports: true });
 
-export const validateBundleSize = (
-  obj: unknown,
-): { ok: true; value: BundleSize } | { ok: false; error: string } => {
-  try {
-    return { ok: true, value: parse(bundleSizeSchema)(obj) };
-  } catch (e) {
-    return { ok: false, error: (e as Error).message };
-  }
-};
+export const validateBundleSize = (obj: unknown): ParseResult<BundleSize> =>
+  tryParse(parse(bundleSizeSchema), obj);
 
 // ---- scenarios.yaml --------------------------------------------------------
 
@@ -456,15 +499,8 @@ export const scenariosSchema = S.record(scenarioSchema).with(S.meta, {
 });
 export type Scenarios = S.Output<typeof scenariosSchema>;
 
-export const validateScenarios = (
-  obj: unknown,
-): { ok: true; value: Scenarios } | { ok: false; error: string } => {
-  try {
-    return { ok: true, value: parse(scenariosSchema)(obj) };
-  } catch (e) {
-    return { ok: false, error: (e as Error).message };
-  }
-};
+export const validateScenarios = (obj: unknown): ParseResult<Scenarios> =>
+  tryParse(parse(scenariosSchema), obj);
 
 export const scenariosSchemaJson = (): string =>
   JSON.stringify(S.toJSONSchema(scenariosSchema), null, 2) + "\n";

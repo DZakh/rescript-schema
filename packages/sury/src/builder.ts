@@ -5,6 +5,7 @@ import {
   type ErrorDetails,
   type Flag,
   immutableEmptyArray,
+  inlinedProperty,
   inlinedValueFromString,
   inputExpression,
   type Internal,
@@ -39,9 +40,9 @@ export function _var(this: Val): string {
 
 // B_refine links through `prev`; B_scope through `b` so merge does not walk
 // the source as `prev` (a scope is a new segment over the same value).
-function _linkVar(this: Val): string {
+const _linkVar = function (this: Val): string {
   return (this.b || this.prev)!.v();
-}
+};
 
 export function _notVarBeforeValidation(this: Val): string {
   const val = this;
@@ -158,9 +159,10 @@ export const B_inlineConst = (b: Val, schema: Internal): string => {
       : (tagFlag & 1024)
         ? (const_ as unknown as string) + "n"
         : (tagFlag & (16384 | 4096 | 8192))
-          ? B_embed(b, schema.const)
+          // Symbol/function/instance consts are compared, never called.
+          ? B_embedPure(b, schema.const)
           : const_ as unknown as string;
-}
+};
 
 export const B_varWithoutAllocation = (g: BGlobal): string => `v${++g.v}`;
 
@@ -174,7 +176,6 @@ export const B_varWithoutAllocation = (g: BGlobal): string => `v${++g.v}`;
 export const B_hoistDecl = (owner: Val, decl: string): void => {
   owner.hd += (owner.hd && ",") + decl;
 }
-
 
 export const B_operationArg = (
   schema: Internal,
@@ -581,7 +582,7 @@ export const B_markOutput = (val: Val, valInput: Val): Val => {
 export const B_hoistChildChecks = (parent: Val, child: Val, key: string): void => {
   const checks = child.vc;
   if (checks) {
-    const accessor = `[${inlinedValueFromString(key)}]`;
+    const accessor = inlinedProperty("", key, parent.s.type === arrayTag);
     for (let i = 0; i < checks.length; i++) {
       const check = checks[i]!;
       B_pushCheck(parent, { c: (v) => check.c(v + accessor), f: check.f });
@@ -638,6 +639,22 @@ export const B_nextConst = (from: Val, schema: Internal, expected?: Internal): V
 // wherever one does, and hoists one only where the source is an expression
 // nothing has named yet, which is the case a second read would repeat.
 export const B_readOnce = (input: Val): string => input.v();
+// Fresh var, already named: `v()` must not allocate a second copy of it.
+export const B_nextVar = (input: Val, schema: Internal = input.e, expected: Internal = schema): Val => {
+  const output = B_next(input, B_varWithoutAllocation(input.g), schema, expected);
+  output.v = _var;
+  return output;
+};
+
+// Same as B_nextVar but for the case that re-uses an input's var name as the
+// output storage (field default `or`, missing-key encoder for optional fields).
+// Also marks the val as the output side of the current io step.
+export const B_nextVarOutput = (input: Val, initial: string, schema: Internal, expected: Internal = schema): Val => {
+  const output = B_next(input, initial, schema, expected);
+  output.v = _var;
+  output.io = true;
+  return output;
+};
 
 // A conversion's result, held in a var. The splice that reads it may read it
 // twice (jsonString's escape-free form does), and unlike a property path this is
@@ -649,16 +666,14 @@ export const B_computed = (
   schema: Internal,
   failure?: string,
 ): Val => {
-  const outputVar = B_varWithoutAllocation(input.g);
-  const output = B_next(input, outputVar, schema);
-  output.v = _var;
+  const output = B_nextVar(input, schema, input.e);
   // With a `failure`, the whole `B_conversion` shape: a computation that can
   // throw on a value the operation trusted rather than checked reports it as a
   // failed conversion instead of escaping as whatever the platform raised.
   output.cp =
     failure === U
-      ? `let ${outputVar}=${code};`
-      : `let ${outputVar};try{${outputVar}=${code}}catch(x){${failure}}`;
+      ? `let ${output.i}=${code};`
+      : `let ${output.i};try{${output.i}=${code}}catch(x){${failure}}`;
   return output;
 };
 
@@ -764,22 +779,17 @@ export const B_conversion = (
 ): Builder => {
   return (input: Val): Val => {
     const target = input.e.to!;
-    const outputVar = B_varWithoutAllocation(input.g);
-    const output = B_next(
+    const output = B_nextVar(
       input,
-      outputVar,
       junction || isLiteral(target) ? unknown : target,
       target,
     );
-    output.v = _var;
     if (isAsync) B_markAsync(input, output);
     const embeddedFn = B_embed(input, fn);
-    // Reuse the input's var when checks already materialized it, instead of
-    // re-inlining the source expression twice.
     const inputValue = input.vc ? input.v() : input.i;
     const unionContext = input.g.o & 4; // 4
     if (unionContext && isAsync) {
-      output.cp = `let ${outputVar}=${embeddedFn}(${inputValue});`;
+      output.cp = `let ${output.i}=${embeddedFn}(${inputValue});`;
       return output;
     }
     // Whatever the coder throws - a `SuryError` it raised on purpose or a
@@ -793,7 +803,7 @@ export const B_conversion = (
       (e: unknown) => B_makeInvalidConversionDetails(input, target, e),
       `x`,
     );
-    output.cp = `let ${outputVar};try{${outputVar}=${embeddedFn}(${inputValue})${
+    output.cp = `let ${output.i};try{${output.i}=${embeddedFn}(${inputValue})${
       isAsync ? `.catch(x=>${failure})` : ""
     }}catch(x){${failure}}`;
     // A val whose result the target's own refiners can attach to. `val.vc`
@@ -865,7 +875,7 @@ export const B_rejectUnsettled = (input: Val, to: Internal, from = input.prev &&
     to.opens === U &&
     B_contentDiffers(B_contentNode(from).content, B_contentNode(to).content)
   ) {
-    !from.jn && !to.jn && B_contentNode(from) === from && B_contentNode(to) === to
+    !from.isJson && !to.isJson && B_contentNode(from) === from && B_contentNode(to) === to
       ? B_invalidOperation(
           input,
           `Ambiguous ${inputExpression(from)} -> ${inputExpression(to)}. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"`,
@@ -889,11 +899,7 @@ const B_mergeWithCatch = (
   // the code itself is dead too - an untransformed, unfailable body is only
   // orphaned `let`s - and dropping it lets the caller skip its loop entirely.
   const pure = pureSince !== U && val.g.t === pureSince;
-  if (
-    (valCode === "" || pure) &&
-    // FIXME: Instead of this wrap every custom coder in a try/catch
-    !(val.f & 1) // 1
-  ) {
+  if ((valCode === "" || pure) && !(val.f & 1)) {
     return appendSafe ? valCode + appendSafe() : pure ? "" : valCode;
   }
   const errorVar = B_varWithoutAllocation(val.g);
@@ -930,8 +936,5 @@ export const B_mergeWithPathPrepend = (
         pureSince,
       );
 
-export function noopOperation(i: unknown): unknown {
-  return i;
-}
+export const noopOperation = (i: unknown): unknown => i;
 (noopOperation as unknown as Record<string, unknown>)["embedded"] = immutableEmptyArray;
-// TODO: Split validation code and transformation code
