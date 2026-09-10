@@ -258,34 +258,6 @@ const dispatch = (
   }
 };
 
-const panicMakeArity = (): never =>
-  panic("Expected a single schema and a value. Chain with .with(S.to, ...) first");
-
-const makeDispatch = (
-  n: number,
-  a: unknown,
-  b: unknown,
-  tail: Internal | undefined,
-  rev: boolean,
-  flag: Flag,
-): unknown => {
-  __setTail(operationTail);
-  switch (n) {
-    case 1:
-      return isOwnSchema(a) ? compile(tail, rev, flag, 1, a) : panicNotSchema();
-    case 2:
-      return isOwnSchema(a)
-        ? isOwnSchema(b)
-          ? panicMakeArity()
-          : compile(tail, rev, flag, 1, a)(b)
-        : isOwnSchema(b)
-          ? compile(tail, rev, flag, 1, b)(a)
-          : panicNotSchema();
-    default:
-      return n > 2 ? panicMakeArity() : panicNotSchema();
-  }
-};
-
 // Every operation whose tail is more than "the value, or a throw" comes through
 // here, so the emitter is registered on first use. It can't be registered at
 // this module's top level: that is a side effect, and a bundle that reaches
@@ -304,6 +276,18 @@ const tailDispatch = (
   __setTail(operationTail);
   return dispatch(n, a, b, c, d, tail, rev, flag);
 };
+
+const makeDispatch = (
+  n: number,
+  a: unknown,
+  b: unknown,
+  tail: Internal | undefined,
+  rev: boolean,
+  flag: Flag,
+): unknown =>
+  n > 2 || (n === 2 && isOwnSchema(a) && isOwnSchema(b))
+    ? panic("Expected a single schema and a value. Chain with .with(S.to, ...) first")
+    : tailDispatch(n, a, b, U, U, tail, rev, flag);
 
 // ── Operations ───────────────────────────────────────────────────────────────
 //
