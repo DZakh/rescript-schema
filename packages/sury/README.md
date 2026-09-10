@@ -29,6 +29,23 @@ npm install sury
 
 **API Reference:** [TypeScript](https://github.com/DZakh/sury/blob/main/docs/js-usage.md) | [ReScript](https://github.com/DZakh/sury/blob/main/docs/rescript-usage.md) | [ReScript PPX](https://github.com/DZakh/sury/blob/main/packages/sury-ppx/README.md)
 
+## Sponsors
+
+Sury is built in the open, backed by the teams running it in production:
+
+<p>
+  <a href="https://rescript-association.org/"><img alt="ReScript Association" height="64" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/rescript-association.png"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://envio.dev/"><img alt="Envio" height="32" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/envio.png"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.carla.se/"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/carla-dark.png">
+    <img alt="Carla" height="32" src="https://raw.githubusercontent.com/DZakh/sury/main/assets/sponsors/carla.png">
+  </picture></a>
+</p>
+
+Sury is free and stays free. If it's carrying your product, [DM me on X](https://x.com/dzakh_dev) to get your logo here, or send USDT to `0x509fCF7C24A94a776eb92B56B9DA4aA145615529` (ERC20) or `TFg5hKgkdcrFnPHNgYqfbp9yMyx25uaWrF` (TRC20). Starring the repo and writing about it help too.
+
 ## Why Sury
 
 Describe your data model once - unions, constraints and metadata included, with a type you can actually read on hover:
@@ -388,21 +405,6 @@ It's short, it's pronounceable, and the 🧬 fits: a schema is the DNA of your d
 ## Contributing
 
 Bug reports, ideas, and pull requests are all welcome - open an [issue](https://github.com/DZakh/sury/issues) to get started.
-
-## Sponsorship
-
-If you're enjoying Sury and want to give back, that would be rad!
-
-The free ways help a lot too: star the repo, write about it, or tell someone who's picking a validation library this week.
-
-If you'd like to donate, GitHub Sponsors isn't available in my country, so **USDT** is the easiest route:
-
-- ERC20: `0x509fCF7C24A94a776eb92B56B9DA4aA145615529`
-- TRC20: `TFg5hKgkdcrFnPHNgYqfbp9yMyx25uaWrF`
-
-Your sponsorship doesn't go towards anything specific - it's simply a wonderful way to say "thank you" and make me happy. 😁
-
-DM me on [X/Twitter](https://x.com/dzakh_dev) if you want to be featured or just to say hi! This would mean so much to me. ✨
 
 ## License
 
