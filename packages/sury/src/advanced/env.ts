@@ -5,11 +5,9 @@
 //
 // Input is `string | undefined` (index.d.ts): a var may be unset, which is what
 // `process.env` is typed as. A parse checks the text and leaves that check on
-// the chain; a typed input has none, so a conversion adds `!==void 0` there. A
-// position that keeps the env as it is (`S.env` alone, `S.record(S.env)`) stays
-// the identity, so `process.env` is not walked before its fields are read.
+// the chain; a typed input has none, so the env adds `!==void 0` there.
 
-import { type Check, initSchema, stringTag, tagFlags, type Internal, type Val } from "../base";
+import { type Check, initSchema, stringTag, tagFlags, U, type Internal, type Val } from "../base";
 import { B_next, B_refine, B_unsupportedDecode, failInvalidType } from "../builder";
 import { string, typeofCond } from "../primitives";
 import { convertTextEntry, isAbsent } from "./entries";
@@ -32,7 +30,15 @@ const definedCheck: Check = { c: (inputVar) => `${inputVar}!==void 0`, f: failIn
 
 const envDecoder = (input: Val): Val => {
   const flag = tagFlags[input.s.type]!;
-  if (input.s === input.e || input.s.format === "env") {
+  if (input.s === input.e) {
+    // The env itself as a typed operation input still has to be set to be the
+    // string Output. Only there: a field or item is wrapped by its loop, and a
+    // conversion that follows checks on its own.
+    return input.prev === U && input.b === U && input.p === U && input.e.to === U && unchecked(input)
+      ? B_refine(input, input.e, [definedCheck])
+      : input;
+  }
+  if (input.s.format === "env") {
     return input;
   }
   if (flag & 16) {
