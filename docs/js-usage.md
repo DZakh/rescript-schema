@@ -1363,7 +1363,7 @@ S.decodeOrThrow(process.env.PORT, S.optional(S.env), S.port);
 
 A missing key or empty string on a record field is absent (`S.optional`) or
 null (`S.nullable`). A required `S.string` must choose `S.nonEmpty` or
-`S.minLength(0)`. Nested objects, files and repeated keys fail as unsupported.
+`S.minLength(0)`. Nested objects, arrays and files fail as unsupported.
 
 ## URLSearchParams
 

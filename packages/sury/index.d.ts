@@ -640,7 +640,7 @@ export const formData: Schema<FormData, FormData>;
  * through `S.record(S.env)` and the coercions are inferred: `"8080"` -> `S.port`,
  * `"true"` -> `S.boolean`, a missing key or `""` -> `S.nullable`/`S.optional`.
  * A required `S.string` must choose `S.nonEmpty` or `S.minLength(0)`.
- * Nested objects, files and repeated keys fail as unsupported.
+ * Nested objects, arrays and files fail as unsupported.
  * @example S.decodeOrThrow(process.env, S.record(S.env), S.schema({ PORT: S.port, DEBUG: S.boolean, NAME: S.nullable(S.string) }))
  */
 export const env: Schema<string, string>;
