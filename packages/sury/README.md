@@ -197,8 +197,6 @@ const isSameSession = S.isEqualOutput(sessionSchema);
 //? (a, b) => a === b || (a.id === b.id && +a.startedAt === +b.startedAt)
 ```
 
-`kind` is a literal, so it never reaches the comparison: a value that matches the schema can only hold the one it declares.
-
 Every operation that looks at one side of a schema says which side in its name - `S.makeOutputOrThrow` and `S.isInput`, `S.toInputJSONSchemaOrThrow` for the wire and `S.toOutputJSONSchemaOrThrow` for your types.
 
 Reading a `File` is asynchronous, so a pipeline that starts from one becomes async too:

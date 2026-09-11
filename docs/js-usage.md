@@ -1811,8 +1811,6 @@ S.isEqualOutput(a, b, eventSchema); // immediate, data first
 
 Both values have to be valid for the schema already - this compares, it does not validate. Use [`S.makeOutputOrThrow`](#constructing-entities) on a value you built yourself if you need it checked first.
 
-Every form compiles once per schema and side, so the immediate calls cost a cache lookup rather than a recompile, and `S.isEqualOutput(schema)` hands back the same function each time.
-
 **Assert** - validate without building an output, which makes it 2-3× faster than parsing:
 
 - `S.assertInputOrThrow(schema, data)`: `asserts data is TInput`
