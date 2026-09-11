@@ -17,7 +17,12 @@ const source = readFileSync(new URL("../index.mjs", import.meta.url), "utf8");
 
 // Exports whose whole point is the effect, so a bundler must never drop a call
 // to them even when the result is unused.
-// Every dual operation (§ operations.ts): the immediate call forms execute, and
+// Every dual operation (§ operations.ts), with no exceptions: the rule is the
+// family, not the member. `isEqual*` would qualify to be annotated - it neither
+// validates nor runs a user transform or refinement - and deliberately is not,
+// because one annotated member turns a rule anyone can check into a property
+// each new operation has to be checked against.
+// The immediate call forms execute, and
 // a validation-only call discards its result, which an annotated pure call
 // would let esbuild drop - silently deleting the validation.
 const EFFECTFUL: Record<string, string> = {
@@ -56,6 +61,8 @@ const EFFECTFUL: Record<string, string> = {
   isOutput: "the immediate call forms validate",
   isInputAsPromise: "the immediate call forms validate",
   isOutputAsPromise: "the immediate call forms validate",
+  isEqualInput: "an operation, and operations are not annotated",
+  isEqualOutput: "an operation, and operations are not annotated",
   assertInputOrThrow: "the immediate call forms validate",
   assertOutputOrThrow: "the immediate call forms validate",
   assertInputAsPromiseOrReject: "the immediate call forms validate",

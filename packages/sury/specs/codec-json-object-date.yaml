@@ -8,6 +8,9 @@ jsonSchema:
   input: '{ type: "object", properties: { field: { type: "string", format: "date-time" } }, additionalProperties: false, required: ["field"] }'
   fromInputType: "{ field: string; }"
   output: "Failed at field: Expected JSON, received Date"
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||+a.field===+b.field
 vs:
   zod:
     _skip: not-applicable

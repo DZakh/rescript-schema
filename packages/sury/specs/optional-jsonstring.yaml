@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: Expected JSON, received JSON string | undefined
   output: Expected JSON, received JSON string | undefined
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable

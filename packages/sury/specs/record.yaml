@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "object", additionalProperties: { type: "string" } }'
   output: '{ type: "object", additionalProperties: { type: "string" } }'
+isEqual: (a,b)=>{if(a===b)return true;let n=0;for(const k in a){if(!(k in b)||!(a[k]===b[k]))return false;n++}for(const k in b)n--;return !n}
 vs:
   zod: z.record(z.string(), z.string())
 operations:

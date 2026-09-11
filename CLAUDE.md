@@ -33,7 +33,7 @@ stopped being true; delete those yourself.
 
 ```
 base → builder → primitives → parse → union → composites → factory
-     → modifiers → refinements → operations → standard → advanced/* → jsonschema → entry
+     → modifiers → refinements → eq → operations → standard → advanced/* → jsonschema → entry
 ```
 
 - Only type-only imports may point "up".
@@ -123,7 +123,8 @@ of the keyword set (`JSONSchemaT` in `src/jsonschema.ts`, `JSONSchema.res`).
   (`parse*`, `decode*`, `encode*`, `make*`, `is*`, `assert*`, the `$`-prefixed
   ReScript ones - their immediate call forms validate, and an annotated call
   whose result is discarded gets dropped), `global`, `enableStandardJSONSchema`,
-  `$setExnId`. `tests/treeShaking_test.ts`'s `EFFECTFUL` is the list.
+  `$setExnId`. `tests/treeShaking_test.ts`'s `EFFECTFUL` is the list. No
+  operation is annotated, whatever an individual one could prove about itself.
 - **Never publish a factory through an alias** (`export const object = schemaObject`):
   the annotation counts only on the declaration that *is* the function. Re-export
   instead - `export { schemaObject as object } from "./factory"`.
@@ -144,6 +145,28 @@ the compiler to a sequential try of each variant's own parser/encoder (grouping
 is codegen, not semantics). It exits non-zero on `acceptance` /
 `exception-kind`; `reasons` / `message` are error detail. `--ref` is an optional
 changelog against a git commit, not the gate. `--seed=N` widens the search.
+
+## Changing the equality compiler
+
+A spec pins the comparator's code and its answers for the values that spec
+writes down, and says nothing about the branch no spec reaches.
+`pnpm --filter=sury fuzz:eq` samples values out of generated schemas and holds
+the answers to the properties an equivalence has whatever the emit chose: a
+value equals a separately built copy of itself, `eq(a,b)` is `eq(b,a)`, equal to
+the same value means equal to each other, the answer matches a schema-blind
+structural walk, `isEqualInput(schema)` is `isEqualOutput(reverse(schema))`, and
+two inputs the Input side calls equal decode to two outputs the Output side
+calls equal. Cases known not to hold are listed in the script with the reason
+written by hand, and the run fails on an unlisted one *and* on a listed one that
+has started to hold. `--seeds=N` widens the search and `--cases=N` deepens each
+stream; reach for the first, since the grammar branches on every draw and a
+sweep of short streams covers what one long stream does not. A case it turns up
+becomes a spec.
+
+The harness asks the same question from the other end: every example pair it
+already compares for itself goes to `isEqual*` too, and a disagreement with its
+own oracle is a finding. So the whole spec corpus is the comparator's test
+suite, and neither side is the one being trusted.
 
 ## Changing the form codec
 

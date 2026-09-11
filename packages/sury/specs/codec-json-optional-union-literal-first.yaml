@@ -10,6 +10,9 @@ jsonSchema:
   fromOutputType: "{ selector?: string | string[] | undefined; }"
   openapi-3.0:
     input: '{ type: "object", properties: { selector: { anyOf: [{ type: "string", enum: ["*"] }, { type: "string" }, { items: { type: "string" }, type: "array" }] } } }'
+isEqual:
+  input: (a,b)=>a===b||(a.selector==="*"?b.selector==="*":typeof a.selector==="string"?typeof b.selector==="string"&&a.selector===b.selector:Array.isArray(a.selector)?Array.isArray(b.selector)&&e[0](a.selector,b.selector):b.selector===void 0)
+  output: (a,b)=>a===b||e[0](a,b)
 vs:
   zod:
     _skip: not-applicable

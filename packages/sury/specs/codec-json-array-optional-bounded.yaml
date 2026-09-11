@@ -13,6 +13,9 @@ jsonSchema:
   output: "Failed at []: Expected JSON, received number <= 1 | undefined"
   openapi-3.0:
     input: '{ items: { type: "number", nullable: true }, type: "array" }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>{if(a===b)return true;let n=a.length;if(n!==b.length)return false;for(let i=0;i<n;i++)if(!(a[i]===b[i]))return false;return true}
 vs:
   zod:
     _skip: not-applicable

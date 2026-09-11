@@ -9,6 +9,7 @@ jsonSchema:
   output: '{ type: "string", contentMediaType: "application/json" }'
   openapi-3.0:
     output: '{ type: "string", format: "binary" }'
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable

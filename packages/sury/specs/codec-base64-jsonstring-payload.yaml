@@ -9,6 +9,9 @@ jsonSchema:
   output: '{ type: "object", properties: { sub: { type: "string" } }, required: ["sub"] }'
   openapi-3.0:
     input: '{ type: "string", format: "byte" }'
+isEqual:
+  input: strictEqual
+  output: (a,b)=>a===b||a.sub===b.sub
 vs:
   zod:
     _skip: not-applicable

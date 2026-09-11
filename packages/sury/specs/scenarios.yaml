@@ -161,3 +161,43 @@ parse-as-result-invalid:
   # The failure path is what a Result outcome exists for, so it is the half
   # worth watching.
   run: parse(data)
+
+is-equal:
+  prepare: |
+    const schema = S.schema({ id: S.string, age: S.number });
+    const a = { id: "u1", age: 30 };
+    const b = { id: "u1", age: 30 };
+  # The dispatch plus the comparison - what a caller that doesn't hoist the
+  # comparator pays on every check.
+  run: S.isEqualOutput(schema, a, b)
+
+is-equal-compiled:
+  prepare: |
+    const schema = S.schema({ id: S.string, age: S.number });
+    const isEqual = S.isEqualOutput(schema);
+    const a = { id: "u1", age: 30 };
+    const b = { id: "u1", age: 30 };
+  # The comparison alone: two field reads, no validation, no allocation. This
+  # is the form a memo or a cache guard hoists.
+  run: isEqual(a, b)
+
+is-equal-nested:
+  prepare: |
+    const schema = S.schema({ id: S.string, tags: S.array(S.string) });
+    const isEqual = S.isEqualOutput(schema);
+    const a = { id: "u1", tags: ["a", "b", "c"] };
+    const b = { id: "u1", tags: ["a", "b", "c"] };
+  # An array field is the one shape that leaves the flat conjunction: a call
+  # into the compiled element comparator, once per array rather than per item.
+  run: isEqual(a, b)
+
+is-equal-optional:
+  prepare: |
+    const schema = S.schema({ id: S.string, meta: S.optional(S.schema({ tag: S.string })) });
+    const isEqual = S.isEqualOutput(schema);
+    const a = { id: "u1", meta: { tag: "x" } };
+    const b = { id: "u1", meta: { tag: "x" } };
+  # The commonest wrapper there is, and the one shape where which side the
+  # dispatch tests decides the cost: one `===` against the literal, where
+  # narrowing on the member would write four operators and read `b` twice.
+  run: isEqual(a, b)

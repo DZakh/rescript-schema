@@ -12,6 +12,9 @@ jsonSchema:
   openapi-3.0:
     input: '{ type: "object", properties: { id: { type: "number" }, name: { type: "string" }, tag: { type: "string", enum: ["x"] }, flag: { type: "boolean" } }, required: ["id", "name", "tag", "flag"] }'
     output: '{ type: "string" }'
+isEqual:
+  input: (a,b)=>a===b||a.id===b.id&&a.name===b.name&&a.flag===b.flag
+  output: strictEqual
 vs:
   zod:
     _skip: not-applicable

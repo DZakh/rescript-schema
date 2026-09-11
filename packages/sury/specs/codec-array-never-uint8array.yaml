@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ items: { not: {} }, type: "array" }'
   output: "Failed at []: Expected JSON, received Uint8Array"
+isEqual: (a,b)=>{if(a===b)return true;let n=a.length;if(n!==b.length)return false;for(let i=0;i<n;i++)if(!(e[0](a[i],b[i])))return false;return true}
 vs:
   zod:
     _skip: not-applicable

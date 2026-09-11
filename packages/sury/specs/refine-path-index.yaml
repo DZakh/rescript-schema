@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "object", properties: { items: { items: { type: "string" }, type: "array" } }, required: ["items"] }'
   output: '{ type: "object", properties: { items: { items: { type: "string" }, type: "array" } }, required: ["items"] }'
+isEqual: (a,b)=>a===b||e[0](a.items,b.items)
 vs:
   zod: 'z.object({ items: z.array(z.string()) }).refine(() => false, { message: "User error", path: ["items", 0] })'
 operations:

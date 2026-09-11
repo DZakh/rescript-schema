@@ -14,6 +14,7 @@ jsonSchema:
   openapi-3.0:
     input: '{ type: "object", properties: { foo: { type: "string", enum: ["bar"] } }, required: ["foo"] }'
     output: '{ type: "object", properties: { foo: { type: "string", enum: ["bar"] } }, required: ["foo"] }'
+isEqual: alwaysEqual
 vs:
   zod: 'z.object({ foo: z.literal("bar") })'
 operations:

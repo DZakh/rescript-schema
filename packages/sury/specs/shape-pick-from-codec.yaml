@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: '{ type: "object", properties: { f: { type: "object", properties: { b: { type: "string" } }, required: ["b"] } }, required: ["f"] }'
   output: '{ type: "object", properties: { z: { type: "string" } }, required: ["z"] }'
+isEqual:
+  input: (a,b)=>a===b||a.f.b===b.f.b
+  output: (a,b)=>a===b||a.z===b.z
 vs:
   zod:
     _skip: not-applicable

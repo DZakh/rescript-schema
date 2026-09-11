@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: "Failed at d: Expected JSON, received bigint"
   output: "Failed at d: Expected JSON, received bigint"
+isEqual: (a,b)=>a===b||a.a===b.a&&a.b===b.b&&a.c===b.c&&a.d===b.d&&a.e===b.e&&a.f===b.f&&a.g===b.g&&a.h===b.h&&a.i===b.i&&a.j===b.j
 vs:
   zod: "z.object({ a: z.string(), b: z.number(), c: z.boolean(), d: z.bigint(), e: z.symbol(), f: z.string(), g: z.number(), h: z.boolean(), i: z.bigint(), j: z.symbol() })"
 operations:

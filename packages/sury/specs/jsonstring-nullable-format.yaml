@@ -12,6 +12,9 @@ jsonSchema:
   openapi-3.0:
     input: '{ type: "object", properties: { at: { type: "string", format: "date-time", nullable: true } }, required: ["at"] }'
     output: '{ type: "string" }'
+isEqual:
+  input: (a,b)=>a===b||a.at===b.at
+  output: strictEqual
 vs:
   zod:
     _skip: not-applicable

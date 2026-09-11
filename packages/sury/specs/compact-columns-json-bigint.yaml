@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: '{ items: { items: {}, type: "array" }, type: "array" }'
   output: "Failed at [].amount: Expected JSON, received bigint"
+isEqual:
+  input: (a,b)=>{if(a===b)return true;let n=a.length;if(n!==b.length)return false;for(let i=0;i<n;i++)if(!(e[0](a[i],b[i])))return false;return true}
+  output: (a,b)=>{if(a===b)return true;let n=a.length;if(n!==b.length)return false;for(let i=0;i<n;i++)if(!(a[i].id===b[i].id&&a[i].amount===b[i].amount))return false;return true}
 vs:
   zod:
     _skip: not-applicable

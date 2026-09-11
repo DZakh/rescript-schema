@@ -9,6 +9,7 @@ ts:
 jsonSchema:
   input: '{ anyOf: [{ type: "string" }, { type: "number" }] }'
   output: '{ anyOf: [{ type: "string" }, { type: "number" }] }'
+isEqual: strictEqual
 vs:
   zod: z.union([z.string(), z.number()])
 operations:

@@ -12,6 +12,9 @@ jsonSchema:
     output: '{ type: "string", contentMediaType: "application/json", contentSchema: { type: "object", properties: { a: {}, b: { type: "string" } }, required: ["b"] }, $schema: "https://json-schema.org/draft/2020-12/schema" }'
   openapi-3.0:
     output: '{ type: "string" }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a.a,b.a)&&a.b===b.b
+  output: strictEqual
 vs:
   zod:
     _skip: not-applicable

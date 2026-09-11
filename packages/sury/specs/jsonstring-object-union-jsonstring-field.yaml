@@ -12,6 +12,9 @@ jsonSchema:
   openapi-3.0:
     input: '{ type: "object", properties: { f: { anyOf: [{ type: "string" }, { type: "number" }] } }, required: ["f"] }'
     output: '{ type: "string" }'
+isEqual:
+  input: (a,b)=>a===b||a.f===b.f
+  output: strictEqual
 vs:
   zod:
     _skip: not-applicable

@@ -11,6 +11,9 @@ jsonSchema:
     output: '{ type: "string", contentMediaType: "application/json", contentSchema: { type: "object", properties: { id: { type: "string", format: "uuid" }, at: { type: "string", format: "date-time" }, note: { type: "string" } }, required: ["id", "at", "note"] }, $schema: "https://json-schema.org/draft/2020-12/schema" }'
   openapi-3.0:
     output: '{ type: "string" }'
+isEqual:
+  input: (a,b)=>a===b||a.id===b.id&&a.at===b.at&&a.note===b.note
+  output: strictEqual
 vs:
   zod:
     _skip: not-applicable

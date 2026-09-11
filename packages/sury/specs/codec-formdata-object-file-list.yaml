@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received FormData
   output: "Failed at docs[]: Expected JSON, received File"
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||(a.docs===void 0?b.docs===void 0:b.docs!==void 0&&e[0](a.docs,b.docs))&&e[1](a.attachments,b.attachments)&&a.note===b.note
 vs:
   zod:
     _skip: not-applicable

@@ -10,6 +10,7 @@ jsonSchema:
   openapi-3.0:
     input: '{ anyOf: [{ type: "string", format: "byte" }, { type: "string" }] }'
     output: '{ anyOf: [{ type: "string", format: "byte" }, { type: "string" }] }'
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable

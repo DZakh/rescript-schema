@@ -10,6 +10,7 @@ jsonSchema:
   openapi-3.0:
     input: '{ anyOf: [{ type: "string", minLength: 3 }, { type: "number" }] }'
     output: '{ anyOf: [{ type: "string", minLength: 3 }, { type: "number" }] }'
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable
