@@ -15,6 +15,7 @@
 
 import {
   anyOfTag,
+  copySchema,
   baseSchema,
   type Builder,
   type Check,
@@ -1377,8 +1378,13 @@ export const unionDecoder: Builder = (input: Val) => {
   const source = input.s;
   variants = unionDropNullish(unionDropNullish(variants, source, false), toPerCase, true);
   // A dropped arm leaves the error naming what is left: `S.optional(S.string)`
-  // rejecting `undefined` says "Expected string".
-  const expected = variants === self.anyOf ? self : unionFactory(variants);
+  // rejecting `undefined` says "Expected string". A copy, so a name or message
+  // set on the union still wins.
+  let expected = self;
+  if (variants !== self.anyOf) {
+    expected = copySchema(self);
+    expected.anyOf = variants;
+  }
   const nan = input.g.o & 2 ? 2048 : 0;
   let flags = 0;
   const sourceLiteral = isLiteral(source);
