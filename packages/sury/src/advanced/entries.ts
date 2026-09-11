@@ -93,6 +93,8 @@ export const beforeTo = (schema: Internal): Internal => {
 export const asList = (value: unknown): unknown[] =>
   value === U ? [] : Array.isArray(value) ? value : [value];
 
+// The check names the target: `Expected number, received undefined` is the
+// field's own vocabulary, and `string` is not.
 export const asText = (input: Val, target: Internal): Val => {
   const output = B_next(input, input.i, string, target);
   output.v = _var;
@@ -179,10 +181,8 @@ export const convertTextEntry = (
     );
   }
   const flag = tagFlags[present.type]!;
-  if (flag & 256) {
-    if (present.anyOf!.every((variant) => tagFlags[variant.type]! & 2)) {
-      return asText(input, present);
-    }
+  const textUnion = (flag & 256) && present.anyOf!.every((variant) => tagFlags[variant.type]! & 2);
+  if ((flag & 256) && !textUnion) {
     if (self !== input.s) {
       const output = B_next(input, input.i, self, present);
       output.v = _var;
@@ -190,13 +190,17 @@ export const convertTextEntry = (
     }
     return B_unsupportedDecode(input, input.s, present);
   }
-  if (flag & (64 | 128 | 512 | 8192)) {
-    if ((flag & 8192) && present.class === Date) {
-      return asText(input, present);
-    }
+  if ((flag & (64 | 128 | 512 | 8192)) && present.class !== Date) {
     return B_unsupportedDecode(input, input.s, present);
   }
-  return present.type === unknownTag || (flag & (2 | 16 | 32))
+  // A source that is already text (`S.env`) keeps its type instead of being
+  // checked again. Not for a jsonString target, which reads the text as its
+  // document only from an unknown source: a string is a value it would escape
+  // (CONTENT_CODEC_SPEC.md).
+  if ((tagFlags[input.s.type]! & 2) && present.format !== "json") {
+    return B_refine(input, string, U, present);
+  }
+  return !textUnion && (present.type === unknownTag || (flag & (2 | 16 | 32)))
     ? B_refine(input, unknown, U, present)
     : asText(input, present);
 };

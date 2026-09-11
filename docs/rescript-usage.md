@@ -1316,21 +1316,23 @@ to it.
 `S.t<S.env>`
 
 ```rescript
+@val external env: dict<S.env> = "process.env"
+
 let envSchema = S.schema(s => {
   port: s.field("PORT", S.port),
   debug: s.field("DEBUG", S.bool),
   name: s.field("NAME", S.null(S.string)),
 })
 
-process.env->S.parseOrThrow(~to=S.dict(S.env)->S.to(envSchema))
+env->S.parseOrThrow(~to=S.dict(S.env)->S.to(envSchema))
 ```
 
-A single var is the same coercion. `process.env["PORT"]` may be missing, so
+A single var is the same coercion. `env->Dict.get("PORT")` may be `None`, so
 the source is `S.option(S.env)`. Converting to `S.port` reads the string and
 rejects a missing var:
 
 ```rescript
-process.env["PORT"]->S.parseOrThrow(~to=S.option(S.env)->S.to(S.port))
+env->Dict.get("PORT")->S.parseOrThrow(~to=S.option(S.env)->S.to(S.port))
 ```
 
 A missing key or empty string on a record field is absent (`S.option`) or null

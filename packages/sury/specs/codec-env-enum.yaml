@@ -13,7 +13,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{typeof i==="string"||e[2](i);typeof i==="string"||e[0](i);(i==="development"||i==="production")||e[1](i);return i}
+    expression: i=>{typeof i==="string"||e[1](i);(i==="development"||i==="production")||e[0](i);return i}
     examples:
       development:
         input: '"development"'
@@ -28,7 +28,7 @@ operations:
         input: '""'
         error: Expected "development" | "production", received ""
   decode:
-    expression: i=>{typeof i==="string"||e[0](i);(i==="development"||i==="production")||e[1](i);return i}
+    expression: i=>{(i==="development"||i==="production")||e[0](i);return i}
     examples:
       development:
         input: '"development"'
