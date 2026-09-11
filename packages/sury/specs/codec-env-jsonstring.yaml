@@ -1,11 +1,12 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: "S.record(S.env).with(S.to, S.schema({ FLAGS: S.jsonString.with(S.to, S.schema({ debug: S.boolean })) }))"
-  input: "{ [x: string]: string; }"
+  input: "{ [x: string]: string | undefined; }"
   output: "{ FLAGS: { debug: boolean; }; }"
-  instantiations: 6654
+  instantiations: 6676
 jsonSchema:
   input: '{ type: "object", additionalProperties: { type: "string" } }'
+  fromInputType: "{ [key: string]: string; }"
   output: '{ type: "object", properties: { FLAGS: { type: "object", properties: { debug: { type: "boolean" } }, required: ["debug"] } }, required: ["FLAGS"] }'
 isEqual:
   input: (a,b)=>{if(a===b)return true;let n=0;for(const k in a){if(!(k in b)||!(a[k]===b[k]))return false;n++}for(const k in b)n--;return !n}

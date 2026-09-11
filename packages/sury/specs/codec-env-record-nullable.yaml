@@ -1,11 +1,12 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: "S.record(S.env).with(S.to, S.schema({ NAME: S.nullable(S.string), PORT: S.nullable(S.port) }))"
-  input: "{ [x: string]: string; }"
+  input: "{ [x: string]: string | undefined; }"
   output: "{ NAME: string | null; PORT: number | null; }"
-  instantiations: 6119
+  instantiations: 6178
 jsonSchema:
   input: '{ type: "object", additionalProperties: { type: "string" } }'
+  fromInputType: "{ [key: string]: string; }"
   output: '{ type: "object", properties: { NAME: { anyOf: [{ type: "string" }, { type: "null" }] }, PORT: { anyOf: [{ type: "integer", minimum: 0, maximum: 65535 }, { type: "null" }] } }, required: ["NAME", "PORT"] }'
   openapi-3.0:
     output: '{ type: "object", properties: { NAME: { type: "string", nullable: true }, PORT: { type: "integer", minimum: 0, maximum: 65535, nullable: true } }, required: ["NAME", "PORT"] }'

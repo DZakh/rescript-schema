@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: S.nullable(S.env).with(S.to, S.port)
-  input: string | null
+  input: string | null | undefined
   output: number
   instantiations: 4587
 jsonSchema:

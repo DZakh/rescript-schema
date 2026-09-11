@@ -1353,12 +1353,12 @@ S.decodeOrThrow(process.env, S.record(S.env), envSchema);
 // { PORT: "8080", DEBUG: "true" } => { PORT: 8080, DEBUG: true, NAME: null }
 ```
 
-A single var is the same coercion. `process.env.PORT` is `string | undefined`,
-so the source is `S.optional(S.env)`. Converting to `S.port` reads the string
-and rejects a missing var:
+A single var is the same coercion. `S.env` accepts `string | undefined`, the
+way `process.env.PORT` is typed. Converting to `S.port` reads the string and
+rejects a missing var:
 
 ```ts
-S.decodeOrThrow(process.env.PORT, S.optional(S.env), S.port);
+S.decodeOrThrow(process.env.PORT, S.env, S.port);
 ```
 
 A missing key or empty string on a record field is absent (`S.optional`) or

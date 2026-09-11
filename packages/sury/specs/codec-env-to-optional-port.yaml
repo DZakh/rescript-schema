@@ -1,11 +1,12 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: S.env.with(S.to, S.optional(S.port))
-  input: string
+  input: string | undefined
   output: number | undefined
   instantiations: 4620
 jsonSchema:
   input: '{ type: "string" }'
+  fromInputType: string
   output: Expected JSON, received port | undefined
 isEqual: strictEqual
 vs:
