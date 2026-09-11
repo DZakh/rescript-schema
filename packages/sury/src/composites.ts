@@ -516,9 +516,9 @@ export const objectDecoder = (unknownInput: Val): Val => {
       const key = keys[idx]!;
       const itemInput = valGet(input, key);
       const source = itemInput.s;
-      // An optional source field into a value that can't hold `undefined` (the
-      // nullish-arm exception in union.ts) is converted per variant with the
-      // arm kept, so `None` leaves the key out instead of failing.
+      // An optional source field into a value with no place for `undefined`
+      // (the test union.ts's nullish-arm exception makes) converts per variant
+      // with the arm kept, so `None` leaves the key out instead of failing.
       const absent =
         source.type === anyOfTag &&
         source.has![undefinedTag] &&

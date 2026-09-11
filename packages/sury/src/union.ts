@@ -585,21 +585,25 @@ const unionDiscriminator = (schema: Internal): UnionDiscriminator | undefined =>
 
 // ── Rejections ───────────────────────────────────────────────────────────────
 
-// Rules 2 and 3, exception - nullish arm. Opposite a single type with no
-// representation of the value, a bare `null` or `undefined` variant is
-// dropped: it neither makes the pair ambiguous nor converts (a string never
-// spells it as `"undefined"`), and the value is rejected. `S.optional(X)` meets
-// a single T as X -> T. Carriers keep the arm: `unknown`, JSON (`S.json`, a
-// `S.jsonString` document), a recursive ref, a union (rule 4) and a nullish
-// type. Compared on the side the other schema meets: the variant's output
-// under rule 3, its input under rule 2. A list that would empty is kept whole
-// - two literals, not a wrapper.
+// Rules 2 and 3, exception - nullish arm. Opposite a schema with no place for
+// the value, a bare `null`/`undefined` variant is dropped: it neither makes
+// the pair ambiguous nor converts (never `"undefined"` text), and the value is
+// rejected - `S.optional(X)` meets a single T as X -> T. A place for it:
+// `unknown`, a nullish type, a union, a recursive ref (`S.json` among them)
+// or a JSON document string - the same test composites.ts makes for an
+// optional field encoded into a dict. Compared on the side the other schema
+// meets: output under rule 3, input under rule 2. A list that would empty is
+// kept whole: two literals, not a wrapper.
 const unionDropNullish = (
   variants: Internal[],
-  other: Internal,
+  other: Internal | undefined,
   outputSide: boolean
 ): Internal[] => {
-  if (tagFlags[other.type]! & (1 | 16 | 32 | 256 | 512) || other.format === "json") {
+  if (
+    other === U ||
+    tagFlags[other.type]! & (1 | 16 | 32 | 256 | 512) ||
+    other.format === "json"
+  ) {
     return variants;
   }
   const kept = variants.filter(
@@ -1371,8 +1375,7 @@ export const unionDecoder: Builder = (input: Val) => {
   }
 
   const source = input.s;
-  variants = unionDropNullish(variants, source, false);
-  if (toPerCase !== U) variants = unionDropNullish(variants, toPerCase, true);
+  variants = unionDropNullish(unionDropNullish(variants, source, false), toPerCase, true);
   // A dropped arm leaves the error naming what is left: `S.optional(S.string)`
   // rejecting `undefined` says "Expected string".
   const expected = variants === self.anyOf ? self : unionFactory(variants);
