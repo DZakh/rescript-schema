@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "object", properties: { count: { type: "integer", default: "" } } }'
   output: '{ type: "object", properties: { count: { type: "integer", default: "" } } }'
+isEqual: (a,b)=>a===b||a.count===b.count
 vs:
   zod:
     _skip: not-applicable

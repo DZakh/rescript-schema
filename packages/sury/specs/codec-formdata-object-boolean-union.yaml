@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received FormData
   output: '{ type: "object", properties: { a: { anyOf: [{ type: "boolean" }, { type: "number" }] } }, required: ["a"] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a.a===b.a
 vs:
   zod:
     _skip: not-applicable

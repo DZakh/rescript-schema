@@ -10,6 +10,9 @@ jsonSchema:
   fromOutputType: "{ terms: true; picks: string[]; maybe: boolean | null; }"
   openapi-3.0:
     output: '{ type: "object", properties: { terms: { type: "boolean", enum: [true] }, picks: { items: { type: "string" }, type: "array", minItems: 1 }, maybe: { type: "boolean", nullable: true } }, required: ["terms", "picks", "maybe"] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||e[0](a.picks,b.picks)&&a.maybe===b.maybe
 vs:
   zod:
     _skip: not-applicable

@@ -8,6 +8,7 @@ jsonSchema:
   input: '{ type: "object", properties: { n: { type: "number", minimum: 3 } }, required: ["n"] }'
   fromInputType: "{ n: number; }"
   output: '{ type: "object", properties: { n: { type: "number", minimum: 3 } }, required: ["n"] }'
+isEqual: (a,b)=>a===b||a.n===b.n
 vs:
   zod:
     _skip: not-applicable

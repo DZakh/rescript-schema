@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "string", minLength: 5, maxLength: 5 }'
   output: '{ type: "string", minLength: 5, maxLength: 5 }'
+isEqual: strictEqual
 vs:
   zod: z.string().length(5, "Postcode must have 5 symbols")
 operations:

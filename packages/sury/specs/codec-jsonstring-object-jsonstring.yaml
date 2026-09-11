@@ -11,6 +11,9 @@ jsonSchema:
     input: '{ type: "string", contentMediaType: "application/json", contentSchema: { type: "object", properties: { id: { type: "string" }, meta: { type: "string", contentMediaType: "application/json", contentSchema: { type: "object", properties: { tag: { type: "string" } }, required: ["tag"] } } }, required: ["id", "meta"] }, $schema: "https://json-schema.org/draft/2020-12/schema" }'
   openapi-3.0:
     input: '{ type: "string" }'
+isEqual:
+  input: strictEqual
+  output: (a,b)=>a===b||a.id===b.id&&a.meta.tag===b.meta.tag
 vs:
   zod:
     _skip: not-applicable

@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "object", additionalProperties: { type: "object", properties: { n: { type: "number" } }, required: ["n"] } }'
   output: '{ type: "object", additionalProperties: { type: "object", properties: { n: { type: "number" } }, required: ["n"] } }'
+isEqual: (a,b)=>{if(a===b)return true;let n=0;for(const k in a){if(!(k in b)||!(a[k].n===b[k].n))return false;n++}for(const k in b)n--;return !n}
 vs:
   zod: "z.record(z.string(), z.object({ n: z.number() }))"
 operations:
@@ -19,6 +20,9 @@ operations:
       empty:
         input: "{}"
         output: "{}"
+      other-key:
+        input: "{ b: { n: 1 } }"
+        output: "{ b: { n: 1 } }"
       invalid-nested-value:
         input: '{ a: { n: "1" } }'
         error: 'Failed at a.n: Expected number, received "1"'

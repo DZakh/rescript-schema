@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: Expected JSON, received string.length >= 2 | undefined
   output: '{ type: "string", minLength: 2 }'
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable

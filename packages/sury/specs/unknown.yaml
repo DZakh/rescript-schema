@@ -10,6 +10,7 @@ jsonSchema:
   fromInputType: JSON
   output: "{}"
   fromOutputType: JSON
+isEqual: (a,b)=>a===b||e[0](a,b)
 vs:
   zod: z.unknown()
 operations:

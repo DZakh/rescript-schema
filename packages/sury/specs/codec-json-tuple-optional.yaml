@@ -13,6 +13,9 @@ jsonSchema:
   openapi-3.0:
     input: '{ type: "array", minItems: 2, maxItems: 2, items: { anyOf: [{ type: "string", enum: ["B"] }, { type: "string", nullable: true }] } }'
     fromInputType: "[string | null, string | null]"
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a[1]===b[1]
 vs:
   zod:
     _skip: not-applicable

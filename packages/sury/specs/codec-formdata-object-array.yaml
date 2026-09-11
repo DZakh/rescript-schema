@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received FormData
   output: '{ type: "object", properties: { tags: { items: { type: "string", minLength: 1 }, type: "array" }, ids: { items: { type: "number" }, type: "array" }, picks: { items: { enum: ["a", "b"] }, type: "array" }, extra: { items: { type: "string" }, type: "array" } }, required: ["tags", "ids", "picks"] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||e[0](a.tags,b.tags)&&e[1](a.ids,b.ids)&&e[2](a.picks,b.picks)&&(a.extra===void 0?b.extra===void 0:b.extra!==void 0&&e[3](a.extra,b.extra))
 vs:
   zod:
     _skip: not-applicable
@@ -44,6 +47,9 @@ operations:
       built:
         input: '{ tags: ["a", "b"], ids: [1, 2], picks: ["a"], extra: undefined }'
         output: ((f) => (f.append("tags", "a"), f.append("tags", "b"), f.append("ids", "1"), f.append("ids", "2"), f.append("picks", "a"), f))(new FormData())
+      built-same-names:
+        input: '{ tags: ["b", "a"], ids: [1, 2], picks: ["a"], extra: undefined }'
+        output: ((f) => (f.append("tags", "b"), f.append("tags", "a"), f.append("ids", "1"), f.append("ids", "2"), f.append("picks", "a"), f))(new FormData())
       empty-item-refined:
         input: '{ tags: [""], ids: [] }'
         error: 'Failed at tags[0]: Expected string.length >= 1, received ""'

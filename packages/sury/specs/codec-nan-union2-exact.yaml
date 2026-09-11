@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received NaN
   output: Expected JSON, received NaN | string
+isEqual:
+  input: alwaysEqual
+  output: (a,b)=>a===b||(a!=a?b!=b:typeof b==="string"&&a===b)
 vs:
   zod:
     _skip: not-applicable

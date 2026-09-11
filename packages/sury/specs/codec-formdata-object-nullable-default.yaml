@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received FormData
   output: '{ type: "object", properties: { n: { type: "number" }, s: { type: "string", minLength: 1 } }, required: ["n", "s"] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a.n===b.n&&a.s===b.s
 vs:
   zod:
     _skip: not-applicable

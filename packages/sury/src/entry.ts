@@ -185,6 +185,8 @@ export {
   isOutput,
   isInputAsPromise,
   isOutputAsPromise,
+  isEqualInput,
+  isEqualOutput,
   assertInputOrThrow,
   assertOutputOrThrow,
   assertInputAsPromiseOrReject,

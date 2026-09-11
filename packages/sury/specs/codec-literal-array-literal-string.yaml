@@ -13,6 +13,7 @@ jsonSchema:
     input: '{ type: "array", minItems: 2, maxItems: 2, items: { anyOf: [{ type: "number", enum: [1] }, { type: "number", enum: [2] }] } }'
     fromInputType: "[1 | 2, 1 | 2]"
     output: '{ type: "string", enum: ["done"] }'
+isEqual: alwaysEqual
 vs:
   zod:
     _skip: not-applicable

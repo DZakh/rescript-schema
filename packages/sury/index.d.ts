@@ -2044,6 +2044,45 @@ export function isOutput<TOutput>(
 ): data is TOutput;
 
 /**
+ * Whether two Input-side values are equal, by the schema's own structure:
+ * fields and elements compare by their own schemas, a `Date` by its time, a
+ * union by the member each value lands in, and a literal not at all.
+ *
+ * Both values are assumed to already match the schema - this compares, it does
+ * not validate - which is what lets it compile to a bare conjunction of reads.
+ * `S.isEqualInput(schema)` compiles once and is the form to hoist; the direct
+ * forms compile on first use and are cached per schema.
+ */
+export function isEqualInput<S extends AnySchema>(
+  schema: S
+): (a: Input<S>, b: Input<S>) => boolean;
+export function isEqualInput<S extends AnySchema>(
+  schema: S,
+  a: Input<S>,
+  b: Input<S>
+): boolean;
+export function isEqualInput<S extends AnySchema>(
+  a: Input<S>,
+  b: Input<S>,
+  schema: S
+): boolean;
+
+/** `isEqualInput` for the Output side. */
+export function isEqualOutput<S extends AnySchema>(
+  schema: S
+): (a: Output<S>, b: Output<S>) => boolean;
+export function isEqualOutput<S extends AnySchema>(
+  schema: S,
+  a: Output<S>,
+  b: Output<S>
+): boolean;
+export function isEqualOutput<S extends AnySchema>(
+  a: Output<S>,
+  b: Output<S>,
+  schema: S
+): boolean;
+
+/**
  * `isInput` for a schema with an async conversion. Resolves to the answer and
  * never rejects; TypeScript can't express an async type predicate, so no
  * narrowing happens.

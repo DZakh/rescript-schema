@@ -9,6 +9,7 @@ jsonSchema:
   output: Expected JSON, received File
   openapi-3.0:
     input: '{ type: "string", format: "binary" }'
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable

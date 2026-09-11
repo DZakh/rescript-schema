@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: "{ uniqueItems: true }"
   output: "{ uniqueItems: true }"
+isEqual: (a,b)=>a===b||e[0](a,b)
 vs:
   zod:
     _skip: not-applicable

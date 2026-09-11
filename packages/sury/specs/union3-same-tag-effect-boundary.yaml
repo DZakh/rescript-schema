@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ anyOf: [{ type: "string", minLength: 5 }, { type: "string" }, { type: "string", maxLength: 1 }] }'
   output: '{ anyOf: [{ type: "string", minLength: 5 }, { type: "number" }, { type: "string", maxLength: 1 }] }'
+isEqual: strictEqual
 vs:
   zod: z.union([z.string().min(5), z.string().pipe(z.coerce.number()), z.string().max(1)])
 operations:

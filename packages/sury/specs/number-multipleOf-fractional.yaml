@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "number", multipleOf: 0.1 }'
   output: '{ type: "number", multipleOf: 0.1 }'
+isEqual: strictEqual
 vs:
   zod: z.number().multipleOf(0.1)
 operations:

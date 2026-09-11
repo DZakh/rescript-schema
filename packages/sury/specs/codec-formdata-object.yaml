@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received FormData
   output: "Failed at since: Expected JSON, received Date"
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a.name===b.name&&a.age===b.age&&a.agree===b.agree&&+a.since===+b.since
 vs:
   zod:
     _skip: not-applicable

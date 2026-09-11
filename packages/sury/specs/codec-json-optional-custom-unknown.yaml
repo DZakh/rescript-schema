@@ -8,6 +8,7 @@ jsonSchema:
   input: '{ type: "object", properties: { f: {} } }'
   output: '{ type: "object", properties: { f: {} } }'
   fromOutputType: "{ f?: JSON | undefined; }"
+isEqual: (a,b)=>a===b||e[0](a.f,b.f)
 vs:
   zod:
     _skip: not-applicable

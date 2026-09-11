@@ -10,6 +10,9 @@ jsonSchema:
   output: "Failed at payload: Expected JSON, received Uint8Array"
   openapi-3.0:
     input: '{ type: "object", properties: { payload: { type: "string", format: "byte" } }, additionalProperties: false, required: ["payload"] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||e[0](a.payload,b.payload)
 vs:
   zod:
     _skip: not-applicable

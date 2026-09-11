@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received Uint8Array | undefined
   output: Expected JSON, received JSON string | undefined
+isEqual:
+  input: (a,b)=>a===b||(a===void 0?b===void 0:b!==void 0&&e[1](a,b))
+  output: strictEqual
 vs:
   zod:
     _skip: not-applicable

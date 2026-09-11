@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ $ref: "#/$defs/node", $defs: { node: { type: "object", properties: { value: { type: "string" }, children: { items: { $ref: "#/$defs/node" }, type: "array" } }, required: ["value"] } } }'
   output: '{ $ref: "#/$defs/node", $defs: { node: { type: "object", properties: { value: { type: "string" }, children: { items: { $ref: "#/$defs/node" }, type: "array" } }, required: ["value"] } } }'
+isEqual: (a,b)=>a===b||e[0](a,b)
 vs:
   zod:
     _skip: not-applicable

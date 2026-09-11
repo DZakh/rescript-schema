@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "integer", minimum: 0, maximum: 80 }'
   output: '{ type: "integer", minimum: 0, maximum: 80 }'
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable

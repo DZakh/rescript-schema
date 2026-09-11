@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ anyOf: [{ type: "string" }, { type: "number" }] }'
   output: '{ anyOf: [{ type: "number" }, { type: "string" }, { type: "boolean" }] }'
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable

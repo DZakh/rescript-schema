@@ -9,6 +9,9 @@ jsonSchema:
   output: '{ type: "object", properties: { agree: { type: "boolean" }, notify: { type: "boolean" }, mailing: { anyOf: [{ type: "boolean" }, { type: "null" }] }, seen: { type: "boolean" }, asText: { type: "string" }, age: { type: "number", minimum: 18 } }, required: ["agree", "mailing", "seen", "asText", "age"] }'
   openapi-3.0:
     output: '{ type: "object", properties: { agree: { type: "boolean" }, notify: { type: "boolean" }, mailing: { type: "boolean", nullable: true }, seen: { type: "boolean" }, asText: { type: "string" }, age: { type: "number", minimum: 18 } }, required: ["agree", "mailing", "seen", "asText", "age"] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a.agree===b.agree&&a.notify===b.notify&&a.mailing===b.mailing&&a.seen===b.seen&&a.asText===b.asText&&a.age===b.age
 vs:
   zod:
     _skip: not-applicable

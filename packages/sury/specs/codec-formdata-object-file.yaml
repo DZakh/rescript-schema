@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received FormData
   output: "Failed at avatar: Expected JSON, received File.size <= 4"
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a.avatar===b.avatar&&a.cover===b.cover&&a.logo===b.logo&&a.raw===b.raw
 vs:
   zod:
     _skip: not-applicable

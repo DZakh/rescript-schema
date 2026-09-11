@@ -8,6 +8,9 @@ jsonSchema:
   input: '{ type: "object", properties: { Outer: { type: "string" }, X: { type: "string" } }, required: ["Outer", "X"] }'
   fromInputType: "{ Outer: string; X: string; }"
   output: '{ type: "object", properties: { outer: { type: "string" }, inner: { type: "object", properties: { x: { type: "string" } }, required: ["x"] } }, required: ["outer", "inner"] }'
+isEqual:
+  input: (a,b)=>a===b||a.Outer===b.Outer&&a.X===b.X
+  output: (a,b)=>a===b||a.outer===b.outer&&a.inner.x===b.inner.x
 vs:
   zod:
     _skip: not-applicable

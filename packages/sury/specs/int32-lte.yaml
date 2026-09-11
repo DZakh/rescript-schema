@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "integer", minimum: -2147483648, maximum: 5 }'
   output: '{ type: "integer", minimum: -2147483648, maximum: 5 }'
+isEqual: strictEqual
 vs:
   zod: z.int32().lte(5)
 operations:

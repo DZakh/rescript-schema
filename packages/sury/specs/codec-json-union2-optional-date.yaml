@@ -8,6 +8,9 @@ jsonSchema:
   input: '{ type: "object", properties: { value: { anyOf: [{ type: "object", properties: { a: { type: "string", format: "date-time" } }, additionalProperties: false }, { type: "string" }] } }, additionalProperties: false, required: ["value"] }'
   fromInputType: "{ value: string | { a?: string | undefined; }; }"
   output: "Failed at value.a: Expected JSON, received Date | undefined"
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||!!(typeof a.value==="object"&&a.value&&!Array.isArray(a.value)?typeof b.value==="object"&&b.value&&!Array.isArray(b.value)&&(a.value.a===void 0?b.value.a===void 0:b.value.a!==void 0&&+a.value.a===+b.value.a):typeof b.value==="string"&&a.value===b.value)
 vs:
   zod:
     _skip: not-applicable
