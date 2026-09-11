@@ -2053,33 +2053,33 @@ export function isOutput<TOutput>(
  * `S.isEqualInput(schema)` compiles once and is the form to hoist; the direct
  * forms compile on first use and are cached per schema.
  */
-export function isEqualInput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (a: TInput, b: TInput) => boolean;
-export function isEqualInput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  a: TInput,
-  b: TInput
+export function isEqualInput<S extends AnySchema>(
+  schema: S
+): (a: Input<S>, b: Input<S>) => boolean;
+export function isEqualInput<S extends AnySchema>(
+  schema: S,
+  a: Input<S>,
+  b: Input<S>
 ): boolean;
-export function isEqualInput<TInput, TOutput>(
-  a: TInput,
-  b: TInput,
-  schema: SchemaLike<TInput, TOutput>
+export function isEqualInput<S extends AnySchema>(
+  a: Input<S>,
+  b: Input<S>,
+  schema: S
 ): boolean;
 
 /** `isEqualInput` for the Output side. */
-export function isEqualOutput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (a: TOutput, b: TOutput) => boolean;
-export function isEqualOutput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  a: TOutput,
-  b: TOutput
+export function isEqualOutput<S extends AnySchema>(
+  schema: S
+): (a: Output<S>, b: Output<S>) => boolean;
+export function isEqualOutput<S extends AnySchema>(
+  schema: S,
+  a: Output<S>,
+  b: Output<S>
 ): boolean;
-export function isEqualOutput<TInput, TOutput>(
-  a: TOutput,
-  b: TOutput,
-  schema: SchemaLike<TInput, TOutput>
+export function isEqualOutput<S extends AnySchema>(
+  a: Output<S>,
+  b: Output<S>,
+  schema: S
 ): boolean;
 
 /**

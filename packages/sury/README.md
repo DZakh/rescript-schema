@@ -181,18 +181,23 @@ const userId = S.makeOutputOrThrow(userIdSchema, "f81d4fae-7dec-11d0-a765-00a0c9
 //? S.Brand<string, "UserId">
 ```
 
-A schema also says what makes two of your values the same value, so that compiles too:
+The same schema lets you compare your values, fast and safe:
 
 ```ts
-const isSameSession = S.isEqualOutput(S.schema({ id: S.string, startedAt: S.date }));
-//? (a, b) => a === b || (a.id === b.id && +a.startedAt === +b.startedAt)
+const sessionSchema = S.schema({ kind: "session", id: S.string, startedAt: S.date });
 
-isSameSession(
-  { id: "s1", startedAt: new Date("2026-01-01") },
-  { id: "s1", startedAt: new Date("2026-01-01") },
+S.isEqualOutput(
+  sessionSchema,
+  { kind: "session", id: "s1", startedAt: new Date("2026-01-01") },
+  { kind: "session", id: "s1", startedAt: new Date("2026-01-01") },
 );
 // => true, two Date objects for the same instant
+
+const isSameSession = S.isEqualOutput(sessionSchema);
+//? (a, b) => a === b || (a.id === b.id && +a.startedAt === +b.startedAt)
 ```
+
+`kind` is a literal, so it never reaches the comparison: a value that matches the schema can only hold the one it declares.
 
 Every operation that looks at one side of a schema says which side in its name - `S.makeOutputOrThrow` and `S.isInput`, `S.toInputJSONSchemaOrThrow` for the wire and `S.toOutputJSONSchemaOrThrow` for your types.
 

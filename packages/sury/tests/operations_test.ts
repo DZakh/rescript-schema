@@ -286,6 +286,31 @@ test("the public types resolve to the right call form", () => {
   S.makeInputOrThrow(S.string, maybe);
   // @ts-expect-error wider than number output
   S.makeOutputOrThrow(Str, num);
+
+  // Both values are checked against the schema's side, not inferred from each
+  // other: a pair the schema can't hold has to be rejected, or the comparator
+  // would be handed values its emit never narrowed for.
+  const isEqStr = S.isEqualInput(S.string); isEqStr satisfies (a: string, b: string) => boolean;
+  S.isEqualInput(S.string, "1", "2") satisfies boolean;
+  S.isEqualInput("1", "2", S.string) satisfies boolean;
+  S.isEqualOutput(Str, 1, 2) satisfies boolean;
+  // @ts-expect-error wider than string input
+  S.isEqualInput(S.string, "1", maybe);
+  // @ts-expect-error wider than string input
+  S.isEqualInput(S.string)("1", maybe);
+  // @ts-expect-error wider than string input
+  S.isEqualInput("1", maybe, S.string);
+  // @ts-expect-error wider than number output
+  S.isEqualOutput(Str, 1, num);
+  // @ts-expect-error the Output side is number, not string
+  S.isEqualOutput(Str, "1", "2");
+  // A brand is required rather than made: both values are already outputs, so
+  // `make`'s Unbranded relaxation would only let the brand be bypassed.
+  const Branded = S.uuid.with(S.brand, "UserId");
+  const userId = S.makeOutputOrThrow(Branded, "f81d4fae-7dec-11d0-a765-00a0c91e6bf6");
+  S.isEqualOutput(Branded, userId, userId) satisfies boolean;
+  // @ts-expect-error a plain string is not the branded output
+  S.isEqualOutput(Branded, "f81d4fae-7dec-11d0-a765-00a0c91e6bf6", userId);
   const _noMakeChain = () => {
     // @ts-expect-error make takes one schema
     const makeChain: (data: string) => string = S.makeOutputOrThrow(S.string, S.string);
