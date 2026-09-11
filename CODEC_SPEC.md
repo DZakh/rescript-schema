@@ -145,17 +145,21 @@ S.string.with(S.to, S.union([S.string.with(S.to, S.number), S.string]));
 S.string.with(S.to, S.union([S.never.with(S.to, S.number), S.string]));
 ```
 
-The same applies to widening into optional or nullable targets:
+The `Invalid operation` error suggests these rewrites.
+
+**Exception - nullish arm.** A `null` or `undefined` target variant opposite a
+single source that can't hold the value is a widened type, not a decoding: the
+arm is dropped, so it neither makes the operation ambiguous nor is ever
+produced, and the reverse rejects the value. A string in particular never reads
+the text `"undefined"` as it. Only a carrier keeps the arm: `unknown`, `S.json`
+and a `S.jsonString` document (as `null`), a recursive schema.
 
 ```ts
-S.string.with(S.to, S.optional(S.string));
-// Invalid operation: for "undefined" - keep the string or decode to undefined?
-
-// Widen without decoding - the undefined variant is unreachable:
-S.string.with(S.to, S.union([S.string, S.never.with(S.to, S.schema(undefined))]));
+S.parseOrThrow(S.string.with(S.to, S.optional(S.number)))("undefined");
+// throws - Expected number, received "undefined"
+S.parseOrThrow(S.string.with(S.to, S.optional(S.string)))("abc"); // "abc" - the arm is unreachable
+S.parseOrThrow(S.json.with(S.to, S.optional(S.string)))(null); // undefined - JSON holds it
 ```
-
-The `Invalid operation` error suggests these rewrites.
 
 ## Rule 3: union → non-union
 
@@ -191,6 +195,25 @@ S.union([S.number, S.string]).with(S.to, S.union([S.number.with(S.to, S.never), 
 ```
 
 The `Invalid operation` error suggests these rewrites.
+
+**Exception - nullish arm.** The mirror of rule 2's: a `null` or `undefined`
+source variant opposite a single target that can't hold the value is dropped
+rather than converted, and the value is rejected naming what is left.
+`S.optional(X).with(S.to, T)` and `S.nullable(X).with(S.to, T)` read as
+`X -> T` over a wider input type:
+
+```ts
+const schema = S.optional(S.string).with(S.to, S.number);
+
+S.parseOrThrow(schema)("12"); // 12
+S.parseOrThrow(schema)(undefined); // throws - Expected string, received undefined
+S.optional(S.number).with(S.to, S.string); // ✅ 12 -> "12", undefined rejected, never "undefined"
+S.optional(S.string).with(S.to, S.string); // ✅ string -> string, undefined rejected
+S.optional(S.string).with(S.to, S.json); // ✅ undefined -> null, JSON holds it
+```
+
+Only the arm is dropped, so a union another member leaves ambiguous is still
+rejected (`codec-optional-union2-string-partial`).
 
 ## Rule 4: union → union
 
@@ -366,7 +389,16 @@ changed when the implementation landed:
 | `codec-json-union2`                   | 2    | non-bigint string falls back to the `S.string` member                |
 | `codec-json-union3-ungrouped`         | 2    | `"123"` matches the literal, `"124"` reaches the `S.bigint` member    |
 | `codec-number-union2-int32`           | 2    | compiles: int32 first, string next                                   |
-| `codec-string-optional-partial`       | 2    | rejected - partial type match                                        |
+| `codec-string-optional`              | 2    | nullish arm - `undefined` is never produced, and rejected on encode  |
+| `codec-string-optional-number`       | 2    | nullish arm - `"undefined"` text is rejected, `"12"` decodes to `12` |
+| `codec-optional-string-string`       | 3    | nullish arm - `undefined` rejected as `Expected string`              |
+| `codec-optional-number-string`       | 3    | nullish arm - `undefined` is not written as text                     |
+| `codec-optional-string-number`       | 3    | nullish arm - `X -> T` decodes, `undefined` rejected                 |
+| `codec-optional-string-uint8array`   | 3    | nullish arm - the text packs, `undefined` rejected                   |
+| `codec-file-optional-email`          | 2    | nullish arm - a file reads into `email`, not into a choice           |
+| `codec-nullable-string-string`, `codec-nullish-string-string` | 3 | nullish arm - `null` the same way                        |
+| `codec-object-optional-string-string`| 3    | nullish arm - an optional field required on output, `Failed at a`   |
+| `codec-optional-union2-string-partial` | 3  | nullish arm dropped, still rejected - `number` is the partial match  |
 | `codec-string-union2-partial`         | 2    | rejected - partial type match                                        |
 | `codec-union2-string-partial`         | 3    | rejected - partial type match                                        |
 | `codec-optional-nullable-partial`     | 4    | rejected - `string` has no same-type target member                   |

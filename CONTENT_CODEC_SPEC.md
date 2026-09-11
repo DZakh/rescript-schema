@@ -325,7 +325,7 @@ refine and `bc` only, so a File bundle does not ship recode or TextEncoder.
 | `S.uint8Array.with(S.to, S.jsonString)` - UTF-8 escape (corrupts non-ASCII) | rule 4 error |
 | `{payload: S.uint8Array}` in a JSON document - corrupts | base64 |
 | `S.encodeOrThrow(S.uint8Array.with(S.to, S.number))(42)` - returns `42` typed as `Uint8Array` | error (the decoder's missing fall-through, a standalone soundness fix) |
-| `S.optional(S.string).with(S.to, S.uint8Array)` - the `undefined` arm passed through as bytes | error, which `CODEC_SPEC.md`'s rule 3 already said: a variant with no decoder rejects the operation |
+| `S.optional(S.string).with(S.to, S.uint8Array)` - the `undefined` arm passed through as bytes | the text packs, `undefined` is rejected: `CODEC_SPEC.md`'s nullish-arm exception to rule 3 |
 | `S.base64.with(S.trim).with(S.to, S.uint8Array)` - packed the base64 *text* as bytes | the payload, same as untrimmed: a refinement that only reshapes the text carries the marker |
 | a `S.jsonString.with(S.to, X)` field of a decoded document - re-escaped its own text, then failed against X | parsed (rule 3) |
 | a `noValidation` field of a JSON document - `Can't decode JSON to Date` | decoded: `noValidation` drops the checks, not the conversion. Only `S.json` itself still travels as text, since its parse *is* its check |
@@ -352,7 +352,8 @@ ASCII-only fixtures are what hid the corruption above.
 | `jsonstring-object-url`, `codec-array-never-jsonstring` | the two shapes that reach jsonString's fallback for a value it can't serialize piecewise |
 | `codec-base64-file` | payload transfer in and out of a binary container |
 | `codec-uint8array-jsonstring-ambiguous`, `codec-file-jsonstring-ambiguous`, `codec-base64-jsonstring-ambiguous` | rule 4, one per carrier kind |
-| `codec-uint8array-json-unsupported`, `codec-uint8array-optional-jsonstring-unsupported`, `codec-file-optional-email-unsupported` | where the axis stops - `S.json`, a union carrying a payload, and any union at all opposite a container whose read is asynchronous |
+| `codec-uint8array-json-unsupported`, `codec-uint8array-optional-jsonstring-unsupported` | where the axis stops - `S.json`, and a union carrying a payload |
+| `codec-file-optional-email` | a nullish arm is no choice for an asynchronous read to make: `S.file` reads into `S.optional(S.email)` as into `S.email`, and `None` is rejected in both directions |
 | `codec-file-blob` | the one instance widening the axis makes legal, and the direction that stays an error |
 | `codec-base64-jsonstring-payload`, `codec-base64url-jsonstring-payload` | rule 3, both alphabets - the base64url one is the JWT segment |
 | `codec-jsonstring-object-uint8array`, `codec-jsonstring-object-file` | rule 2, both directions |
@@ -362,7 +363,8 @@ ASCII-only fixtures are what hid the corruption above.
 | `codec-jsonstring-object-jsonstring`, `codec-jsonstring-jsonstring-payload` | the nested-document field, and the document that carries one directly |
 | `codec-email-string`, `codec-jsonstring-object-optional-jsonstring`, `jsonstring-optional-jsonstring-field`, `jsonstring-novalidation-date` | bugs this work turned up and didn't cause, each carrying a `FIXME` that says so |
 | `codec-uint8array-jsonstring-packed`, `codec-jsonstring-file-slots` | rule 1, both spellings of the pair |
-| `codec-uint8array-number-unsupported`, `codec-optional-string-uint8array-unsupported` | the decoder fall-through the soundness fix added, standalone and through a union arm |
+| `codec-uint8array-number-unsupported` | the decoder fall-through the soundness fix added |
+| `codec-optional-string-uint8array`, `codec-uint8array-optional-string`, `codec-uint8array-optional-base64` | a nullish arm beside a payload: the text converts, the arm is dropped in both directions |
 | `codec-array-never-uint8array` | the one source the fall-through has to keep letting through: nothing reaches a `never`, so there is no conversion to reject |
 | `string-to-blob` | the conversion that used to be two creation errors |
 | `codec-base64-trim-jsonstring-ambiguous` | the marker surviving a `S.trim` link, so the pair still reports rather than guesses |

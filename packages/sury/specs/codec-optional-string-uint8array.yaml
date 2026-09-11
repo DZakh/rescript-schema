@@ -5,17 +5,25 @@ ts:
   output: Uint8Array<ArrayBufferLike>
   instantiations: 4587
 jsonSchema:
-  input: Expected JSON, received string | undefined
+  input: '{ type: "string" }'
+  fromInputType: string
   output: Expected JSON, received Uint8Array
 vs:
   zod:
     _skip: not-applicable
 operations:
   parse:
-    creationError: "SuryError: Can't decode undefined -> Uint8Array. Define custom codec with S.to"
+    expression: i=>{if(typeof i==="string"){i=e[0](i)}else{e[1](i)}return i}
+    examples:
+      text:
+        input: '"hi"'
+        output: new Uint8Array([104, 105])
+      undefined-is-rejected:
+        input: undefined
+        error: Expected string, received undefined
   decode: eq-to-parse
   encode:
-    expression: i=>{for(;;){let r;try{let v0=e[0].decode(i);i=v0;break}catch(x){(r||(r=[])).push(e[1](x))}if(i===void 0)break;e[2](i,...(r||[]))}return i}
+    expression: i=>{let v0=e[0].decode(i);i=v0;return i}
     examples:
       bytes-back:
         input: new Uint8Array([104, 105])

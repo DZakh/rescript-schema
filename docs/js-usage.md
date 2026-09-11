@@ -1012,6 +1012,15 @@ S.parseOrThrow(schema, 123n); // "123"
 S.parseOrThrow(schema, true); // "true"
 ```
 
+An `undefined` or `null` member is a wider type, not a value to convert.
+`S.optional(X)` or `S.nullable(X)` meeting a single type works as `X` would and
+rejects the missing value: `S.optional(S.number).with(S.to, S.string)` writes
+`12` as `"12"` and never `undefined` as `"undefined"`, and
+`S.optional(S.string).with(S.to, S.string)` is `string -> string`. The same
+holds the other way round: a single type converted into `S.optional(X)` never
+produces `undefined`, and a string never reads `"undefined"` as one. `S.json`,
+which holds the value, is the exception and keeps converting it as `null`.
+
 **Union → union.** Values pass through to the member of the same type on the
 other side - nothing is converted, so every member needs a counterpart. The one
 exception: an `undefined` member without a counterpart may pair with a `null`
