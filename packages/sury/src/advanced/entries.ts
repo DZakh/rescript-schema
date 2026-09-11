@@ -27,7 +27,8 @@ import {
   B_next,
   B_refine,
   B_scope,
-  B_unsupportedDecode
+  B_unsupportedDecode,
+  operationArgVar
 } from "../builder";
 import {
   parse
@@ -102,6 +103,14 @@ export const asText = (input: Val, target: Internal): Val => {
   return output;
 };
 
+// An assignment into the operation's own parameter: `make*` reads `g.r` to
+// know the parameter is no longer the value it was given.
+const rebinds = (item: Val): void => {
+  if (item.i === operationArgVar) {
+    item.g.r = true;
+  }
+};
+
 export const armCode = (item: Val, source: Internal, target: Internal): string => {
   const armIn = B_scope(item);
   armIn.io = false;
@@ -109,7 +118,11 @@ export const armCode = (item: Val, source: Internal, target: Internal): string =
   armIn.e = target;
   const armOut = parse(armIn);
   item.f |= armOut.f & 1;
-  return B_merge(armOut) + (armOut.i === item.i ? "" : `${item.i}=${armOut.i};`);
+  if (armOut.i === item.i) {
+    return B_merge(armOut);
+  }
+  rebinds(item);
+  return B_merge(armOut) + `${item.i}=${armOut.i};`;
 };
 
 export const absentArm = (schema: Internal): Internal =>
@@ -119,11 +132,14 @@ export const absentArm = (schema: Internal): Internal =>
 
 export const absentCode = (item: Val, schema: Internal): string => {
   const absent = absentArm(schema);
-  return absent.to !== U
-    ? armCode(item, absent, absent)
-    : isOptional(schema)
-      ? ""
-      : `${item.i}=null`;
+  if (absent.to !== U) {
+    return armCode(item, absent, absent);
+  }
+  if (isOptional(schema)) {
+    return "";
+  }
+  rebinds(item);
+  return `${item.i}=null`;
 };
 
 export const readWrapped = (
@@ -166,13 +182,15 @@ export const convertTextEntry = (
   if (blank && isAbsent(target) && !admitsBlank(present)) {
     const item = B_scope(input);
     item.s = self;
-    const wrapped = readWrapped(item, target, present, true);
     // The form loop does `||void 0` before this wrap. Env fields are already
     // in the object, so `""` would otherwise survive an optional with no else.
+    // On the scope, which heads the chain: the val `readWrapped` hands back
+    // is not always the one whose code the wrap is.
     if (isOptional(target) && absentArm(target).to === U) {
-      wrapped.cp = `${item.i}=${item.i}||void 0;` + wrapped.cp;
+      item.cp = `${item.i}=${item.i}||void 0;`;
+      rebinds(item);
     }
-    return wrapped;
+    return readWrapped(item, target, present, true);
   }
   if (blank && !decidesBlank(target)) {
     B_invalidOperation(
