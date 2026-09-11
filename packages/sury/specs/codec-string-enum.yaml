@@ -8,6 +8,7 @@ jsonSchema:
   input: '{ enum: ["a", "b"] }'
   fromInputType: '"a" | "b"'
   output: '{ enum: ["a", "b"] }'
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable

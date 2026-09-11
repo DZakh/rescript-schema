@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "boolean" }'
   output: Expected JSON, received string | symbol
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable

@@ -9,6 +9,9 @@ jsonSchema:
   output: '{ type: "string", contentMediaType: "application/json" }'
   openapi-3.0:
     output: '{ type: "string" }'
+isEqual:
+  input: (a,b)=>a===b||(a.type==="user.created"?b.type==="user.created"&&a.id===b.id:b.type==="user.renamed"&&a.id===b.id&&a.name===b.name)
+  output: strictEqual
 vs:
   zod:
     _skip: not-applicable

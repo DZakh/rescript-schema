@@ -148,6 +148,8 @@ export const FUZZ_EXPORTS: Record<string, FuzzExport> = {
   encodeAsResult: skip("operation, not a schema factory"),
   encodeAsResultPromise: skip("operation, not a schema factory"),
   encodeOrThrow: skip("operation, not a schema factory"),
+  isEqualInput: skip("operation, not a schema factory"),
+  isEqualOutput: skip("operation, not a schema factory"),
   isInput: skip("operation, not a schema factory"),
   isInputAsPromise: skip("operation, not a schema factory"),
   isOutput: skip("operation, not a schema factory"),

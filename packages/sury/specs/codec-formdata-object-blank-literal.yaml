@@ -9,6 +9,9 @@ jsonSchema:
   output: '{ type: "object", properties: { a: { type: "string", const: "" }, b: { enum: ["", "x", null] }, c: { anyOf: [{ type: "string", const: "" }, { type: "number" }, { type: "null" }] } }, required: ["b", "c"] }'
   openapi-3.0:
     output: '{ type: "object", properties: { a: { type: "string", enum: [""] }, b: { enum: ["", "x", null] }, c: { anyOf: [{ type: "string", enum: [""] }, { type: "number" }, { enum: [null] }] } }, required: ["b", "c"] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a.a===b.a&&a.b===b.b&&a.c===b.c
 vs:
   zod:
     _skip: not-applicable

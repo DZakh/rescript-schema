@@ -31,6 +31,7 @@ import {
   undefinedTag,
   unknown,
   unknownTag,
+  updateOutput,
   type Val
 } from "./base";
 import {
@@ -514,11 +515,35 @@ export const objectDecoder = (unknownInput: Val): Val => {
     for (let idx = 0; idx < keys.length; idx++) {
       const key = keys[idx]!;
       const itemInput = valGet(input, key);
-      itemInput.e = itemSchema;
+      const source = itemInput.s;
+      // An optional source field into a value with no place for `undefined`
+      // (the test union.ts's nullish-arm exception makes) converts per variant
+      // with the arm kept, so `None` leaves the key out instead of failing.
+      const absent =
+        source.type === anyOfTag &&
+        source.has![undefinedTag] &&
+        !(tagFlags[itemSchema.type]! & (1 | 16 | 32 | 256 | 512)) &&
+        itemSchema.format !== "json";
+      if (absent) {
+        const target = copySchema(source);
+        target.anyOf = source.anyOf!.map((variant) =>
+          variant.type === undefinedTag
+            ? variant
+            : updateOutput<Internal>(variant, (mut) => {
+                mut.to = itemSchema;
+              })
+        );
+        target.perVariant = true;
+        itemInput.e = target;
+      } else {
+        itemInput.e = itemSchema;
+      }
       itemInput.io = false;
       itemInput.u = isUnion;
       B_narrowJsonSourcedJsonString(itemInput);
-      B_addObjectField(objectVal, key, parse(itemInput));
+      const itemOutput = parse(itemInput);
+      if (absent) itemOutput.o = true;
+      B_addObjectField(objectVal, key, itemOutput);
     }
     output = completeObjectVal(objectVal);
   } else {

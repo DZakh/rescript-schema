@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "string", format: "date-time" }'
   output: '{ type: "string", format: "date-time" }'
+isEqual: strictEqual
 vs:
   zod: "z.iso.datetime({ offset: true })"
 operations:

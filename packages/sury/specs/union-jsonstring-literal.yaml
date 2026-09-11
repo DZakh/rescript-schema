@@ -10,6 +10,7 @@ jsonSchema:
   openapi-3.0:
     input: '{ anyOf: [{ type: "string" }, { type: "string", enum: ["x"] }] }'
     output: '{ anyOf: [{ type: "string" }, { type: "string", enum: ["x"] }] }'
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable

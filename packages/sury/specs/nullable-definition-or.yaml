@@ -9,6 +9,9 @@ jsonSchema:
   output: '{ type: "object", properties: { a: { type: "boolean" } }, required: ["a"] }'
   openapi-3.0:
     input: '{ default: { a: false }, type: "object", properties: { a: { type: "boolean" } }, required: ["a"], nullable: true }'
+isEqual:
+  input: (a,b)=>a===b||(a===null?b===null:b!==null&&a.a===b.a)
+  output: (a,b)=>a===b||e[0](a,b)
 vs:
   zod:
     schema: "z.object({ a: z.boolean() }).nullable().default({ a: false })"

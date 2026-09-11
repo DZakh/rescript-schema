@@ -1409,6 +1409,56 @@ test("Assert panics when no argument is a Sury schema", (t) => {
   );
 });
 
+// The three call shapes and their failure are a property of the CALL, so no
+// spec pins them: every spec runs its own values through all three, but only a
+// schema it already has.
+test("isEqual dispatch: the schema is found first or last, and its absence panics", (t) => {
+  const schema = S.schema({ id: S.string });
+  const a = { id: "u1" };
+  const b = { id: "u1" };
+
+  // Arity, not an undefined check, separates the compiled form from a
+  // comparison of two absent values - `S.void` admits `undefined`.
+  t.expect(typeof S.isEqualOutput(schema)).toBe("function");
+  t.expect(S.isEqualOutput(S.void, undefined, undefined)).toBe(true);
+
+  t.expect(S.isEqualOutput(schema)(a, b)).toBe(true);
+  t.expect(S.isEqualOutput(schema, a, b)).toBe(true);
+  t.expect(S.isEqualOutput(a, b, schema)).toBe(true);
+  t.expect(S.isEqualInput(a, b, schema)).toBe(true);
+  t.expect(S.isEqualOutput(a, { id: "u2" }, schema)).toBe(false);
+
+  const foreign = {
+    "~standard": { version: 1, vendor: "other", validate: (v: unknown) => ({ value: v }) },
+  };
+  t.expect(() => (S.isEqualOutput as (a: unknown) => unknown)(foreign)).toThrow(
+    "Expected a Sury schema",
+  );
+  t.expect(() =>
+    (S.isEqualInput as (a: unknown, b: unknown, c: unknown) => unknown)("x", "x", foreign),
+  ).toThrow("Expected a Sury schema");
+});
+
+// A spec can't turn a global on, so the one position that compares with
+// SameValueZero has no golden: a number reaches NaN only once its validation is
+// off. Reflexivity is what is at stake - NaN is the one value `===` cannot
+// match - and -0 comes along with it, since SameValueZero is what the rest of
+// the emit uses for a number too.
+test("a number compares with SameValueZero once NaN can reach it", (t) => {
+  t.expect(S.isEqualOutput(S.number, NaN, NaN)).toBe(false);
+  try {
+    S.global({ disableNanNumberValidation: true });
+    t.expect(S.isEqualOutput(S.number, NaN, NaN)).toBe(true);
+    t.expect(S.isEqualOutput(S.number, 0, -0)).toBe(true);
+    t.expect(S.isEqualOutput(S.number, 1, 2)).toBe(false);
+    const nested = S.schema({ n: S.number });
+    t.expect(S.isEqualOutput(nested, { n: NaN }, { n: NaN })).toBe(true);
+    t.expect(S.isEqualOutput(nested, { n: NaN }, { n: 1 })).toBe(false);
+  } finally {
+    S.global({});
+  }
+});
+
 test("Every construction path keeps a schema recognizable to operation dispatch", (t) => {
   // `S.assertInputOrThrow(data, schema)` only finds the schema in the second slot when
   // the schema still has one of the two schema prototypes, so every way of

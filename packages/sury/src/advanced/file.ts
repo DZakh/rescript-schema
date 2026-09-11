@@ -143,13 +143,20 @@ const binarySchema = (name: string, global: string, nameArg: string): Internal =
 
       s.encoder = (input, target) => {
         B_rejectUnsettled(input, target);
-        const targetTagFlag = tagFlags[target.type]!;
+        let targetTagFlag = tagFlags[target.type]!;
         // A union picks its variant before an asynchronous read resolves, so the
         // arm's own checks would run against the promise. The axis stops here,
         // the way CONTENT_CODEC_SPEC.md says it stops at every union - a custom
         // coder on the link is what reads a container into a choice of shapes.
+        // A nullish arm is no choice (the exception in union.ts drops it), so
+        // `S.optional(X)` reads into X.
         if ((targetTagFlag & 256)) {
-          return B_unsupportedDecode(input, input.s, target);
+          const kept = target.anyOf!.filter((variant) => !(tagFlags[variant.type]! & (16 | 32)));
+          if (kept.length !== 1) {
+            return B_unsupportedDecode(input, input.s, target);
+          }
+          target = kept[0]!;
+          targetTagFlag = tagFlags[target.type]!;
         }
         if ((targetTagFlag & 8192)) {
           // Bytes are the payload, so a bytes target takes them as they are;

@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received FormData
   output: '{ type: "object", properties: { role: { enum: ["admin", "user"] }, plan: { enum: ["free", "pro"] } }, required: ["role"] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a.role===b.role&&a.plan===b.plan
 vs:
   zod:
     _skip: not-applicable

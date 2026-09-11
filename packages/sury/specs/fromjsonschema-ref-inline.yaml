@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "object", properties: { from: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] }, to: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] } }, required: ["from", "to"] }'
   output: '{ type: "object", properties: { from: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] }, to: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] } }, required: ["from", "to"] }'
+isEqual: (a,b)=>a===b||a.from.x===b.from.x&&a.from.y===b.from.y&&a.to.x===b.to.x&&a.to.y===b.to.y
 vs:
   zod:
     _skip: not-applicable

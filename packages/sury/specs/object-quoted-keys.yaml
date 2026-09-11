@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: "{ type: \"object\", properties: { \"\\\"\": { type: \"string\" }, \"'\": { type: \"string\" }, \"`\": { type: \"string\" } }, required: [\"\\\"\", \"'\", \"`\"] }"
   output: "{ type: \"object\", properties: { \"\\\"\": { type: \"string\" }, \"'\": { type: \"string\" }, \"`\": { type: \"string\" } }, required: [\"\\\"\", \"'\", \"`\"] }"
+isEqual: (a,b)=>a===b||a["\""]===b["\""]&&a["'"]===b["'"]&&a["`"]===b["`"]
 vs:
   zod:
     schema: "z.object({ '\"': z.string(), \"'\": z.string(), \"`\": z.string() })"

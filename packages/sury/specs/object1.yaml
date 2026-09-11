@@ -10,6 +10,7 @@ ts:
 jsonSchema:
   input: '{ type: "object", properties: { a: { type: "string" } }, required: ["a"] }'
   output: '{ type: "object", properties: { a: { type: "string" } }, required: ["a"] }'
+isEqual: (a,b)=>a===b||a.a===b.a
 vs:
   zod: "z.object({ a: z.string() })"
 operations:

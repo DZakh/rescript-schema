@@ -15,6 +15,7 @@
 
 import {
   anyOfTag,
+  copySchema,
   baseSchema,
   type Builder,
   type Check,
@@ -259,7 +260,7 @@ const unionEmitChain = (cases: UnionCase[], ctx: UnionCtx): string => {
     if (c.b === "") {
       return `if(!(${c.c})){${ctx.f("")}}`;
     }
-    if (c.c === "") return c.b + ";";
+    if (c.c === "") return c.b.endsWith(";") ? c.b : c.b + ";";
     return `if(${c.c}){${c.b}}else{${ctx.f("")}}`;
   }
 
@@ -584,6 +585,33 @@ const unionDiscriminator = (schema: Internal): UnionDiscriminator | undefined =>
 };
 
 // ── Rejections ───────────────────────────────────────────────────────────────
+
+// Rules 2 and 3, exception - nullish arm. Opposite a schema with no place for
+// the value, a bare `null`/`undefined` variant is dropped: it neither makes
+// the pair ambiguous nor converts (never `"undefined"` text), and the value is
+// rejected - `S.optional(X)` meets a single T as X -> T. A place for it:
+// `unknown`, a nullish type, a union, a recursive ref (`S.json` among them)
+// or a JSON document string - the same test composites.ts makes for an
+// optional field encoded into a dict. Compared on the side the other schema
+// meets: output under rule 3, input under rule 2. A list that would empty is
+// kept whole: two literals, not a wrapper.
+const unionDropNullish = (
+  variants: Internal[],
+  other: Internal | undefined,
+  outputSide: boolean
+): Internal[] => {
+  if (
+    other === U ||
+    tagFlags[other.type]! & (1 | 16 | 32 | 256 | 512) ||
+    other.format === "json"
+  ) {
+    return variants;
+  }
+  const kept = variants.filter(
+    (variant) => !(tagFlags[(outputSide ? unionOutput(variant) : variant).type]! & (16 | 32))
+  );
+  return kept.length ? kept : variants;
+};
 
 // A source matching some but not all variants by type is ambiguous - Sury can't
 // tell a pass-through from a decoding attempt. Reject where the operation is
@@ -1000,6 +1028,8 @@ const unionPlan = (members: UnionMember[]): UnionGroup[] => {
 const unionEmit = (
   input: Val,
   self: Internal,
+  // What a failure names - `self` less any arm the conversion dropped.
+  expectedSchema: Internal,
   plan: UnionGroup[],
   toPerCase: Internal | undefined,
   trustedSelf?: boolean
@@ -1017,9 +1047,9 @@ const unionEmit = (
   let expected = "";
   const ctx: UnionCtx = {
     f: (caught) =>
-      `${B_embed(input, unionFail.bind(U, self, input.path))}(${input.v()}${salvaged}${caught})`,
+      `${B_embed(input, unionFail.bind(U, expectedSchema, input.path))}(${input.v()}${salvaged}${caught})`,
     r: () => rethrow || (rethrow = B_embed(input, getOrRethrow)),
-    s: () => expected || (expected = B_embed(input, self)),
+    s: () => expected || (expected = B_embed(input, expectedSchema)),
   };
   // Trusting a case's discriminant requires it to actually discriminate:
   // unique among every member's (two ReScript variants can share their first
@@ -1240,7 +1270,7 @@ const unionEmit = (
   if (pure) {
     const fused = unionOr(cases);
     output = B_refine(
-      B_refine(output, output.s, [{ c: () => fused, f: failInvalidType }], self)
+      B_refine(output, output.s, [{ c: () => fused, f: failInvalidType }], expectedSchema)
     );
   } else if (!noop) {
     const dispatch = unionEmitChain(cases, ctx);
@@ -1346,6 +1376,15 @@ export const unionDecoder: Builder = (input: Val) => {
   }
 
   const source = input.s;
+  variants = unionDropNullish(unionDropNullish(variants, source, false), toPerCase, true);
+  // A dropped arm leaves the error naming what is left: `S.optional(S.string)`
+  // rejecting `undefined` says "Expected string". A copy, so a name or message
+  // set on the union still wins.
+  let expected = self;
+  if (variants !== self.anyOf) {
+    expected = copySchema(self);
+    expected.anyOf = variants;
+  }
   const nan = input.g.o & 2 ? 2048 : 0;
   let flags = 0;
   const sourceLiteral = isLiteral(source);
@@ -1403,6 +1442,7 @@ export const unionDecoder: Builder = (input: Val) => {
   return unionEmit(
     input,
     self,
+    expected,
     unionPlan(unionAnalyze(unionMask(source, 2, nan), flags, sourceTag, variants, source, nan)),
     toPerCase,
     trustedSelf
@@ -1435,9 +1475,9 @@ const unionRefinerAttacher = (self: Internal): ((mut: Internal) => void) => {
 // dispatches over the variants and each one converts independently.
 export const unionRewrite = (
   input: Val,
+  variants: Internal[],
   map: (variant: Internal, idx: number) => Internal
 ): Val => {
-  const variants = input.s.anyOf!;
   const anyOf: Internal[] = [];
   const has: Partial<Record<Tag, boolean>> = {};
   for (let idx = 0; idx < variants.length; idx++) {
@@ -1460,7 +1500,7 @@ export const unionRewrite = (
 // Appends `.to(target)` to every source variant. A variant already ending in
 // `never` stays as it is: it's an explicit rejection, not a path to convert.
 export const unionRewriteTo = (input: Val, target: Internal): Val =>
-  unionRewrite(input, (variant) =>
+  unionRewrite(input, input.s.anyOf!, (variant) =>
     unionOutput(variant).type === neverTag
       ? variant
       : updateOutput<Internal>(variant, (mut) => {
@@ -1484,7 +1524,7 @@ const unionTargetOwns = (target: Internal) =>
 export const unionEncoder: Encoder = (input: Val, target: Internal) => {
   B_rejectUnsettled(input, target, input.s);
   if (unionTargetOwns(target)) return input;
-  const variants = input.s.anyOf!;
+  const variants = unionDropNullish(input.s.anyOf!, target, true);
   if (target.perVariant && target.anyOf!.length === variants.length) {
     // An already-resolved per-variant mapping (the JSON encoder builds one for an
     // object field): each target variant *is* its source variant plus whatever
@@ -1493,7 +1533,7 @@ export const unionEncoder: Encoder = (input: Val, target: Internal) => {
     const targets = target.anyOf!;
     return targets.every((tv, idx) => tv === variants[idx])
       ? input
-      : unionRewrite(input, (_variant, idx) => targets[idx]!);
+      : unionRewrite(input, variants, (_variant, idx) => targets[idx]!);
   }
   const resolved = unionResolve(input, input.s, variants, target);
   if (resolved.every((to) => to === U)) {
@@ -1503,7 +1543,7 @@ export const unionEncoder: Encoder = (input: Val, target: Internal) => {
     // re-validation (a second item loop over an array, #284).
     return input;
   }
-  return unionRewrite(input, (variant, idx) => {
+  return unionRewrite(input, variants, (variant, idx) => {
     const to = resolved[idx];
     return to === U
       ? variant

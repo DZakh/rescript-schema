@@ -1015,6 +1015,15 @@ S.parseOrThrow(schema, 123n); // "123"
 S.parseOrThrow(schema, true); // "true"
 ```
 
+An `undefined` or `null` member is a wider type, not a value to convert.
+`S.optional(X)` or `S.nullable(X)` meeting a single type works as `X` would and
+rejects the missing value: `S.optional(S.number).with(S.to, S.string)` writes
+`12` as `"12"` and never `undefined` as `"undefined"`, and
+`S.optional(S.string).with(S.to, S.string)` is `string -> string`. The same
+holds the other way round: a single type converted into `S.optional(X)` never
+produces `undefined`, and a string never reads `"undefined"` as one. `S.json`,
+which holds the value, is the exception and keeps converting it as `null`.
+
 **Union → union.** Values pass through to the member of the same type on the
 other side - nothing is converted, so every member needs a counterpart. The one
 exception: an `undefined` member without a counterpart may pair with a `null`
@@ -1704,6 +1713,7 @@ Every operation names two things: the **verb** - what it does - and the **outcom
 | Convert   |                                                      |                                                        | `parse`, `decode`, `encode` |
 | Construct | `makeInput`                                          | `makeOutput`                                           |                             |
 | Validate  | `isInput`, `isInputAsPromise`                        | `isOutput`, `isOutputAsPromise`                        |                             |
+| Compare   | `isEqualInput`                                       | `isEqualOutput`                                        |                             |
 | Assert    | `assertInputOrThrow`, `assertInputAsPromiseOrReject` | `assertOutputOrThrow`, `assertOutputAsPromiseOrReject` |                             |
 | Describe  | `toInputJSONSchemaOrThrow`, `toInputExpression`      | `toOutputJSONSchemaOrThrow`, `toOutputExpression`      |                             |
 
@@ -1848,6 +1858,28 @@ const isUser = S.isInput(userSchema);
 
 const users = records.filter(isUser);
 ```
+
+**Compare** - `S.isEqualInput(schema)` and `S.isEqualOutput(schema)`, a compiled equality for two values of that side:
+
+```ts
+const eventSchema = S.schema({ kind: "click", at: S.date, path: S.string });
+
+const isSameEvent = S.isEqualOutput(eventSchema); // compiled operation, data-last
+//? (a, b) => a === b || (+a.at === +b.at && a.path === b.path)
+
+isSameEvent(
+  { kind: "click", at: new Date("2026-01-01"), path: "/a" },
+  { kind: "click", at: new Date("2026-01-01"), path: "/a" },
+);
+// => true, two different Date objects for the same instant
+
+S.isEqualOutput(eventSchema, a, b); // immediate, schema first
+S.isEqualOutput(a, b, eventSchema); // immediate, data first
+```
+
+`kind` is a literal, so it contributes no comparison at all: a value that conforms can only hold the one it declares. Fields and elements otherwise compare by their own schemas, a `Date` by its time, a `Set` by its members, a `FormData` by its entries in order, and a union by the member each value lands in.
+
+Both values have to be valid for the schema already - this compares, it does not validate. Use [`S.makeOutputOrThrow`](#constructing-entities) on a value you built yourself if you need it checked first.
 
 **Assert** - validate without building an output, which makes it 2-3× faster than parsing:
 

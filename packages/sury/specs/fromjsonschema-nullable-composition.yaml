@@ -10,6 +10,7 @@ jsonSchema:
   openapi-3.0:
     input: '{ allOf: [{ type: "string" }, { minLength: 2 }], nullable: true }'
     output: '{ allOf: [{ type: "string" }, { minLength: 2 }], nullable: true }'
+isEqual: (a,b)=>a===b||e[0](a,b)
 vs:
   zod:
     _skip: not-applicable

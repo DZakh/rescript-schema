@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "object", properties: { id: { type: "string" }, role: { enum: ["admin", "user"] }, tags: { items: { type: "string" }, type: "array" } }, required: ["id", "role"] }'
   output: '{ type: "object", properties: { id: { type: "string" }, role: { enum: ["admin", "user"] }, tags: { items: { type: "string" }, type: "array" } }, required: ["id", "role"] }'
+isEqual: (a,b)=>a===b||a.id===b.id&&a.role===b.role&&(a.tags===void 0?b.tags===void 0:b.tags!==void 0&&e[0](a.tags,b.tags))
 vs:
   zod:
     _skip: not-applicable
