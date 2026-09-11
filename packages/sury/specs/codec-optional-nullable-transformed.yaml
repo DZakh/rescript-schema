@@ -20,21 +20,12 @@ operations:
       true-string:
         input: '"true"'
         output: "true"
-        divergence:
-          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
-          check: Ambiguous string -> string | null. Should null be decoded or ignored? Choose with S.to for string -> null, or S.never -> null
       false-string:
         input: '"false"'
         output: "false"
-        divergence:
-          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
-          check: Ambiguous string -> string | null. Should null be decoded or ignored? Choose with S.to for string -> null, or S.never -> null
       undefined:
         input: undefined
         output: "null"
-        divergence:
-          reason: the checks compile the reverse direction, which this codec leaves ambiguous, so they raise on the schema instead of answering about the value
-          check: Ambiguous string -> string | null. Should null be decoded or ignored? Choose with S.to for string -> null, or S.never -> null
       invalid:
         input: '"abc"'
         error: Expected boolean, received "abc"

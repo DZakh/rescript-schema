@@ -46,15 +46,16 @@ test("Coerce from string to bool", t => {
   t->U.assertCompiledCode(~schema, ~op=#Encode, `i=>{return ""+i}`)
 })
 
-test("Coerce from string to option of int (union dispatch over a converted value)", t => {
-  let schema = S.string->S.to(S.option(S.int))
+test("Coerce from string to union of int and bool (union dispatch over a converted value)", t => {
+  let schema = S.string->S.to(S.union([S.int->S.castToUnknown, S.bool->S.castToUnknown]))
 
-  t->Assert.deepEqual("123"->S.parseOrThrow(~to=schema), Some(123))
-  t->Assert.deepEqual("undefined"->S.parseOrThrow(~to=schema), None)
+  t->Assert.deepEqual("123"->S.parseOrThrow(~to=schema), %raw(`123`))
+  t->Assert.deepEqual("true"->S.parseOrThrow(~to=schema), %raw(`true`))
   t->U.assertThrowsMessage(
     () => "1.5"->S.parseOrThrow(~to=schema),
-    `Expected int32 | undefined, received "1.5"
-- Expected int32, received 1.5`,
+    `Expected int32 | boolean, received "1.5"
+- Expected int32, received 1.5
+- Expected boolean, received "1.5"`,
   )
 
   // Regression (v0 is not defined): the union discriminant must not be hoisted
@@ -64,15 +65,15 @@ test("Coerce from string to option of int (union dispatch over a converted value
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{typeof i==="string"||e[4](i);for(;;){let r;try{let v0=+i;v0==v0&&(v0||i.trim())||e[1](i);v0<=2147483647&&v0>=-2147483648&&v0%1==0||e[0](v0);i=v0;break}catch(x){(r||(r=[])).push(e[2](x))}if(i==="undefined"){i=void 0;break}e[3](i,...(r||[]))}return i}`,
+    `i=>{typeof i==="string"||e[5](i);for(;;){let r;try{let v0=+i;v0==v0&&(v0||i.trim())||e[1](i);v0<=2147483647&&v0>=-2147483648&&v0%1==0||e[0](v0);i=v0;break}catch(x){(r||(r=[])).push(e[3](x))}try{let v1;(v1=i==="true")||i==="false"||e[2](i);i=v1;break}catch(x){(r||(r=[])).push(e[3](x))}e[4](i,...(r||[]))}return i}`,
   )
 
-  t->Assert.deepEqual(Some(123)->S.convertOrThrow(~from=schema, ~to=S.unknown), %raw(`"123"`))
-  t->Assert.deepEqual(None->S.convertOrThrow(~from=schema, ~to=S.unknown), %raw(`"undefined"`))
+  t->Assert.deepEqual(%raw(`123`)->S.convertOrThrow(~from=schema, ~to=S.unknown), %raw(`"123"`))
+  t->Assert.deepEqual(%raw(`true`)->S.convertOrThrow(~from=schema, ~to=S.unknown), %raw(`"true"`))
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{for(;;){if(typeof i==="number"&&i==i&&i<=2147483647&&i>=-2147483648&&i%1==0){i=""+i;break}if(i===void 0){i="undefined";break}e[0](i)}return i}`,
+    `i=>{for(;;){if(typeof i==="number"&&i==i&&i<=2147483647&&i>=-2147483648&&i%1==0){i=""+i;break}if(typeof i==="boolean"){i=""+i;break}e[0](i)}return i}`,
   )
 })
 
@@ -499,7 +500,12 @@ test("Coerce from unit to null literal", t => {
 test("Coerce from string to optional bool", t => {
   let schema = S.string->S.to(S.option(S.bool))
 
-  t->Assert.deepEqual("undefined"->S.parseOrThrow(~to=schema), None)
+  // The `undefined` arm is never the text "undefined" (CODEC_SPEC.md, no text
+  // for a nullish arm).
+  t->U.assertThrowsMessage(
+    () => "undefined"->S.parseOrThrow(~to=schema),
+    `Expected boolean, received "undefined"`,
+  )
   t->Assert.deepEqual("true"->S.parseOrThrow(~to=schema), Some(true))
 
   t->U.assertThrowsMessage(
@@ -508,17 +514,16 @@ test("Coerce from string to optional bool", t => {
   )
 
   t->Assert.deepEqual(Some(true)->S.convertOrThrow(~from=schema, ~to=S.unknown), %raw(`"true"`))
-  t->Assert.deepEqual(None->S.convertOrThrow(~from=schema, ~to=S.unknown), %raw(`"undefined"`))
 
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{typeof i==="string"||e[3](i);for(;;){let r;try{let v0;(v0=i==="true")||i==="false"||e[0](i);i=v0;break}catch(x){(r||(r=[])).push(e[1](x))}if(i==="undefined"){i=void 0;break}e[2](i,...(r||[]))}return i}`,
+    `i=>{typeof i==="string"||e[1](i);let v0;(v0=i==="true")||i==="false"||e[0](i);i=v0;return i}`,
   )
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{for(;;){if(typeof i==="boolean"){i=""+i;break}if(i===void 0){i="undefined";break}e[0](i)}return i}`,
+    `i=>{if(typeof i==="boolean"){i=""+i}else{e[0](i)}return i}`,
   )
 })
 

@@ -980,6 +980,14 @@ let schema =
 true->S.parseOrThrow(~to=schema) // "true"
 ```
 
+`S.option` or `S.null` is a wider type, not a value to convert. `S.option(x)`
+meeting a single type works as `x` would and raises on `None`:
+`S.option(S.float)->S.to(S.string)` writes `12.` as `"12"` and never `None` as
+`"undefined"`, and `S.option(S.string)->S.to(S.string)` is `string -> string`.
+The same holds the other way round: a single type converted into `S.option(x)`
+never produces `None`, and a string never reads `"undefined"` as one. `S.json`,
+which holds the value, is the exception and keeps converting it as `null`.
+
 **Union → union.** Values pass through to the member of the same type on the
 other side - nothing is converted, so every member needs a counterpart. The one
 exception: with no counterpart of its own, `S.option`'s `undefined` may pair
