@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received URLSearchParams
   output: "Failed at n: Expected JSON, received bigint"
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a.n===b.n
 vs:
   zod:
     _skip: not-applicable

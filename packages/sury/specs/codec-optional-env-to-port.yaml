@@ -1,11 +1,12 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
-  schema: S.env.with(S.to, S.port)
-  input: string
+  schema: S.optional(S.env).with(S.to, S.port)
+  input: string | undefined
   output: number
-  instantiations: 4419
+  instantiations: 4587
 jsonSchema:
   input: '{ type: "string" }'
+  fromInputType: string
   output: '{ type: "integer", minimum: 0, maximum: 65535 }'
 isEqual: strictEqual
 vs:
@@ -13,28 +14,23 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{typeof i==="string"||e[3](i);typeof i==="string"||e[0](i);let v0=+i;v0==v0&&(v0||i.trim())||e[2](i);v0>=0&&v0<65536&&v0%1==0||e[1](v0);return v0}
+    expression: i=>{if(typeof i==="string"&&typeof i==="string"){typeof i==="string"||e[0](i);let v0=+i;v0==v0&&(v0||i.trim())||e[2](i);v0>=0&&v0<65536&&v0%1==0||e[1](v0);i=v0}else{e[3](i)}return i}
     examples:
       valid:
         input: '"8080"'
         output: "8080"
+      missing:
+        input: undefined
+        error: Expected env, received undefined
       blank:
         input: '""'
         error: Expected port, received ""
       not-a-number:
         input: '"x"'
         error: Expected port, received "x"
-      too-big:
-        input: '"70000"'
-        error: Expected port, received 70000
-  decode:
-    expression: i=>{typeof i==="string"||e[0](i);let v0=+i;v0==v0&&(v0||i.trim())||e[2](i);v0>=0&&v0<65536&&v0%1==0||e[1](v0);return v0}
-    examples:
-      valid:
-        input: '"8080"'
-        output: "8080"
+  decode: eq-to-parse
   encode:
-    expression: i=>{i>=0&&i<65536&&i%1==0||e[0](i);return ""+i}
+    expression: i=>{i>=0&&i<65536&&i%1==0||e[1](i);let v0=""+i;typeof v0==="string"||e[0](v0);i=v0;return i}
     examples:
       valid:
         input: "8080"

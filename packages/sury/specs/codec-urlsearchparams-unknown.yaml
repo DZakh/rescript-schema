@@ -8,6 +8,9 @@ jsonSchema:
   input: Expected JSON, received URLSearchParams
   output: '{ type: "object", properties: { a: {} }, required: ["a"] }'
   fromOutputType: "{ a: JSON; }"
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||e[0](a.a,b.a)
 vs:
   zod:
     _skip: not-applicable

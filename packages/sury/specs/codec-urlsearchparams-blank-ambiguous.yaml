@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received URLSearchParams
   output: '{ type: "object", properties: { q: { type: "string" }, n: { type: "number", minimum: 18 } }, required: ["q", "n"] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a.q===b.q&&a.n===b.n
 vs:
   zod:
     _skip: not-applicable

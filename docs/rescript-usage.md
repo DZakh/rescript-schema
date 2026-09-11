@@ -1325,15 +1325,17 @@ let envSchema = S.schema(s => {
 process.env->S.parseOrThrow(~to=S.dict(S.env)->S.to(envSchema))
 ```
 
-A single var is the same coercion:
+A single var is the same coercion. `process.env["PORT"]` may be missing, so
+the source is `S.option(S.env)`. Converting to `S.port` reads the string and
+rejects a missing var:
 
 ```rescript
-process.env["PORT"]->S.parseOrThrow(~to=S.option(S.env->S.to(S.port)))
+process.env["PORT"]->S.parseOrThrow(~to=S.option(S.env)->S.to(S.port))
 ```
 
-A missing key or empty string is absent (`S.option`) or null (`S.null`). A
-required `S.string` must choose `S.nonEmpty` or `S.minLength(0)`. Nested
-objects fail as unsupported.
+A missing key or empty string on a record field is absent (`S.option`) or null
+(`S.null`). A required `S.string` must choose `S.nonEmpty` or `S.minLength(0)`.
+Nested objects fail as unsupported.
 
 ### **`urlSearchParams`**
 

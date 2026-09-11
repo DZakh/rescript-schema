@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "string" }'
   output: '{ enum: ["development", "production"] }'
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable

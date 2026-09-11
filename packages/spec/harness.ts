@@ -2261,16 +2261,17 @@ const structurallyEqual = (a: unknown, b: unknown): boolean => {
   // The built-ins whose value is their content rather than their identity.
   if (proto === Date.prototype) return +(a as Date) === +(b as Date);
   if (proto === URL.prototype) return `${a}` === `${b}`;
-  // A Set by its members, which it already holds by SameValueZero; a FormData
-  // by its entries in order, since a name handed out twice is two of them.
+  // A Set by its members, which it already holds by SameValueZero; FormData
+  // and URLSearchParams by their entries in order, since a name handed out
+  // twice is two of them.
   if (proto === Set.prototype) {
     const as = a as Set<unknown>;
     const bs = b as Set<unknown>;
     return as.size === bs.size && [...as].every((v) => bs.has(v));
   }
-  if (proto === FormData.prototype) {
-    const be = [...(b as FormData)];
-    const ae = [...(a as FormData)];
+  if (proto === FormData.prototype || proto === URLSearchParams.prototype) {
+    const be = [...(b as FormData | URLSearchParams)];
+    const ae = [...(a as FormData | URLSearchParams)];
     return (
       ae.length === be.length && ae.every((e, i) => e[0] === be[i]![0] && e[1] === be[i]![1])
     );

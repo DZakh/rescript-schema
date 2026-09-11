@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: '{ type: "string" }'
   output: '{ type: "object", properties: { debug: { type: "boolean" }, flag: { type: "boolean" } }, required: ["debug"] }'
+isEqual:
+  input: strictEqual
+  output: (a,b)=>a===b||a.debug===b.debug&&a.flag===b.flag
 vs:
   zod:
     _skip: not-applicable

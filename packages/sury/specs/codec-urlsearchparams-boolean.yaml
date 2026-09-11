@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received URLSearchParams
   output: '{ type: "object", properties: { debug: { type: "boolean" }, flag: { type: "boolean" } }, required: ["debug"] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||a.debug===b.debug&&a.flag===b.flag
 vs:
   zod:
     _skip: not-applicable

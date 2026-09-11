@@ -1353,15 +1353,17 @@ S.decodeOrThrow(process.env, S.record(S.env), envSchema);
 // { PORT: "8080", DEBUG: "true" } => { PORT: 8080, DEBUG: true, NAME: null }
 ```
 
-A single var is the same coercion:
+A single var is the same coercion. `process.env.PORT` is `string | undefined`,
+so the source is `S.optional(S.env)`. Converting to `S.port` reads the string
+and rejects a missing var:
 
 ```ts
-S.decodeOrThrow(process.env.PORT, S.optional(S.env.with(S.to, S.port)));
+S.decodeOrThrow(process.env.PORT, S.optional(S.env), S.port);
 ```
 
-A missing key or empty string is absent (`S.optional`) or null (`S.nullable`).
-A required `S.string` must choose `S.nonEmpty` or `S.minLength(0)`. Nested
-objects, files and repeated keys fail as unsupported.
+A missing key or empty string on a record field is absent (`S.optional`) or
+null (`S.nullable`). A required `S.string` must choose `S.nonEmpty` or
+`S.minLength(0)`. Nested objects, files and repeated keys fail as unsupported.
 
 ## URLSearchParams
 
@@ -1375,7 +1377,7 @@ const search = S.urlSearchParams.with(
   }),
 );
 
-S.decodeOrThrow(search)(new URLSearchParams("q=hi&page=2&tags=a&tags=b"));
+S.decodeOrThrow(new URLSearchParams("q=hi&page=2&tags=a&tags=b"), search);
 ```
 
 Same field coercions as [`S.formData`](#formdata), without files. A required,
@@ -1392,8 +1394,8 @@ const search = S.queryString.with(
   }),
 );
 
-S.decodeOrThrow(search)("q=hi&page=2");
-S.encodeOrThrow(search)({ q: "hi", page: 2 });
+S.decodeOrThrow("q=hi&page=2", search);
+S.encodeOrThrow({ q: "hi", page: 2 }, search);
 ```
 
 ## Content

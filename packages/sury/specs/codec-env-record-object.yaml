@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: '{ type: "object", additionalProperties: { type: "string" } }'
   output: '{ type: "object", properties: { PORT: { type: "integer", minimum: 0, maximum: 65535 }, DEBUG: { type: "boolean" }, NAME: { type: "string" } }, required: ["PORT", "DEBUG"] }'
+isEqual:
+  input: (a,b)=>{if(a===b)return true;let n=0;for(const k in a){if(!(k in b)||!(a[k]===b[k]))return false;n++}for(const k in b)n--;return !n}
+  output: (a,b)=>a===b||a.PORT===b.PORT&&a.DEBUG===b.DEBUG&&a.NAME===b.NAME
 vs:
   zod:
     _skip: not-applicable
@@ -39,11 +42,11 @@ operations:
         input: '{ PORT: "8080", DEBUG: "true", NAME: "Ann" }'
         output: '{ PORT: 8080, DEBUG: true, NAME: "Ann" }'
   encode:
-    expression: i=>{let v0=i.PORT,v1=i.NAME;v0>=0&&v0<65536&&v0%1==0||e[0](v0);(typeof v1==="string"||v1===void 0)||e[1](v1);return {PORT:""+v0,DEBUG:""+i.DEBUG,NAME:v1}}
+    expression: i=>{let v0=i.PORT,v1=i.NAME;v0>=0&&v0<65536&&v0%1==0||e[0](v0);(typeof v1==="string"||v1===void 0)||e[1](v1);let v2={PORT:""+v0,DEBUG:""+i.DEBUG};if(v1!==void 0){v2.NAME=v1}return v2}
     examples:
       built:
         input: '{ PORT: 8080, DEBUG: true, NAME: "Ann" }'
         output: '{ PORT: "8080", DEBUG: "true", NAME: "Ann" }'
       omit-optional:
         input: "{ PORT: 8080, DEBUG: false }"
-        output: '{ PORT: "8080", DEBUG: "false", NAME: undefined }'
+        output: '{ PORT: "8080", DEBUG: "false" }'

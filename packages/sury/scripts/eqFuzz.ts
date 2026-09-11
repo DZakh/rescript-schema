@@ -81,6 +81,11 @@ const structural = (a: unknown, b: unknown): boolean => {
     const be = [...(b as FormData)];
     return ae.length === be.length && ae.every((e, i) => e[0] === be[i]![0] && e[1] === be[i]![1]);
   }
+  if (typeof URLSearchParams !== "undefined" && proto === URLSearchParams.prototype) {
+    const ae = [...(a as URLSearchParams)];
+    const be = [...(b as URLSearchParams)];
+    return ae.length === be.length && ae.every((e, i) => e[0] === be[i]![0] && e[1] === be[i]![1]);
+  }
   if (proto !== null && proto !== Object.prototype) return false;
   // Key sets must match. An absent key and an `undefined` one are the same
   // value only where a schema declares the property optional, and this walk
@@ -148,6 +153,12 @@ const instanceSample = (ctor: unknown, pick: number): unknown => {
     form.append("a", pick ? "2" : "1");
     form.append("a", "shared");
     return form;
+  }
+  if (typeof URLSearchParams !== "undefined" && ctor === URLSearchParams) {
+    const params = new URLSearchParams();
+    params.append("a", pick ? "2" : "1");
+    params.append("a", "shared");
+    return params;
   }
   return NO_SAMPLE;
 };
@@ -251,6 +262,8 @@ const show = (value: unknown): string => {
   if (typeof value === "symbol") return value.toString();
   if (typeof FormData !== "undefined" && value instanceof FormData)
     return `FormData(${[...value].map(([k, v]) => `${k}=${String(v)}`).join(",")})`;
+  if (typeof URLSearchParams !== "undefined" && value instanceof URLSearchParams)
+    return `URLSearchParams(${[...value].map(([k, v]) => `${k}=${v}`).join(",")})`;
   if (value instanceof Set) return `Set(${[...value].map(String).join(",")})`;
   if (value instanceof Date) return `Date(${value.toISOString()})`;
   if (value instanceof URL) return `URL(${value.href})`;

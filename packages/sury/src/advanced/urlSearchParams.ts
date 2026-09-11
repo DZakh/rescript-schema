@@ -189,7 +189,7 @@ const searchParamsToObject = (input: Val, target: Internal): Val => {
       `Can't decode URLSearchParams -> ${inputExpression(target)} with S.strict. A query carries keys no schema declares, so use S.strip`,
     );
   }
-  const objectVal = makeObjectVal(input, target);
+  const objectVal = makeObjectVal(input);
   const entriesVar = B_varWithoutAllocation(input.g);
   B_hoistDecl(input, `${entriesVar}=${B_embed(input, readEntries)}(${input.v()})`);
   const properties = target.properties!;

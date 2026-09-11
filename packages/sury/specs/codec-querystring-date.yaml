@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: '{ type: "string" }'
   output: "Failed at at: Expected JSON, received Date"
+isEqual:
+  input: strictEqual
+  output: (a,b)=>a===b||+a.at===+b.at
 vs:
   zod:
     _skip: not-applicable

@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received URLSearchParams
   output: "Failed at at: Expected JSON, received Date"
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: (a,b)=>a===b||+a.at===+b.at
 vs:
   zod:
     _skip: not-applicable

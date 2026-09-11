@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: '{ type: "string" }'
   output: '{ type: "object", properties: { meta: { type: "object", properties: { a: { type: "number" } }, required: ["a"] } }, required: ["meta"] }'
+isEqual:
+  input: strictEqual
+  output: (a,b)=>a===b||a.meta.a===b.meta.a
 vs:
   zod:
     _skip: not-applicable
