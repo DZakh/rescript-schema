@@ -21,7 +21,7 @@ await S.encodeAsPromiseOrReject(signupsFileSchema)(signups);
 // => a File, from the same declaration - input and return strictly typed
 ```
 
-Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.file` and `S.blob`. Coming next: env and protobuf.
+Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.env`, `S.urlSearchParams`, `S.queryString`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.file` and `S.blob`. Coming next: `S.request`, `S.response`, `S.protobuf`, `S.capnp`, `S.rkyv`, `S.toon`.
 
 ```sh
 npm install sury
@@ -208,19 +208,17 @@ await S.parseAsPromiseOrReject(configSchema, new File(['{"theme":"dark"}'], "con
 // => { theme: "dark" }
 ```
 
-`process.env` is strings; your config isn't. Pipe from `S.record(S.string)` and the coercions are inferred:
+No need for a separate library to decode your env vars:
 
 ```ts
-const envSchema = S.record(S.string).with(
-  S.to,
-  S.schema({
-    PORT: S.port,
-    DEBUG: S.string.with(S.to, S.boolean),
-  }),
-);
+const envSchema = S.schema({
+  PORT: S.port,
+  DEBUG: S.boolean,
+  NAME: S.nullable(S.string),
+});
 
-S.decodeOrThrow(envSchema, process.env);
-// => { PORT: 8080, DEBUG: true }
+S.decodeOrThrow(process.env, S.record(S.env), envSchema);
+// { PORT: "8080", DEBUG: "true" } => { PORT: 8080, DEBUG: true, NAME: null }
 ```
 
 Some data arrives in awkward layouts - like the columnar arrays that [boost Postgres INSERT performance by 2x](https://www.timescale.com/blog/boosting-postgres-insert-performance). Describe the layout instead of writing glue code, and `S.compactColumns` turns columns into rows and back:

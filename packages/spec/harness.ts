@@ -922,6 +922,10 @@ const isFormData = (v: object): boolean => {
   const c = globalClass("FormData");
   return c !== undefined && v instanceof c;
 };
+const isURLSearchParams = (v: object): boolean => {
+  const c = globalClass("URLSearchParams");
+  return c !== undefined && v instanceof c;
+};
 
 // Bytes read best as the text that produced them, which is what a spec author
 // writes; anything else (and anything with a control byte, which YAML would
@@ -984,6 +988,14 @@ const valueToCode = (v: unknown, seen: WeakSet<object> = new WeakSet(), bytes: B
         return appends
           ? `((f) => (${appends}, f))(new FormData())`
           : "new FormData()";
+      }
+      if (isURLSearchParams(v)) {
+        const appends = [...(v as URLSearchParams).entries()]
+          .map(([k, entry]) => `p.append(${JSON.stringify(k)}, ${valueToCode(entry, seen, bytes)})`)
+          .join(", ");
+        return appends
+          ? `((p) => (${appends}, p))(new URLSearchParams())`
+          : "new URLSearchParams()";
       }
       if (v instanceof Map) return `new Map(${valueToCode([...v], seen, bytes)})`;
       if (v instanceof Set) return `new Set(${valueToCode([...v], seen, bytes)})`;
@@ -2249,16 +2261,17 @@ const structurallyEqual = (a: unknown, b: unknown): boolean => {
   // The built-ins whose value is their content rather than their identity.
   if (proto === Date.prototype) return +(a as Date) === +(b as Date);
   if (proto === URL.prototype) return `${a}` === `${b}`;
-  // A Set by its members, which it already holds by SameValueZero; a FormData
-  // by its entries in order, since a name handed out twice is two of them.
+  // A Set by its members, which it already holds by SameValueZero; FormData
+  // and URLSearchParams by their entries in order, since a name handed out
+  // twice is two of them.
   if (proto === Set.prototype) {
     const as = a as Set<unknown>;
     const bs = b as Set<unknown>;
     return as.size === bs.size && [...as].every((v) => bs.has(v));
   }
-  if (proto === FormData.prototype) {
-    const be = [...(b as FormData)];
-    const ae = [...(a as FormData)];
+  if (proto === FormData.prototype || proto === URLSearchParams.prototype) {
+    const be = [...(b as FormData | URLSearchParams)];
+    const ae = [...(a as FormData | URLSearchParams)];
     return (
       ae.length === be.length && ae.every((e, i) => e[0] === be[i]![0] && e[1] === be[i]![1])
     );

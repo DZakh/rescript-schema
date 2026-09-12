@@ -94,7 +94,9 @@ export type StringFormat =
   | "hex"
   | "cidrv4"
   | "cidrv6"
-  | "http-url";
+  | "http-url"
+  | "env"
+  | "queryString";
 export type ArrayFormat = "compactColumns";
 export type Format = NumberFormat | StringFormat | ArrayFormat;
 
@@ -632,6 +634,45 @@ export type FormData = typeof globalThis extends {
  * @example S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty), agree: true, avatar: S.file }))
  */
 export const formData: Schema<FormData, FormData>;
+
+/**
+ * An environment variable value, `string | undefined` the way `process.env`
+ * reports it: `undefined` is the unset var. Decode the whole record through
+ * `S.record(S.env)` and the coercions are inferred: `"8080"` -> `S.port`,
+ * `"true"` -> `S.boolean`, a missing key or `""` -> `S.nullable`/`S.optional`.
+ * A required `S.string` must choose `S.nonEmpty` or `S.minLength(0)`.
+ * Nested objects, arrays and files fail as unsupported.
+ * @example S.decodeOrThrow(process.env, S.record(S.env), S.schema({ PORT: S.port, DEBUG: S.boolean, NAME: S.nullable(S.string) }))
+ */
+export const env: Schema<string | undefined, string | undefined>;
+
+/** The runtime's `URLSearchParams`, or a structural stand-in. See {@link Blob}. */
+export type URLSearchParams = typeof globalThis extends {
+  URLSearchParams: abstract new (...args: never) => infer T;
+}
+  ? T
+  : {
+      append(name: string, value: string): void;
+      get(name: string): string | null;
+      getAll(name: string): string[];
+      toString(): string;
+    };
+
+/**
+ * A query as `URLSearchParams`, converted to and from an object schema with
+ * `S.to`. Same field coercions as `S.formData`, without files. A required,
+ * non-nullable string must say what a blank entry means - `S.nonEmpty`,
+ * `S.minLength(0)` or `S.optional` - or the operation fails to build.
+ * @example S.urlSearchParams.with(S.to, S.schema({ q: S.string.with(S.nonEmpty), page: S.optional(S.number) }))
+ */
+export const urlSearchParams: Schema<URLSearchParams, URLSearchParams>;
+
+/**
+ * A query string. Convert with `S.to` to an object schema or to
+ * `S.urlSearchParams`.
+ * @example S.queryString.with(S.to, S.schema({ q: S.string.with(S.nonEmpty), page: S.optional(S.number) }))
+ */
+export const queryString: Schema<string, string>;
 
 /**
  * RFC 3339 timestamp - the JSON Schema `date-time` format exactly: `Z` or an

@@ -225,7 +225,10 @@ describeArtifact("artifact", () => {
     }
     const unknown = new Set<string>();
     for (const file of ["README.md", "docs/js-usage.md"]) {
-      for (const [, name] of read(file).matchAll(/\bS\.([A-Za-z_][A-Za-z0-9_]*)/g)) {
+      // The README's "Coming next:" sentence names API that doesn't exist yet
+      // on purpose; nothing else in the docs may.
+      const text = read(file).replace(/Coming next:[^\n]*/, "");
+      for (const [, name] of text.matchAll(/\bS\.([A-Za-z_][A-Za-z0-9_]*)/g)) {
         if (!api.has(name!)) unknown.add(`${file} -> S.${name}`);
       }
     }

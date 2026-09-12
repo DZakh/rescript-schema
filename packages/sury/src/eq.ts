@@ -40,11 +40,11 @@ export type IsEqual = (a: unknown, b: unknown) => boolean;
 const eqOp: Internal = /* @__PURE__ */ baseSchema(neverTag, true, noopDecoder);
 
 // Off `globalThis`, because `FormData` landed in Node 18 and a bare reference
-// to it is a ReferenceError on anything older - and behind a call, because a
-// member read at module scope is not something esbuild drops, so reading it
-// once up here would put the lookup in every bundle, including the ones that
-// never reach this module.
-const formDataClass = (): unknown => (globalThis as unknown as Record<string, unknown>)["FormData"];
+// to it is a ReferenceError on anything older. `URLSearchParams` is older, but
+// the same lookup keeps a constructor read out of every bundle: a member at
+// module scope is not something esbuild drops.
+const globalClass = (name: "FormData" | "URLSearchParams"): unknown =>
+  (globalThis as unknown as Record<string, unknown>)[name];
 
 // The structural fallback, for a position whose schema describes no shape
 // (`S.unknown`, `S.json`, a function) or one this emit declines to unroll.
@@ -85,13 +85,16 @@ const deepEqual = (a: unknown, b: unknown): boolean => {
     for (const value of as) if (!bs.has(value)) return false;
     return true;
   }
-  // FormData is an ordered list of entries, not a mapping: a name handed out
-  // twice is two values, and the order they arrive in is the order a server
-  // reads them, so two bodies differing only in it are two bodies.
-  if (proto === (formDataClass() as typeof FormData | undefined)?.prototype) {
-    const entries = [...(b as FormData)];
+  // FormData and URLSearchParams are ordered lists of entries, not mappings:
+  // a name handed out twice is two values, and the order they arrive in is the
+  // order a server reads them, so two bodies differing only in it are two bodies.
+  if (
+    proto === (globalClass("FormData") as typeof FormData | undefined)?.prototype ||
+    proto === (globalClass("URLSearchParams") as typeof URLSearchParams | undefined)?.prototype
+  ) {
+    const entries = [...(b as Iterable<[unknown, unknown]>)];
     let idx = 0;
-    for (const [key, value] of a as FormData) {
+    for (const [key, value] of a as Iterable<[unknown, unknown]>) {
       const entry = entries[idx++];
       if (entry === U || entry[0] !== key || entry[1] !== value) return false;
     }
@@ -138,11 +141,11 @@ const isRoot = (ctx: Ctx, schema: Internal, whole: boolean): boolean =>
 const sameValueZero = (a: string, b: string): string => `(${a}===${b}||${a}!=${a}&&${b}!=${b})`;
 
 // The built-in classes an instance compares by content rather than by identity:
-// 1 a Date, 2 a URL, 3 a typed array, 4 a Set or a FormData, which the
-// structural fallback already reads by content and so needs no emit of its own.
-// 0 is everything else, a Blob or a user class, which has only its identity to
-// compare, and is therefore also the one kind of instance a union can collapse
-// to a bare `===`.
+// 1 a Date, 2 a URL, 3 a typed array, 4 a Set, FormData or URLSearchParams,
+// which the structural fallback already reads by content and so needs no emit
+// of its own. 0 is everything else, a Blob or a user class, which has only its
+// identity to compare, and is therefore also the one kind of instance a union
+// can collapse to a bare `===`.
 //
 // A typed array constructor carries `BYTES_PER_ELEMENT` and is indexed by
 // `length`; DataView, the other `ArrayBuffer.isView` shape, has neither.
@@ -153,7 +156,9 @@ const valueClass = (class_: unknown): number =>
       ? 2
       : (class_ as { BYTES_PER_ELEMENT?: number } | undefined)?.BYTES_PER_ELEMENT !== U
         ? 3
-        : class_ === (Set as unknown) || (class_ !== U && class_ === formDataClass())
+        : class_ === (Set as unknown) ||
+            (class_ !== U &&
+              (class_ === globalClass("FormData") || class_ === globalClass("URLSearchParams")))
           ? 4
           : 0;
 

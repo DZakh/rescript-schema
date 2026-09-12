@@ -423,6 +423,9 @@ export const jsonString = /* @__PURE__ */ (() => {
         // of it, so it takes the text as it stands.
         return input;
       }
+      if (target.format === "env") {
+        return input;
+      }
       if (isLiteral(target)) {
         const jsonStringConstSchema = baseSchema(stringTag, true, literalDecoder);
         jsonStringConstSchema.const = constSchemaToJsonStringConst(input, target);
