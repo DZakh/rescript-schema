@@ -124,7 +124,7 @@ jobs:
       - run: pnpm compliance
 
   protobuf-compliance:
-    name: Protobuf Test Suite
+    name: Protobuf - Conformance & Test Suite
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
