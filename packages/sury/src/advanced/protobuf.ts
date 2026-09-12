@@ -72,7 +72,7 @@ const firstObject = (schema: Internal): Internal | undefined => {
 const wireObject = (schema: Internal): Internal | undefined => {
   let last: Internal | undefined = U;
   for (let current: Internal | undefined = schema; current !== U; current = current.to) {
-    if (current.w) return last || firstObject(current.to!);
+    if (current.protobufWire) return last || firstObject(current.to!);
     if (current.type === objectTag) last = current;
   }
   return firstObject(schema);
@@ -108,7 +108,7 @@ const wireType = (type: ProtobufType): number => {
 const fieldMetadata = (schema: Internal): StoredField | undefined => {
   let current: Internal | undefined = schema;
   while (current !== U) {
-    if (current.pb !== U) return current.pb as StoredField;
+    if (current.protobufField !== U) return current.protobufField as StoredField;
     current = current.to;
   }
   return U;
@@ -1415,7 +1415,7 @@ const protobufEncoder = (input: Val, target: Internal): Val => {
 export const protobuf: Internal = /* @__PURE__ */ initSchema(instanceTag, protobufDecoder, (schema) => {
   schema.class = Uint8Array;
   schema.encoder = protobufEncoder;
-  schema.w = true;
+  schema.protobufWire = true;
 });
 
 type ProtoOptions = { name?: string; package?: string };
@@ -1553,7 +1553,7 @@ const declaredThrough = ({ schema, shape }: Use): Internal | undefined => {
 const nameOf = (use: Use): string | undefined => chainMeta(declaredThrough(use) || use.schema, use.shape).name;
 
 const useType = (decl: TypeDecl, use: Use): void => {
-  decl.metas.push(chainMeta(declaredThrough(use) || use.stored.m, use.shape));
+  decl.metas.push(chainMeta(declaredThrough(use) || use.stored.numberedAs, use.shape));
 };
 
 // The value most of the uses that carry one agree on, the first on a tie;

@@ -52,7 +52,8 @@ export type StoredField = {
   packed: boolean;
   key: ProtobufType;
   oneof?: string;
-  m: Internal;
+  /** The schema as it was when numbered. */
+  numberedAs: Internal;
 };
 
 const protobufTypes: Record<ProtobufType, true> = {
@@ -181,13 +182,13 @@ export const protobufField = (schema: Internal, field: number | ProtobufField): 
   }
   let current: Internal | undefined = schema;
   while (current !== U) {
-    if (current.pb !== U) {
+    if (current.protobufField !== U) {
       return panic(`S.protobufField is already applied to this schema`);
     }
     current = current.to;
   }
   const packed = typeof field === "number" || field.packed !== false;
   return updateOutput(schema, (mut) => {
-    mut.pb = { number, type, packed, key, oneof, m: schema } satisfies StoredField;
+    mut.protobufField = { number, type, packed, key, oneof, numberedAs: schema } satisfies StoredField;
   });
 };

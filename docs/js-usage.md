@@ -1420,7 +1420,7 @@ S.encodeOrThrow({ q: "hi", page: 2 }, search);
 `S.protobuf` is the [Protocol Buffers](https://protobuf.dev) binary wire
 format. Give every field of an object schema a field number with
 `S.protobufField`, wire the schema to `S.protobuf`, and Sury compiles an
-encoder and a decoder specialized for that message — no `.proto` file, no
+encoder and a decoder specialized for that message: no `.proto` file, no
 code generation step, and the same schema still validates, infers types and
 converts to JSON Schema.
 
@@ -1447,7 +1447,7 @@ schema is a nested `message`, `S.array` is a `repeated` field and `S.record`
 is a `map`. An enum is open, as in proto3: a number the schema doesn't list
 decodes as that number. Pass a descriptor to
 pick any of the fifteen scalar wire types yourself, which also lets the JS
-type differ from the wire type — Sury converts through the schema:
+type differ from the wire type, since Sury converts through the schema:
 
 ```ts
 S.schema({
@@ -1499,8 +1499,8 @@ S.schema({
 **Output memory.** An encoded message is a view over a buffer the encoder
 keeps writing into, the way a Node `Buffer` comes from a pool: `bytes.buffer`
 is larger than `bytes.byteLength` and `bytes.byteOffset` is not zero. Every
-consumer of a `Uint8Array` respects the view. To own the memory — to transfer
-it to a worker, or hand an `ArrayBuffer` to an API that wants one — put
+consumer of a `Uint8Array` respects the view. To own the memory, to transfer
+it to a worker or hand an `ArrayBuffer` to an API that wants one, put
 `S.arrayBuffer` on the wire side of the pipeline; the conversion copies the
 message to size:
 
@@ -1561,16 +1561,16 @@ that the schema itself rejects.
 field number the schema does not claim is stepped over whatever its wire type
 (varint, 64-bit, length-delimited, group or 32-bit), and so is a *known*
 number arriving under a wire type its field cannot hold. That is what lets a
-sender add a field without breaking you. They are skipped, not kept — decode
+sender add a field without breaking you. They are skipped, not kept: decode
 then encode writes back only the fields the schema declares, so a message that
 round-trips through Sury loses whatever it carried that you did not describe.
 Put `S.strict` on the message to reject an unknown field instead of skipping
 it, which is worth having on an internal wire where an unexpected number means
 a version skew you would rather hear about.
 
-Strings must be valid UTF-8. Malformed input — a truncated field, a field
+Strings must be valid UTF-8. Malformed input, such as a truncated field, a field
 number of zero, an unknown wire type, an unmatched group or a tag wider than
-32 bits — throws an `S.Error` with code `invalid_conversion` and the wire
+32 bits, throws an `S.Error` with code `invalid_conversion` and the wire
 problem as its reason; so does a value the wire type can't hold, such as a
 `float` beyond 32-bit range.
 
@@ -1588,12 +1588,12 @@ S.decodeOrThrow(S.protobuf, Account)(new Uint8Array([8, 1, 18, 3, 10, 1, 255]));
 // => S.Error: protobuf string is not valid UTF-8 at addr.street (field 1, wire type 2)
 ```
 
-A failure with no field to name keeps its own text — a field number the
+A failure with no field to name keeps its own text: a field number the
 message does not declare says so itself, and bytes that are not a tag at all
 were never a field.
 
-A schema that can't be a message — a field without a number, two fields
-sharing one, an optional repeated field — is rejected when the operation is
+A schema that can't be a message, whether a field without a number, two fields
+sharing one or an optional repeated field, is rejected when the operation is
 built, naming the field.
 
 #### Speed

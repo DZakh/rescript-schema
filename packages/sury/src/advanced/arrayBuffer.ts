@@ -1,4 +1,4 @@
-// `S.arrayBuffer` — memory of one's own. A bytes carrier may hand out a view
+// `S.arrayBuffer`, memory of one's own. A bytes carrier may hand out a view
 // of a buffer it shares (`S.protobuf` writes messages into one slab), so
 // converting to this schema is how a caller takes ownership: the view's
 // buffer as is when the view covers all of it, otherwise a copy sized to the

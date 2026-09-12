@@ -29,7 +29,7 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
-const HELP = `protobuf-test-suite — S.protobuf vs protobufjs
+const HELP = `protobuf-test-suite - S.protobuf vs protobufjs
 
 Usage: pnpm protobuf:compliance [command]
 

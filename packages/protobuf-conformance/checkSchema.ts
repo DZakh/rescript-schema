@@ -28,13 +28,13 @@ type AstField = {
 
 export type Divergence = { number: number; name: string; detail: string };
 
-// What the wire calls a field, from the `.proto` side: the scalar name, or the
-// shape a message/enum/map takes.
 // `google.protobuf.NullValue` is the one well-known type that is an enum
 // rather than a message, and nothing in the file it is referenced from says
-// so - resolving the import would be a whole `.proto` resolver for one name.
+// so. Resolving the import would be a whole `.proto` resolver for one name.
 const WKT_ENUMS = new Set(["google.protobuf.NullValue"]);
 
+// What the wire calls a field, from the `.proto` side: the scalar name, or the
+// shape a message/enum/map takes.
 const upstreamShape = (field: AstField, enums: Set<string>): string => {
   if (field.map !== null) return `map<${field.map.from}, ?>`;
   const local = field.type.replace(/^.*\./, "");
@@ -67,23 +67,27 @@ const declared = (): Map<number, { name: string; shape: string }> => {
   const properties = (testAllTypesProto3 as unknown as { properties: Record<string, unknown> })
     .properties;
   for (const key of Object.keys(properties)) {
-    let schema = properties[key] as { pb?: unknown; to?: unknown; anyOf?: unknown[] } | undefined;
+    let schema = properties[key] as
+      | { protobufField?: unknown; to?: unknown; anyOf?: unknown[] }
+      | undefined;
     // `S.optional` wraps, and `.with` chains, so walk to the one that carries
     // the field metadata.
     const seen: unknown[] = [];
-    while (schema !== undefined && schema.pb === undefined && seen.length < 20) {
+    while (schema !== undefined && schema.protobufField === undefined && seen.length < 20) {
       seen.push(schema);
-      const next = (schema.anyOf as { pb?: unknown }[] | undefined)?.find((m) => m.pb !== undefined);
+      const next = (schema.anyOf as { protobufField?: unknown }[] | undefined)?.find(
+        (m) => m.protobufField !== undefined,
+      );
       schema = (next ?? schema.to) as typeof schema;
     }
-    const pb = schema?.pb as
+    const stored = schema?.protobufField as
       | { number: number; type: string; packed: boolean; key: string }
       | undefined;
-    if (pb === undefined) continue;
+    if (stored === undefined) continue;
     const property = properties[key] as { type?: string; additionalItems?: unknown };
     const repeated = property.type === "array";
     const map = property.type === "object" && typeof property.additionalItems === "object";
-    out.set(pb.number, { name: key, shape: suryShape({ ...pb, repeated, map }) });
+    out.set(stored.number, { name: key, shape: suryShape({ ...stored, repeated, map }) });
   }
   return out;
 };

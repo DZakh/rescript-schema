@@ -7,13 +7,13 @@ holds the score to a committed golden.
 
 Google's `conformance_test_runner` is a C++ process over stdin. This package
 does not build that. `cases.ts` instead mirrors the binary families of
-`binary_json_conformance_suite.cc` that apply to a proto3 message — the value
+`binary_json_conformance_suite.cc` that apply to a proto3 message: the value
 tables (`ValidDataScalar`, overlong and 64-bit varints, truncation to 32 bits),
 `RepeatedScalarSelectsLast`, `ValidDataRepeated` in packed and expanded input
 and output, `RepeatedScalarMessageMerge`, `ValidDataMap` for every key/value
 pair, `ValidDataOneof`, every `PrematureEof*` position, `IllegalZeroFieldNum`,
 `BadTag_*`, `UnknownWireType`, the unmatched-group family and
-`RejectInvalidUtf8` — using the field numbers of `TestAllTypesProto3`, so a case
+`RejectInvalidUtf8`, using the field numbers of `TestAllTypesProto3`, so a case
 id names the conformance test it stands for. `wire.ts` holds the byte builders
 of `binary_wireformat.h`. The wire-format assertions of protobuf.js's own test
 suite (writer/reader vectors, packed writers, decoder bounds, map entry layout,
@@ -66,9 +66,9 @@ One `bench` run is published, with its versions and the message shapes, under
 [Speed in the JS guide](../../docs/js-usage.md#speed). Re-run it there when the
 numbers move enough to mislead.
 
-`bench` runs Sury against every codec a JS project would reach for —
+`bench` runs Sury against every codec a JS project would reach for:
 protobufjs reflection and `pbjs` static codegen, protobuf-es
-(`@bufbuild/protobuf`) and pbf — on five workloads (tiny, typical, large,
+(`@bufbuild/protobuf`) and pbf, on five workloads (tiny, typical, large,
 protobuf.js's `bench/cases/common` message, and a vector-tile shaped message
 dominated by packed geometry), best of 7 samples, on the same bytes and values, each
 library driven the way its README shows. `hillclimb` is the frozen Sury-vs-
