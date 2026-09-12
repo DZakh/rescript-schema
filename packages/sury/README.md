@@ -21,7 +21,7 @@ await S.encodeAsPromiseOrReject(signupsFileSchema)(signups);
 // => a File, from the same declaration - input and return strictly typed
 ```
 
-Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.protobuf`, `S.file` and `S.blob`. Coming next: env.
+Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.protobuf` (experimental), `S.file` and `S.blob`. Coming next: env.
 
 ```sh
 npm install sury

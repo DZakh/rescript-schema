@@ -1415,6 +1415,13 @@ S.base64->S.to(S.string) // widens
 
 ### **Protocol Buffers**
 
+> **Experimental.** The whole protobuf surface - `S.protobuf`,
+> `S.protobufField`, `S.toProtoOrThrow`, `S.arrayBuffer` and the field option
+> shape - ships experimental in its first release. The wire format is frozen
+> by the spec and the compliance suite holds it there; the API around it is
+> not, and may be renamed or reshaped without a major version. Pin an exact
+> version if that matters to you.
+
 `S.protobuf` is the [Protocol Buffers](https://protobuf.dev) binary wire
 format. Number every field of a message with `S.protobufField`, convert to
 `S.protobuf`, and Sury compiles an encoder and a decoder for that message. No

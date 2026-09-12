@@ -595,8 +595,21 @@ export const uint8Array: Schema<Uint8Array, Uint8Array>;
  * An `ArrayBuffer` of its own. Converting bytes to it takes ownership: a view
  * that covers its whole buffer hands that buffer over, any other view (a
  * `Buffer` from Node's pool, an `S.protobuf` result) is copied to size.
+ *
+ * @experimental Shipped experimental in its first release, with the rest of
+ * the protobuf surface. The name and when it copies may change without a
+ * major version while this label stands - pin an exact version if that
+ * matters to you.
  */
 export const arrayBuffer: Schema<ArrayBuffer, ArrayBuffer>;
+/**
+ * The Protocol Buffers binary wire format. Number a message schema's fields
+ * with `S.protobufField` and convert to this with `S.to`.
+ *
+ * @experimental Shipped experimental in its first release. The names and the
+ * field option shape may change without a major version while this label
+ * stands - pin an exact version if that matters to you.
+ */
 export const protobuf: Schema<Uint8Array, Uint8Array>;
 
 /**
@@ -613,12 +626,17 @@ export const protobuf: Schema<Uint8Array, Uint8Array>;
  * An enum's zero member prints as `<NAME>_UNSPECIFIED`, and one is prepended
  * to an enum whose literals lack `0`, which proto3 requires and the schema
  * itself rejects.
+ *
+ * @experimental Shipped experimental in its first release. The names and the
+ * field option shape may change without a major version while this label
+ * stands - pin an exact version if that matters to you.
  */
 export function toProtoOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options?: { name?: string; package?: string }
 ): string;
 
+/** @experimental See `S.protobuf`. */
 export type ProtobufType =
   | "double"
   | "float"
@@ -638,6 +656,7 @@ export type ProtobufType =
   | "enum"
   | "message";
 
+/** @experimental See `S.protobuf`. The shape may change without a major. */
 export type ProtobufField = {
   number: number;
   type?: ProtobufType;
@@ -649,6 +668,14 @@ export type ProtobufField = {
   oneof?: string;
 };
 
+/**
+ * Gives an object schema's field its protobuf field number, and optionally the
+ * wire type, packing, map key type and `oneof` it belongs to.
+ *
+ * @experimental Shipped experimental in its first release. The names and the
+ * field option shape may change without a major version while this label
+ * stands - pin an exact version if that matters to you.
+ */
 export function protobufField<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   field: number | ProtobufField

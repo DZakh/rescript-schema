@@ -1349,6 +1349,13 @@ sentinel reads as absent, so a required `S.file` reports a missing file,
 
 ## Protocol Buffers
 
+> **Experimental.** The whole protobuf surface - `S.protobuf`,
+> `S.protobufField`, `S.toProtoOrThrow`, `S.arrayBuffer` and the field option
+> shape - ships experimental in its first release. The wire format is frozen
+> by the spec and the compliance suite holds it there; the API around it is
+> not, and may be renamed or reshaped without a major version. Pin an exact
+> version if that matters to you.
+
 `S.protobuf` is the [Protocol Buffers](https://protobuf.dev) binary wire
 format. Give every field of an object schema a field number with
 `S.protobufField`, wire the schema to `S.protobuf`, and Sury compiles an
