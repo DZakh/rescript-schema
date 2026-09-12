@@ -1,6 +1,8 @@
+import { createFileRegistry, type DescMessage, fromBinary, toBinary } from "@bufbuild/protobuf";
 import protobuf from "protobufjs";
 import * as S from "sury";
 import type { FieldDef } from "./cases";
+import { fileDescriptorOf } from "./descriptor";
 
 const ident = (name: string): string => name.replace(/[^A-Za-z0-9_]/g, "_");
 
@@ -172,3 +174,27 @@ export const decodeProtobufjs = (
   }) as Record<string, unknown>;
   return walk(fields, raw);
 };
+
+// ── protobuf-es ───────────────────────────────────────────────────────────────
+
+// A second codec over the same `.proto`, because protobufjs cannot disagree
+// with itself: a file Sury printed, parsed by the same parser into the shape
+// it happened to mean, checked by the same encoder, proves less than it looks
+// like it does. This side shares no code with protobufjs - the parse is
+// `protocol-buffers-schema`, the descriptor is built in descriptor.ts, the
+// codec is protobuf-es.
+//
+// The comparison is bytes, not values: the two libraries' JS shapes for a
+// message disagree by design (oneof cases, 64-bit ints, absent versus
+// default), while re-encoding what was decoded exercises every field of the
+// descriptor and keeps the unknown ones protobuf-es retains.
+const esType = (source: string): DescMessage =>
+  createFileRegistry(fileDescriptorOf(source)).getMessage("M") as DescMessage;
+
+export const protobufEsType = (fields: FieldDef[]): DescMessage => esType(protoSource(fields));
+
+export const printedProtobufEsType = (schema: S.Schema<unknown, unknown>): DescMessage =>
+  esType(S.toProto(schema, { name: "M" }));
+
+export const reencodeProtobufEs = (bytes: Uint8Array, type: DescMessage): Uint8Array =>
+  toBinary(type, fromBinary(type, bytes));

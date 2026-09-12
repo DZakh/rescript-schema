@@ -2,7 +2,8 @@
 
 Runs `S.protobuf` against [protobufjs](https://github.com/protobufjs/protobuf.js),
 the JS implementation that passes Google's official Protocol Buffers conformance
-suite, and holds the score to a committed golden.
+suite, and against [protobuf-es](https://github.com/bufbuild/protobuf-es), and
+holds the score to a committed golden.
 
 Google's `conformance_test_runner` is a C++ process over stdin. This package
 does not build that. `cases.ts` instead mirrors the binary families of
@@ -18,6 +19,24 @@ of `binary_wireformat.h`. The wire-format assertions of protobuf.js's own test
 suite (writer/reader vectors, packed writers, decoder bounds, map entry layout,
 oneof semantics) are in the corpus too, and protobuf.js decodes what Sury
 writes and vice versa on every round-trip case.
+
+Every round-trip and decode-only case also goes through protobuf-es
+(`@bufbuild/protobuf`), over the reference `.proto` and over the one
+`S.toProto` prints. protobufjs cannot disagree with itself: a printed file its
+parser reads into the shape it happened to mean, checked by its own encoder,
+proves less than it looks like it does. This path shares no code with it -
+`protocol-buffers-schema` parses, `descriptor.ts` builds the
+FileDescriptorProto, protobuf-es decodes and re-encodes. Bytes are the
+comparison, not values: the two libraries' JS shapes for a message disagree by
+design, while a re-encode exercises every field of the descriptor.
+
+protobufjs's own `toDescriptor` is not usable for this. It throws on every map
+field, and writes `packed=false` onto proto3 repeated scalars that are packed
+by default - both would have read as Sury failures.
+
+Two cases are checked against protobufjs only, named in the golden's
+`protobufEsWrong` with the reason in `runner.ts`: protobuf-es strips a leading
+BOM from a string field, and loses a map entry keyed `__proto__`.
 
 `google-protobuf` is Google's own JS client. It fails more than a thousand
 required conformance tests, so it is not the reference here.
