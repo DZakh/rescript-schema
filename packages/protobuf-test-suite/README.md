@@ -38,6 +38,12 @@ Two cases are checked against protobufjs only, named in the golden's
 `protobufEsWrong` with the reason in `runner.ts`: protobuf-es strips a leading
 BOM from a string field, and loses a map entry keyed `__proto__`.
 
+Google's `conformance_test_runner` itself lives in
+[`packages/protobuf-conformance`](../protobuf-conformance), which runs the real
+suite - cases generated inside the binary - and scores 692/698 on the binary
+proto3 families. This package is the readable half: it says what broke, that
+one says whether we are right. Keep both.
+
 `google-protobuf` is Google's own JS client. It fails more than a thousand
 required conformance tests, so it is not the reference here.
 

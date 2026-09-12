@@ -1634,7 +1634,8 @@ number, two fields sharing one, a recursive message, a schema that is not an
 object.
 
 See [Protocol Buffers in the JS guide](./js-usage.md#protocol-buffers) for the
-wire-level detail the two languages share.
+wire-level detail the two languages share, including what the conformance
+suite covers.
 
 ### **`meta`**
 

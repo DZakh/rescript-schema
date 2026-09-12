@@ -1653,13 +1653,19 @@ is the least stable number here, moving between roughly 13 and 19 µs run to
 run; everything else lands within a few percent. Run the command on your own
 machine and your own message before you plan around any of it.
 
-`S.protobuf` passes the binary families of the official conformance suite that
-apply to it, and every case round-trips against two independent
-implementations: protobuf.js, and protobuf-es over both the reference `.proto`
-and the one `S.toProtoOrThrow` prints. The corpus lives in
-[`packages/protobuf-test-suite`](https://github.com/DZakh/sury/tree/main/packages/protobuf-test-suite). Not covered:
-extensions, proto2 groups as fields, and retaining unknown fields through a
-round trip (see above).
+`S.protobuf` runs against Google's own `conformance_test_runner`, which
+generates its cases inside the binary: **692 of the 698 binary proto3 cases**,
+with the six named and explained in
+[`packages/protobuf-conformance/failing_tests.txt`](https://github.com/DZakh/sury/tree/main/packages/protobuf-conformance/failing_tests.txt)
+- four need recursive messages, two need unknown fields to survive a round
+trip. ProtoJSON, text format and the proto2 message types are not attempted.
+
+Beside it, a corpus of our own in
+[`packages/protobuf-test-suite`](https://github.com/DZakh/sury/tree/main/packages/protobuf-test-suite),
+where every case round-trips against two independent implementations:
+protobuf.js, and protobuf-es over both the reference `.proto` and the one
+`S.toProtoOrThrow` prints. Not covered by either: extensions, proto2 groups as
+fields, and retaining unknown fields through a round trip (see above).
 
 ## Content
 
