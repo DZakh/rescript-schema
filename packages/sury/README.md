@@ -51,7 +51,7 @@ Sury's sponsors, who make the time to build it possible:
 Describe your data model once - unions, constraints and metadata included, with a type you can actually read on hover:
 
 ```ts
-import * as S from "sury"; // Tree-shakable: a schema + parse operation starts at 8 kB gzip
+import * as S from "sury"; // Tree-shakable: a schema + parse operation starts at 8.6 kB gzip
 
 const eventSchema = S.union([
   {
@@ -340,7 +340,7 @@ S.encodeOrThrow(S.schema({ price: S.number }), S.jsonString, { price: Infinity }
 | Event feed (50 tagged-union events)   | **5.05 µs** | 7.82 µs          | 20.26 µs            |
 | `bigint` id + binary payload + `Date` | **1.17 µs** | 1.51 µs          | 1.45 µs             |
 
-And 3.5× lighter than fast-json-stringify - 16.4 kB against 56.7 kB, encoder included.
+And 3.2× lighter than fast-json-stringify - 18.0 kB against 56.9 kB, encoder included.
 
 ## Comparison
 
@@ -352,12 +352,12 @@ And the types stay readable. Hovering the event schema from [Why Sury](#why-sury
 
 ### Size & speed
 
-Measured with [this repo's comparison benchmark](https://github.com/DZakh/sury/tree/main/packages/e2e/src/benchmark) against `sury@11.0.0-rc.1`, `zod@4.4.3`, `typebox@0.34.52`, `valibot@1.4.2`, `arktype@2.2.3`.
+Measured with [this repo's comparison benchmark](https://github.com/DZakh/sury/tree/main/packages/e2e/src/benchmark) against `sury@11.0.0`, `zod@4.4.3`, `typebox@0.34.52`, `valibot@1.4.2`, `arktype@2.2.3`.
 
 |                                 | Sury           | Zod          | TypeBox                        | Valibot      | ArkType        |
 | ------------------------------- | -------------- | ------------ | ------------------------------ | ------------ | -------------- |
-| **Total size** (min + gzip)     | 35.2 kB        | 65.0 kB      | 31.3 kB                        | 15.3 kB      | 47.2 kB        |
-| **Benchmark size** (min + gzip) | 8.0 kB         | 19.6 kB      | 22.6 kB                        | 1.29 kB      | 47.1 kB        |
+| **Total size** (min + gzip)     | 43.4 kB        | 64.7 kB      | 31.2 kB                        | 15.2 kB      | 47.1 kB        |
+| **Benchmark size** (min + gzip) | 8.7 kB         | 19.6 kB      | 22.6 kB                        | 1.29 kB      | 47.0 kB        |
 | **Parse with the same schema**  | 210,061 ops/ms | 9,367 ops/ms | 158,185 ops/ms (no transforms) | 1,970 ops/ms | 106,520 ops/ms |
 | **Create schema & parse once**  | 99 ops/ms      | 11 ops/ms    | 103 ops/ms (no transforms)     | 315 ops/ms   | 11 ops/ms      |
 

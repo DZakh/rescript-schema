@@ -194,14 +194,21 @@ npm run test -- --watch
 For the cross-library comparison table in the README, bundle each library on
 https://bundlejs.com/ with the recipes below.
 
+A release is measured before it is on npm, so Sury's own cells come from the
+local build instead: bundle the same recipe with esbuild (`bundle`, `minify`,
+`treeShaking`, `format: esm`, `target: esnext`, `platform: browser`) and gzip
+the output - that reproduces bundlejs within 0.6% on a published version, and
+the total agrees with `specs/bundleSize.yaml`. Re-check against bundlejs once
+the release is published.
+
 `sury`
 
 ```ts
-export * as S from "sury@11.0.0-rc.1";
+export * as S from "sury@11.0.0";
 ```
 
 ```ts
-import * as S from "sury@11.0.0-rc.1";
+import * as S from "sury@11.0.0";
 
 const schema = S.schema({
   number: S.number,
@@ -216,9 +223,7 @@ const schema = S.schema({
     bool: S.boolean,
   },
 });
-// The pinned release predates the operation rename; with the next one this
-// line becomes `S.parseOrThrow(schema)(data)`.
-S.parser(schema)(data);
+S.parseOrThrow(schema)(data);
 ```
 
 valibot

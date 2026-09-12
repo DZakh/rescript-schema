@@ -89,7 +89,7 @@ npm install sury
 The main building block of **Sury** is a schema - a type definition that exists at runtime.
 
 ```ts
-import * as S from "sury"; // 7.9 kB (min + gzip) for this schema, tree-shaken
+import * as S from "sury"; // 8.6 kB (min + gzip) for this schema, tree-shaken
 
 const playerSchema = S.schema({
   username: S.string,
@@ -1605,38 +1605,38 @@ driven the way its README shows. The harness is in
 number without a shape behind it.
 
 ```
-node v22.22.2 · linux x64 · sury 11.0.0-rc.3 · protobufjs 8.8.0 · protobuf-es 2.14.1 · pbf 5.1.2
+node v22.22.2 · linux x64 · sury 11.0.0 · protobufjs 8.8.0 · protobuf-es 2.14.1 · pbf 5.1.2
 
 tiny (3 bytes)
-  sury                 encode      50 ns  1.00x   decode      18 ns  1.00x
-  protobufjs reflect   encode     218 ns  4.34x   decode      37 ns  2.04x
-  protobufjs static    encode     193 ns  3.84x   decode      39 ns  2.16x
-  protobuf-es          encode     771 ns  15.35x   decode     319 ns  17.55x
-  pbf                  encode     569 ns  11.33x   decode      89 ns  4.91x
+  sury                 encode      48 ns  1.00x   decode      21 ns  1.00x
+  protobufjs reflect   encode     222 ns  4.63x   decode      60 ns  2.92x
+  protobufjs static    encode     213 ns  4.45x   decode      39 ns  1.91x
+  protobuf-es          encode     759 ns  15.82x   decode     311 ns  15.08x
+  pbf                  encode     587 ns  12.24x   decode     167 ns  8.12x
 typical (31 bytes)
-  sury                 encode     197 ns  1.00x   decode     227 ns  1.00x
-  protobufjs reflect   encode     561 ns  2.85x   decode     316 ns  1.39x
-  protobufjs static    encode     510 ns  2.59x   decode     266 ns  1.17x
-  protobuf-es          encode     786 ns  4.00x   decode    1277 ns  5.62x
-  pbf                  encode    1167 ns  5.94x   decode     488 ns  2.15x
+  sury                 encode     179 ns  1.00x   decode     265 ns  1.00x
+  protobufjs reflect   encode     529 ns  2.95x   decode     310 ns  1.17x
+  protobufjs static    encode     520 ns  2.90x   decode     276 ns  1.04x
+  protobuf-es          encode     869 ns  4.85x   decode    1292 ns  4.88x
+  pbf                  encode    1302 ns  7.27x   decode     370 ns  1.40x
 large (1416 bytes)
-  sury                 encode    1987 ns  1.00x   decode    2704 ns  1.00x
-  protobufjs reflect   encode    3487 ns  1.75x   decode    3164 ns  1.17x
-  protobufjs static    encode    3506 ns  1.76x   decode    3201 ns  1.18x
-  protobuf-es          encode    7764 ns  3.91x   decode    4619 ns  1.71x
-  pbf                  encode    7193 ns  3.62x   decode    3242 ns  1.20x
+  sury                 encode    1981 ns  1.00x   decode    2856 ns  1.00x
+  protobufjs reflect   encode    3481 ns  1.76x   decode    3334 ns  1.17x
+  protobufjs static    encode    3504 ns  1.77x   decode    3219 ns  1.13x
+  protobuf-es          encode    7802 ns  3.94x   decode    4430 ns  1.55x
+  pbf                  encode    7226 ns  3.65x   decode    3010 ns  1.05x
 common (79 bytes)
-  sury                 encode     633 ns  1.00x   decode     398 ns  1.00x
-  protobufjs reflect   encode    1682 ns  2.66x   decode     569 ns  1.43x
-  protobufjs static    encode    1666 ns  2.63x   decode     638 ns  1.61x
-  protobuf-es          encode    2133 ns  3.37x   decode    1746 ns  4.39x
-  pbf                  encode    1327 ns  2.09x   decode     600 ns  1.51x
+  sury                 encode     635 ns  1.00x   decode     409 ns  1.00x
+  protobufjs reflect   encode    1633 ns  2.57x   decode     554 ns  1.35x
+  protobufjs static    encode    1569 ns  2.47x   decode     614 ns  1.50x
+  protobuf-es          encode    2025 ns  3.19x   decode    1719 ns  4.20x
+  pbf                  encode    1286 ns  2.03x   decode     573 ns  1.40x
 tile (3028 bytes)
-  sury                 encode   17258 ns  1.00x   decode   14150 ns  1.04x
-  protobufjs reflect   encode   34175 ns  1.99x   decode   22589 ns  1.66x
-  protobufjs static    encode   35667 ns  2.07x   decode   17946 ns  1.32x
-  protobuf-es          encode   52329 ns  3.04x   decode   37684 ns  2.78x
-  pbf                  encode   17214 ns  1.00x   decode   13579 ns  1.00x
+  sury                 encode   17501 ns  1.03x   decode   13524 ns  1.00x
+  protobufjs reflect   encode   36540 ns  2.15x   decode   22753 ns  1.68x
+  protobufjs static    encode   36847 ns  2.17x   decode   18268 ns  1.35x
+  protobuf-es          encode   52486 ns  3.09x   decode   36110 ns  2.67x
+  pbf                  encode   16969 ns  1.00x   decode   13851 ns  1.02x
 ```
 
 The shapes: **tiny** is one `uint32`. **typical** is an id, a name, a bool, a
@@ -1646,11 +1646,12 @@ string beside 256 packed `sint32`. **common** is protobuf.js's own
 vector tile: packed geometry dominates.
 
 Read it as a shape, not as a score. Encode is where the compiled writer pays
-off and the ratios hold across runs. Decode is closer, and on **tile** pbf is
-the one to beat - it leads decode and matches encode, because a tile is almost
-entirely packed varints and that is what pbf is for. Sury's own `tile` decode
-is the least stable number here, moving between roughly 13 and 19 µs run to
-run; everything else lands within a few percent. Run the command on your own
+off and the ratios hold across runs - 2.5-4.6x protobufjs on the small and
+nested shapes, 1.8x on the large one. Decode is closer, 1.0-2.9x, and on
+**tile** pbf is the one to beat: it matches decode and leads encode, because a
+tile is almost entirely packed varints and that is what pbf is for. Sury's own
+`tile` decode is the least stable number here, moving between roughly 13 and
+19 µs run to run; everything else lands within a few percent. Run the command on your own
 machine and your own message before you plan around any of it.
 
 `S.protobuf` runs against Google's own `conformance_test_runner`, which
