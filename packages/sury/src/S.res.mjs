@@ -31,10 +31,13 @@ function toProtoOrThrow(schema, name, $$package) {
   });
 }
 
-function protobufField(schema, number, type_) {
+function protobufField(schema, number, type_, packed, key, oneof) {
   return Sury.protobufField(schema, {
     number: number,
-    type: type_
+    type: type_,
+    packed: packed,
+    key: key,
+    oneof: oneof
   });
 }
 

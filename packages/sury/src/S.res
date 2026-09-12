@@ -596,10 +596,22 @@ type url
 
 @module("sury") external meta: (t<'value>, meta<'value>) => t<'value> = "meta"
 
-type protobufFieldOptions = {number: int, @as("type") type_: protobufType}
+// Every option the JS `S.protobufField` takes, all optional but the number:
+// leaving `type_` off is what asks for the wire type the schema implies, and
+// a binding that demanded it would put a ReScript caller in the business of
+// restating `S.string` as `String`. `key` is the K of a `map<K, V>`, for an
+// `S.dict` field.
+type protobufFieldOptions = {
+  number: int,
+  @as("type") type_?: protobufType,
+  packed?: bool,
+  key?: protobufType,
+  oneof?: string,
+}
 @module("sury")
 external protobufField_: (t<'value>, protobufFieldOptions) => t<'value> = "protobufField"
-let protobufField = (schema, ~number, ~type_) => protobufField_(schema, {number, type_})
+let protobufField = (schema, ~number, ~type_=?, ~packed=?, ~key=?, ~oneof=?) =>
+  protobufField_(schema, {number, ?type_, ?packed, ?key, ?oneof})
 
 // The public JS `refine` takes an options object; build it here from the
 // ReScript labeled args.
