@@ -154,49 +154,6 @@ const operationTail: Tail = (input, code, out, isAsync, flag, hasDefs) => {
 
 // ── Call-form dispatch ───────────────────────────────────────────────────────
 
-// Flag bit 8 says the operation accepts anything, so the chain's source is
-// `S.unknown` rather than its own head (`parse`, and the check/make families;
-// `decode`/`encode` start from their first schema argument). It is a flag
-// rather than an `S.unknown` schema spliced in front of the chain: that node
-// cost a `copySchema` and a dead pass through `noopDecoder` per compile, and a
-// slot in every one of those operations' cache keys - which is what let `getOp`
-// drop from five schema slots to four.
-// `rev` reverses the first argument, which is what makes an operation run the
-// encode direction. `tail` closes the chain: `assertResult` for the families
-// that validate and discard (`is`, `assert`, `make`).
-const compile = (
-  tail: Internal | undefined,
-  rev: boolean,
-  flag: Flag,
-  // How many schema slots the dispatcher partitioned off, 1 to 3. Passed rather
-  // than inferred from `s1 !== U`: a hole (`op(s, undefined, s)`) would read as
-  // "two arguments" and silently drop the third.
-  n: number,
-  s0: unknown,
-  s1?: unknown,
-  s2?: unknown,
-): ((data: unknown) => unknown) => {
-  // `dispatch` has already proved `s0`. The slots after it hold a schema or
-  // nothing: a foreign Standard Schema is named rather than silently read as
-  // the data to validate, and so is a hole - or a value in the middle
-  // (`op(s, data, s)`), which is the one misplacement the argument count
-  // can't tell apart from a hole.
-  if ((n > 1 && !isOwnSchema(s1)) || (n > 2 && !isOwnSchema(s2))) {
-    panic("Expected a Sury schema. The data goes first or last");
-  }
-  const first = (rev ? reverse(s0 as Internal) : s0) as Internal;
-  // The chain, in order: the caller's schemas, then the tail. `getOp` reads
-  // exactly as many positional arguments as it is told, so the tail has to sit
-  // right after the last schema - which is why each arity is written out with
-  // its own count rather than padded with `U`; it also allocates nothing on a
-  // cache hit.
-  return n > 2
-    ? getOp(flag, tail ? 4 : 3, first, s1 as Internal, s2 as Internal, tail)
-    : n > 1
-      ? getOp(flag, tail ? 3 : 2, first, s1 as Internal, tail)
-      : getOp(flag, tail ? 2 : 1, first, tail);
-};
-
 // The four call forms, told apart by `arguments.length` and by which arguments
 // are Sury schemas:
 //
@@ -210,13 +167,11 @@ const compile = (
 // Only the argument count partitions the forms: an argument is NEVER tested
 // for `undefined`, or `op(S.void, undefined)` (arity 2, a trailing non-schema,
 // so a parse of `undefined`) would be misread as the compiled form of
-// `op(S.void)` (arity 1).
+// `op(S.void)`.
 //
 // Accepted and documented: `op(s1, s2)` always reads as a chain, so parsing a
 // Sury schema *as data* is only available compiled - `S.parseOrThrow(Meta)(s)`.
-// No argument order makes both reachable. The data is only ever the first or
-// the last argument, so those are the slots tested here - each exactly once,
-// since `compile` trusts its first slot and checks the rest.
+// No argument order makes both reachable.
 const panicArity = (): never =>
   panic("Expected at most 3 schemas and a value. Use .with(S.to, ...) for a longer chain");
 
@@ -230,36 +185,52 @@ const dispatch = (
   rev: boolean,
   flag: Flag,
 ): unknown => {
-  switch (n) {
-    case 1:
-      return isOwnSchema(a) ? compile(tail, rev, flag, 1, a) : panicNotSchema();
-    case 2:
-      return isOwnSchema(a)
-        ? isOwnSchema(b)
-          ? compile(tail, rev, flag, 2, a, b)
-          : compile(tail, rev, flag, 1, a)(b)
-        : isOwnSchema(b)
-          ? compile(tail, rev, flag, 1, b)(a)
-          : panicNotSchema();
-    case 3:
-      return isOwnSchema(a)
-        ? isOwnSchema(c)
-          ? compile(tail, rev, flag, 3, a, b, c)
-          : compile(tail, rev, flag, 2, a, b)(c)
-        : isOwnSchema(b)
-          ? compile(tail, rev, flag, 2, b, c)(a)
-          : panicNotSchema();
-    case 4:
-      return isOwnSchema(a)
-        ? isOwnSchema(d)
-          ? panicArity()
-          : compile(tail, rev, flag, 3, a, b, c)(d)
-        : isOwnSchema(b)
-          ? compile(tail, rev, flag, 3, b, c, d)(a)
-          : panicNotSchema();
-    default:
-      return n > 4 ? panicArity() : panicNotSchema();
+  if (n > 4) panicArity();
+  let data: unknown = U;
+  // The data is only ever the first or the last argument. Taking a leading one
+  // out of the way first leaves the slots below holding the chain alone, so
+  // every form past this point is the same walk over `a, b, c`.
+  let immediate = !isOwnSchema(a);
+  if (immediate) {
+    (data = a), (a = b), (b = c), (c = d), n--;
+    if (n < 1 || !isOwnSchema(a)) panicNotSchema();
   }
+  // How many leading slots hold schemas, 1 to 3: the chain's own length.
+  // Counted rather than inferred from `b !== U`, or a hole
+  // (`op(s, undefined, s)`) would read as a two-schema chain.
+  const k = n > 1 && isOwnSchema(b) ? (n > 2 && isOwnSchema(c) ? 3 : 2) : 1;
+  if (n > k) {
+    // One argument past the chain is the data. Anything else is a foreign
+    // Standard Schema, a hole, or a value in the middle (`op(s, data, s)`) -
+    // the one misplacement the argument count can't tell apart from a hole.
+    // A schema in that slot is a fourth chain member instead.
+    if (immediate || n > k + 1) panic("Expected a Sury schema. The data goes first or last");
+    data = k > 2 ? (isOwnSchema(d) ? panicArity() : d) : k > 1 ? c : b;
+    immediate = true;
+  }
+  // Flag bit 8 says the operation accepts anything, so the chain's source is
+  // `S.unknown` rather than its own head (`parse`, and the check/make families;
+  // `decode`/`encode` start from their first schema argument). It is a flag
+  // rather than an `S.unknown` schema spliced in front of the chain: that node
+  // cost a `copySchema` and a dead pass through `noopDecoder` per compile, and a
+  // slot in every one of those operations' cache keys - which is what let `getOp`
+  // drop from five schema slots to four.
+  // `rev` reverses the first argument, which is what makes an operation run the
+  // encode direction. `tail` closes the chain: `assertResult` for the families
+  // that validate and discard (`is`, `assert`, `make`).
+  const first = (rev ? reverse(a as Internal) : a) as Internal;
+  // The chain, in order: the caller's schemas, then the tail. `getOp` reads
+  // exactly as many positional arguments as it is told, so the tail has to sit
+  // right after the last schema - which is why each arity is written out with
+  // its own count rather than padded with `U`; it also allocates nothing on a
+  // cache hit.
+  const op =
+    k > 2
+      ? getOp(flag, tail ? 4 : 3, first, b as Internal, c as Internal, tail)
+      : k > 1
+        ? getOp(flag, tail ? 3 : 2, first, b as Internal, tail)
+        : getOp(flag, tail ? 2 : 1, first, tail);
+  return immediate ? op(data) : op;
 };
 
 // Every operation whose tail is more than "the value, or a throw" comes through
