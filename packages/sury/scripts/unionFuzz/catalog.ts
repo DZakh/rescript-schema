@@ -201,7 +201,7 @@ export const FUZZ_EXPORTS: Record<string, FuzzExport> = {
   toInputJSONSchemaOrThrow: skip("JSON Schema export, not a schema factory"),
   toOutputExpression: skip("debug printer, not a schema factory"),
   toOutputJSONSchemaOrThrow: skip("JSON Schema export, not a schema factory"),
-  toProto: skip(".proto source export, not a schema factory"),
+  toProtoOrThrow: skip(".proto source export, not a schema factory"),
   trim: modify(["string"], (S, schema) => schema.with(S.trim)),
   tuple: build(),
   uint8Array: schema((S) => S.uint8Array),

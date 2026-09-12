@@ -24,8 +24,8 @@ let Flag = {
 
 let $$Error = {};
 
-function toProto(schema, name, $$package) {
-  return Sury.toProto(schema, {
+function toProtoOrThrow(schema, name, $$package) {
+  return Sury.toProtoOrThrow(schema, {
     name: name,
     package: $$package
   });
@@ -174,7 +174,7 @@ export {
   Exn,
   Flag,
   $$Error,
-  toProto,
+  toProtoOrThrow,
   protobufField,
   refine,
   to,

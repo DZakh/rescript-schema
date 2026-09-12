@@ -1442,7 +1442,7 @@ S.encodeOrThrow(Wire)({ id: 150, name: "Ada", tags: [] }); // ArrayBuffer(12)
 S.decodeOrThrow(Wire)(buffer); // { id: 150, name: "Ada", tags: [] }
 ```
 
-**Generating a `.proto`.** `S.toProto` prints the proto3 source for a message
+**Generating a `.proto`.** `S.toProtoOrThrow` prints the proto3 source for a message
 schema, so a Sury schema can be the source of truth other languages build
 from, and `buf breaking` can guard it in CI; with a `package` and camelCase
 keys it passes `buf lint`'s defaults too. A schema's `name`
@@ -1463,7 +1463,7 @@ const User = S.schema({
   kind: S.union([0, 1, 2]).with(S.protobufField, { number: 3, type: "enum" }),
 }).with(S.meta, { name: "User" });
 
-S.toProto(User, { package: "acme.v1" });
+S.toProtoOrThrow(User, { package: "acme.v1" });
 // syntax = "proto3";
 //
 // package acme.v1;

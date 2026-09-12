@@ -373,7 +373,7 @@ instead of silently working around it.
   unaffected - it only counts `acceptance`/`exception-kind` from the
   compiled-vs-reference run.
 
-- There is no operation for source text: `S.toProto` returns a `.proto` file,
+- There is no operation for source text: `S.toProtoOrThrow` returns a `.proto` file,
   so its output is snapshotted in `tests/S_toProto_test.ts` rather than a spec.
   A `proto` operation next to `jsonSchema` would keep it with the schema.
 

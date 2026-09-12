@@ -2,7 +2,7 @@ import { test } from "vitest";
 
 import * as S from "../index.mjs";
 
-test("toProto prints every field shape the wire supports", (t) => {
+test("toProtoOrThrow prints every field shape the wire supports", (t) => {
   const Address = S.schema({
     street: S.string.with(S.protobufField, 1),
     zip: S.optional(S.string).with(S.protobufField, 2),
@@ -23,7 +23,7 @@ test("toProto prints every field shape the wire supports", (t) => {
     "weird-key": S.boolean.with(S.protobufField, 13),
     hash: S.bigint.with(S.protobufField, { number: 14, type: "fixed64" }),
   }).with(S.meta, { name: "User" });
-  t.expect(S.toProto(User, { package: "acme.v1" })).toBe(`syntax = "proto3";
+  t.expect(S.toProtoOrThrow(User, { package: "acme.v1" })).toBe(`syntax = "proto3";
 
 package acme.v1;
 
@@ -70,26 +70,26 @@ message Address {
 `);
 });
 
-test("toProto names the root from the option, then meta, then Message", (t) => {
+test("toProtoOrThrow names the root from the option, then meta, then Message", (t) => {
   const Point = S.schema({ x: S.int32.with(S.protobufField, 1) });
-  t.expect(S.toProto(Point)).toBe(`syntax = "proto3";
+  t.expect(S.toProtoOrThrow(Point)).toBe(`syntax = "proto3";
 
 message Message {
   int32 x = 1;
 }
 `);
-  t.expect(S.toProto(Point.with(S.meta, { name: "point 2d" }))).toContain("message Point2d {");
-  t.expect(S.toProto(Point, { name: "Pt" })).toContain("message Pt {");
+  t.expect(S.toProtoOrThrow(Point.with(S.meta, { name: "point 2d" }))).toContain("message Point2d {");
+  t.expect(S.toProtoOrThrow(Point, { name: "Pt" })).toContain("message Pt {");
   // The option is taken as given, so it names what a consumer looks up.
-  t.expect(() => S.toProto(Point, { name: "user_v2.Thing" })).toThrow('[Sury] S.toProto: "user_v2.Thing" is not a message name');
+  t.expect(() => S.toProtoOrThrow(Point, { name: "user_v2.Thing" })).toThrow('[Sury] S.toProtoOrThrow: "user_v2.Thing" is not a message name');
 });
 
-test("toProto nests an unnamed message where it is first used and qualifies later references", (t) => {
+test("toProtoOrThrow nests an unnamed message where it is first used and qualifies later references", (t) => {
   const Inner = S.schema({ n: S.int32.with(S.protobufField, 1) });
   const Left = S.schema({ inner: Inner.with(S.protobufField, 1) });
   const Right = S.schema({ inner: Inner.with(S.protobufField, 1) });
   const Root = S.schema({ left: Left.with(S.protobufField, 1), right: Right.with(S.protobufField, 2) });
-  t.expect(S.toProto(Root)).toBe(`syntax = "proto3";
+  t.expect(S.toProtoOrThrow(Root)).toBe(`syntax = "proto3";
 
 message Message {
   message Left {
@@ -109,31 +109,31 @@ message Message {
 `);
 });
 
-test("toProto disambiguates two named schemas that share a name", (t) => {
+test("toProtoOrThrow disambiguates two named schemas that share a name", (t) => {
   const A = S.schema({ a: S.int32.with(S.protobufField, 1) }).with(S.meta, { name: "Item" });
   const B = S.schema({ b: S.int32.with(S.protobufField, 1) }).with(S.meta, { name: "Item" });
-  const proto = S.toProto(S.schema({ a: A.with(S.protobufField, 1), b: B.with(S.protobufField, 2) }));
+  const proto = S.toProtoOrThrow(S.schema({ a: A.with(S.protobufField, 1), b: B.with(S.protobufField, 2) }));
   t.expect(proto).toContain("  Item a = 1;\n  Item2 b = 2;");
   t.expect(proto).toContain("message Item2 {");
 });
 
-test("toProto rejects what the wire rejects, with the same message", (t) => {
-  t.expect(() => S.toProto(S.string)).toThrow("[Sury] S.toProto: the schema is not an object");
+test("toProtoOrThrow rejects what the wire rejects, with the same message", (t) => {
+  t.expect(() => S.toProtoOrThrow(S.string)).toThrow("[Sury] S.toProtoOrThrow: the schema is not an object");
   t.expect(() =>
-    S.toProto(
+    S.toProtoOrThrow(
       S.recursive("Node", (self) =>
         S.schema({ v: S.int32.with(S.protobufField, 1), next: S.optional(self).with(S.protobufField, { number: 2, type: "message" }) }),
       ),
     ),
-  ).toThrow("[Sury] S.toProto: a recursive message can't be printed, as S.protobuf can't encode one");
-  t.expect(() => S.toProto(S.schema({ a: S.string }))).toThrow(
+  ).toThrow("[Sury] S.toProtoOrThrow: a recursive message can't be printed, as S.protobuf can't encode one");
+  t.expect(() => S.toProtoOrThrow(S.schema({ a: S.string }))).toThrow(
     '[Sury] S.protobuf: field "a" has no field number. Give it one with S.protobufField',
   );
 });
 
-test("toProto keeps a nested type from shadowing a top-level one", (t) => {
+test("toProtoOrThrow keeps a nested type from shadowing a top-level one", (t) => {
   const Address = S.schema({ street: S.string.with(S.protobufField, 1) }).with(S.meta, { name: "Address" });
-  const proto = S.toProto(
+  const proto = S.toProtoOrThrow(
     S.schema({
       address: S.schema({ raw: S.string.with(S.protobufField, 1) }).with(S.protobufField, 1),
       billing: Address.with(S.protobufField, 2),
@@ -144,9 +144,9 @@ test("toProto keeps a nested type from shadowing a top-level one", (t) => {
   t.expect(proto).toContain("\nmessage Address {\n  string street = 1;\n}");
 });
 
-test("toProto prints the root once when a field reuses it", (t) => {
+test("toProtoOrThrow prints the root once when a field reuses it", (t) => {
   const Root = S.schema({ n: S.int32.with(S.protobufField, 1) }).with(S.meta, { name: "Root" });
-  const proto = S.toProto(
+  const proto = S.toProtoOrThrow(
     S.schema({ a: Root.with(S.protobufField, 1), b: S.schema({ back: Root.with(S.protobufField, 1) }).with(S.protobufField, 2) }).with(
       S.meta,
       { name: "Root" },
@@ -169,10 +169,10 @@ message Root2 {
 `);
 });
 
-test("toProto tells a field's description from its message's", (t) => {
+test("toProtoOrThrow tells a field's description from its message's", (t) => {
   const Address = S.schema({ street: S.string.with(S.protobufField, 1) }).with(S.meta, { name: "Address", description: "Postal" });
   // Meta layered on after the field number is the field's.
-  const both = S.toProto(
+  const both = S.toProtoOrThrow(
     S.schema({
       home: Address.with(S.protobufField, 1).with(S.meta, { description: "Home address" }),
       work: Address.with(S.protobufField, 2).with(S.meta, { description: "Work address" }),
@@ -180,23 +180,23 @@ test("toProto tells a field's description from its message's", (t) => {
   );
   t.expect(both).toContain("  // Home address\n  Address home = 1;\n  // Work address\n  Address work = 2;\n}\n\n// Postal\nmessage Address {");
   // Meta the schema carried before the number is the type's, wherever set.
-  const before = S.toProto(S.schema({ home: Address.with(S.meta, { description: "Renamed" }).with(S.protobufField, 1) }));
+  const before = S.toProtoOrThrow(S.schema({ home: Address.with(S.meta, { description: "Renamed" }).with(S.protobufField, 1) }));
   t.expect(before).toContain("{\n  Address home = 1;\n}\n\n// Renamed\nmessage Address {");
   // A use past S.optional reaches the declaration, which settles whose is whose.
-  const one = S.toProto(
+  const one = S.toProtoOrThrow(
     S.schema({
       home: Address.with(S.protobufField, 1).with(S.meta, { description: "Home address" }),
       work: S.optional(Address).with(S.protobufField, 2),
     }),
   );
   t.expect(one).toContain("{\n  // Home address\n  Address home = 1;\n  optional Address work = 2;\n}\n\n// Postal\nmessage Address {");
-  const direct = S.toProto(S.schema({ home: Address.with(S.protobufField, 1) }));
+  const direct = S.toProtoOrThrow(S.schema({ home: Address.with(S.protobufField, 1) }));
   t.expect(direct).toContain("{\n  Address home = 1;\n}\n\n// Postal\nmessage Address {");
 });
 
-test("toProto prints a deprecated message as the type's option, not its fields'", (t) => {
+test("toProtoOrThrow prints a deprecated message as the type's option, not its fields'", (t) => {
   const Old = S.schema({ x: S.int32.with(S.protobufField, 1) }).with(S.meta, { name: "Old", deprecated: true });
-  const proto = S.toProto(
+  const proto = S.toProtoOrThrow(
     S.schema({ a: Old.with(S.protobufField, 1), b: S.optional(Old).with(S.protobufField, 2), c: S.int32.with(S.protobufField, 3).with(S.meta, { deprecated: true }) }),
   );
   t.expect(proto).toBe(`syntax = "proto3";
@@ -214,13 +214,13 @@ message Old {
 `);
 });
 
-test("toProto keeps a field's name and its inline type apart", (t) => {
-  const proto = S.toProto(S.schema({ Name: S.schema({ x: S.int32.with(S.protobufField, 1) }).with(S.protobufField, 1) }));
+test("toProtoOrThrow keeps a field's name and its inline type apart", (t) => {
+  const proto = S.toProtoOrThrow(S.schema({ Name: S.schema({ x: S.int32.with(S.protobufField, 1) }).with(S.protobufField, 1) }));
   t.expect(proto).toContain("  message Name2 {\n    int32 x = 1;\n  }\n\n  Name2 Name = 1;");
 });
 
-test("toProto gives each unnamed enum field its own type and dedupes a repeated literal", (t) => {
-  const proto = S.toProto(
+test("toProtoOrThrow gives each unnamed enum field its own type and dedupes a repeated literal", (t) => {
+  const proto = S.toProtoOrThrow(
     S.schema({
       kind: S.union([1, 1, 2]).with(S.protobufField, { number: 1, type: "enum" }),
       status: S.union([1, 2]).with(S.protobufField, { number: 2, type: "enum" }),
@@ -245,39 +245,39 @@ message Message {
 }
 `);
   const Named = S.union([0, 1]).with(S.meta, { name: "Flag" });
-  const shared = S.toProto(
+  const shared = S.toProtoOrThrow(
     S.schema({ a: Named.with(S.protobufField, { number: 1, type: "enum" }), b: S.optional(Named).with(S.protobufField, { number: 2, type: "enum" }) }),
   );
   t.expect(shared).toContain("  Flag a = 1;\n  optional Flag b = 2;\n}\n\nenum Flag {\n  FLAG_UNSPECIFIED = 0;\n  FLAG_1 = 1;\n}");
 });
 
-test("toProto prints a named schema under its name whichever copy is used first", (t) => {
+test("toProtoOrThrow prints a named schema under its name whichever copy is used first", (t) => {
   const Inner = S.schema({ n: S.int32.with(S.protobufField, 1) });
   const Named = Inner.with(S.meta, { name: "Inner" });
   // The unnamed copy is a type of its own; the name goes where it was asked for.
-  const proto = S.toProto(S.schema({ a: Inner.with(S.protobufField, 1), b: Named.with(S.protobufField, 2) }));
+  const proto = S.toProtoOrThrow(S.schema({ a: Inner.with(S.protobufField, 1), b: Named.with(S.protobufField, 2) }));
   t.expect(proto).toContain("  message A {\n    int32 n = 1;\n  }\n\n  A a = 1;\n  Inner b = 2;\n}\n\nmessage Inner {");
 });
 
-test("toProto rejects two keys that print as one field name", (t) => {
+test("toProtoOrThrow rejects two keys that print as one field name", (t) => {
   t.expect(() =>
-    S.toProto(S.schema({ userName: S.string.with(S.protobufField, 1), user_name: S.string.with(S.protobufField, 2) })),
-  ).toThrow('[Sury] S.toProto: "userName" and "user_name" of Message collide as "userName"');
+    S.toProtoOrThrow(S.schema({ userName: S.string.with(S.protobufField, 1), user_name: S.string.with(S.protobufField, 2) })),
+  ).toThrow('[Sury] S.toProtoOrThrow: "userName" and "user_name" of Message collide as "userName"');
   // protoc's rule: the default JSON name, not the spelling.
-  t.expect(() => S.toProto(S.schema({ aB: S.string.with(S.protobufField, 1), a_B: S.string.with(S.protobufField, 2) }))).toThrow(
-    '[Sury] S.toProto: "aB" and "a_B" of Message collide as "aB"',
+  t.expect(() => S.toProtoOrThrow(S.schema({ aB: S.string.with(S.protobufField, 1), a_B: S.string.with(S.protobufField, 2) }))).toThrow(
+    '[Sury] S.toProtoOrThrow: "aB" and "a_B" of Message collide as "aB"',
   );
   t.expect(() =>
-    S.toProto(S.schema({ value: S.string.with(S.protobufField, 1), text: S.optional(S.string).with(S.protobufField, { number: 2, oneof: "value" }) })),
-  ).toThrow('[Sury] S.toProto: "value" and oneof "value" of Message collide as "value"');
+    S.toProtoOrThrow(S.schema({ value: S.string.with(S.protobufField, 1), text: S.optional(S.string).with(S.protobufField, { number: 2, oneof: "value" }) })),
+  ).toThrow('[Sury] S.toProtoOrThrow: "value" and oneof "value" of Message collide as "value"');
   // A oneof is a symbol without a JSON name, so it only has to differ in spelling.
   t.expect(
-    S.toProto(S.schema({ value: S.string.with(S.protobufField, 1), text: S.optional(S.string).with(S.protobufField, { number: 2, oneof: "va_lue" }) })),
+    S.toProtoOrThrow(S.schema({ value: S.string.with(S.protobufField, 1), text: S.optional(S.string).with(S.protobufField, { number: 2, oneof: "va_lue" }) })),
   ).toContain("  string value = 1;\n  oneof va_lue {\n    string text = 2;\n  }");
 });
 
-test("toProto keeps a digit-leading name an identifier", (t) => {
-  const proto = S.toProto(
+test("toProtoOrThrow keeps a digit-leading name an identifier", (t) => {
+  const proto = S.toProtoOrThrow(
     S.schema({ "2d": S.schema({ x: S.int32.with(S.protobufField, 1) }).with(S.protobufField, 1) }).with(S.meta, { name: "3kinds" }),
   );
   // Fields and nested types share a scope, so the type steps aside.
@@ -286,9 +286,9 @@ test("toProto keeps a digit-leading name an identifier", (t) => {
 });
 
 
-test("toProto attributes meta a schema carried before its number to the type", (t) => {
+test("toProtoOrThrow attributes meta a schema carried before its number to the type", (t) => {
   const Old = S.schema({ street: S.string.with(S.protobufField, 1) }).with(S.meta, { name: "Old", deprecated: true, description: "Old doc" });
-  t.expect(S.toProto(S.schema({ a: Old.with(S.protobufField, 1), b: Old.with(S.protobufField, 2) }))).toBe(`syntax = "proto3";
+  t.expect(S.toProtoOrThrow(S.schema({ a: Old.with(S.protobufField, 1), b: Old.with(S.protobufField, 2) }))).toBe(`syntax = "proto3";
 
 message Message {
   Old a = 1;
@@ -302,7 +302,7 @@ message Old {
 }
 `);
   // A field's copy keeps what it layered on after the number.
-  const proto = S.toProto(
+  const proto = S.toProtoOrThrow(
     S.schema({
       old: Old.with(S.protobufField, 1).with(S.meta, { deprecated: false, description: "Legacy" }),
       one: S.optional(Old).with(S.protobufField, 2).with(S.meta, { description: "maybe" }),
@@ -324,13 +324,13 @@ message Old {
 }
 `);
   // The only direct use, deprecated after numbering, deprecates the field alone.
-  const single = S.toProto(S.schema({ legacy: Old.with(S.meta, { deprecated: false }).with(S.protobufField, 1).with(S.meta, { deprecated: true, description: "Old field" }) }));
+  const single = S.toProtoOrThrow(S.schema({ legacy: Old.with(S.meta, { deprecated: false }).with(S.protobufField, 1).with(S.meta, { deprecated: true, description: "Old field" }) }));
   t.expect(single).toContain("  // Old field\n  Old legacy = 1 [deprecated = true];\n}\n\n// Old doc\nmessage Old {\n  string street = 1;");
 });
 
-test("toProto keeps a named flat optional union one enum", (t) => {
+test("toProtoOrThrow keeps a named flat optional union one enum", (t) => {
   const Flat = S.union([1, 2, S.void]).with(S.meta, { name: "Flat", description: "flat doc" });
-  const proto = S.toProto(
+  const proto = S.toProtoOrThrow(
     S.schema({
       a: Flat.with(S.protobufField, { number: 1, type: "enum" }),
       b: Flat.with(S.protobufField, { number: 2, type: "enum" }),
@@ -352,15 +352,15 @@ enum Flat {
 `);
 });
 
-test("toProto prints a renamed copy as its own message", (t) => {
+test("toProtoOrThrow prints a renamed copy as its own message", (t) => {
   const X = S.schema({ x: S.int32.with(S.protobufField, 1) }).with(S.meta, { name: "X" });
   const Y = X.with(S.meta, { name: "Y" });
-  const proto = S.toProto(S.schema({ a: X.with(S.protobufField, 1), b: Y.with(S.protobufField, 2) }));
+  const proto = S.toProtoOrThrow(S.schema({ a: X.with(S.protobufField, 1), b: Y.with(S.protobufField, 2) }));
   t.expect(proto).toContain("  X a = 1;\n  Y b = 2;\n}\n\nmessage X {\n  int32 x = 1;\n}\n\nmessage Y {\n  int32 x = 1;\n}");
 });
 
-test("toProto gives two enums in one scope distinct value prefixes", (t) => {
-  const proto = S.toProto(
+test("toProtoOrThrow gives two enums in one scope distinct value prefixes", (t) => {
+  const proto = S.toProtoOrThrow(
     S.schema({
       userKind: S.union([1, 2]).with(S.protobufField, { number: 1, type: "enum" }),
       userkind: S.union([1, 2]).with(S.protobufField, { number: 2, type: "enum" }),
@@ -368,7 +368,7 @@ test("toProto gives two enums in one scope distinct value prefixes", (t) => {
   );
   t.expect(proto).toContain("  enum UserKind {\n    USER_KIND_UNSPECIFIED = 0;\n    USER_KIND_1 = 1;\n    USER_KIND_2 = 2;\n  }");
   t.expect(proto).toContain("  enum Userkind {\n    USERKIND_UNSPECIFIED = 0;\n    USERKIND_1 = 1;\n    USERKIND_2 = 2;\n  }");
-  const same = S.toProto(
+  const same = S.toProtoOrThrow(
     S.schema({
       a_b: S.union([1, 2]).with(S.protobufField, { number: 1, type: "enum" }),
       ab: S.union([1, 2]).with(S.protobufField, { number: 2, type: "enum" }),
@@ -377,12 +377,12 @@ test("toProto gives two enums in one scope distinct value prefixes", (t) => {
   t.expect(same).toContain("  enum AB {\n    AB_UNSPECIFIED = 0;\n    AB_1 = 1;\n    AB_2 = 2;\n  }\n  enum Ab {\n    AB2_UNSPECIFIED = 0;\n    AB2_1 = 1;\n    AB2_2 = 2;\n  }");
 });
 
-test("toProto prints an empty key as an identifier", (t) => {
-  t.expect(S.toProto(S.schema({ "": S.string.with(S.protobufField, 1) }))).toContain("  string _ = 1;");
+test("toProtoOrThrow prints an empty key as an identifier", (t) => {
+  t.expect(S.toProtoOrThrow(S.schema({ "": S.string.with(S.protobufField, 1) }))).toContain("  string _ = 1;");
 });
 
-test("toProto leaves meta set after the number on an inline type's field", (t) => {
-  const proto = S.toProto(
+test("toProtoOrThrow leaves meta set after the number on an inline type's field", (t) => {
+  const proto = S.toProtoOrThrow(
     S.schema({
       inline: S.schema({ n: S.int32.with(S.protobufField, 1) }).with(S.protobufField, 1).with(S.meta, { description: "Field doc" }),
       kind: S.union([1, 2]).with(S.protobufField, { number: 2, type: "enum" }).with(S.meta, { description: "Kind doc", deprecated: true }),
@@ -408,17 +408,17 @@ message Message {
 `);
 });
 
-test("toProto keeps enum values clear of field names in the same scope", (t) => {
-  const proto = S.toProto(
+test("toProtoOrThrow keeps enum values clear of field names in the same scope", (t) => {
+  const proto = S.toProtoOrThrow(
     S.schema({ kind: S.union([1, 2]).with(S.protobufField, { number: 1, type: "enum" }), KIND_1: S.string.with(S.protobufField, 2) }),
   );
   t.expect(proto).toContain("  enum Kind {\n    KIND2_UNSPECIFIED = 0;\n    KIND2_1 = 1;\n    KIND2_2 = 2;\n  }");
   t.expect(proto).toContain("  Kind kind = 1;\n  string KIND_1 = 2;");
 });
 
-test("toProto lets a field's schema keep the name Message over the root's default", (t) => {
+test("toProtoOrThrow lets a field's schema keep the name Message over the root's default", (t) => {
   const Msg = S.schema({ n: S.int32.with(S.protobufField, 1) }).with(S.meta, { name: "Message" });
-  t.expect(S.toProto(S.schema({ m: Msg.with(S.protobufField, 1) }))).toBe(`syntax = "proto3";
+  t.expect(S.toProtoOrThrow(S.schema({ m: Msg.with(S.protobufField, 1) }))).toBe(`syntax = "proto3";
 
 message Message2 {
   Message m = 1;
@@ -428,20 +428,20 @@ message Message {
   int32 n = 1;
 }
 `);
-  t.expect(S.toProto(S.schema({ m: Msg.with(S.protobufField, 1) }), { name: "Message" })).toContain("message Message {\n  Message2 m = 1;");
+  t.expect(S.toProtoOrThrow(S.schema({ m: Msg.with(S.protobufField, 1) }), { name: "Message" })).toContain("message Message {\n  Message2 m = 1;");
 });
 
-test("toProto prints a comment without trailing whitespace", (t) => {
-  const proto = S.toProto(S.schema({ a: S.string.with(S.protobufField, 1).with(S.meta, { description: "first  \r\n\nthird\n" }) }));
+test("toProtoOrThrow prints a comment without trailing whitespace", (t) => {
+  const proto = S.toProtoOrThrow(S.schema({ a: S.string.with(S.protobufField, 1).with(S.meta, { description: "first  \r\n\nthird\n" }) }));
   t.expect(proto).toContain("  // first\n  //\n  // third\n  string a = 1;");
-  t.expect(S.toProto(S.schema({ a: S.string.with(S.protobufField, 1).with(S.meta, { description: "  " }) }))).toContain("{\n  string a = 1;");
+  t.expect(S.toProtoOrThrow(S.schema({ a: S.string.with(S.protobufField, 1).with(S.meta, { description: "  " }) }))).toContain("{\n  string a = 1;");
 });
 
-test("toProto reads meta set after a root message's .to", (t) => {
+test("toProtoOrThrow reads meta set after a root message's .to", (t) => {
   const M = S.schema({ a: S.int32.with(S.protobufField, 1) })
     .with(S.to, S.schema({ a: S.int32.with(S.protobufField, 1) }))
     .with(S.meta, { name: "Named", description: "named doc", deprecated: true });
-  t.expect(S.toProto(M)).toBe(`syntax = "proto3";
+  t.expect(S.toProtoOrThrow(M)).toBe(`syntax = "proto3";
 
 // named doc
 message Named {
@@ -451,17 +451,17 @@ message Named {
 `);
 });
 
-test("toProto keeps a description only one use carries", (t) => {
+test("toProtoOrThrow keeps a description only one use carries", (t) => {
   const A = S.schema({ x: S.int32.with(S.protobufField, 1) }).with(S.meta, { name: "A" });
-  const proto = S.toProto(
+  const proto = S.toProtoOrThrow(
     S.schema({ home: A.with(S.protobufField, 1), work: S.optional(A.with(S.meta, { description: "Doc" })).with(S.protobufField, 2) }),
   );
   t.expect(proto).toContain("  A home = 1;\n  optional A work = 2;\n}\n\n// Doc\nmessage A {");
 });
 
-test("toProto puts a shared unnamed type's declared description on the type", (t) => {
+test("toProtoOrThrow puts a shared unnamed type's declared description on the type", (t) => {
   const Inner = S.schema({ n: S.int32.with(S.protobufField, 1) }).with(S.meta, { description: "Inner doc" });
-  t.expect(S.toProto(S.schema({ a: Inner.with(S.protobufField, 1), b: Inner.with(S.protobufField, 2) }))).toBe(`syntax = "proto3";
+  t.expect(S.toProtoOrThrow(S.schema({ a: Inner.with(S.protobufField, 1), b: Inner.with(S.protobufField, 2) }))).toBe(`syntax = "proto3";
 
 message Message {
   // Inner doc
@@ -475,9 +475,9 @@ message Message {
 `);
 });
 
-test("toProto prints a defaulted optional with explicit presence", (t) => {
+test("toProtoOrThrow prints a defaulted optional with explicit presence", (t) => {
   const Flag = S.union([0, 1]).with(S.meta, { name: "Flag" });
-  const proto = S.toProto(
+  const proto = S.toProtoOrThrow(
     S.schema({
       kind: S.optional(S.union([0, 1]), 0).with(S.protobufField, { number: 1, type: "enum" }),
       flag: S.optional(Flag, 0).with(S.protobufField, { number: 2, type: "enum" }),
@@ -488,24 +488,24 @@ test("toProto prints a defaulted optional with explicit presence", (t) => {
 });
 
 
-test("toProto keeps a top-level enum's values clear of the root's name", (t) => {
+test("toProtoOrThrow keeps a top-level enum's values clear of the root's name", (t) => {
   const Flag = S.union([0, 1]).with(S.meta, { name: "Flag" });
-  const proto = S.toProto(S.schema({ a: Flag.with(S.protobufField, { number: 1, type: "enum" }) }), { name: "FLAG_1" });
+  const proto = S.toProtoOrThrow(S.schema({ a: Flag.with(S.protobufField, { number: 1, type: "enum" }) }), { name: "FLAG_1" });
   t.expect(proto).toContain("enum Flag {\n  FLAG2_UNSPECIFIED = 0;\n  FLAG2_1 = 1;\n}");
 });
 
-test("toProto names nested types per scope, so a sibling's inline types don't rename each other's", (t) => {
+test("toProtoOrThrow names nested types per scope, so a sibling's inline types don't rename each other's", (t) => {
   const inline = () => S.schema({ n: S.int32.with(S.protobufField, 1) });
   const A = S.schema({ inner: inline().with(S.protobufField, 1), other: inline().with(S.protobufField, 2) }).with(S.meta, { name: "A" });
   const B = S.schema({ inner: inline().with(S.protobufField, 1) }).with(S.meta, { name: "B" });
-  const proto = S.toProto(S.schema({ a: A.with(S.protobufField, 1), b: B.with(S.protobufField, 2) }));
+  const proto = S.toProtoOrThrow(S.schema({ a: A.with(S.protobufField, 1), b: B.with(S.protobufField, 2) }));
   t.expect(proto).toContain("message A {\n  message Inner {\n    int32 n = 1;\n  }\n  message Other {");
   t.expect(proto).toContain("message B {\n  message Inner {\n    int32 n = 1;\n  }\n\n  Inner inner = 1;\n}");
 });
 
-test("toProto leaves the schemas it prints untouched", (t) => {
+test("toProtoOrThrow leaves the schemas it prints untouched", (t) => {
   const Flag = S.union([0, 1]).with(S.meta, { name: "Flag" });
-  const proto = S.toProto(
+  const proto = S.toProtoOrThrow(
     S.schema({
       a: S.optional(Flag).with(S.protobufField, { number: 1, type: "enum" }).with(S.meta, { description: "field doc", deprecated: true }),
     }),
@@ -513,35 +513,35 @@ test("toProto leaves the schemas it prints untouched", (t) => {
   t.expect(proto).toContain("  // field doc\n  optional Flag a = 1 [deprecated = true];\n}\n\nenum Flag {");
   t.expect(Flag.description).toBe(undefined);
   t.expect(Flag.deprecated).toBe(undefined);
-  t.expect(S.toProto(S.schema({ b: S.optional(Flag).with(S.protobufField, { number: 1, type: "enum" }) }))).not.toContain("field doc");
+  t.expect(S.toProtoOrThrow(S.schema({ b: S.optional(Flag).with(S.protobufField, { number: 1, type: "enum" }) }))).not.toContain("field doc");
 });
 
-test("toProto rejects a package that is not dot-separated identifiers", (t) => {
+test("toProtoOrThrow rejects a package that is not dot-separated identifiers", (t) => {
   const Point = S.schema({ x: S.int32.with(S.protobufField, 1) });
-  t.expect(() => S.toProto(Point, { package: "bad package!" })).toThrow('[Sury] S.toProto: "bad package!" is not a package name');
-  t.expect(S.toProto(Point, { package: "acme.v1_beta" })).toContain("package acme.v1_beta;");
+  t.expect(() => S.toProtoOrThrow(Point, { package: "bad package!" })).toThrow('[Sury] S.toProtoOrThrow: "bad package!" is not a package name');
+  t.expect(S.toProtoOrThrow(Point, { package: "acme.v1_beta" })).toContain("package acme.v1_beta;");
 });
 
-test("toProto prints the first object of a .to chain, which the wire speaks", (t) => {
+test("toProtoOrThrow prints the first object of a .to chain, which the wire speaks", (t) => {
   const M = S.schema({ a: S.int32.with(S.protobufField, 1) }).with(S.to, S.schema({ b: S.string.with(S.protobufField, 1) }), {
     decode: (w) => ({ b: String(w.a) }),
     encode: (d) => ({ a: Number(d.b) }),
   });
-  t.expect(S.toProto(M)).toContain("message Message {\n  int32 a = 1;\n}");
+  t.expect(S.toProtoOrThrow(M)).toContain("message Message {\n  int32 a = 1;\n}");
   // Object-first, the value converts to the object beside the wire first.
-  t.expect(S.toProto(M.with(S.to, S.protobuf))).toContain("message Message {\n  string b = 1;\n}");
+  t.expect(S.toProtoOrThrow(M.with(S.to, S.protobuf))).toContain("message Message {\n  string b = 1;\n}");
   // Wire-first, the object right after the wire.
-  t.expect(S.toProto(S.protobuf.with(S.to, M))).toContain("message Message {\n  int32 a = 1;\n}");
-  t.expect(S.toProto(S.arrayBuffer.with(S.to, S.protobuf).with(S.to, S.schema({ c: S.boolean.with(S.protobufField, 1) })))).toContain(
+  t.expect(S.toProtoOrThrow(S.protobuf.with(S.to, M))).toContain("message Message {\n  int32 a = 1;\n}");
+  t.expect(S.toProtoOrThrow(S.arrayBuffer.with(S.to, S.protobuf).with(S.to, S.schema({ c: S.boolean.with(S.protobufField, 1) })))).toContain(
     "message Message {\n  bool c = 1;\n}",
   );
-  t.expect(() => S.toProto(S.schema({ m: M.with(S.protobufField, 1) }))).toThrow(
+  t.expect(() => S.toProtoOrThrow(S.schema({ m: M.with(S.protobufField, 1) }))).toThrow(
     '[Sury] S.protobuf: field "m" is a message that converts further with S.to, which a nested field can\'t',
   );
-  t.expect(S.toProto(S.schema({ a: S.int32.with(S.protobufField, 1) }).with(S.to, S.protobuf))).toContain("message Message {\n  int32 a = 1;\n}");
+  t.expect(S.toProtoOrThrow(S.schema({ a: S.int32.with(S.protobufField, 1) }).with(S.to, S.protobuf))).toContain("message Message {\n  int32 a = 1;\n}");
 });
 
-test("toProto prints a lone integer literal as the number it infers", (t) => {
+test("toProtoOrThrow prints a lone integer literal as the number it infers", (t) => {
   const Message = S.schema({ one: S.literal(1).with(S.protobufField, 1), kind: S.union([1, 2]).with(S.protobufField, 2) });
-  t.expect(S.toProto(Message)).toContain("  double one = 1;\n  Kind kind = 2;");
+  t.expect(S.toProtoOrThrow(Message)).toContain("  double one = 1;\n  Kind kind = 2;");
 });

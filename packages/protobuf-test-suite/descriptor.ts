@@ -106,7 +106,7 @@ const collect = (messages: AstMessage[], enums: AstEnum[], scope: string, into: 
 };
 
 // protoc resolves a reference innermost scope outwards, so a nested name may
-// shadow a top-level one and `toProto` is free to nest.
+// shadow a top-level one and `toProtoOrThrow` is free to nest.
 const resolve = (declared: Declared, scope: string, reference: string): string => {
   if (reference.startsWith(".")) return reference;
   let at = scope;

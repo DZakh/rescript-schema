@@ -22,7 +22,7 @@ writes and vice versa on every round-trip case.
 
 Every round-trip and decode-only case also goes through protobuf-es
 (`@bufbuild/protobuf`), over the reference `.proto` and over the one
-`S.toProto` prints. protobufjs cannot disagree with itself: a printed file its
+`S.toProtoOrThrow` prints. protobufjs cannot disagree with itself: a printed file its
 parser reads into the shape it happened to mean, checked by its own encoder,
 proves less than it looks like it does. This path shares no code with it -
 `protocol-buffers-schema` parses, `descriptor.ts` builds the

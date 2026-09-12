@@ -44,7 +44,7 @@ export type ProtobufField = {
 
 // What `S.protobufField` stores: the field, plus the schema as it was when
 // numbered. Meta set before the number belongs to the type the schema
-// declares, meta layered on after to the field, and `toProto` tells them
+// declares, meta layered on after to the field, and `toProtoOrThrow` tells them
 // apart by that schema.
 export type StoredField = {
   number: number;

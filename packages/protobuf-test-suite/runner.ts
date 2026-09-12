@@ -87,7 +87,7 @@ const ops = (fields: FieldDef[]) => {
 
 const fail = (id: string, detail: string): CaseResult => ({ id, status: "fail", detail });
 
-// `S.toProto` of the case's schema, parsed by protobufjs, must speak the same
+// `S.toProtoOrThrow` of the case's schema, parsed by protobufjs, must speak the same
 // wire as the reference `.proto` written from the field table.
 const printedAgrees = (
   schema: S.Schema<unknown, unknown>,

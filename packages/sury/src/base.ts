@@ -434,8 +434,8 @@ export type Internal = {
   pattern?: RegExp;
   errorMessage?: SchemaErrorMessage;
   space?: number;
-  // Marks `S.protobuf`: `toProto` finds it on a chain by this rather than by
-  // the codec's encoder, which would drag the codec into a `toProto`-only
+  // Marks `S.protobuf`: `toProtoOrThrow` finds it on a chain by this rather than by
+  // the codec's encoder, which would drag the codec into a `toProtoOrThrow`-only
   // bundle.
   w?: true;
   pb?: unknown;

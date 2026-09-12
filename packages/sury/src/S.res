@@ -483,8 +483,8 @@ type json = JSON.t
 @module("sury") external arrayBuffer: t<ArrayBuffer.t> = "arrayBuffer"
 @module("sury") external protobuf: t<Uint8Array.t> = "protobuf"
 type protoOptions = {name?: string, package?: string}
-@module("sury") external toProto_: (t<'value>, protoOptions) => string = "toProto"
-let toProto = (schema, ~name=?, ~package=?) => toProto_(schema, {?name, ?package})
+@module("sury") external toProtoOrThrow_: (t<'value>, protoOptions) => string = "toProtoOrThrow"
+let toProtoOrThrow = (schema, ~name=?, ~package=?) => toProtoOrThrow_(schema, {?name, ?package})
 // `Js.Blob.t`/`Js.File.t` rather than a pair of abstract types declared here:
 // the stdlib has no Blob or File module, and these two are the compiler's own
 // builtin abstract types - the ones untagged variants match on - so a value

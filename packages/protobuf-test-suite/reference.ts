@@ -41,7 +41,7 @@ const emitMessage = (name: string, fields: FieldDef[]): string => {
 export const protoSource = (fields: FieldDef[]): string => `syntax = "proto3";\n${emitMessage("M", fields)}`;
 
 export const printedProtobufjsType = (schema: S.Schema<unknown, unknown>): protobuf.Type =>
-  protobuf.parse(S.toProto(schema, { name: "M" })).root.lookupType("M");
+  protobuf.parse(S.toProtoOrThrow(schema, { name: "M" })).root.lookupType("M");
 
 export const protobufjsType = (fields: FieldDef[]): protobuf.Type =>
   protobuf.parse(protoSource(fields)).root.lookupType("M");
@@ -194,7 +194,7 @@ const esType = (source: string): DescMessage =>
 export const protobufEsType = (fields: FieldDef[]): DescMessage => esType(protoSource(fields));
 
 export const printedProtobufEsType = (schema: S.Schema<unknown, unknown>): DescMessage =>
-  esType(S.toProto(schema, { name: "M" }));
+  esType(S.toProtoOrThrow(schema, { name: "M" }));
 
 export const reencodeProtobufEs = (bytes: Uint8Array, type: DescMessage): Uint8Array =>
   toBinary(type, fromBinary(type, bytes));

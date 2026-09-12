@@ -66,7 +66,7 @@ const firstObject = (schema: Internal): Internal | undefined => {
   return current;
 };
 
-// The object the wire speaks for a schema `toProto` is given: beside
+// The object the wire speaks for a schema `toProtoOrThrow` is given: beside
 // `S.protobuf` when the chain reaches it (`A.with(S.to, B).with(S.to,
 // S.protobuf)` converts to B before the wire), else the chain's first.
 const wireObject = (schema: Internal): Internal | undefined => {
@@ -1694,7 +1694,7 @@ const messageBody = (
   const claim = (printed: string, key: string, json = printed): void => {
     const taken = fieldNames.get(printed) ?? jsonNames.get(json);
     if (taken !== U) {
-      return panic(`S.toProto: "${taken}" and "${key}" of ${qualified} collide as "${json}"`);
+      return panic(`S.toProtoOrThrow: "${taken}" and "${key}" of ${qualified} collide as "${json}"`);
     }
     jsonNames.set(json, key);
     fieldNames.set(printed, key);
@@ -1713,7 +1713,7 @@ const messageBody = (
       oneofNames.set(field.oneof, printed);
       // Symbol only: protoc doesn't give a oneof a JSON name.
       const taken = fieldNames.get(printed);
-      if (taken !== U) return panic(`S.toProto: "${taken}" and oneof "${field.oneof}" of ${qualified} collide as "${printed}"`);
+      if (taken !== U) return panic(`S.toProtoOrThrow: "${taken}" and oneof "${field.oneof}" of ${qualified} collide as "${printed}"`);
       fieldNames.set(printed, `oneof ${field.oneof}`);
     }
   }
@@ -1772,20 +1772,20 @@ const render = (lines: Line[]): string =>
   lines.flatMap((line) => (typeof line === "string" ? line : line())).join("\n");
 
 // @__NO_SIDE_EFFECTS__
-export const toProto = (schema: Internal, options?: ProtoOptions): string => {
+export const toProtoOrThrow = (schema: Internal, options?: ProtoOptions): string => {
   if (options?.package && !/^[A-Za-z_]\w*(\.[A-Za-z_]\w*)*$/.test(options.package)) {
-    return panic(`S.toProto: "${options.package}" is not a package name`);
+    return panic(`S.toProtoOrThrow: "${options.package}" is not a package name`);
   }
   if (options?.name && !/^[A-Za-z_]\w*$/.test(options.name)) {
-    return panic(`S.toProto: "${options.name}" is not a message name`);
+    return panic(`S.toProtoOrThrow: "${options.name}" is not a message name`);
   }
   const wire = wireObject(schema);
   const message = wire === U ? U : compileMessage(wire);
   if (message === U) {
     return panic(
       getOutputSchema(schema).type === refTag
-        ? "S.toProto: a recursive message can't be printed, as S.protobuf can't encode one"
-        : "S.toProto: the schema is not an object"
+        ? "S.toProtoOrThrow: a recursive message can't be printed, as S.protobuf can't encode one"
+        : "S.toProtoOrThrow: the schema is not an object"
     );
   }
   const output = wire!;

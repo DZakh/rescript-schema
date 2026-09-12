@@ -614,7 +614,7 @@ export const protobuf: Schema<Uint8Array, Uint8Array>;
  * to an enum whose literals lack `0`, which proto3 requires and the schema
  * itself rejects.
  */
-export function toProto<TInput, TOutput>(
+export function toProtoOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options?: { name?: string; package?: string }
 ): string;
