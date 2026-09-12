@@ -88,7 +88,7 @@ npm install sury
 The main building block of **Sury** is a schema - a type definition that exists at runtime.
 
 ```ts
-import * as S from "sury"; // 7.9 kB (min + gzip) for this schema, tree-shaken
+import * as S from "sury"; // 8.6 kB (min + gzip) for this schema, tree-shaken
 
 const playerSchema = S.schema({
   username: S.string,
