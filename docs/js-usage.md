@@ -47,6 +47,9 @@
   - [Checkboxes](#checkboxes)
   - [Blank inputs](#blank-inputs)
   - [Not supported](#not-supported)
+- [Env](#env)
+- [URLSearchParams](#urlsearchparams)
+- [Query string](#query-string)
 - [Protocol Buffers](#protocol-buffers)
 - [Content](#content)
 - [Meta](#meta)
@@ -1347,6 +1350,64 @@ A file input with nothing chosen still submits an empty, unnamed `File`; that
 sentinel reads as absent, so a required `S.file` reports a missing file,
 `S.nullable(S.file)` reads `null`, and `S.array(S.file)` reads `[]`.
 
+## Env
+
+`S.env` is an environment variable value. `process.env` is a record of these:
+
+```ts
+const envSchema = S.schema({
+  PORT: S.port,
+  DEBUG: S.boolean,
+  NAME: S.nullable(S.string),
+});
+
+S.decodeOrThrow(process.env, S.record(S.env), envSchema);
+// { PORT: "8080", DEBUG: "true" } => { PORT: 8080, DEBUG: true, NAME: null }
+```
+
+A single var is the same coercion. `S.env` is `string | undefined`, the way
+`process.env.PORT` is typed: `undefined` is the unset var, and so is `""`.
+
+```ts
+S.decodeOrThrow(process.env.PORT, S.env, S.port); // unset -> Expected port, received undefined
+S.decodeOrThrow(process.env.NAME, S.env, S.optional(S.string)); // unset or "" -> undefined
+S.decodeOrThrow(process.env.BIO, S.env, S.string.with(S.minLength, 0)); // unset -> failure, "" -> ""
+```
+
+
+## URLSearchParams
+
+```ts
+const search = S.urlSearchParams.with(
+  S.to,
+  S.schema({
+    q: S.string.with(S.nonEmpty),
+    page: S.optional(S.number),
+    tags: S.array(S.string),
+  }),
+);
+
+S.decodeOrThrow(new URLSearchParams("q=hi&page=2&tags=a&tags=b"), search);
+```
+
+Same field coercions as [`S.formData`](#formdata), without files. A required,
+non-nullable string must say what a blank entry means.
+
+## Query string
+
+```ts
+const search = S.queryString.with(
+  S.to,
+  S.schema({
+    q: S.string.with(S.nonEmpty),
+    page: S.optional(S.number),
+  }),
+);
+
+S.decodeOrThrow("q=hi&page=2", search);
+S.encodeOrThrow({ q: "hi", page: 2 }, search);
+```
+
 ## Protocol Buffers
 
 > **Experimental.** The whole protobuf surface - `S.protobuf`,
@@ -1592,8 +1653,10 @@ is the least stable number here, moving between roughly 13 and 19 µs run to
 run; everything else lands within a few percent. Run the command on your own
 machine and your own message before you plan around any of it.
 
-`S.protobuf` passes the binary families of the official conformance suite
-that apply to it and round-trips against protobuf.js; the corpus lives in
+`S.protobuf` passes the binary families of the official conformance suite that
+apply to it, and every case round-trips against two independent
+implementations: protobuf.js, and protobuf-es over both the reference `.proto`
+and the one `S.toProtoOrThrow` prints. The corpus lives in
 [`packages/protobuf-test-suite`](https://github.com/DZakh/sury/tree/main/packages/protobuf-test-suite). Not covered:
 extensions, proto2 groups as fields, and retaining unknown fields through a
 round trip (see above).

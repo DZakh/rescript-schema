@@ -592,7 +592,9 @@ export const typeCheckCond = (input: Val, schema: Internal, inputVar: string): s
   }
   if ((tagFlag & (2 | 8 | 1024 | 16384))) {
     // literals reuse this typeof check; their per-const check stays in the case body
-    return typeofCond(schema.type)(inputVar);
+    return schema.format === "env"
+      ? `(typeof ${inputVar}==="string"||${inputVar}===void 0)`
+      : typeofCond(schema.type)(inputVar);
   }
   // Unreachable: catch-all tags use the `unknown` narrow, never this path.
   return "";

@@ -191,7 +191,8 @@ let userSchema = S.schema(s => {
 
 Works for every [string format](/docs/rescript-usage.md#string-formats), plus
 `S.integer`, `S.port`, `S.jsonString`, `S.nonEmpty<'value>`, `S.url`, `S.date`,
-`S.json`, `S.blob` and `S.file`.
+`S.json`, `S.blob`, `S.file`, `S.formData`, `S.env`, `S.urlSearchParams` and
+`S.queryString`.
 
 ### `@s.matches(S.t<'value>)`
 

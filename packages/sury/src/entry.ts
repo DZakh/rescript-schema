@@ -97,6 +97,8 @@ export { date } from "./advanced/date";
 export { url } from "./advanced/url";
 export { blob, file } from "./advanced/file";
 export { formData } from "./advanced/formData";
+export { env } from "./advanced/env";
+export { urlSearchParams, queryString } from "./advanced/urlSearchParams";
 export {
   isoDateTime,
   utcDateTime,

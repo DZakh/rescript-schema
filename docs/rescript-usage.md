@@ -50,6 +50,9 @@
   - [`blob`](#blob)
   - [`file`](#file)
   - [`formData`](#formdata)
+  - [`env`](#env)
+  - [`urlSearchParams`](#urlsearchparams)
+  - [`queryString`](#querystring)
   - [`json`](#json)
   - [`jsonString`](#jsonstring)
   - [Content](#content)
@@ -1308,6 +1311,65 @@ what a blank entry means - `S.string->S.nonEmpty`, `S.string->S.minLength(0)`
 or `S.option` - or the operation fails to build. The type is abstract,
 since the stdlib has no `FormData` module; a value from a fetch binding is cast
 to it.
+
+### **`env`**
+
+`S.t<S.env>`
+
+```rescript
+@val external env: dict<S.env> = "process.env"
+
+let envSchema = S.schema(s => {
+  port: s.field("PORT", S.port),
+  debug: s.field("DEBUG", S.bool),
+  name: s.field("NAME", S.null(S.string)),
+})
+
+env->S.convertOrThrow(~from=S.dict(S.env), ~to=envSchema)
+```
+
+A single var is the same coercion. `env->Dict.get("PORT")` may be `None`, so
+the source is `S.option(S.env)`. Converting to `S.port` reads the string and
+rejects a missing var:
+
+```rescript
+env->Dict.get("PORT")->S.convertOrThrow(~from=S.option(S.env), ~to=S.port)
+```
+
+A missing key or empty string on a record field is absent (`S.option`) or null
+(`S.null`). A required `S.string` must choose `S.nonEmpty` or `S.minLength(0)`.
+Nested objects fail as unsupported.
+
+### **`urlSearchParams`**
+
+`S.t<S.urlSearchParams>`
+
+```rescript
+let schema = S.urlSearchParams->S.to(
+  S.schema(s => {
+    q: s.field("q", S.string->S.nonEmpty),
+    page: s.field("page", S.option(S.int)),
+    tags: s.field("tags", S.array(S.string)),
+  }),
+)
+```
+
+Same field coercions as [`formData`](#formdata), without files.
+
+### **`queryString`**
+
+`S.t<S.queryString>`
+
+```rescript
+let schema = S.queryString->S.to(
+  S.schema(s => {
+    q: s.field("q", S.string->S.nonEmpty),
+    page: s.field("page", S.option(S.int)),
+  }),
+)
+
+"q=hi&page=2"->S.parseOrThrow(~to=schema)
+```
 
 ### **`json`**
 

@@ -55,6 +55,24 @@ test("FormData schema", t => {
 })
 
 @schema
+type myEnv = S.env
+test("Env schema", t => {
+  t->assertEqualSchemas(myEnvSchema, S.env)
+})
+
+@schema
+type myUrlSearchParams = S.urlSearchParams
+test("UrlSearchParams schema", t => {
+  t->assertEqualSchemas(myUrlSearchParamsSchema, S.urlSearchParams)
+})
+
+@schema
+type myQueryString = S.queryString
+test("QueryString schema", t => {
+  t->assertEqualSchemas(myQueryStringSchema, S.queryString)
+})
+
+@schema
 type myNonEmptyTags = S.nonEmpty<array<string>>
 test("NonEmpty schema", t => {
   t->assertEqualSchemas(myNonEmptyTagsSchema, S.array(S.string)->S.nonEmpty)

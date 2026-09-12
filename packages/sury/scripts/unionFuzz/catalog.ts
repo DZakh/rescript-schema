@@ -72,6 +72,7 @@ export const FUZZ_EXPORTS: Record<string, FuzzExport> = {
   email: schema((S) => S.email),
   enableStandardJSONSchema: skip("mutates global JSON Schema converter"),
   enum: build(),
+  env: schema((S) => S.env),
   extendJSONSchema: skip("JSON Schema document helper, not a schema factory"),
   file: schema((S) => S.file),
   formData: schema((S) => S.formData),
@@ -176,6 +177,7 @@ export const FUZZ_EXPORTS: Record<string, FuzzExport> = {
   port: schema((S) => S.port),
   protobuf: schema((S) => S.protobuf),
   protobufField: skip("field metadata, does not change parse"),
+  queryString: schema((S) => S.queryString),
   record: wrap((S, inner) => S.record(inner)),
   recursive: skip("cyclic schemas; generation is acyclic"),
   refine: modify(["string", "number", "bigint", "boolean", "object", "array"], (S, schema) =>
@@ -212,6 +214,7 @@ export const FUZZ_EXPORTS: Record<string, FuzzExport> = {
   uriReference: schema((S) => S.uriReference),
   uriTemplate: schema((S) => S.uriTemplate),
   url: schema((S) => S.url),
+  urlSearchParams: schema((S) => S.urlSearchParams),
   utcDateTime: schema((S) => S.utcDateTime),
   uuid: schema((S) => S.uuid),
   uuidv4: schema((S) => S.uuidv4),
