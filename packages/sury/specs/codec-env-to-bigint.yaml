@@ -1,12 +1,11 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: S.env.with(S.to, S.bigint)
-  input: string | undefined
+  input: string
   output: bigint
   instantiations: 4419
 jsonSchema:
   input: '{ type: "string" }'
-  fromInputType: string
   output: Expected JSON, received bigint
 isEqual: strictEqual
 vs:

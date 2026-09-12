@@ -1,12 +1,11 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: "S.record(S.env).with(S.to, S.schema({ a: S.string, n: S.number.with(S.gte, 18) }))"
-  input: "{ [x: string]: string | undefined; }"
+  input: "{ [x: string]: string; }"
   output: "{ a: string; n: number; }"
-  instantiations: 6296
+  instantiations: 6237
 jsonSchema:
   input: '{ type: "object", additionalProperties: { type: "string" } }'
-  fromInputType: "{ [key: string]: string; }"
   output: '{ type: "object", properties: { a: { type: "string" }, n: { type: "number", minimum: 18 } }, required: ["a", "n"] }'
 isEqual:
   input: (a,b)=>{if(a===b)return true;let n=0;for(const k in a){if(!(k in b)||!(a[k]===b[k]))return false;n++}for(const k in b)n--;return !n}

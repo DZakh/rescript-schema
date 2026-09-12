@@ -1,12 +1,11 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: S.env.with(S.to, S.email)
-  input: string | undefined
+  input: string
   output: string
-  instantiations: 4419
+  instantiations: 4361
 jsonSchema:
   input: '{ type: "string", format: "email" }'
-  fromInputType: string
   output: '{ type: "string", format: "email" }'
 isEqual: strictEqual
 vs:
@@ -26,7 +25,7 @@ operations:
         input: '""'
         error: Expected email, received ""
   decode:
-    expression: i=>{i!==void 0||e[2](i);e[0].test(i)||e[1](i);return i}
+    expression: i=>{e[0].test(i)||e[1](i);return i}
     examples:
       valid:
         input: '"a@b.co"'

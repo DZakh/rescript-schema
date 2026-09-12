@@ -1,12 +1,11 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: "S.record(S.env).with(S.to, S.schema({ NAME: S.nullable(S.string), PORT: S.nullable(S.port) }))"
-  input: "{ [x: string]: string | undefined; }"
+  input: "{ [x: string]: string; }"
   output: "{ NAME: string | null; PORT: number | null; }"
-  instantiations: 6178
+  instantiations: 6119
 jsonSchema:
   input: '{ type: "object", additionalProperties: { type: "string" } }'
-  fromInputType: "{ [key: string]: string; }"
   output: '{ type: "object", properties: { NAME: { anyOf: [{ type: "string" }, { type: "null" }] }, PORT: { anyOf: [{ type: "integer", minimum: 0, maximum: 65535 }, { type: "null" }] } }, required: ["NAME", "PORT"] }'
   openapi-3.0:
     output: '{ type: "object", properties: { NAME: { type: "string", nullable: true }, PORT: { type: "integer", minimum: 0, maximum: 65535, nullable: true } }, required: ["NAME", "PORT"] }'
@@ -36,11 +35,11 @@ operations:
         input: '{ NAME: "Ann", PORT: "8080" }'
         output: '{ NAME: "Ann", PORT: 8080 }'
   encode:
-    expression: i=>{let v0=i.NAME,v1=i.PORT;typeof v0==="string"||e[0](v0);if(typeof v1==="number"&&v1==v1){v1>=0&&v1<65536&&v1%1==0||e[1](v1);v1=""+i.PORT}else{e[2](v1)}return {NAME:v0,PORT:v1}}
+    expression: i=>{let v0=i.NAME,v1=i.PORT;for(;;){if(typeof v0==="string")break;if(v0===null){v0="";break}e[0](v0)}for(;;){if(typeof v1==="number"&&v1==v1){v1>=0&&v1<65536&&v1%1==0||e[1](v1);v1=""+i.PORT;break}if(v1===null){v1="";break}e[2](v1)}return {NAME:v0,PORT:v1}}
     examples:
       present:
         input: '{ NAME: "Ann", PORT: 8080 }'
         output: '{ NAME: "Ann", PORT: "8080" }'
       nulls:
         input: "{ NAME: null, PORT: null }"
-        error: "Failed at NAME: Expected string, received null"
+        output: '{ NAME: "", PORT: "" }'

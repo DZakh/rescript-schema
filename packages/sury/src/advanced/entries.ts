@@ -180,12 +180,12 @@ export const convertTextEntry = (
   // optional/nullable one reads `""` as absent. `self` is the no-blank
   // converter so the present arm does not re-enter this check.
   if (blank && isAbsent(target) && !admitsBlank(present)) {
-    const item = B_scope(input);
-    item.s = self;
+    // Chained, not scoped: a parse checked the text on `input`, and only a
+    // `prev` walk emits it.
+    const item = B_next(input, input.i, self, target);
+    item.v = _var;
     // The form loop does `||void 0` before this wrap. Env fields are already
     // in the object, so `""` would otherwise survive an optional with no else.
-    // On the scope, which heads the chain: the val `readWrapped` hands back
-    // is not always the one whose code the wrap is.
     if (isOptional(target) && absentArm(target).to === U) {
       item.cp = `${item.i}=${item.i}||void 0;`;
       rebinds(item);
