@@ -59,6 +59,25 @@ importers:
         specifier: 5.8.3
         version: 5.8.3
 
+  packages/protobuf-conformance:
+    dependencies:
+      sury:
+        specifier: file:../sury
+        version: link:../sury
+    devDependencies:
+      '@types/node':
+        specifier: 20.19.41
+        version: 20.19.41
+      protobuf-conformance:
+        specifier: 33.6.0
+        version: 33.6.0
+      tsx:
+        specifier: 4.22.4
+        version: 4.22.4
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+
   packages/protobuf-test-suite:
     dependencies:
       sury:
@@ -1330,6 +1349,11 @@ packages:
   postcss@8.5.15:
     resolution: {integrity: sha512-FfR8sjd4em2T6fb3I2MwAJU7HWVMr9zba+enmQeeWFfCbm+UOC/0X4DS8XtpUTMwWMGbjKYP7xjfNekzyGmB3A==}
     engines: {node: ^10 || ^12 || >=14}
+
+  protobuf-conformance@33.6.0:
+    resolution: {integrity: sha512-jYSM3cXHU3eN7yOd5PQilfa51YoddhnR/d0KirGfBGB7eWjB0wsYJL44DFizw75zODb244yhCM3sf69zvXF8wQ==}
+    engines: {node: '>=20.0.0'}
+    hasBin: true
 
   protobufjs-cli@2.7.0:
     resolution: {integrity: sha512-wjrZPibf/U73dDJMh9jCqjyeDH7t6+OMD16vKp/Z1CY7yyVE/pX5a9EvCq89p3ADHo+KyaLknA5lxyaaM252KA==}
@@ -2625,6 +2649,8 @@ snapshots:
       nanoid: 3.3.12
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  protobuf-conformance@33.6.0: {}
 
   protobufjs-cli@2.7.0(protobufjs@8.8.0):
     dependencies:

@@ -134,7 +134,31 @@ jobs:
           node-version: 24.16.0
           cache: "pnpm"
       - run: pnpm install
-      - run: pnpm protobuf:compliance
+
+      # Our own corpus: fast, readable, and checked against two reference
+      # implementations. It says what broke.
+      - name: Protobuf test suite
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm protobuf:compliance | tee compliance.txt
+          echo "### $(tail -n 1 compliance.txt)" >> "$GITHUB_STEP_SUMMARY"
+
+      # Google's own conformance runner, which generates its cases inside the
+      # binary - the one that says whether we are right. Pinned corpus, cached
+      # by the commit it is pinned to.
+      - name: Restore conformance corpus
+        uses: actions/cache@v4
+        with:
+          path: packages/protobuf-conformance/.upstream
+          key: protobuf-conformance-${{ hashFiles('packages/protobuf-conformance/conformance-ref.json') }}
+
+      - name: Protobuf conformance suite
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm protobuf:conformance | tee conformance.txt
+          echo "### $(tail -n 1 conformance.txt)" >> "$GITHUB_STEP_SUMMARY"
 
   performance:
     name: Performance (PR)
