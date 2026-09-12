@@ -1001,7 +1001,36 @@ const skip = (reader: Reader, wire: number, fieldNumber: number, depth: number):
       skip(reader, nestedWire, number, depth + 1);
     }
     throw Error("unterminated protobuf group");
-  } else throw Error("invalid protobuf wire type");
+    // Wire 4 only ever closes a group, and the loop above consumes the one
+    // that does. Reaching it here means an end tag no start tag opened.
+  } else if (wire === 4) throw Error("unmatched protobuf end group");
+  else throw Error("invalid protobuf wire type");
+};
+
+// A wire failure names where it hit the way an object parse error names a
+// path. Every message the throw unwinds through prepends the field it was
+// reading, so the innermost frame - the one that knows the number and the
+// wire type the bytes actually claimed - is written first and the enclosing
+// fields accumulate in front of it.
+//
+// A number the message does not declare adds no frame: the throws that reach
+// one here - an unknown field under `S.strict`, a field number of zero - name
+// the number themselves, and there is no property to put in a path. The
+// enclosing message still adds its own, so such a failure is located by the
+// field that contained it. `number` is -1 until the loop has a tag to read,
+// which covers a buffer whose first bytes are not one.
+type WireError = Error & { wireAt?: string; wireWhat?: string };
+
+const wireFrame = (e: unknown, msg: Message, number: number, wire: number): never => {
+  const err = e as WireError;
+  const field = msg.fields.find((f) => f.number === number);
+  if (field !== U) {
+    err.wireAt = err.wireAt === U
+      ? `${field.key} (field ${number}, wire type ${wire})`
+      : `${field.key}.${err.wireAt}`;
+    err.message = `${(err.wireWhat ??= err.message)} at ${err.wireAt}`;
+  }
+  throw err;
 };
 
 const checkedNumber = (value: unknown, min: number, max: number, type: string): number => {
@@ -1188,7 +1217,7 @@ const compileEncoders = (root: Message, fns: Map<Message, string>): Record<strin
 // A nested field seen twice merges: the second decode starts from the
 // first's fields (`o`) instead of defaults, so scalars last-win, lists
 // append and messages merge recursively without a separate merge pass.
-const decodeFnSource = (msg: Message, fns: Map<Message, string>): string => {
+const decodeFnSource = (msg: Message, fns: Map<Message, string>, slot: number): string => {
   const fields = msg.fields;
   const locals: string[] = [];
   const fromPrev: string[] = [];
@@ -1260,15 +1289,18 @@ const decodeFnSource = (msg: Message, fns: Map<Message, string>): string => {
   const miss = msg.strict ? 'throw Error("unknown protobuf field "+n)' : "skip(r,w,n,0)";
   const vars = locals.length ? `${locals.join(",")},` : "";
   const merge = fromPrev.length ? `if(o!==void 0){${fromPrev.join(";")}}` : "";
-  return `function ${fns.get(msg)!}(r,d,o){if(d>=100)throw Error("protobuf message nesting limit exceeded");var ${vars}t,w,n,p,k,c,q,g;${merge}while(r.pos<r.limit){t=r.buf[r.pos];if(t<128)r.pos++;else t=r.tag();n=t>>>3;w=t&7;switch(n){case 0:throw Error("invalid protobuf field number");${cases.join("")}}${miss}}${fill}o={${literal.slice(0, -1)}};${optional}return o}`;
+  return `function ${fns.get(msg)!}(r,d,o){if(d>=100)throw Error("protobuf message nesting limit exceeded");var ${vars}t,w,n=-1,p,k,c,q,g;${merge}try{while(r.pos<r.limit){n=-1;t=r.buf[r.pos];if(t<128)r.pos++;else t=r.tag();n=t>>>3;w=t&7;switch(n){case 0:throw Error("invalid protobuf field number");${cases.join("")}}${miss}}}catch(x){at(x,M[${slot}],n,w)}${fill}o={${literal.slice(0, -1)}};${optional}return o}`;
 };
 
 const compileDecoder = (root: Message, fns: Map<Message, string>): Function => {
   let src = "";
+  // `M` is read only from a catch, so the field lookup a frame needs stays
+  // out of the generated code and off the decode path.
+  const messages: Message[] = [];
   fns.forEach((_, msg) => {
-    src += decodeFnSource(msg, fns);
+    src += decodeFnSource(msg, fns, messages.push(msg) - 1);
   });
-  return new Function("skip", `${src}return ${fns.get(root)!}`)(skip);
+  return new Function("skip", "at", "M", `${src}return ${fns.get(root)!}`)(skip, wireFrame, messages);
 };
 
 // The declared object, with the field metadata on its properties. A parsed

@@ -37,7 +37,7 @@ operations:
         output: '{ id: "1", name: "" }'
       truncated:
         input: new Uint8Array([8])
-        error: truncated protobuf message
+        error: truncated protobuf message at id (field 1, wire type 0)
       field-number-zero:
         input: new Uint8Array([0, 1])
         error: invalid protobuf field number

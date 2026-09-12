@@ -1489,20 +1489,50 @@ The zero member prints as `KIND_UNSPECIFIED`, and an enum built from
 literals that lack `0` gets one prepended, since proto3 requires a zero member
 that the schema itself rejects.
 
-**Unknown fields** are skipped, groups included, and `S.strict` rejects them.
+**Unknown fields** are skipped, the way every proto3 reader skips them: a
+field number the schema does not claim is stepped over whatever its wire type
+(varint, 64-bit, length-delimited, group or 32-bit), and so is a *known*
+number arriving under a wire type its field cannot hold. That is what lets a
+sender add a field without breaking you. They are skipped, not kept — decode
+then encode writes back only the fields the schema declares, so a message that
+round-trips through Sury loses whatever it carried that you did not describe.
+Put `S.strict` on the message to reject an unknown field instead of skipping
+it, which is worth having on an internal wire where an unexpected number means
+a version skew you would rather hear about.
+
 Strings must be valid UTF-8. Malformed input — a truncated field, a field
 number of zero, an unknown wire type, an unmatched group or a tag wider than
 32 bits — throws an `S.Error` with code `invalid_conversion` and the wire
 problem as its reason; so does a value the wire type can't hold, such as a
-`float` beyond 32-bit range. A schema that can't be a message — a field
-without a number, two fields sharing one, an optional repeated field — is
-rejected when the operation is built, naming the field.
+`float` beyond 32-bit range.
+
+A wire failure names where it hit, the way an object parse error names a
+path: the field it was reading, its number, and the wire type the bytes
+claimed, with each enclosing message in front of it.
+
+```ts
+const Account = S.schema({
+  id: S.int32.with(S.protobufField, 1),
+  addr: S.optional(S.schema({ street: S.string.with(S.protobufField, 1) })).with(S.protobufField, 2),
+});
+
+S.decodeOrThrow(S.protobuf, Account)(new Uint8Array([8, 1, 18, 3, 10, 1, 255]));
+// => S.Error: protobuf string is not valid UTF-8 at addr.street (field 1, wire type 2)
+```
+
+A failure with no field to name keeps its own text — a field number the
+message does not declare says so itself, and bytes that are not a tag at all
+were never a field.
+
+A schema that can't be a message — a field without a number, two fields
+sharing one, an optional repeated field — is rejected when the operation is
+built, naming the field.
 
 `S.protobuf` passes the binary families of the official conformance suite
 that apply to it and round-trips against protobuf.js; the corpus lives in
 [`packages/protobuf-test-suite`](https://github.com/DZakh/sury/tree/main/packages/protobuf-test-suite). Not covered:
-extensions, proto2 groups as fields, and keeping unknown fields through a
-round trip.
+extensions, proto2 groups as fields, and retaining unknown fields through a
+round trip (see above).
 
 ## Content
 

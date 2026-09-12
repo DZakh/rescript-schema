@@ -49,7 +49,7 @@ operations:
         output: "{ i64: 0n, f: NaN, fx: 0, b: new Uint8Array([]), on: false }"
       truncated-fixed:
         input: new Uint8Array([21, 0])
-        error: truncated protobuf message
+        error: truncated protobuf message at f (field 2, wire type 5)
       bool-from-wide-varint:
         input: new Uint8Array([40, 128, 128, 128, 128, 32])
         output: "{ i64: 0n, f: 0, fx: 0, b: new Uint8Array([]), on: true }"
