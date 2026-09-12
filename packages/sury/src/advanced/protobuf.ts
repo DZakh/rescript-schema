@@ -1302,7 +1302,11 @@ const fieldValsOf = (input: Val): Record<string, Val> | undefined => {
 };
 
 const protobufDecoder = (input: Val): Val => {
-  if (input.s.encoder === protobufEncoder) return instanceDecoder(input);
+  // Bytes in, bytes out: another `S.protobuf`, or an `unknown` source - which
+  // is what `parse` is, and the wire side of a chain is a Uint8Array like any
+  // other, so it validates as one instead of planning a message it has no
+  // value for.
+  if (input.s.encoder === protobufEncoder || tagFlags[input.s.type]! & 1) return instanceDecoder(input);
   const message = compileMessage(objectSchemaOf(input));
   if (message === U) return B_unsupportedDecode(input, input.s, input.e);
   const fns = new Map<Message, string>();

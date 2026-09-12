@@ -2,7 +2,7 @@ open Vitest
 
 @get external href: 'a => string = "href"
 
-// `S.uri` is the string form — RFC 3986 syntax, carrying `format: "uri"`.
+// `S.uri` is the string form - RFC 3986 syntax, carrying `format: "uri"`.
 
 test("Successfully parses valid data", t => {
   let schema = S.uri

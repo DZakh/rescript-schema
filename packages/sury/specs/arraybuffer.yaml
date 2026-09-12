@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: Expected JSON, received ArrayBuffer
   output: Expected JSON, received ArrayBuffer
+isEqual: strictEqual
 vs:
   zod:
     _skip: todo(#…)

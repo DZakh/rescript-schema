@@ -6,7 +6,10 @@ ts:
   instantiations: 5465
 jsonSchema:
   input: '{ anyOf: [{ type: "string" }, { type: "boolean" }] }'
-  output: Expected JSON, received unknown | boolean
+  output: '{ anyOf: [{}, { type: "boolean" }] }'
+isEqual:
+  input: strictEqual
+  output: (a,b)=>a===b||e[0](a,b)
 vs:
   zod:
     _skip: not-applicable

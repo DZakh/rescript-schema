@@ -72,8 +72,8 @@ const ops = (fields: FieldDef[]) => {
   const schema = suryMessage(fields);
   return {
     schema,
-    encode: S.decoder(schema, S.protobuf),
-    decode: S.decoder(S.protobuf, schema),
+    encode: S.decodeOrThrow(schema, S.protobuf),
+    decode: S.decodeOrThrow(S.protobuf, schema),
   };
 };
 

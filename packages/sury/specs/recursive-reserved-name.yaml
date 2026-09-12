@@ -9,6 +9,7 @@ jsonSchema:
   fromInputType: "{ v: string; next?: ... | undefined; }"
   output: '{ $ref: "#/$defs/toString", $defs: { toString: { type: "object", properties: { v: { type: "string" }, next: { $ref: "#/$defs/toString" } }, required: ["v"] } } }'
   fromOutputType: "{ v: string; next?: ... | undefined; }"
+isEqual: (a,b)=>a===b||e[0](a,b)
 vs:
   zod:
     _skip: not-applicable

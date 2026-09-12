@@ -1,6 +1,6 @@
 open Vitest
 
-// Custom is gone — paths that used to produce Custom now produce
+// Custom is gone - paths that used to produce Custom now produce
 // InvalidInput with the user-provided reason and a populated
 // expected/received pair derived from the failing schema position.
 
@@ -8,8 +8,8 @@ let assertInvalidInput = (t, error: S.error, ~reason, ~expected, ~received) => {
   switch error->S.Error.classify {
   | InvalidInput({reason: r, expected: e, received: rcv}) =>
     t->Assert.is(r, reason, ~message="reason")
-    t->Assert.is(e->S.inputExpression, expected, ~message="expected")
-    t->Assert.is(rcv->S.inputExpression, received, ~message="received")
+    t->Assert.is(e->S.toInputExpression, expected, ~message="expected")
+    t->Assert.is(rcv->S.toInputExpression, received, ~message="received")
   | _ => t->Assert.fail("Expected InvalidInput error, got something else")
   }
 }
@@ -51,7 +51,7 @@ test("errorMessage.minLength override produces InvalidInput with custom reason",
       error,
       ~reason="too short",
       // Both sides of a bound failure carry the same schema, so the bound
-      // renders on each — the user-facing message here is the custom reason.
+      // renders on each - the user-facing message here is the custom reason.
       ~expected="string.length >= 3",
       ~received="string.length >= 3",
     )

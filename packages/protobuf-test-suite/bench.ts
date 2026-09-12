@@ -171,8 +171,8 @@ export const libraries: Library[] = [
     id: "sury",
     codec: (work, bytes) => {
       const schema = suryMessage(work.fields);
-      const encode = S.decoder(schema, S.protobuf);
-      const decode = S.decoder(S.protobuf, schema);
+      const encode = S.decodeOrThrow(schema, S.protobuf);
+      const decode = S.decodeOrThrow(S.protobuf, schema);
       const value = work.value;
       return { encode: () => encode(value), decode: () => decode(bytes) };
     },
@@ -256,7 +256,7 @@ export const runBench = async (samples = 7): Promise<BenchRow[]> => {
   const rows: BenchRow[] = [];
   for (const work of WORKLOADS) {
     const schema = suryMessage(work.fields);
-    const bytes = S.decoder(schema, S.protobuf)(work.value);
+    const bytes = S.decodeOrThrow(schema, S.protobuf)(work.value);
     // Bigger messages get fewer iterations so every workload takes roughly
     // the same wall time per sample.
     const n = Math.max(3000, Math.round(600000 / (bytes.length + 20)));

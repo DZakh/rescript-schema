@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "string", pattern: "^[0-9a-fA-F]+$" }'
   output: '{ type: "string", pattern: "^[0-9a-fA-F]+$" }'
+isEqual: strictEqual
 vs:
   zod: z.hex()
 operations:
@@ -31,6 +32,9 @@ operations:
       empty:
         input: '""'
         error: Expected hex, received ""
+        divergence:
+          reason: z.hex() takes the empty string; S.hex requires at least one digit
+          zod: '""'
       not-a-string:
         input: "42"
         error: Expected hex, received 42

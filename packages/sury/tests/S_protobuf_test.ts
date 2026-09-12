@@ -14,8 +14,8 @@ test("protobuf encodes and decodes scalar fields with Sury coercion", (t) => {
     name: field(S.string, 2, "string"),
     active: field(S.boolean, 3, "bool"),
   });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   const bytes = encode({ id: "150", name: "Ada", active: true });
 
   t.expect([...bytes]).toEqual([8, 150, 1, 18, 3, 65, 100, 97, 24, 1]);
@@ -56,13 +56,13 @@ test("protobuf supports all scalar wire forms", (t) => {
     enum: -1,
   };
 
-  t.expect(S.decoder(S.protobuf, Message)(S.decoder(Message, S.protobuf)(value))).toEqual(value);
+  t.expect(S.decodeOrThrow(S.protobuf, Message)(S.decodeOrThrow(Message, S.protobuf)(value))).toEqual(value);
 });
 
 test("protobuf emits packed repeated scalars and accepts packed and expanded values", (t) => {
   const Message = S.schema({ values: field(S.array(S.int32), 1, "sint32") });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
 
   t.expect([...encode({ values: [-1, 0, 2] })]).toEqual([10, 3, 1, 0, 4]);
   t.expect(decode(new Uint8Array([8, 1, 8, 0, 8, 4]))).toEqual({ values: [-1, 0, 2] });
@@ -71,8 +71,8 @@ test("protobuf emits packed repeated scalars and accepts packed and expanded val
 
 test("protobuf preserves optional scalar presence", (t) => {
   const Message = S.schema({ value: field(S.optional(S.int32), 1, "int32") });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
 
   t.expect([...encode({})]).toEqual([]);
   t.expect([...encode({ value: 0 })]).toEqual([8, 0]);
@@ -86,7 +86,7 @@ test("protobuf decodes nested messages and merges repeated occurrences", (t) => 
     second: field(S.optional(S.string), 2, "string"),
   });
   const Parent = S.schema({ child: field(Child, 1, "message") });
-  const decode = S.decoder(S.protobuf, Parent);
+  const decode = S.decodeOrThrow(S.protobuf, Parent);
 
   t.expect(decode(new Uint8Array([10, 2, 8, 1, 10, 3, 18, 1, 120]))).toEqual({
     child: { first: 1, second: "x" },
@@ -98,13 +98,13 @@ test("protobuf strips unknown fields and strict rejects them", (t) => {
   const StrictMessage = Message.with(S.strict);
   const bytes = new Uint8Array([8, 1, 16, 2]);
 
-  t.expect(S.decoder(S.protobuf, Message)(bytes)).toEqual({ value: 1 });
-  t.expect(() => S.decoder(S.protobuf, StrictMessage)(bytes)).toThrow("unknown protobuf field 2");
+  t.expect(S.decodeOrThrow(S.protobuf, Message)(bytes)).toEqual({ value: 1 });
+  t.expect(() => S.decodeOrThrow(S.protobuf, StrictMessage)(bytes)).toThrow("unknown protobuf field 2");
 });
 
 test("protobuf skips every legal unknown wire type including groups", (t) => {
   const Message = S.schema({ value: field(S.int32, 1, "int32") });
-  const decode = S.decoder(S.protobuf, Message);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   const bytes = new Uint8Array([
     19,
       29, 1, 2, 3, 4,
@@ -124,8 +124,8 @@ test("protobuf uses last-one-wins and treats a known field with the wrong wire t
   const StrictMessage = Message.with(S.strict);
   const bytes = new Uint8Array([10, 1, 99, 8, 1, 8, 2]);
 
-  t.expect(S.decoder(S.protobuf, Message)(bytes)).toEqual({ value: 2 });
-  t.expect(() => S.decoder(S.protobuf, StrictMessage)(bytes)).toThrow("unknown protobuf field 1");
+  t.expect(S.decodeOrThrow(S.protobuf, Message)(bytes)).toEqual({ value: 2 });
+  t.expect(() => S.decodeOrThrow(S.protobuf, StrictMessage)(bytes)).toThrow("unknown protobuf field 1");
 });
 
 test("protobuf preserves IEEE-754 special values and rejects float32 overflow", (t) => {
@@ -133,8 +133,8 @@ test("protobuf preserves IEEE-754 special values and rejects float32 overflow", 
     float: field(S.number, 1, "float"),
     double: field(S.number, 2, "double"),
   });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
 
   const negativeZero = decode(encode({ float: -0, double: -0 }));
   t.expect(Object.is(negativeZero.float, -0)).toBe(true);
@@ -147,7 +147,7 @@ test("protobuf preserves IEEE-754 special values and rejects float32 overflow", 
 
 test("protobuf rejects malformed wire data", (t) => {
   const Message = S.schema({ value: field(S.string, 1, "string") });
-  const decode = S.decoder(S.protobuf, Message);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
 
   t.expect(() => decode(new Uint8Array([10, 2, 65]))).toThrow();
   t.expect(() => decode(new Uint8Array([0]))).toThrow();
@@ -166,7 +166,7 @@ test("protobuf accepts overlong and 64-bit varints in value position", (t) => {
     bool: field(S.boolean, 3, "bool"),
     sint32: field(S.int32, 4, "sint32"),
   });
-  const decode = S.decoder(S.protobuf, Message);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   t.expect(decode(new Uint8Array([8, 185, 224, 128, 128, 128, 128, 128, 128, 0]))).toMatchObject({ int32: 12345 });
   t.expect(decode(new Uint8Array([8, 255, 255, 255, 255, 31]))).toMatchObject({ int32: -1 });
   t.expect(decode(new Uint8Array([16, 129, 128, 128, 128, 32]))).toMatchObject({ uint32: 1 });
@@ -177,15 +177,15 @@ test("protobuf accepts overlong and 64-bit varints in value position", (t) => {
 
 test("protobuf encodes negative int32 and enum as ten bytes without BigInt", (t) => {
   const Message = S.schema({ a: field(S.int32, 1, "int32"), e: field(S.int32, 2, "enum") });
-  t.expect([...S.decoder(Message, S.protobuf)({ a: -2147483648, e: -1 })]).toEqual([
+  t.expect([...S.decodeOrThrow(Message, S.protobuf)({ a: -2147483648, e: -1 })]).toEqual([
     8, 128, 128, 128, 128, 248, 255, 255, 255, 255, 1, 16, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1,
   ]);
 });
 
 test("protobuf writes a repeated scalar expanded with packed: false and reads both forms", (t) => {
   const Message = S.schema({ a: S.array(S.integer).with(S.protobufField, { number: 1, type: "uint32", packed: false }) });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   t.expect([...encode({ a: [1, 2, 3] })]).toEqual([8, 1, 8, 2, 8, 3]);
   t.expect(decode(new Uint8Array([10, 3, 1, 2, 3]))).toEqual({ a: [1, 2, 3] });
   t.expect(decode(new Uint8Array([8, 1, 8, 2, 8, 3]))).toEqual({ a: [1, 2, 3] });
@@ -199,8 +199,8 @@ test("protobuf maps a record to map<K, V> entries", (t) => {
     flags: S.record(S.boolean).with(S.protobufField, { number: 3, key: "bool" }),
     big: S.record(S.string).with(S.protobufField, { number: 4, key: "sint64" }),
   });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   const value = {
     value: { b: { key: "1", values: ["c", "d"] }, a: { key: "2", values: ["a", "b"] } },
     ints: { "-1": 5 },
@@ -219,8 +219,8 @@ test("protobuf maps a record to map<K, V> entries", (t) => {
 
 test("protobuf stores a __proto__ map key as an own property", (t) => {
   const Message = S.schema({ map: S.record(S.int32).with(S.protobufField, 1) });
-  const decode = S.decoder(S.protobuf, Message);
-  const encode = S.decoder(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
   const bytes = new Uint8Array([10, 13, 10, 9, 95, 95, 112, 114, 111, 116, 111, 95, 95, 16, 5]);
   const result = decode(bytes) as { map: Record<string, number> };
   t.expect(Object.hasOwn(result.map, "__proto__")).toBe(true);
@@ -234,8 +234,8 @@ test("protobuf oneof keeps the last member on the wire and emits a zero member",
     num: S.optional(S.int32).with(S.protobufField, { number: 2, oneof: "kind" }),
     other: S.boolean.with(S.protobufField, 3),
   });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   t.expect(decode(new Uint8Array([10, 1, 97, 16, 1]))).toEqual({ num: 1, other: false });
   t.expect([...encode({ num: 0, other: false })]).toEqual([16, 0]);
   t.expect(decode(encode({ str: "a", other: true }))).toEqual({ str: "a", other: true });
@@ -249,8 +249,8 @@ test("protobuf decodes an absent required message to its default instance and ke
     maybe: S.optional(Child).with(S.protobufField, 2),
     items: S.array(Child).with(S.protobufField, 3),
   });
-  const decode = S.decoder(S.protobuf, Message);
-  const encode = S.decoder(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
   t.expect(decode(new Uint8Array())).toEqual({ required: { n: 0, s: "" }, items: [] });
   t.expect([...encode({ required: { n: 0, s: "" }, items: [] })]).toEqual([10, 0]);
   t.expect(decode(new Uint8Array([18, 0]))).toEqual({ required: { n: 0, s: "" }, maybe: { n: 0, s: "" }, items: [] });
@@ -259,8 +259,8 @@ test("protobuf decodes an absent required message to its default instance and ke
 test("protobuf converts nested fields through the schema's own coercions", (t) => {
   const Child = S.schema({ id: S.string.with(S.protobufField, { number: 1, type: "uint32" }) });
   const Message = S.schema({ child: S.optional(Child).with(S.protobufField, 1), kids: S.array(Child).with(S.protobufField, 2) });
-  const decode = S.decoder(S.protobuf, Message);
-  const encode = S.decoder(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
   const value = { child: { id: "7" }, kids: [{ id: "8" }] };
   t.expect(decode(encode(value))).toEqual(value);
   t.expect(decode(new Uint8Array([18, 2, 8, 9]))).toEqual({ kids: [{ id: "9" }] });
@@ -272,8 +272,8 @@ test("protobuf infers enum for a union of integer literals and keeps unknown val
     maybe: S.optional(S.union([0, 5])).with(S.protobufField, 2),
     list: S.array(S.union([-1, 1])).with(S.protobufField, 3),
   });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   t.expect([...encode({ kind: 2, maybe: 0, list: [-1, 1] })]).toEqual([8, 2, 16, 0, 26, 11, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 1]);
   t.expect(decode(encode({ kind: 2, maybe: 0, list: [-1, 1] }))).toEqual({ kind: 2, maybe: 0, list: [-1, 1] });
   t.expect(decode(new Uint8Array())).toEqual({ kind: 0, list: [] });
@@ -286,8 +286,8 @@ test("protobuf reads nested fields named after Object.prototype members as own p
     toString: S.optional(S.string).with(S.protobufField, 2),
   });
   const Message = S.schema({ inner: Inner.with(S.protobufField, 1), items: S.array(Inner).with(S.protobufField, 2) });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   // `{}` inherits `constructor`, so TypeScript needs the literal widened.
   type Inner = S.Output<typeof Inner>;
   t.expect([...encode({ inner: {} as Inner, items: [{} as Inner] })]).toEqual([10, 0, 18, 0]);
@@ -304,7 +304,7 @@ test("protobuf rejects 32-bit values outside their range instead of wrapping", (
     i: S.integer.with(S.protobufField, { number: 2, type: "int32" }),
     packed: S.array(S.integer).with(S.protobufField, { number: 3, type: "uint32" }),
   });
-  const encode = S.decoder(Message, S.protobuf);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
   t.expect(() => encode({ u: -1, i: 0, packed: [] })).toThrow("invalid uint32");
   t.expect(() => encode({ u: 4294967296, i: 0, packed: [] })).toThrow("invalid uint32");
   t.expect(() => encode({ u: 0, i: 2147483648, packed: [] })).toThrow("invalid int32");
@@ -316,16 +316,16 @@ test("protobuf rejects 32-bit values outside their range instead of wrapping", (
 
 test("protobuf encode and decode survive re-entry from a field's own conversion", (t) => {
   const Inner = S.schema({ n: S.int32.with(S.protobufField, 1) });
-  const innerBytes = S.decoder(Inner, S.protobuf);
-  const innerValue = S.decoder(S.protobuf, Inner);
+  const innerBytes = S.decodeOrThrow(Inner, S.protobuf);
+  const innerValue = S.decodeOrThrow(S.protobuf, Inner);
   // A bytes field whose JS value is an object encoded with another protobuf codec.
   const Payload = S.uint8Array.with(S.to, S.schema({ n: S.int32 }), {
     decode: (bytes) => innerValue(bytes),
     encode: (value) => innerBytes(value),
   });
   const Outer = S.schema({ id: S.int32.with(S.protobufField, 1), payload: Payload.with(S.protobufField, { number: 2, type: "bytes" }) });
-  const encode = S.encoder(S.protobuf.with(S.to, Outer));
-  const decode = S.decoder(S.protobuf.with(S.to, Outer));
+  const encode = S.encodeOrThrow(S.protobuf.with(S.to, Outer));
+  const decode = S.decodeOrThrow(S.protobuf.with(S.to, Outer));
   const bytes = encode({ id: 7, payload: { n: 9 } });
   t.expect([...bytes]).toEqual([8, 7, 18, 2, 8, 9]);
   t.expect(decode(bytes)).toEqual({ id: 7, payload: { n: 9 } });
@@ -336,8 +336,8 @@ test("protobuf encode stays valid when a message outgrows the writer's slab", (t
   const Message = S.schema({
     items: S.array(S.schema({ blob: S.uint8Array.with(S.protobufField, 1) })).with(S.protobufField, 1),
   });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   const value = { items: Array.from({ length: 3 }, (_, i) => ({ blob: new Uint8Array(3000).fill(i + 1) })) };
   const first = encode(value);
   for (let i = 0; i < 5; i++) {
@@ -350,8 +350,8 @@ test("protobuf encode stays valid when a message outgrows the writer's slab", (t
 
 test("protobuf reports wire and value failures as Sury errors", (t) => {
   const Message = S.schema({ s: S.string.with(S.protobufField, 1), f: S.number.with(S.protobufField, { number: 2, type: "float" }) });
-  const decode = S.decoder(S.protobuf, Message);
-  const encode = S.decoder(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
   const invalid = (fn: () => unknown) => {
     try {
       fn();
@@ -366,32 +366,31 @@ test("protobuf reports wire and value failures as Sury errors", (t) => {
   t.expect(invalid(() => decode(new Uint8Array([10]))).message).toContain("truncated protobuf message");
   t.expect(invalid(() => encode({ s: "", f: 1e40 })).message).toContain("invalid float");
   const Wrapped = S.schema({ inner: Message.with(S.protobufField, 1) });
-  t.expect(invalid(() => S.decoder(S.protobuf, Wrapped)(new Uint8Array([10, 3, 10, 1, 255]))).code).toBe("invalid_conversion");
+  t.expect(invalid(() => S.decodeOrThrow(S.protobuf, Wrapped)(new Uint8Array([10, 3, 10, 1, 255]))).code).toBe("invalid_conversion");
 });
 
 test("protobuf names the field that keeps a schema from being a message", (t) => {
-  t.expect(() => S.decoder(S.protobuf, S.schema({ id: S.int32 }))).toThrow('field "id" has no field number');
+  t.expect(() => S.decodeOrThrow(S.protobuf, S.schema({ id: S.int32 }))).toThrow('field "id" has no field number');
   t.expect(() =>
-    S.decoder(S.protobuf, S.schema({ a: S.int32.with(S.protobufField, 1), b: S.int32.with(S.protobufField, 1) })),
+    S.decodeOrThrow(S.protobuf, S.schema({ a: S.int32.with(S.protobufField, 1), b: S.int32.with(S.protobufField, 1) })),
   ).toThrow('field number 1 of "b" is already taken');
-  t.expect(() => S.decoder(S.protobuf, S.schema({ a: S.optional(S.array(S.int32)).with(S.protobufField, 1) }))).toThrow(
+  t.expect(() => S.decodeOrThrow(S.protobuf, S.schema({ a: S.optional(S.array(S.int32)).with(S.protobufField, 1) }))).toThrow(
     "can't be optional",
   );
-  t.expect(() => S.decoder(S.protobuf, S.schema({ a: S.optional(S.record(S.int32)).with(S.protobufField, 1) }))).toThrow(
+  t.expect(() => S.decodeOrThrow(S.protobuf, S.schema({ a: S.optional(S.record(S.int32)).with(S.protobufField, 1) }))).toThrow(
     "can't be optional",
   );
   t.expect(() =>
-    S.decoder(S.protobuf, S.schema({ a: S.string.with(S.protobufField, { number: 1, type: "message" }) })),
+    S.decodeOrThrow(S.protobuf, S.schema({ a: S.string.with(S.protobufField, { number: 1, type: "message" }) })),
   ).toThrow("is a message but its schema is not an object");
 });
 
 test("protobuf requires an adjacent fully annotated object schema", (t) => {
-  t.expect(() => S.parser(S.protobuf)).toThrow("Can't decode unknown to Uint8Array");
-  t.expect(() => S.decoder(S.uint8Array, S.protobuf)).toThrow();
-  t.expect(() => S.decoder(S.protobuf, S.string)).toThrow();
-  t.expect(() => S.decoder(S.schema({ value: S.int32 }), S.protobuf)).toThrow();
+  t.expect(() => S.decodeOrThrow(S.uint8Array, S.protobuf)).toThrow();
+  t.expect(() => S.decodeOrThrow(S.protobuf, S.string)).toThrow();
+  t.expect(() => S.decodeOrThrow(S.schema({ value: S.int32 }), S.protobuf)).toThrow();
   t.expect(() =>
-    S.decoder(
+    S.decodeOrThrow(
       S.schema({ map: S.record(S.int32).with(S.protobufField, { number: 1, type: "message" }) }),
       S.protobuf,
     ),
@@ -400,14 +399,14 @@ test("protobuf requires an adjacent fully annotated object schema", (t) => {
 
 test("protobuf keeps a UTF-8 BOM as a string character", (t) => {
   const Message = S.schema({ value: field(S.string, 1, "string") });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   t.expect(decode(encode({ value: "\uFEFFhi" }))).toEqual({ value: "\uFEFFhi" });
 });
 
 test("protobuf stores __proto__ as a data property", (t) => {
   const Message = S.schema({ ["__proto__"]: field(S.int32, 1, "int32") });
-  const decode = S.decoder(S.protobuf, Message);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   const result = decode(new Uint8Array([8, 1])) as { ["__proto__"]: number };
   t.expect(Object.hasOwn(result, "__proto__")).toBe(true);
   t.expect(result["__proto__"]).toBe(1);
@@ -418,7 +417,7 @@ test("protobuf applies array minLength on repeated message fields", (t) => {
   const Message = S.schema({
     items: field(S.array(Child).with(S.minLength, 1), 1, "message"),
   });
-  t.expect(() => S.decoder(S.protobuf, Message)(new Uint8Array())).toThrow();
+  t.expect(() => S.decodeOrThrow(S.protobuf, Message)(new Uint8Array())).toThrow();
 });
 
 test("protobufField validates field descriptors", (t) => {
@@ -438,8 +437,8 @@ test("protobufField infers type from the schema", (t) => {
     nested: Child.with(S.protobufField, 5),
     zig: S.int32.with(S.protobufField, { number: 6, type: "sint32" }),
   });
-  const encode = S.decoder(Message, S.protobuf);
-  const decode = S.decoder(S.protobuf, Message);
+  const encode = S.decodeOrThrow(Message, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, Message);
   const value = {
     id: 7,
     name: "Ada",

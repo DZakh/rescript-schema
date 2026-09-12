@@ -1,6 +1,6 @@
 open Vitest
 
-// https://github.com/DZakh/sury/issues/311 — encoding a nested optional
+// https://github.com/DZakh/sury/issues/311 - encoding a nested optional
 // (or nullable-as-option) field to JSON failed with "Expected undefined |
 // JSON, received ..." because an object field typed as a union with an
 // undefined variant was checked against generic JSON instead of having
@@ -121,6 +121,6 @@ test("Jsonable optional field no longer runs a redundant deep JSON validation", 
   t->U.assertCompiledCode(
     ~schema=outerSchema,
     ~op=#EncodeToJson,
-    `i=>{let v0=i["a"];for(;;){if(typeof v0==="object"&&v0&&!Array.isArray(v0)){let v1=v0["s"];(typeof v1==="string"||v1===void 0)||e[0](v1);let v2={};if(v1!==void 0){v2["s"]=v1}v0=v2;break}if(v0===void 0)break;e[1](v0)}let v3={};if(v0!==void 0){v3["a"]=v0}return v3}`,
+    `i=>{let v0=i.a;for(;;){if(typeof v0==="object"&&v0&&!Array.isArray(v0)){let v1=v0.s;(typeof v1==="string"||v1===void 0)||e[0](v1);let v2={};if(v1!==void 0){v2.s=v1}v0=v2;break}if(v0===void 0)break;e[1](v0)}let v3={};if(v0!==void 0){v3.a=v0}return v3}`,
   )
 })

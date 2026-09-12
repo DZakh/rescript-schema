@@ -80,7 +80,7 @@ test("Successfully parses schema with transformation", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{for(;;){if(typeof i==="number"&&i===i)break;if(i===void 0){i=-123;break}e[0](i)}let v0;try{v0=e[1](i)}catch(x){e[2](x)}for(;;){if(typeof v0==="string")break;if(v0===void 0){v0="not positive";break}e[3](v0)}return v0}`,
+    `i=>{for(;;){if(typeof i==="number"&&i==i)break;if(i===void 0){i=-123;break}e[0](i)}let v0;try{v0=e[1](i)}catch(x){e[2](x)}for(;;){if(typeof v0==="string")break;if(v0===void 0){v0="not positive";break}e[3](v0)}return v0}`,
   )
 })
 
@@ -106,11 +106,11 @@ asyncTest("Compiled async parse code snapshot", async t => {
       S.bool->S.to(S.any, ~custom={decode: Async(i => Promise.resolve(i)), encode: Never}),
     )->S.Option.getOr(false)
 
-  t->Assert.deepEqual(await None->S.parseAsyncOrThrow(~to=schema), false)
+  t->Assert.deepEqual(await None->S.parseAsPromiseOrReject(~to=schema), false)
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ParseAsync,
-    `i=>{for(;;){if(typeof i==="boolean"){let v0=e[0](i);i=v0;break}if(i===void 0){i=false;break}e[1](i)}return Promise.resolve(i)}`,
+    `i=>{try{for(;;){if(typeof i==="boolean"){let v0=e[0](i);i=v0;break}if(i===void 0){i=false;break}e[1](i)}return Promise.resolve(i)}catch(v1){return Promise.reject(v1)}}`,
   )
 
   let schema =
@@ -118,11 +118,11 @@ asyncTest("Compiled async parse code snapshot", async t => {
     ->S.Option.getOr(false)
     ->S.to(S.any, ~custom={decode: Async(i => Promise.resolve(i)), encode: Never})
 
-  t->Assert.deepEqual(await None->S.parseAsyncOrThrow(~to=schema), false)
+  t->Assert.deepEqual(await None->S.parseAsPromiseOrReject(~to=schema), false)
   t->U.assertCompiledCode(
     ~schema,
     ~op=#ParseAsync,
-    `i=>{for(;;){if(typeof i==="boolean")break;if(i===void 0){i=false;break}e[0](i)}let v0;try{v0=e[1](i).catch(x=>e[2](x))}catch(x){e[2](x)}return v0}`,
+    `i=>{try{for(;;){if(typeof i==="boolean")break;if(i===void 0){i=false;break}e[0](i)}let v0;try{v0=e[1](i).catch(x=>e[2](x))}catch(x){e[2](x)}return v0}catch(v1){return Promise.reject(v1)}}`,
   )
 })
 
@@ -254,12 +254,12 @@ test("Default on a primary item with S.to runs the transformation on parse and r
   let otherDate = Date.fromString("2024-06-15T12:30:45.123Z")
   let schema = S.string->S.to(S.date)->S.option->S.Option.getOr(defaultDate)
 
-  // schema.default is the input form (ISO string), not the Date — JSON Schema metadata.
+  // schema.default is the input form (ISO string), not the Date - JSON Schema metadata.
   let untagged = schema->S.untag
   t->Assert.is(untagged.tag, S.AnyOf)
   t->Assert.is(untagged.anyOf->Option.getOrThrow->Array.length, 2)
   t->Assert.deepEqual(untagged.default, %raw(`"2024-01-01T00:00:00.000Z"`))
-  // The default arm carries the conversion — the union itself has no `.to`.
+  // The default arm carries the conversion - the union itself has no `.to`.
   t->Assert.is(untagged.to, None)
 
   t->Assert.deepEqual(%raw(`undefined`)->S.parseOrThrow(~to=schema), defaultDate)
@@ -314,7 +314,7 @@ test("Appending S.to(S.jsonString) after getOr extends the output chain", t => {
 
 // getOr hands jsonString a bare ternary, and `+` binds tighter than `?:`, so
 // splicing it between quotes unparenthesized reassociated into
-// `("\""+i)===void 0?…` — which dropped the opening quote on BOTH branches and
+// `("\""+i)===void 0?…` - which dropped the opening quote on BOTH branches and
 // went unnoticed because no test paired a default with a quoted primitive.
 // Spelled here rather than as a spec: `spec new` can't evaluate `$Option_getOr`.
 test("getOr default reaches jsonString quoted, not reassociated", t => {
@@ -358,20 +358,20 @@ test("Multi-member union with transformed members + getOr", t => {
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Parse,
-    `i=>{for(;;){let r;if(typeof i==="string"){try{let v0=+i;v0===v0&&(v0||i.trim())||e[0](i);i=v0;break}catch(x){(r||(r=[])).push(e[2](x))}try{let v1;try{v1=BigInt(i)}catch(_){e[1](i)}v1||i.trim()||e[1](i);i=v1;break}catch(x){(r||(r=[])).push(e[2](x))}}if(typeof i==="boolean")break;if(i===void 0){i=true;break}e[3](i,...(r||[]))}return i}`,
+    `i=>{for(;;){let r;if(typeof i==="string"){try{let v0=+i;v0==v0&&(v0||i.trim())||e[0](i);i=v0;break}catch(x){(r||(r=[])).push(e[2](x))}try{let v1;try{v1=BigInt(i)}catch(_){e[1](i)}v1||i.trim()||e[1](i);i=v1;break}catch(x){(r||(r=[])).push(e[2](x))}}if(typeof i==="boolean")break;if(i===void 0){i=true;break}e[3](i,...(r||[]))}return i}`,
   )
 
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{for(;;){if(typeof i==="number"&&i===i){i=""+i;break}if(typeof i==="bigint"){i=""+i;break}if(typeof i==="boolean")break;e[0](i)}return i}`,
+    `i=>{for(;;){if(typeof i==="number"&&i==i){i=""+i;break}if(typeof i==="bigint"){i=""+i;break}if(typeof i==="boolean")break;e[0](i)}return i}`,
   )
 })
 
 test("Compiled serialize code snapshot", t => {
   let schema = S.bool->S.option->S.Option.getOr(false)
 
-  // The reversed union validates the value like any other typed decode — the
+  // The reversed union validates the value like any other typed decode - the
   // old noop relied on Option_getWithDefault's noopDecoder hack.
   t->U.assertCompiledCode(~schema, ~op=#Encode, `i=>{typeof i==="boolean"||e[0](i);return i}`)
 })

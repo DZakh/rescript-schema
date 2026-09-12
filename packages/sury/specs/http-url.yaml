@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "string", format: "uri", pattern: "^[hH][tT][tT][pP][sS]?:" }'
   output: '{ type: "string", format: "uri", pattern: "^[hH][tT][tT][pP][sS]?:" }'
+isEqual: strictEqual
 vs:
   zod: z.httpUrl()
 operations:
@@ -40,6 +41,9 @@ operations:
       unencoded-space:
         input: '"https://example.com/a b"'
         error: Expected http-url, received "https://example.com/a b"
+        divergence:
+          reason: z.httpUrl() parses with the WHATWG URL algorithm, which percent-encodes a raw space instead of rejecting it
+          zod: '"https://example.com/a b"'
       empty:
         input: '""'
         error: Expected http-url, received ""

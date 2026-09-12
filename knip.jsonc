@@ -18,7 +18,7 @@
     "packages/sury": {
       "entry": [
         // Public JS/TS API + `$`-prefixed exports consumed by S.res (ReScript) at
-        // runtime, not via TS imports — anchor them so they aren't flagged.
+        // runtime, not via TS imports - anchor them so they aren't flagged.
         "src/entry.ts",
         // Invoked through package.json scripts (build:entry / build).
         "scripts/pack.ts",
@@ -37,7 +37,7 @@
     },
     "packages/spec": {
       // benchChild.ts is esbuilt to .bench-cache and spawned as a subprocess,
-      // and perfComment.ts is run by CI to format the PR comment — neither is
+      // and perfComment.ts is run by CI to format the PR comment - neither is
       // ever imported, so both need anchoring.
       "entry": ["cli.ts", "benchChild.ts", "perfComment.ts"],
       "project": ["**/*.ts"]

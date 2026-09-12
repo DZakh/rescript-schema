@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: '{ type: "object", properties: { map: { type: "object", additionalProperties: { type: "integer", minimum: -2147483648, maximum: 2147483647 } } }, required: ["map"] }'
   output: '[Sury] S.protobuf: field "map" is a message but its schema is not an object'
+isEqual:
+  input: (a,b)=>a===b||e[0](a.map,b.map)
+  output: (a,b)=>{if(a===b)return true;let n=a.length;if(n!==b.length)return false;for(let i=0;i<n;i++)if(!(a[i]===b[i]))return false;return true}
 vs:
   zod:
     _skip: not-applicable

@@ -53,7 +53,7 @@ test("S.pattern and S.trim apply to a format schema", t => {
 })
 
 test("Version-pinned uuids are distinct types from the loose one", t => {
-  // `S.uuidv7`'s value satisfies `S.uuid`'s regex, but not its type — which is
+  // `S.uuidv7`'s value satisfies `S.uuid`'s regex, but not its type - which is
   // the point: a function taking a v7 key can't be handed a v1.
   let toV7 = (id: S.uuidv7) => id
 

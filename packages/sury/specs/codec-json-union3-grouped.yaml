@@ -11,12 +11,15 @@ jsonSchema:
   openapi-3.0:
     input: '{ anyOf: [{ type: "string", enum: ["a"] }, { type: "number" }, { type: "string", enum: ["b"] }] }'
     output: '{ anyOf: [{ type: "string", enum: ["a"] }, { type: "number" }, { type: "string", enum: ["b"] }] }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: strictEqual
 vs:
   zod:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{(typeof i==="string"&&(i==="a"||i==="b")||typeof i==="number"&&i===i)||e[0](i);return i}
+    expression: i=>{(typeof i==="string"&&(i==="a"||i==="b")||typeof i==="number"&&i==i)||e[0](i);return i}
     examples:
       first-literal:
         input: '"a"'

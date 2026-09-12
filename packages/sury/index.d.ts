@@ -23,10 +23,39 @@ export type SuccessResult<TValue> = {
 
 export type FailureResult = {
   readonly success: false;
-  readonly error: Error;
+  readonly error: DataError;
+  // The `?: undefined` siblings on both branches are what makes
+  // `const { value, error } = result` narrow - without them destructuring
+  // silently doesn't. They mirror the `void 0` fillers the compiled Result tail
+  // emits, so the two branches also share one hidden class at runtime.
+  readonly value?: undefined;
 };
 
 export type Result<TValue> = SuccessResult<TValue> | FailureResult;
+
+/**
+ * A value the operation can be handed again and have succeed: a failure of THIS
+ * value, reportable to whoever supplied it. What every `*AsResult` operation
+ * returns in its `error`.
+ */
+export type DataError = Extract<
+  Error,
+  { readonly code: "invalid_input" | "unrecognized_key" | "invalid_conversion" }
+>;
+
+/**
+ * A schema wired wrong, which fails for every input - the developer's bug, not
+ * an entry in someone's form validation. Never a `Result`: it is raised where
+ * the operation is created, which for an immediate call form
+ * (`S.parseAsResult(schema, data)`) is that same call.
+ */
+export type DefectError = Extract<
+  Error,
+  { readonly code: "invalid_operation" | "unsupported_decode" }
+>;
+
+/** A value, or a promise of one. */
+export type Promisable<T> = T | Promise<T>;
 
 export type NumberFormat = "int32" | "port" | "integer";
 export type StringFormat =
@@ -70,7 +99,7 @@ export type ArrayFormat = "compactColumns";
 export type Format = NumberFormat | StringFormat | ArrayFormat;
 
 // `TOutput = TInput` so an identity schema is spelled `Schema<string>`. The
-// default is dependent, so TS instantiates it at every one-arg reference —
+// default is dependent, so TS instantiates it at every one-arg reference -
 // internal references write `Schema<unknown, unknown>` in full to keep that
 // off the per-schema type-cost the specs measure.
 export type Schema<TInput = unknown, TOutput = TInput> = {
@@ -131,7 +160,7 @@ export type Schema<TInput = unknown, TOutput = TInput> = {
 
   /**
    * The schema as `Schema<input, output>`, collapsed to `Schema<input>` when
-   * the two sides match. Used by string coercion — interpolation, `String()`,
+   * the two sides match. Used by string coercion - interpolation, `String()`,
    * `"%s"`. `console.log(schema)` still shows the internal schema shape.
    *
    * ```ts
@@ -155,7 +184,7 @@ export type Schema<TInput = unknown, TOutput = TInput> = {
 
   // jsonSchema.input/.output throw until enableStandardJSONSchema() is called.
   // validate reports a failed input as `issues`, but throws when the schema
-  // has no compilable parse operation at all (a rejected `.to` conversion) —
+  // has no compilable parse operation at all (a rejected `.to` conversion) -
   // that's a bug in the schema, not a verdict on the value.
   readonly ["~standard"]: StandardSchemaV1.Props<TInput, TOutput> &
     StandardJSONSchemaV1.Props<TInput, TOutput>;
@@ -262,13 +291,18 @@ export type Schema<TInput = unknown, TOutput = TInput> = {
 
 /**
  * Root-first location of a value: object keys and tuple indices as strings,
- * array indices as numbers. `"[]"` stands for "some element".
+ * array indices as numbers. `"[]"` stands for "some element". A symbol appears
+ * only where a `refine` wrote one into its `path`.
  */
-export type Path = ReadonlyArray<string | number>;
+export type Path = ReadonlyArray<string | number | symbol>;
 
-type BaseError = {
+type BaseError = globalThis.Error & {
+  readonly name: "SuryError";
+  /** Where the failure happened, as segments from the root of the value. Empty at the root. */
   readonly path: Path;
+  /** `reason`, prefixed with the path when there is one: `Failed at a.b: <reason>`. */
   readonly message: string;
+  /** The failure itself, without the path. */
   readonly reason: string;
 };
 
@@ -295,12 +329,14 @@ export type Error =
       readonly cause?: unknown;
     })
   | (BaseError & {
-      readonly code: "unrecognized_keys";
-      readonly keys: readonly string[];
+      readonly code: "unrecognized_key";
+      /** The key the value carries that the object schema doesn't declare. One key per error. */
+      readonly key: string;
     });
 
+/** The class every operation throws; use it with `instanceof`. */
 export const Error: {
-  new (): Error;
+  [Symbol.hasInstance](value: unknown): value is Error;
   prototype: Error;
 };
 
@@ -319,29 +355,10 @@ export type Input<T> = T extends {
   ? TInput
   : never;
 
-// Utility types for decoder function with multiple schemas
-type ExtractFirstInput<TSchemas extends readonly SchemaLike<any, any>[]> =
-  TSchemas extends readonly [SchemaLike<infer TFirstInput, any>, ...any[]]
-    ? TFirstInput
-    : never;
-
-// Utility types for encoder function with multiple schemas
-type ExtractFirstOutput<TSchemas extends readonly SchemaLike<any, any>[]> =
-  TSchemas extends readonly [SchemaLike<any, infer TFirstOutput>, ...any[]]
-    ? TFirstOutput
-    : never;
-
-type ExtractLastOutput<TSchemas extends readonly SchemaLike<any, any>[]> =
-  TSchemas extends readonly [...any[], SchemaLike<any, infer TLastOutput>]
-    ? TLastOutput
-    : TSchemas extends readonly [SchemaLike<any, infer TSingleOutput>]
-    ? TSingleOutput
-    : never;
-
 // Match the `~standard` marker instead of the full `Schema<…>` shape for the
 // same instantiation-cost reason as `Output<T>` above.
 // `-readonly` undoes the `readonly` that a `const T` call site (schema/union)
-// stamps onto every nested property — that marker only exists to keep literal
+// stamps onto every nested property - that marker only exists to keep literal
 // types from widening and shouldn't leak into the inferred Output/Input.
 export type UnknownToOutput<T> = T extends {
   readonly ["~standard"]: { readonly types?: { readonly output: infer TOutput } };
@@ -377,6 +394,11 @@ type SchemaLike<TInput, TOutput> = {
       | undefined;
   };
 };
+// Decode/encode/make capture the schema as `S` so `data` is `Input<S>` /
+// `Output<S>` and cannot be wider than the schema. A chain is `SInput` then
+// `SOutput`; schemas in the middle are untyped. Make takes one schema.
+// `parse*`/`assert*`/`is*` still take `unknown`.
+type AnySchema = SchemaLike<any, any>;
 
 export type Brand<T, TId extends string> = T & {
   /**
@@ -394,7 +416,7 @@ export function brand<TId extends string, TInput = unknown, TOutput = unknown>(
 // `TFields` already holds each field's resolved type. A field is optional iff
 // its type admits `undefined`, so an `S.never` field stays required. The split
 // is skipped when no field is optional. Required keys come first, optional last
-// — matching the ordering Zod (and the wider Standard Schema ecosystem) infers,
+// - matching the ordering Zod (and the wider Standard Schema ecosystem) infers,
 // so a Sury type reads the same as its cross-library equivalent.
 type ResolveObject<TFields> = undefined extends TFields[keyof TFields]
   ? Flatten<
@@ -409,7 +431,7 @@ type ResolveObject<TFields> = undefined extends TFields[keyof TFields]
 // Flatten an intersection into one object, keeping values verbatim (incl. `never`).
 type Flatten<T> = T extends object ? { [K in keyof T]: T[K] } : T;
 
-// Homomorphic mapped type over a tuple `T` preserves its arity — a plain
+// Homomorphic mapped type over a tuple `T` preserves its arity - a plain
 // (non-tuple) array `T` has `T["length"]` widened to `number`, in which case
 // there's nothing positional to map and `T` is returned as-is.
 type UnknownArrayToOutput<T extends unknown[]> = number extends T["length"]
@@ -425,6 +447,114 @@ export function schema<const T extends unknown[]>(
 export function schema<const T>(
   value: T
 ): Schema<UnknownToInput<T>, UnknownToOutput<T>>;
+
+/**
+ * Checks a definition against a type you already have, instead of inferring a
+ * new one.
+ *
+ * ```ts
+ * S.schemaOf<User>()({ id: S.string, createdAt: S.isoDateTime.with(S.to, S.date) })
+ * //? S.Schema<{ id: string; createdAt: string }, User>
+ * ```
+ *
+ * Anything that doesn't line up is a type error on the field causing it. Codecs
+ * need no second type argument, since the encoded type is read off the
+ * definition.
+ */
+// Curried so the definition's own type is inferred at the second call: a call
+// taking both at once would have nothing to compare against, since TypeScript
+// doesn't infer the type arguments a call doesn't spell. That comparison is the
+// whole point - see `AssertEqual` for what it catches that assignability can't.
+export function schemaOf<TOutput>(): <const TDef>(
+  definition: DefinitionMatches<TDef, TOutput> extends true
+    ? TDef
+    : DefinitionMismatch<TDef, TOutput>
+) => Schema<UnknownToInput<TDef>, TOutput>;
+
+// Equality, not assignability. `S.number` in a field the type declares
+// `age?: number` produces `number` where the type reads `number | undefined`;
+// assignable, so every `satisfies`-shaped check accepts it, and the schema it
+// builds then rejects a value the type calls valid. Equality is what sees it.
+//
+// Two identical deferred conditionals are only assignable to each other when
+// the types they check are identical, which is what makes this exact. The one
+// distinction deliberately erased first is `readonly` - see `Mutable`.
+type AssertEqual<T, U> = (<V>() => V extends T ? 1 : 2) extends <V>() => V extends U
+  ? 1
+  : 2
+  ? true
+  : false;
+
+// A `readonly` tuple or array has no `readonly` schema to match it, so the
+// comparison is made against the mutable spelling rather than failing on a
+// distinction no definition could express.
+type Mutable<T> = T extends readonly unknown[] ? { -readonly [K in keyof T]: T[K] } : T;
+
+type DefinitionMatches<TDef, TOutput> = TDef extends SchemaLike<unknown, unknown>
+  ? AssertEqual<UnknownToOutput<TDef>, Mutable<TOutput>>
+  : [TOutput] extends [object]
+  ? TOutput extends readonly unknown[]
+    ? AssertEqual<UnknownToOutput<TDef>, Mutable<TOutput>>
+    : DefinitionFieldsMatch<TDef, TOutput>
+  : AssertEqual<UnknownToOutput<TDef>, TOutput>;
+
+// Field by field, rather than building the definition's whole output type and
+// comparing that in one go. The answer is the same - Sury reads a field's
+// optionality off whether its type admits `undefined`, which is what a
+// per-field comparison sees - but the whole-object form pays for
+// `UnknownToOutput`'s optional-key split on every call, and that split is a
+// quarter of what the check costs. Arrays keep the whole-object form: `keyof`
+// a tuple carries every array method, which is not a field list.
+type DefinitionFieldsMatch<TDef, TOutput> =
+  | Exclude<keyof TOutput, keyof TDef>
+  | Exclude<keyof TDef, keyof TOutput> extends never
+  ? {
+      [K in keyof TDef]: K extends keyof TOutput
+        ? DefinitionMatches<TDef[K], TOutput[K]>
+        : false;
+    }[keyof TDef] extends true
+    ? true
+    : false
+  : false;
+
+// What the definition should have been, so TypeScript reports the mismatch on
+// the field that carries it rather than against the whole call. A field that
+// matches is left as it was written; one that doesn't becomes a type nothing
+// satisfies, which states both sides.
+//
+// No array carve-out here, unlike `DefinitionMatches`: a mapped type over a
+// tuple maps its elements, and it is only the `keyof` comparison that would
+// drag in the array methods.
+//
+// Written out at each use rather than through a `Mismatch<…>` alias, because
+// TypeScript prints an alias by name: the report would read
+// `Mismatch<Date | undefined, Date>` and leave the reader to work out which
+// side is which. Structurally, both are labelled.
+type DefinitionMismatch<TDef, TOutput> = TDef extends SchemaLike<unknown, unknown>
+  ? { "types do not match": { expected: TOutput; received: UnknownToOutput<TDef> } }
+  : [TOutput] extends [object]
+  ? {
+      [K in keyof TDef]: K extends keyof TOutput
+        ? DefinitionMatches<TDef[K], TOutput[K]> extends true
+          ? TDef[K]
+          : {
+              "types do not match": {
+                expected: Mutable<TOutput[K]>;
+                received: UnknownToOutput<TDef[K]>;
+              };
+            }
+        : {
+            "types do not match": {
+              expected: never;
+              received: UnknownToOutput<TDef[K]>;
+            };
+          };
+    } & {
+      [K in Exclude<keyof TOutput, keyof TDef>]: {
+        "types do not match": { expected: TOutput[K]; received: never };
+      };
+    }
+  : { "types do not match": { expected: TOutput; received: UnknownToOutput<TDef> } };
 
 export function literal<const T>(
   value: T
@@ -525,8 +655,8 @@ export function protobufField<TInput, TOutput>(
 ): Schema<TInput, TOutput>;
 
 // `Blob` and `File` are ambient globals, from lib.dom or @types/node. Naming
-// them bare fails to typecheck for a consumer who has neither — including one
-// who never touches these schemas — so they resolve through `globalThis`: the
+// them bare fails to typecheck for a consumer who has neither - including one
+// who never touches these schemas - so they resolve through `globalThis`: the
 // real type wherever it exists, a structural stand-in where it doesn't. The
 // stand-in stays usable rather than erroring, because a runtime can carry the
 // value while the project carries no types for it.
@@ -553,13 +683,44 @@ export const blob: Schema<Blob, Blob>;
 
 export const file: Schema<File, File>;
 
+/** The runtime's `FormData`, or a structural stand-in. See {@link Blob}. */
+export type FormData = typeof globalThis extends {
+  FormData: abstract new (...args: never) => infer T;
+}
+  ? T
+  : {
+      append(name: string, value: string | Blob): void;
+      get(name: string): string | File | null;
+      getAll(name: string): (string | File)[];
+    };
+
 /**
- * RFC 3339 timestamp, **UTC only** — an offset like `+02:00` is rejected, which
- * is narrower than the JSON Schema `date-time` format it emits.
- * Calendar-aware: month, day, hour, minute and leap second are all range-checked.
+ * A form submission, converted to and from an object schema with `S.to`. A
+ * field reads its entry as text (`"42"` -> `S.number`), a boolean is a
+ * checkbox, `S.array` reads every entry of the key, and `S.file` takes the
+ * entry as it is. A required, non-nullable string must say what a blank input
+ * means - `S.nonEmpty`, `S.minLength(0)` or `S.optional` - or the operation
+ * fails to build.
+ * @example S.formData.with(S.to, S.schema({ name: S.string.with(S.nonEmpty), agree: true, avatar: S.file }))
+ */
+export const formData: Schema<FormData, FormData>;
+
+/**
+ * RFC 3339 timestamp - the JSON Schema `date-time` format exactly: `Z` or an
+ * offset like `+02:00`. Calendar-aware: month, day, hour, minute and leap
+ * second are all range-checked, the leap second against UTC under the offset.
  * @example "1963-06-19T08:30:06.283185Z"
+ * @example "1963-06-19T10:30:06+02:00"
  */
 export const isoDateTime: Schema<string, string>;
+
+/**
+ * RFC 3339 timestamp, **UTC only** - an offset like `+02:00` is rejected.
+ * Emits `date-time` with a `pattern` that pins the `Z`, so the document reads
+ * back as this schema.
+ * @example "1963-06-19T08:30:06.283185Z"
+ */
+export const utcDateTime: Schema<string, string>;
 
 export const port: Schema<number, number>;
 
@@ -577,20 +738,20 @@ export const email: Schema<string, string>;
 export const uuid: Schema<string, string>;
 
 /**
- * UUIDv4, the random one — the version and variant nibbles are pinned.
+ * UUIDv4, the random one - the version and variant nibbles are pinned.
  * the emitted JSON Schema carries `format: "uuid"` plus the `pattern` that pins them.
  * @example "9b2f4f0e-6a1e-4c3b-8b7a-1f2e3d4c5b6a"
  */
 export const uuidv4: Schema<string, string>;
 
 /**
- * UUIDv6, the reordered-time one — the version and variant nibbles are pinned.
+ * UUIDv6, the reordered-time one - the version and variant nibbles are pinned.
  * @example "1ef21d2f-1207-6ea0-8b7a-1f2e3d4c5b6a"
  */
 export const uuidv6: Schema<string, string>;
 
 /**
- * UUIDv7, the Unix-time one that sorts by creation — the version and variant
+ * UUIDv7, the Unix-time one that sorts by creation - the version and variant
  * nibbles are pinned. The usual choice for a database key.
  * @example "0192f0e1-2b3c-7d4e-8b7a-1f2e3d4c5b6a"
  */
@@ -604,7 +765,7 @@ export const uuidv7: Schema<string, string>;
 export const cuid: Schema<string, string>;
 
 /**
- * CUID2: base36, starting with a letter, any length. Deliberately weak — the
+ * CUID2: base36, starting with a letter, any length. Deliberately weak - the
  * length is a generator setting, so compose `S.length` when you know it.
  * @example "tz4a98xxat96iws9zmbrgj3a"
  */
@@ -630,7 +791,7 @@ export const ksuid: Schema<string, string>;
 export const xid: Schema<string, string>;
 
 /**
- * Nano ID alphabet — URL-safe base64 characters, any length, since the length is
+ * Nano ID alphabet - URL-safe base64 characters, any length, since the length is
  * a generator setting rather than part of the format. Compose `S.length` for the
  * generator you use: `S.nanoid.with(S.length, 21)` is the default one.
  * @example "V1StGXR8_Z5jdHi6B-myT"
@@ -638,7 +799,7 @@ export const xid: Schema<string, string>;
 export const nanoid: Schema<string, string>;
 
 /**
- * E.164 phone number — a leading `+`, then 7 to 15 digits, no separators.
+ * E.164 phone number - a leading `+`, then 7 to 15 digits, no separators.
  * @example "+14155552671"
  */
 export const e164: Schema<string, string>;
@@ -651,20 +812,20 @@ export const e164: Schema<string, string>;
 export const mac: Schema<string, string>;
 
 /**
- * Hexadecimal digits, at least one, either case. A syntax check on text — for a
+ * Hexadecimal digits, at least one, either case. A syntax check on text - for a
  * byte payload use `S.uint8Array` or `S.base64`.
  * @example "deadBEEF"
  */
 export const hex: Schema<string, string>;
 
 /**
- * IPv4 CIDR block — an `S.ipv4` address and a prefix length of 0 to 32.
+ * IPv4 CIDR block - an `S.ipv4` address and a prefix length of 0 to 32.
  * @example "192.168.0.0/16"
  */
 export const cidrv4: Schema<string, string>;
 
 /**
- * IPv6 CIDR block — an `S.ipv6` address and a prefix length of 0 to 128. The one
+ * IPv6 CIDR block - an `S.ipv6` address and a prefix length of 0 to 128. The one
  * format whose constraint the emitted JSON Schema cannot express, so it emits a plain
  * `string`.
  * @example "2001:db8::/32"
@@ -673,7 +834,7 @@ export const cidrv6: Schema<string, string>;
 
 /**
  * The `S.uri` grammar with the scheme pinned to `http` or `https`. RFC 3986, so
- * it is stricter than the WHATWG parser behind `S.url` — a value can be a legal
+ * it is stricter than the WHATWG parser behind `S.url` - a value can be a legal
  * URL and not a legal URI.
  * @example "https://example.com/dashboard"
  */
@@ -682,7 +843,7 @@ export const httpUrl: Schema<string, string>;
 /**
  * Base64 with the standard alphabet and canonical padding. Its payload is bytes,
  * so `S.to` reads it as such: converting to `S.uint8Array` decodes it, while
- * converting to `S.string` widens it — a string is not bytes.
+ * converting to `S.string` widens it - a string is not bytes.
  * @example "ZGF0YQ=="
  */
 export const base64: Schema<string, string>;
@@ -696,7 +857,7 @@ export const base64: Schema<string, string>;
 export const base64url: Schema<string, string>;
 
 /**
- * An instance of the JS `URL` class, parsed by the WHATWG URL Standard — the same
+ * An instance of the JS `URL` class, parsed by the WHATWG URL Standard - the same
  * shape as {@link date}. Bare it accepts a `URL`; `S.string.with(S.to, S.url)`
  * parses a string into one and encodes back via `.href`.
  *
@@ -710,7 +871,7 @@ export const url: Schema<URL, URL>;
 
 /**
  * The runtime's `URL`, or a structural stand-in when the project has no type
- * for it. See {@link Blob} — `URL` is a lib.dom/@types/node global too, so
+ * for it. See {@link Blob} - `URL` is a lib.dom/@types/node global too, so
  * naming it bare would fail to typecheck for a consumer who has neither, one
  * who never touches {@link url} included.
  */
@@ -721,11 +882,11 @@ export type URL = typeof globalThis extends {
   : { readonly href: string; toString(): string };
 
 /**
- * URI string, RFC 3986 — a scheme is required. See {@link uriReference} for the
+ * URI string, RFC 3986 - a scheme is required. See {@link uriReference} for the
  * relative form, and {@link url} for a parsed `URL` instance instead of a string.
  *
  * Syntax only: **any** scheme parses, including `javascript:` and `file:`. To
- * restrict them, compose a pattern — the emitted JSON Schema keeps both
+ * restrict them, compose a pattern - the emitted JSON Schema keeps both
  * constraints, so it still describes the behavior:
  * `S.uri.with(S.pattern, /^https?:\/\//)`
  * @example "http://foo.bar/?baz=qux#quux"
@@ -740,7 +901,7 @@ export const uri: Schema<string, string>;
 export const isoDate: Schema<string, string>;
 
 /**
- * RFC 3339 full-time. An offset is **required** — `"12:00:00"` is invalid.
+ * RFC 3339 full-time. An offset is **required** - `"12:00:00"` is invalid.
  * Leap seconds are correlated against UTC, so `01:29:60+01:30` is valid and
  * `23:59:60+01:00` is not.
  * @example "08:30:06Z"
@@ -761,7 +922,7 @@ export const duration: Schema<string, string>;
  *
  * Syntax only, and **not a security boundary**. A bare label like `localhost` is
  * a valid hostname, as are `169.254.169.254` and `metadata.google.internal`. An
- * `xn--` label is accepted on shape alone — its Punycode is not decoded, so a
+ * `xn--` label is accepted on shape alone - its Punycode is not decoded, so a
  * label that IDNA2008 disallows still passes. For an SSRF guard or a homograph
  * filter, add your own check on top.
  * @example "www.example.com"
@@ -769,7 +930,7 @@ export const duration: Schema<string, string>;
 export const hostname: Schema<string, string>;
 
 /**
- * Internationalized hostname — {@link hostname}'s label shape over the four
+ * Internationalized hostname - {@link hostname}'s label shape over the four
  * Unicode label separators, with the character repertoire left open.
  *
  * The IDNA2008 property, bidi and contextual rules are **not** applied; see the
@@ -792,13 +953,13 @@ export const ipv4: Schema<string, string>;
  * IPv6 in any RFC 4291 form, including IPv4-mapped (`::ffff:192.168.0.1`). A
  * zone id (`fe80::a%eth1`) is not part of the format.
  *
- * Syntax only — see the caveats on {@link ipv4}.
+ * Syntax only - see the caveats on {@link ipv4}.
  * @example "::1"
  */
 export const ipv6: Schema<string, string>;
 
 /**
- * URI reference, RFC 3986 — the scheme and path are both optional, so relative
+ * URI reference, RFC 3986 - the scheme and path are both optional, so relative
  * forms parse. This is usually what you want for a link or `href` field, since
  * {@link uri} would reject `/dashboard`.
  *
@@ -810,14 +971,14 @@ export const ipv6: Schema<string, string>;
 export const uriReference: Schema<string, string>;
 
 /**
- * RFC 6570 URI template — a URL *pattern* with `{placeholders}`, not a URL.
+ * RFC 6570 URI template - a URL *pattern* with `{placeholders}`, not a URL.
  * Used by HAL/JSON:API hypermedia links and OpenAPI path patterns.
  * @example "http://example.com/dictionary/{term:1}/{term}"
  */
 export const uriTemplate: Schema<string, string>;
 
 /**
- * IRI, RFC 3987 — {@link uri} with non-ASCII characters allowed unescaped.
+ * IRI, RFC 3987 - {@link uri} with non-ASCII characters allowed unescaped.
  * Validated by percent-encoding every non-ASCII character and testing the
  * result as a URI, per RFC 3987 §3.1.
  * @example "http://ƒøø.ßår/?∂éœ=πîx#πîüx"
@@ -825,14 +986,14 @@ export const uriTemplate: Schema<string, string>;
 export const iri: Schema<string, string>;
 
 /**
- * IRI reference — {@link uriReference} with non-ASCII characters allowed
+ * IRI reference - {@link uriReference} with non-ASCII characters allowed
  * unescaped. The same permissiveness caveats apply.
  * @example "/âππ"
  */
 export const iriReference: Schema<string, string>;
 
 /**
- * Internationalized email address, RFC 6531 — a Unicode local part and domain
+ * Internationalized email address, RFC 6531 - a Unicode local part and domain
  * are both allowed, including a quoted local part, though only one without
  * whitespace: `"john doe"@example.com` is rejected.
  *
@@ -847,14 +1008,14 @@ export const idnEmail: Schema<string, string>;
  * fragments. `""` is valid and addresses the whole document. `~` must be
  * escaped: `~0` is a literal `~`, `~1` is a literal `/`.
  *
- * It addresses a location, it does not make one safe to follow — `/__proto__`
+ * It addresses a location, it does not make one safe to follow - `/__proto__`
  * is a well-formed pointer.
  * @example "/foo/bar~0/baz~1/%a"
  */
 export const jsonPointer: Schema<string, string>;
 
 /**
- * RFC 6901 relative JSON Pointer — a leading integer means "go up N levels".
+ * RFC 6901 relative JSON Pointer - a leading integer means "go up N levels".
  * A trailing `#` asks for the member name or array index rather than the value.
  * @example "2/0/baz/1/zip"
  */
@@ -862,161 +1023,1427 @@ export const relativeJsonPointer: Schema<string, string>;
 
 export const date: Schema<Date, Date>;
 
-export function safe<TValue>(scope: () => TValue): Result<TValue>;
-export function safeAsync<TValue>(
-  scope: () => Promise<TValue>
-): Promise<Result<TValue>>;
-
 export function reverse<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>
 ): Schema<TOutput, TInput>;
 
-export function parser<TOutput>(
-  schema: SchemaLike<unknown, TOutput>
-): (data: unknown) => TOutput;
-export function parser<TOutput>(
-  from: SchemaLike<unknown, unknown>,
-  target: SchemaLike<unknown, TOutput>
-): (data: unknown) => TOutput;
-export function parser<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(...schemas: TSchemas): (data: unknown) => ExtractLastOutput<TSchemas>;
-
-export function asyncParser<TOutput>(
-  schema: SchemaLike<unknown, TOutput>
-): (data: unknown) => Promise<TOutput>;
-export function asyncParser<TOutput>(
-  from: SchemaLike<unknown, unknown>,
-  target: SchemaLike<unknown, TOutput>
-): (data: unknown) => Promise<TOutput>;
-export function asyncParser<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(...schemas: TSchemas): (data: unknown) => Promise<ExtractLastOutput<TSchemas>>;
-
-export function decoder<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TInput) => TOutput;
-export function decoder<TInput, TOutput>(
-  from: SchemaLike<TInput, unknown>,
-  target: SchemaLike<unknown, TOutput>
-): (data: TInput) => TOutput;
-export function decoder<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(
-  ...schemas: TSchemas
-): (data: ExtractFirstInput<TSchemas>) => ExtractLastOutput<TSchemas>;
-
-export function asyncDecoder<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TInput) => Promise<TOutput>;
-export function asyncDecoder<TInput, TOutput>(
-  from: SchemaLike<TInput, unknown>,
-  target: SchemaLike<unknown, TOutput>
-): (data: TInput) => Promise<TOutput>;
-export function asyncDecoder<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(
-  ...schemas: TSchemas
-): (data: ExtractFirstInput<TSchemas>) => Promise<ExtractLastOutput<TSchemas>>;
-
-export function encoder<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TOutput) => TInput;
-export function encoder<TOutput, TTarget>(
-  from: SchemaLike<unknown, TOutput>,
-  target: SchemaLike<unknown, TTarget>
-): (data: TOutput) => TTarget;
-export function encoder<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(
-  ...schemas: TSchemas
-): (data: ExtractFirstOutput<TSchemas>) => ExtractLastOutput<TSchemas>;
-
-export function asyncEncoder<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (data: TOutput) => Promise<TInput>;
-export function asyncEncoder<TOutput, TTarget>(
-  from: SchemaLike<unknown, TOutput>,
-  target: SchemaLike<unknown, TTarget>
-): (data: TOutput) => Promise<TTarget>;
-export function asyncEncoder<
-  TSchemas extends readonly [SchemaLike<any, any>, ...SchemaLike<any, any>[]]
->(
-  ...schemas: TSchemas
-): (data: ExtractFirstOutput<TSchemas>) => Promise<ExtractLastOutput<TSchemas>>;
-
-export function assertInput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: unknown
-): asserts data is TInput;
-export function assertInput<TInput, TOutput>(
-  data: unknown,
-  schema: SchemaLike<TInput, TOutput>
-): asserts data is TInput;
-
-export function assertOutput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
-  data: unknown
-): asserts data is TOutput;
-export function assertOutput<TInput, TOutput>(
-  data: unknown,
-  schema: SchemaLike<TInput, TOutput>
-): asserts data is TOutput;
+// ── Operations ───────────────────────────────────────────────────────────────
+//
+// Every operation names its outcome. A suffix names the failure mechanism only
+// when the return type doesn't reveal it: `O` and `Promise<O>` reveal nothing
+// and take `OrThrow`/`OrReject`; `Result<O>` and `Promise<Result<O>>` carry the
+// failure in the type and take none.
+//
+//   OrThrow             O
+//   AsResult            Result<O>
+//   AsPromiseOrReject   Promise<O>
+//   AsResultPromise     Promise<Result<O>>
+//   AsPromisableResult  Result<O> | Promise<Result<O>>
+//
+// There is no promisable OrThrow: two shapes to branch on is already what not
+// knowing a schema's async-ness costs, and once you have branched you know.
+//
+// Each takes any of four call forms:
+//
+//   op(s)          the compiled operation (curried / data-last)
+//   op(s1, ..., sn)  the compiled chain, up to three schemas
+//   op(s..., data)   immediate, schema-first
+//   op(data, s...)   immediate, data-first
+//
+// Three schemas is the ceiling - it is ReScript's ~from/~via/~to; a longer
+// chain is written `.with(S.to, ...)`.
+//
+// Nine arity-discriminated overloads each rather than a rest tuple: dedicated
+// arity overloads resolve far cheaper (see `with` above), and `(...schemas,
+// data)` is inexpressible because a rest parameter must be last. The chain
+// overloads precede the `(s, data)` ones, so `op(s1, s2)` never reads as
+// "parse a schema as data" - which is why parsing a Sury schema as data is
+// available only through the compiled form, `S.parseOrThrow(Meta)(schema)`.
+//
+// Measured, against the three-overload surface these replaced: the compiled
+// form costs exactly what it used to (95 instantiations over the schema's own),
+// and the immediate forms - which had no equivalent - cost 22 to 61 more. The
+// arity-3 and arity-4 overloads are free: dropping them moves nothing.
+//
+// Papercut: `data` typed `any` (an untyped `req.body`) matches the chain
+// overload on a two-argument call and yields a function rather than a value. It
+// fails at the assignment, not silently - type operation inputs `unknown`.
 
 /**
- * Async flavor of `assertInput` for schemas with async transformations. The
- * promise rejects with a Sury error on invalid input; TypeScript can't express
- * an async type predicate, so no narrowing happens.
+ * Decodes an unknown value to the schema's Output.
+ *
+ * Throws `S.Error` on failure.
  */
-export function asyncAssertInput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
+export function parseOrThrow<TOutput>(
+  schema: SchemaLike<unknown, TOutput>
+): (data: unknown) => TOutput;
+export function parseOrThrow<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): (data: unknown) => TOutput;
+export function parseOrThrow<TOutput>(
+  schema: SchemaLike<unknown, TOutput>,
   data: unknown
-): Promise<void>;
-export function asyncAssertInput<TInput, TOutput>(
+): TOutput;
+export function parseOrThrow<TOutput>(
   data: unknown,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<void>;
-
-export function asyncAssertOutput<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>,
+  schema: SchemaLike<unknown, TOutput>
+): TOutput;
+export function parseOrThrow<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): (data: unknown) => TOutput;
+export function parseOrThrow<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>,
   data: unknown
-): Promise<void>;
-export function asyncAssertOutput<TInput, TOutput>(
+): TOutput;
+export function parseOrThrow<TOutput>(
   data: unknown,
-  schema: SchemaLike<TInput, TOutput>
-): Promise<void>;
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): TOutput;
+export function parseOrThrow<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>,
+  data: unknown
+): TOutput;
+export function parseOrThrow<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): TOutput;
 
-export function inputValidator<TInput, TOutput>(
+/**
+ * Decodes an unknown value to the schema's Output.
+ *
+ * The failure comes back in the return type. A `DefectError` - a schema
+ * wired wrong, which fails for every input - still throws: it is raised where
+ * the operation is created.
+ */
+export function parseAsResult<TOutput>(
+  schema: SchemaLike<unknown, TOutput>
+): (data: unknown) => Result<TOutput>;
+export function parseAsResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): (data: unknown) => Result<TOutput>;
+export function parseAsResult<TOutput>(
+  schema: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Result<TOutput>;
+export function parseAsResult<TOutput>(
+  data: unknown,
+  schema: SchemaLike<unknown, TOutput>
+): Result<TOutput>;
+export function parseAsResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): (data: unknown) => Result<TOutput>;
+export function parseAsResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Result<TOutput>;
+export function parseAsResult<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): Result<TOutput>;
+export function parseAsResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Result<TOutput>;
+export function parseAsResult<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): Result<TOutput>;
+
+/**
+ * Decodes an unknown value to the schema's Output.
+ *
+ * For a schema with an async conversion; the promise rejects with an
+ * `S.Error` on failure. A synchronous schema is lifted into a promise too, so
+ * the return type holds either way.
+ */
+export function parseAsPromiseOrReject<TOutput>(
+  schema: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promise<TOutput>;
+export function parseAsPromiseOrReject<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promise<TOutput>;
+export function parseAsPromiseOrReject<TOutput>(
+  schema: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promise<TOutput>;
+export function parseAsPromiseOrReject<TOutput>(
+  data: unknown,
+  schema: SchemaLike<unknown, TOutput>
+): Promise<TOutput>;
+export function parseAsPromiseOrReject<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promise<TOutput>;
+export function parseAsPromiseOrReject<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promise<TOutput>;
+export function parseAsPromiseOrReject<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): Promise<TOutput>;
+export function parseAsPromiseOrReject<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promise<TOutput>;
+export function parseAsPromiseOrReject<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): Promise<TOutput>;
+
+/**
+ * Decodes an unknown value to the schema's Output.
+ *
+ * `AsPromiseOrReject` with the failure in the type instead of the rejection.
+ */
+export function parseAsResultPromise<TOutput>(
+  schema: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promise<Result<TOutput>>;
+export function parseAsResultPromise<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promise<Result<TOutput>>;
+export function parseAsResultPromise<TOutput>(
+  schema: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promise<Result<TOutput>>;
+export function parseAsResultPromise<TOutput>(
+  data: unknown,
+  schema: SchemaLike<unknown, TOutput>
+): Promise<Result<TOutput>>;
+export function parseAsResultPromise<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promise<Result<TOutput>>;
+export function parseAsResultPromise<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promise<Result<TOutput>>;
+export function parseAsResultPromise<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): Promise<Result<TOutput>>;
+export function parseAsResultPromise<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promise<Result<TOutput>>;
+export function parseAsResultPromise<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): Promise<Result<TOutput>>;
+
+/**
+ * Decodes an unknown value to the schema's Output.
+ *
+ * The Result outcome without committing to a shape: a synchronous schema
+ * answers with the `Result` itself, an async one with a promise of it. One
+ * compiled operation covers both, so a caller that doesn't know a schema's
+ * async-ness doesn't have to lift every answer into a promise to find out.
+ * There is no promisable THROWING variant: two shapes to branch on is
+ * already the cost of not knowing, and by then you know.
+ */
+export function parseAsPromisableResult<TOutput>(
+  schema: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  schema: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  data: unknown,
+  schema: SchemaLike<unknown, TOutput>
+): Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): (data: unknown) => Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, TOutput>
+): Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>,
+  data: unknown
+): Promisable<Result<TOutput>>;
+export function parseAsPromisableResult<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, TOutput>
+): Promisable<Result<TOutput>>;
+
+/**
+ * Runs the schema's decode direction: Input to Output.
+ *
+ * Throws `S.Error` on failure.
+ */
+export function decodeOrThrow<S extends AnySchema>(
+  schema: S
+): (data: Input<S>) => Output<S>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Input<SInput>) => Output<SOutput>;
+export function decodeOrThrow<S extends AnySchema>(
+  schema: S,
+  data: Input<S>
+): Output<S>;
+export function decodeOrThrow<S extends AnySchema>(
+  data: Input<S>,
+  schema: S
+): Output<S>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Input<SInput>) => Output<SOutput>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Input<SInput>
+): Output<SOutput>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Output<SOutput>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Input<SInput>
+): Output<SOutput>;
+export function decodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Output<SOutput>;
+
+/**
+ * Runs the schema's decode direction: Input to Output.
+ *
+ * The failure comes back in the return type. A `DefectError` - a schema
+ * wired wrong, which fails for every input - still throws: it is raised where
+ * the operation is created.
+ */
+export function decodeAsResult<S extends AnySchema>(
+  schema: S
+): (data: Input<S>) => Result<Output<S>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Input<SInput>) => Result<Output<SOutput>>;
+export function decodeAsResult<S extends AnySchema>(
+  schema: S,
+  data: Input<S>
+): Result<Output<S>>;
+export function decodeAsResult<S extends AnySchema>(
+  data: Input<S>,
+  schema: S
+): Result<Output<S>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Input<SInput>) => Result<Output<SOutput>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Input<SInput>
+): Result<Output<SOutput>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Result<Output<SOutput>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Input<SInput>
+): Result<Output<SOutput>>;
+export function decodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Result<Output<SOutput>>;
+
+/**
+ * Runs the schema's decode direction: Input to Output.
+ *
+ * For a schema with an async conversion; the promise rejects with an
+ * `S.Error` on failure. A synchronous schema is lifted into a promise too, so
+ * the return type holds either way.
+ */
+export function decodeAsPromiseOrReject<S extends AnySchema>(
+  schema: S
+): (data: Input<S>) => Promise<Output<S>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Input<SInput>) => Promise<Output<SOutput>>;
+export function decodeAsPromiseOrReject<S extends AnySchema>(
+  schema: S,
+  data: Input<S>
+): Promise<Output<S>>;
+export function decodeAsPromiseOrReject<S extends AnySchema>(
+  data: Input<S>,
+  schema: S
+): Promise<Output<S>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Input<SInput>) => Promise<Output<SOutput>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Input<SInput>
+): Promise<Output<SOutput>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promise<Output<SOutput>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Input<SInput>
+): Promise<Output<SOutput>>;
+export function decodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promise<Output<SOutput>>;
+
+/**
+ * Runs the schema's decode direction: Input to Output.
+ *
+ * `AsPromiseOrReject` with the failure in the type instead of the rejection.
+ */
+export function decodeAsResultPromise<S extends AnySchema>(
+  schema: S
+): (data: Input<S>) => Promise<Result<Output<S>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Input<SInput>) => Promise<Result<Output<SOutput>>>;
+export function decodeAsResultPromise<S extends AnySchema>(
+  schema: S,
+  data: Input<S>
+): Promise<Result<Output<S>>>;
+export function decodeAsResultPromise<S extends AnySchema>(
+  data: Input<S>,
+  schema: S
+): Promise<Result<Output<S>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Input<SInput>) => Promise<Result<Output<SOutput>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Input<SInput>
+): Promise<Result<Output<SOutput>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promise<Result<Output<SOutput>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Input<SInput>
+): Promise<Result<Output<SOutput>>>;
+export function decodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promise<Result<Output<SOutput>>>;
+
+/**
+ * Runs the schema's decode direction: Input to Output.
+ *
+ * The Result outcome without committing to a shape: a synchronous schema
+ * answers with the `Result` itself, an async one with a promise of it. One
+ * compiled operation covers both, so a caller that doesn't know a schema's
+ * async-ness doesn't have to lift every answer into a promise to find out.
+ * There is no promisable THROWING variant: two shapes to branch on is
+ * already the cost of not knowing, and by then you know.
+ */
+export function decodeAsPromisableResult<S extends AnySchema>(
+  schema: S
+): (data: Input<S>) => Promisable<Result<Output<S>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Input<SInput>) => Promisable<Result<Output<SOutput>>>;
+export function decodeAsPromisableResult<S extends AnySchema>(
+  schema: S,
+  data: Input<S>
+): Promisable<Result<Output<S>>>;
+export function decodeAsPromisableResult<S extends AnySchema>(
+  data: Input<S>,
+  schema: S
+): Promisable<Result<Output<S>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Input<SInput>) => Promisable<Result<Output<SOutput>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Input<SInput>
+): Promisable<Result<Output<SOutput>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promisable<Result<Output<SOutput>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Input<SInput>
+): Promisable<Result<Output<SOutput>>>;
+export function decodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Input<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promisable<Result<Output<SOutput>>>;
+
+/**
+ * Runs the schema's encode direction: Output back to Input. Only the first
+ * schema is reversed, so a chain after it reads exactly as in `decode`.
+ *
+ * Throws `S.Error` on failure.
+ */
+export function encodeOrThrow<S extends AnySchema>(
+  schema: S
+): (data: Output<S>) => Input<S>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Output<SInput>) => Output<SOutput>;
+export function encodeOrThrow<S extends AnySchema>(
+  schema: S,
+  data: Output<S>
+): Input<S>;
+export function encodeOrThrow<S extends AnySchema>(
+  data: Output<S>,
+  schema: S
+): Input<S>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Output<SInput>) => Output<SOutput>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Output<SInput>
+): Output<SOutput>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Output<SOutput>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Output<SInput>
+): Output<SOutput>;
+export function encodeOrThrow<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Output<SOutput>;
+
+/**
+ * Runs the schema's encode direction: Output back to Input. Only the first
+ * schema is reversed, so a chain after it reads exactly as in `decode`.
+ *
+ * The failure comes back in the return type. A `DefectError` - a schema
+ * wired wrong, which fails for every input - still throws: it is raised where
+ * the operation is created.
+ */
+export function encodeAsResult<S extends AnySchema>(
+  schema: S
+): (data: Output<S>) => Result<Input<S>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Output<SInput>) => Result<Output<SOutput>>;
+export function encodeAsResult<S extends AnySchema>(
+  schema: S,
+  data: Output<S>
+): Result<Input<S>>;
+export function encodeAsResult<S extends AnySchema>(
+  data: Output<S>,
+  schema: S
+): Result<Input<S>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Output<SInput>) => Result<Output<SOutput>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Output<SInput>
+): Result<Output<SOutput>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Result<Output<SOutput>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Output<SInput>
+): Result<Output<SOutput>>;
+export function encodeAsResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Result<Output<SOutput>>;
+
+/**
+ * Runs the schema's encode direction: Output back to Input. Only the first
+ * schema is reversed, so a chain after it reads exactly as in `decode`.
+ *
+ * For a schema with an async conversion; the promise rejects with an
+ * `S.Error` on failure. A synchronous schema is lifted into a promise too, so
+ * the return type holds either way.
+ */
+export function encodeAsPromiseOrReject<S extends AnySchema>(
+  schema: S
+): (data: Output<S>) => Promise<Input<S>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Output<SInput>) => Promise<Output<SOutput>>;
+export function encodeAsPromiseOrReject<S extends AnySchema>(
+  schema: S,
+  data: Output<S>
+): Promise<Input<S>>;
+export function encodeAsPromiseOrReject<S extends AnySchema>(
+  data: Output<S>,
+  schema: S
+): Promise<Input<S>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Output<SInput>) => Promise<Output<SOutput>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Output<SInput>
+): Promise<Output<SOutput>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promise<Output<SOutput>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Output<SInput>
+): Promise<Output<SOutput>>;
+export function encodeAsPromiseOrReject<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promise<Output<SOutput>>;
+
+/**
+ * Runs the schema's encode direction: Output back to Input. Only the first
+ * schema is reversed, so a chain after it reads exactly as in `decode`.
+ *
+ * `AsPromiseOrReject` with the failure in the type instead of the rejection.
+ */
+export function encodeAsResultPromise<S extends AnySchema>(
+  schema: S
+): (data: Output<S>) => Promise<Result<Input<S>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Output<SInput>) => Promise<Result<Output<SOutput>>>;
+export function encodeAsResultPromise<S extends AnySchema>(
+  schema: S,
+  data: Output<S>
+): Promise<Result<Input<S>>>;
+export function encodeAsResultPromise<S extends AnySchema>(
+  data: Output<S>,
+  schema: S
+): Promise<Result<Input<S>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Output<SInput>) => Promise<Result<Output<SOutput>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Output<SInput>
+): Promise<Result<Output<SOutput>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promise<Result<Output<SOutput>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Output<SInput>
+): Promise<Result<Output<SOutput>>>;
+export function encodeAsResultPromise<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promise<Result<Output<SOutput>>>;
+
+/**
+ * Runs the schema's encode direction: Output back to Input. Only the first
+ * schema is reversed, so a chain after it reads exactly as in `decode`.
+ *
+ * The Result outcome without committing to a shape: a synchronous schema
+ * answers with the `Result` itself, an async one with a promise of it. One
+ * compiled operation covers both, so a caller that doesn't know a schema's
+ * async-ness doesn't have to lift every answer into a promise to find out.
+ * There is no promisable THROWING variant: two shapes to branch on is
+ * already the cost of not knowing, and by then you know.
+ */
+export function encodeAsPromisableResult<S extends AnySchema>(
+  schema: S
+): (data: Output<S>) => Promisable<Result<Input<S>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput
+): (data: Output<SInput>) => Promisable<Result<Output<SOutput>>>;
+export function encodeAsPromisableResult<S extends AnySchema>(
+  schema: S,
+  data: Output<S>
+): Promisable<Result<Input<S>>>;
+export function encodeAsPromisableResult<S extends AnySchema>(
+  data: Output<S>,
+  schema: S
+): Promisable<Result<Input<S>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): (data: Output<SInput>) => Promisable<Result<Output<SOutput>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: SOutput,
+  data: Output<SInput>
+): Promisable<Result<Output<SOutput>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: SOutput
+): Promisable<Result<Output<SOutput>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput,
+  data: Output<SInput>
+): Promisable<Result<Output<SOutput>>>;
+export function encodeAsPromisableResult<SInput extends AnySchema, SOutput extends AnySchema>(
+  data: Output<SInput>,
+  s1: SInput,
+  s2: AnySchema,
+  s3: SOutput
+): Promisable<Result<Output<SOutput>>>;
+
+/**
+ * Validates a value against the schema's Input and hands back the value
+ * itself - checks, conversion and refinements all run, but the result is
+ * discarded, so the value keeps its identity rather than becoming a decoded
+ * clone.
+ *
+ * Throws `S.Error` on failure.
+ */
+export function makeInputOrThrow<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Input<S>>) => Input<S>;
+export function makeInputOrThrow<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Input<S>>
+): Input<S>;
+export function makeInputOrThrow<S extends AnySchema>(
+  data: Unbranded<Input<S>>,
+  schema: S
+): Input<S>;
+
+/**
+ * Validates a value against the schema's Input and hands back the value
+ * itself - checks, conversion and refinements all run, but the result is
+ * discarded, so the value keeps its identity rather than becoming a decoded
+ * clone.
+ *
+ * The failure comes back in the return type. A `DefectError` - a schema
+ * wired wrong, which fails for every input - still throws: it is raised where
+ * the operation is created.
+ */
+export function makeInputAsResult<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Input<S>>) => Result<Input<S>>;
+export function makeInputAsResult<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Input<S>>
+): Result<Input<S>>;
+export function makeInputAsResult<S extends AnySchema>(
+  data: Unbranded<Input<S>>,
+  schema: S
+): Result<Input<S>>;
+
+/**
+ * Validates a value against the schema's Input and hands back the value
+ * itself - checks, conversion and refinements all run, but the result is
+ * discarded, so the value keeps its identity rather than becoming a decoded
+ * clone.
+ *
+ * For a schema with an async conversion; the promise rejects with an
+ * `S.Error` on failure. A synchronous schema is lifted into a promise too, so
+ * the return type holds either way.
+ */
+export function makeInputAsPromiseOrReject<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Input<S>>) => Promise<Input<S>>;
+export function makeInputAsPromiseOrReject<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Input<S>>
+): Promise<Input<S>>;
+export function makeInputAsPromiseOrReject<S extends AnySchema>(
+  data: Unbranded<Input<S>>,
+  schema: S
+): Promise<Input<S>>;
+
+/**
+ * Validates a value against the schema's Input and hands back the value
+ * itself - checks, conversion and refinements all run, but the result is
+ * discarded, so the value keeps its identity rather than becoming a decoded
+ * clone.
+ *
+ * `AsPromiseOrReject` with the failure in the type instead of the rejection.
+ */
+export function makeInputAsResultPromise<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Input<S>>) => Promise<Result<Input<S>>>;
+export function makeInputAsResultPromise<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Input<S>>
+): Promise<Result<Input<S>>>;
+export function makeInputAsResultPromise<S extends AnySchema>(
+  data: Unbranded<Input<S>>,
+  schema: S
+): Promise<Result<Input<S>>>;
+
+/**
+ * Validates a value against the schema's Input and hands back the value
+ * itself - checks, conversion and refinements all run, but the result is
+ * discarded, so the value keeps its identity rather than becoming a decoded
+ * clone.
+ *
+ * The Result outcome without committing to a shape: a synchronous schema
+ * answers with the `Result` itself, an async one with a promise of it. One
+ * compiled operation covers both, so a caller that doesn't know a schema's
+ * async-ness doesn't have to lift every answer into a promise to find out.
+ * There is no promisable THROWING variant: two shapes to branch on is
+ * already the cost of not knowing, and by then you know.
+ */
+export function makeInputAsPromisableResult<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Input<S>>) => Promisable<Result<Input<S>>>;
+export function makeInputAsPromisableResult<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Input<S>>
+): Promisable<Result<Input<S>>>;
+export function makeInputAsPromisableResult<S extends AnySchema>(
+  data: Unbranded<Input<S>>,
+  schema: S
+): Promisable<Result<Input<S>>>;
+
+/**
+ * `makeInput` for the Output side.
+ *
+ * Throws `S.Error` on failure.
+ */
+export function makeOutputOrThrow<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Output<S>>) => Output<S>;
+export function makeOutputOrThrow<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Output<S>>
+): Output<S>;
+export function makeOutputOrThrow<S extends AnySchema>(
+  data: Unbranded<Output<S>>,
+  schema: S
+): Output<S>;
+
+/**
+ * `makeInput` for the Output side.
+ *
+ * The failure comes back in the return type. A `DefectError` - a schema
+ * wired wrong, which fails for every input - still throws: it is raised where
+ * the operation is created.
+ */
+export function makeOutputAsResult<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Output<S>>) => Result<Output<S>>;
+export function makeOutputAsResult<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Output<S>>
+): Result<Output<S>>;
+export function makeOutputAsResult<S extends AnySchema>(
+  data: Unbranded<Output<S>>,
+  schema: S
+): Result<Output<S>>;
+
+/**
+ * `makeInput` for the Output side.
+ *
+ * For a schema with an async conversion; the promise rejects with an
+ * `S.Error` on failure. A synchronous schema is lifted into a promise too, so
+ * the return type holds either way.
+ */
+export function makeOutputAsPromiseOrReject<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Output<S>>) => Promise<Output<S>>;
+export function makeOutputAsPromiseOrReject<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Output<S>>
+): Promise<Output<S>>;
+export function makeOutputAsPromiseOrReject<S extends AnySchema>(
+  data: Unbranded<Output<S>>,
+  schema: S
+): Promise<Output<S>>;
+
+/**
+ * `makeInput` for the Output side.
+ *
+ * `AsPromiseOrReject` with the failure in the type instead of the rejection.
+ */
+export function makeOutputAsResultPromise<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Output<S>>) => Promise<Result<Output<S>>>;
+export function makeOutputAsResultPromise<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Output<S>>
+): Promise<Result<Output<S>>>;
+export function makeOutputAsResultPromise<S extends AnySchema>(
+  data: Unbranded<Output<S>>,
+  schema: S
+): Promise<Result<Output<S>>>;
+
+/**
+ * `makeInput` for the Output side.
+ *
+ * The Result outcome without committing to a shape: a synchronous schema
+ * answers with the `Result` itself, an async one with a promise of it. One
+ * compiled operation covers both, so a caller that doesn't know a schema's
+ * async-ness doesn't have to lift every answer into a promise to find out.
+ * There is no promisable THROWING variant: two shapes to branch on is
+ * already the cost of not knowing, and by then you know.
+ */
+export function makeOutputAsPromisableResult<S extends AnySchema>(
+  schema: S
+): (data: Unbranded<Output<S>>) => Promisable<Result<Output<S>>>;
+export function makeOutputAsPromisableResult<S extends AnySchema>(
+  schema: S,
+  data: Unbranded<Output<S>>
+): Promisable<Result<Output<S>>>;
+export function makeOutputAsPromisableResult<S extends AnySchema>(
+  data: Unbranded<Output<S>>,
+  schema: S
+): Promisable<Result<Output<S>>>;
+
+/**
+ * Whether the value is a valid Input for the schema. Never throws for a failed
+ * check - a schema wired wrong still throws, where the operation is created.
+ */
+export function isInput<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>
 ): (data: unknown) => data is TInput;
+export function isInput<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>
+): (data: unknown) => data is TInput;
+export function isInput<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: unknown
+): data is TInput;
+export function isInput<TInput, TOutput>(
+  data: unknown,
+  schema: SchemaLike<TInput, TOutput>
+): data is TInput;
+export function isInput<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): (data: unknown) => data is TInput;
+export function isInput<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  data: unknown
+): data is TInput;
+export function isInput<TInput>(
+  data: unknown,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>
+): data is TInput;
+export function isInput<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>,
+  data: unknown
+): data is TInput;
+export function isInput<TInput>(
+  data: unknown,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): data is TInput;
 
-export function outputValidator<TInput, TOutput>(
+/** `isInput` for the Output side. */
+export function isOutput<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>
 ): (data: unknown) => data is TOutput;
+export function isOutput<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>
+): (data: unknown) => data is TOutput;
+export function isOutput<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: unknown
+): data is TOutput;
+export function isOutput<TInput, TOutput>(
+  data: unknown,
+  schema: SchemaLike<TInput, TOutput>
+): data is TOutput;
+export function isOutput<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): (data: unknown) => data is TOutput;
+export function isOutput<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  data: unknown
+): data is TOutput;
+export function isOutput<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>
+): data is TOutput;
+export function isOutput<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>,
+  data: unknown
+): data is TOutput;
+export function isOutput<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): data is TOutput;
 
 /**
- * The value a constructor accepts for a branded schema: the brand is what the
- * constructor mints, so it can't also be what it demands.
+ * Whether two Input-side values are equal, by the schema's own structure:
+ * fields and elements compare by their own schemas, a `Date` by its time, a
+ * union by the member each value lands in, and a literal not at all.
+ *
+ * Both values are assumed to already match the schema - this compares, it does
+ * not validate - which is what lets it compile to a bare conjunction of reads.
+ * `S.isEqualInput(schema)` compiles once and is the form to hoist; the direct
+ * forms compile on first use and are cached per schema.
+ */
+export function isEqualInput<S extends AnySchema>(
+  schema: S
+): (a: Input<S>, b: Input<S>) => boolean;
+export function isEqualInput<S extends AnySchema>(
+  schema: S,
+  a: Input<S>,
+  b: Input<S>
+): boolean;
+export function isEqualInput<S extends AnySchema>(
+  a: Input<S>,
+  b: Input<S>,
+  schema: S
+): boolean;
+
+/** `isEqualInput` for the Output side. */
+export function isEqualOutput<S extends AnySchema>(
+  schema: S
+): (a: Output<S>, b: Output<S>) => boolean;
+export function isEqualOutput<S extends AnySchema>(
+  schema: S,
+  a: Output<S>,
+  b: Output<S>
+): boolean;
+export function isEqualOutput<S extends AnySchema>(
+  a: Output<S>,
+  b: Output<S>,
+  schema: S
+): boolean;
+
+/**
+ * `isInput` for a schema with an async conversion. Resolves to the answer and
+ * never rejects; TypeScript can't express an async type predicate, so no
+ * narrowing happens.
+ */
+export function isInputAsPromise<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>
+): (data: unknown) => Promise<boolean>;
+export function isInputAsPromise<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>
+): (data: unknown) => Promise<boolean>;
+export function isInputAsPromise<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: unknown
+): Promise<boolean>;
+export function isInputAsPromise<TInput, TOutput>(
+  data: unknown,
+  schema: SchemaLike<TInput, TOutput>
+): Promise<boolean>;
+export function isInputAsPromise<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): (data: unknown) => Promise<boolean>;
+export function isInputAsPromise<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  data: unknown
+): Promise<boolean>;
+export function isInputAsPromise<TInput>(
+  data: unknown,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>
+): Promise<boolean>;
+export function isInputAsPromise<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>,
+  data: unknown
+): Promise<boolean>;
+export function isInputAsPromise<TInput>(
+  data: unknown,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): Promise<boolean>;
+
+/** `isInputAsPromise` for the Output side. */
+export function isOutputAsPromise<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>
+): (data: unknown) => Promise<boolean>;
+export function isOutputAsPromise<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>
+): (data: unknown) => Promise<boolean>;
+export function isOutputAsPromise<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: unknown
+): Promise<boolean>;
+export function isOutputAsPromise<TInput, TOutput>(
+  data: unknown,
+  schema: SchemaLike<TInput, TOutput>
+): Promise<boolean>;
+export function isOutputAsPromise<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): (data: unknown) => Promise<boolean>;
+export function isOutputAsPromise<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  data: unknown
+): Promise<boolean>;
+export function isOutputAsPromise<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>
+): Promise<boolean>;
+export function isOutputAsPromise<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>,
+  data: unknown
+): Promise<boolean>;
+export function isOutputAsPromise<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): Promise<boolean>;
+
+/**
+ * Throws unless the value is a valid Input for the schema.
+ *
+ * `assert` keeps its `OrThrow` suffix against the rule that one names the
+ * failure mechanism only when the return type hides it: `assert` doesn't
+ * unambiguously mean "throws" in JS (`console.assert` logs and continues), and
+ * the async form returns `Promise<void>`, which reveals nothing.
+ *
+ * Only the immediate call forms narrow. TypeScript resolves an assertion
+ * signature only through a name with an explicit type annotation, so the
+ * compiled form is typed as a plain `(data: unknown) => void`.
+ */
+export function assertInputOrThrow<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>
+): (data: unknown) => void;
+export function assertInputOrThrow<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>
+): (data: unknown) => void;
+export function assertInputOrThrow<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: unknown
+): asserts data is TInput;
+export function assertInputOrThrow<TInput, TOutput>(
+  data: unknown,
+  schema: SchemaLike<TInput, TOutput>
+): asserts data is TInput;
+export function assertInputOrThrow<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): (data: unknown) => void;
+export function assertInputOrThrow<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  data: unknown
+): asserts data is TInput;
+export function assertInputOrThrow<TInput>(
+  data: unknown,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>
+): asserts data is TInput;
+export function assertInputOrThrow<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>,
+  data: unknown
+): asserts data is TInput;
+export function assertInputOrThrow<TInput>(
+  data: unknown,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): asserts data is TInput;
+
+/** `assertInputOrThrow` for the Output side. */
+export function assertOutputOrThrow<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>
+): (data: unknown) => void;
+export function assertOutputOrThrow<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>
+): (data: unknown) => void;
+export function assertOutputOrThrow<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: unknown
+): asserts data is TOutput;
+export function assertOutputOrThrow<TInput, TOutput>(
+  data: unknown,
+  schema: SchemaLike<TInput, TOutput>
+): asserts data is TOutput;
+export function assertOutputOrThrow<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): (data: unknown) => void;
+export function assertOutputOrThrow<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  data: unknown
+): asserts data is TOutput;
+export function assertOutputOrThrow<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>
+): asserts data is TOutput;
+export function assertOutputOrThrow<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>,
+  data: unknown
+): asserts data is TOutput;
+export function assertOutputOrThrow<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): asserts data is TOutput;
+
+/**
+ * `assertInputOrThrow` for a schema with an async conversion. The promise
+ * rejects with an `S.Error` on failure; TypeScript can't express an async type
+ * predicate, so no narrowing happens.
+ */
+export function assertInputAsPromiseOrReject<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>
+): (data: unknown) => Promise<void>;
+export function assertInputAsPromiseOrReject<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>
+): (data: unknown) => Promise<void>;
+export function assertInputAsPromiseOrReject<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: unknown
+): Promise<void>;
+export function assertInputAsPromiseOrReject<TInput, TOutput>(
+  data: unknown,
+  schema: SchemaLike<TInput, TOutput>
+): Promise<void>;
+export function assertInputAsPromiseOrReject<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): (data: unknown) => Promise<void>;
+export function assertInputAsPromiseOrReject<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  data: unknown
+): Promise<void>;
+export function assertInputAsPromiseOrReject<TInput>(
+  data: unknown,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>
+): Promise<void>;
+export function assertInputAsPromiseOrReject<TInput>(
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>,
+  data: unknown
+): Promise<void>;
+export function assertInputAsPromiseOrReject<TInput>(
+  data: unknown,
+  s1: SchemaLike<TInput, unknown>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): Promise<void>;
+
+/** `assertInputAsPromiseOrReject` for the Output side. */
+export function assertOutputAsPromiseOrReject<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>
+): (data: unknown) => Promise<void>;
+export function assertOutputAsPromiseOrReject<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>
+): (data: unknown) => Promise<void>;
+export function assertOutputAsPromiseOrReject<TInput, TOutput>(
+  schema: SchemaLike<TInput, TOutput>,
+  data: unknown
+): Promise<void>;
+export function assertOutputAsPromiseOrReject<TInput, TOutput>(
+  data: unknown,
+  schema: SchemaLike<TInput, TOutput>
+): Promise<void>;
+export function assertOutputAsPromiseOrReject<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): (data: unknown) => Promise<void>;
+export function assertOutputAsPromiseOrReject<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  data: unknown
+): Promise<void>;
+export function assertOutputAsPromiseOrReject<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>
+): Promise<void>;
+export function assertOutputAsPromiseOrReject<TOutput>(
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>,
+  data: unknown
+): Promise<void>;
+export function assertOutputAsPromiseOrReject<TOutput>(
+  data: unknown,
+  s1: SchemaLike<unknown, TOutput>,
+  s2: SchemaLike<unknown, unknown>,
+  s3: SchemaLike<unknown, unknown>
+): Promise<void>;
+
+/**
+ * The value `makeInput`/`makeOutput` accepts for a branded schema: the brand is
+ * what they mint, so it can't also be what they demand.
  */
 type Unbranded<T> = T extends { readonly [" brand"]: [infer TValue, string] }
   ? TValue
   : T;
-
-export function inputConstructor<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (value: Unbranded<TInput>) => TInput;
-
-export function asyncInputConstructor<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (value: Unbranded<TInput>) => Promise<TInput>;
-
-export function outputConstructor<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (value: Unbranded<TOutput>) => TOutput;
-
-export function asyncOutputConstructor<TInput, TOutput>(
-  schema: SchemaLike<TInput, TOutput>
-): (value: Unbranded<TOutput>) => Promise<TOutput>;
 
 export function tuple<TInput extends unknown[], TOutput>(
   definer: (s: {
@@ -1033,7 +2460,7 @@ export function tuple<const T extends unknown[]>(
 
 // `SchemaLike<TInput, TOutput> | TDef` in ONE signature: a schema matches the
 // structural constituent and skips the recursive UnknownTo* machinery, only a
-// raw definition falls through to TDef. Must stay one signature — `.with` infers
+// raw definition falls through to TDef. Must stay one signature - `.with` infers
 // through a single call signature only, so any overload pair collapses
 // `schema.with(S.optional, …)` to Schema<unknown, unknown>.
 export function optional<
@@ -1186,7 +2613,8 @@ export type Meta<TOutput> = {
   title?: string;
   description?: string;
   deprecated?: boolean;
-  examples?: TOutput[];
+  /** Written as output values; validated and stored on the schema in input form. */
+  examples?: Unbranded<TOutput>[];
   errorMessage?: SchemaErrorMessage;
 };
 
@@ -1195,8 +2623,8 @@ export function meta<TInput, TOutput>(
   meta: Meta<TOutput>
 ): Schema<TInput, TOutput>;
 
-export function inputExpression(schema: SchemaLike<unknown, unknown>): string;
-export function outputExpression(schema: SchemaLike<unknown, unknown>): string;
+export function toInputExpression(schema: SchemaLike<unknown, unknown>): string;
+export function toOutputExpression(schema: SchemaLike<unknown, unknown>): string;
 /**
  * Renders a path the way an error message shows it: `user.tags[2]`,
  * `["my key"]`. The same renderer `Error.message` uses.
@@ -1244,11 +2672,11 @@ export const multipleOf: <TInput, TOutput extends number | bigint>(
 
 // A literal bound is arity, so the refined type says so; a `number`-typed
 // bound narrows nothing. A bound may retype the input side only when the input
-// is the same value as the bounded output — a codec's input is a different
+// is the same value as the bounded output - a codec's input is a different
 // value and its length says nothing about it.
 //
 // `Tail` follows the N fixed elements: empty for an exact bound, `E[]` for a
-// lower one. The 64 cap bails to `E[]` — past it TypeScript's recursion limit
+// lower one. The 64 cap bails to `E[]` - past it TypeScript's recursion limit
 // is nearer than the worth of a spelled-out tuple, and a fractional or huge
 // bound would compile-error instead of failing at runtime as it already does.
 type Repeat<E, N extends number, Acc extends unknown[], Tail extends unknown[]> =
@@ -1278,7 +2706,7 @@ type Sized<T, N extends number> = number extends N
 // `Bounded<T, N, Exact>` instantiates the discrimination at every use and
 // regressed every spec that touches a bound.
 //
-// No string case: TypeScript can't say "at least N characters" — each segment
+// No string case: TypeScript can't say "at least N characters" - each segment
 // of `${string}${string}` matches `""`, so it collapses to `string`. Only the
 // exact bound reaches a string type, at `""`.
 type AtLeast<T, N extends number> = number extends N
@@ -1373,7 +2801,7 @@ type Coder<A, B> = { bivarianceHack(value: A): B }["bivarianceHack"];
  * async coder as `{async}`. Async is declared rather than discovered, because
  * Sury compiles operations ahead of time.
  *
- * `"pack"` and `"unpack"` are not coders — they say which of the two built-in
+ * `"pack"` and `"unpack"` are not coders - they say which of the two built-in
  * readings a carrier/format pair takes, each naming what its own direction does
  * to its own source: `"unpack"` opens it and hands the payload on, `"pack"`
  * stores its value. One direction must be the opposite of the other. A bare
@@ -1414,42 +2842,42 @@ export function to<
 // each one gets its own overload. Falling back to the widest type for a
 // non-literal target is what keeps a caller holding `target` in a variable
 // compiling.
-export function inputJSONSchema<TInput, TOutput>(
+export function toInputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>
 ): JSONSchema7;
-export function inputJSONSchema<TInput, TOutput>(
+export function toInputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target?: "draft-07" }
 ): JSONSchema7;
-export function inputJSONSchema<TInput, TOutput>(
+export function toInputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: "draft-2020-12" }
 ): JSONSchema2020;
-export function inputJSONSchema<TInput, TOutput>(
+export function toInputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: "openapi-3.0" }
 ): OpenAPISchema30;
-export function inputJSONSchema<TInput, TOutput>(
+export function toInputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: StandardJSONSchemaV1.Target }
 ): JSONSchema;
 
-export function outputJSONSchema<TInput, TOutput>(
+export function toOutputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>
 ): JSONSchema7;
-export function outputJSONSchema<TInput, TOutput>(
+export function toOutputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target?: "draft-07" }
 ): JSONSchema7;
-export function outputJSONSchema<TInput, TOutput>(
+export function toOutputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: "draft-2020-12" }
 ): JSONSchema2020;
-export function outputJSONSchema<TInput, TOutput>(
+export function toOutputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: "openapi-3.0" }
 ): OpenAPISchema30;
-export function outputJSONSchema<TInput, TOutput>(
+export function toOutputJSONSchemaOrThrow<TInput, TOutput>(
   schema: SchemaLike<TInput, TOutput>,
   options: { target: StandardJSONSchemaV1.Target }
 ): JSONSchema;
@@ -1457,22 +2885,22 @@ export function outputJSONSchema<TInput, TOutput>(
  * Builds a schema from a JSON Schema at runtime.
  *
  * A document written inline is validated and typed, following a `$ref` into the
- * same document — recursive ones included. A `$ref` leading outside it (a URL,
+ * same document - recursive ones included. A `$ref` leading outside it (a URL,
  * a `urn:`, an `$anchor`, a `$id` base) throws, so bundle first. To also have
  * TypeScript check the document itself, annotate it:
- * `{ ... } satisfies S.JSONSchema` — the annotation widens literals (e.g.
+ * `{ ... } satisfies S.JSONSchema` - the annotation widens literals (e.g.
  * `required`, `enum`), so the inferred type gets wider too.
  *
- * A schema read from a file or an API needs no cast — a non-literal argument
+ * A schema read from a file or an API needs no cast - a non-literal argument
  * (`unknown`, `S.JSON`, a dialect type) falls back to `Schema<JSON, JSON>`.
  * Use `S.to` to refine it further.
  */
-export function fromJSONSchema<
+export function fromJSONSchemaOrThrow<
   const T extends { type: "string" | "number" | "integer" | "boolean" | "null" },
 >(
   jsonSchema: T
 ): Schema<FromJSONSchema<T>>;
-export function fromJSONSchema<const T = unknown>(
+export function fromJSONSchemaOrThrow<const T = unknown>(
   jsonSchema: T
 ): Schema<FromJSONSchema<T>, FromJSONSchemaOutput<T>>;
 export function extendJSONSchema<TInput, TOutput>(

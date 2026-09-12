@@ -143,7 +143,7 @@ test("Fails to encode Function to JSON", t => {
   let schema = S.literal(fn)
   t->U.assertThrowsMessage(
     () => fn->S.convertOrThrow(~from=schema, ~to=S.json),
-    `Can't decode Function to JSON. Use S.to to define a custom decoder`,
+    `Can't decode Function -> JSON. Define custom codec with S.to`,
   )
 })
 
@@ -153,7 +153,7 @@ test("Fails to encode Error literal to JSON", t => {
 
   t->U.assertThrowsMessage(
     () => error->S.convertOrThrow(~from=schema, ~to=S.json),
-    `Can't decode Error to JSON. Use S.to to define a custom decoder`,
+    `Can't decode Error -> JSON. Define custom codec with S.to`,
   )
   t->Assert.is(error->S.convertOrThrow(~from=schema, ~to=S.unknown), error)
   t->U.assertThrowsMessage(
@@ -167,7 +167,7 @@ test("Fails to encode Symbol to JSON", t => {
   let schema = S.literal(symbol)
   t->U.assertThrowsMessage(
     () => symbol->S.convertOrThrow(~from=schema, ~to=S.json),
-    `Can't decode Symbol() to JSON. Use S.to to define a custom decoder`,
+    `Can't decode Symbol() -> JSON. Define custom codec with S.to`,
   )
 })
 
@@ -361,13 +361,13 @@ module SerializesDeepRecursive = {
     t->U.assertCompiledCode(
       ~schema=bodySchema,
       ~op=#Encode,
-      `i=>{let v0;try{v0=e[0](i["condition"]);}catch(v1){v1.path=["condition",...v1.path];throw v1}return {condition:v0}}`,
+      `i=>{let v0;try{v0=e[0](i.condition);}catch(v1){v1.path=["condition",...v1.path];throw v1}return {condition:v0}}`,
     )
     // Note: Can be optimized to not recursively validate JSON values a second time
     t->U.assertCompiledCode(
       ~schema=bodySchema,
       ~op=#EncodeToJson,
-      `i=>{let v0;try{v0=e[0](i["condition"]);}catch(v1){v1.path=["condition",...v1.path];throw v1}try{e[1](v0);}catch(v2){v2.path=["condition",...v2.path];throw v2}return {condition:v0}}`,
+      `i=>{let v0;try{v0=e[0](i.condition);}catch(v1){v1.path=["condition",...v1.path];throw v1}try{e[1](v0);}catch(v2){v2.path=["condition",...v2.path];throw v2}return {condition:v0}}`,
     )
 
     t->Assert.deepEqual(

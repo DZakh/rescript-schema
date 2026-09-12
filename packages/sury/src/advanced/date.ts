@@ -1,4 +1,4 @@
-// `S.date` — an ISO string on the JSON side, a `Date` on ours.
+// `S.date` - an ISO string on the JSON side, a `Date` on ours.
 
 import {
   initSchema,
@@ -9,12 +9,11 @@ import {
   type Val
 } from "../base";
 import {
- _var,
  B_embedInvalidInput,
  B_next,
+ B_nextVar,
  B_refine,
  B_unsupportedDecode,
- B_varWithoutAllocation,
  failInvalidType
 } from "../builder";
 import {
@@ -37,7 +36,7 @@ export const invalidDateRefine = (input: Val): Val => {
 // The `toISOString()` result, described once. It outlives the encoder call: it
 // becomes the enclosing object's property schema and is reached later as another
 // operation's target, so it needs a real decoder (#369) and a stable identity
-// for the seq-keyed operation cache — a fresh copy per compilation was both the
+// for the seq-keyed operation cache - a fresh copy per compilation was both the
 // bug and a cache miss.
 const dateTimeString: Internal = /* @__PURE__ */ initSchema(
   stringTag,
@@ -45,7 +44,7 @@ const dateTimeString: Internal = /* @__PURE__ */ initSchema(
   (s) => {
     s.format = "date-time";
     // `toISOString()` emits only digits, `-:.TZ` and a sign.
-    s.escapeFree = true;
+    s.formatFlag = 1;
   },
 );
 
@@ -73,7 +72,7 @@ export const date: Internal = /* @__PURE__ */ initSchema(
       const toTagFlag = tagFlags[target.type]!;
       if ((toTagFlag & 2)) {
         // `toISOString()` throws a bare RangeError on an invalid Date, which
-        // carries no path and never matches `S.Raised` — so the throw is
+        // carries no path and never matches `S.Raised` - so the throw is
         // caught and reported against the Date node (`input.s`), which names
         // `Date` in the error. A try/catch costs a valid Date nothing, where a
         // `getTime()` check would run on every encode.
@@ -83,14 +82,11 @@ export const date: Internal = /* @__PURE__ */ initSchema(
         // the `Date`, which stringifies to "Wed Jan 01 2020 …" and never
         // matches.
         // `noValidation` on the Date is the promise it is valid, so the raw
-        // call stays.
         if (input.s.noValidation) {
           return parse(B_refine(B_next(input, `${input.i}.toISOString()`, dateTimeString, target)));
         }
-        const outputVar = B_varWithoutAllocation(input.g);
-        const output = B_next(input, outputVar, dateTimeString, target);
-        output.v = _var;
-        output.cp = `let ${outputVar};try{${outputVar}=${input.v()}.toISOString()}catch(_){${B_embedInvalidInput(
+        const output = B_nextVar(input, dateTimeString, target);
+        output.cp = `let ${output.i};try{${output.i}=${input.v()}.toISOString()}catch(_){${B_embedInvalidInput(
           input,
           input.s,
         )}}`;

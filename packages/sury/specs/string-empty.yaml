@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "string", minLength: 0, maxLength: 0 }'
   output: '{ type: "string", minLength: 0, maxLength: 0 }'
+isEqual: strictEqual
 vs:
   zod:
     schema: z.string().length(0)

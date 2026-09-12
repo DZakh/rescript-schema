@@ -164,7 +164,7 @@ test("Successfully round-trips date through JSON", t => {
 
 // Regression guard: encoding a `@s.nullable option<Timestamp.t>` field (ppx-expanded
 // to `S.nullableAsOption(Timestamp.schema)`) used to throw `received invalid Date`
-// instead of serializing the Date back to a string. Parsing was never affected — only
+// instead of serializing the Date back to a string. Parsing was never affected - only
 // the reverse, where the union variant's type-check narrow dropped the member's encoder.
 
 module Timestamp = {
@@ -261,12 +261,12 @@ test("Encodes a nullable optional Timestamp whose input is string | number (issu
   // `Expected string | number, received Date`.
   //
   // There is no built-in number -> Date decoder, so the numeric member has to
-  // say how it converts (or that it can't) — the conversion is rejected where
+  // say how it converts (or that it can't) - the conversion is rejected where
   // it's written otherwise.
   let timestamp = S.union([S.string->S.castToUnknown, S.float->S.castToUnknown])->S.to(S.date)
   t->U.assertThrowsMessage(
     () => "2024-01-01T00:00:00.000Z"->S.parseOrThrow(~to=S.nullableAsOption(timestamp)),
-    `Can't decode number to Date. Use S.to to define a custom decoder`,
+    `Can't decode number -> Date. Define custom codec with S.to`,
   )
 
   let timestamp = S.union([
@@ -295,6 +295,6 @@ test("Encodes a nullable optional Timestamp whose input is string | number (issu
   t->U.assertCompiledCode(
     ~schema,
     ~op=#Encode,
-    `i=>{for(;;){if(i instanceof e[6]){for(;;){let r;try{let v0;try{v0=i.toISOString()}catch(_){e[0](i)}i=v0;break}catch(x){(r||(r=[])).push(e[4](x))}try{let v1;try{v1=e[1](i)}catch(x){e[2](x)}typeof v1==="number"&&v1===v1||e[3](v1);i=v1;break}catch(x){(r||(r=[])).push(e[4](x))}e[5](i,...(r||[]))};break}if(i===void 0)break;e[7](i)}return i}`,
+    `i=>{for(;;){if(i instanceof e[6]){for(;;){let r;try{let v0;try{v0=i.toISOString()}catch(_){e[0](i)}i=v0;break}catch(x){(r||(r=[])).push(e[4](x))}try{let v1;try{v1=e[1](i)}catch(x){e[2](x)}typeof v1==="number"&&v1==v1||e[3](v1);i=v1;break}catch(x){(r||(r=[])).push(e[4](x))}e[5](i,...(r||[]))};break}if(i===void 0)break;e[7](i)}return i}`,
   )
 })

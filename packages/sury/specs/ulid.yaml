@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "string", pattern: "^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$" }'
   output: '{ type: "string", pattern: "^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$" }'
+isEqual: strictEqual
 vs:
   zod: z.ulid()
 operations:
@@ -25,6 +26,9 @@ operations:
       timestamp-out-of-range:
         input: '"8ZZZZZZZZZZZZZZZZZZZZZZZZZ"'
         error: Expected ulid, received "8ZZZZZZZZZZZZZZZZZZZZZZZZZ"
+        divergence:
+          reason: z.ulid() does not bound the timestamp; S.ulid rejects a first character above 7
+          zod: '"8ZZZZZZZZZZZZZZZZZZZZZZZZZ"'
       excluded-letter-i:
         input: '"01ARZ3NDEKTSV4RRFFQ69G5FAI"'
         error: Expected ulid, received "01ARZ3NDEKTSV4RRFFQ69G5FAI"

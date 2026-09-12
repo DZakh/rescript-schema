@@ -5,14 +5,17 @@ ts:
   output: number
   instantiations: 4623
 jsonSchema:
-  input: Expected JSON, received unknown
+  input: "{}"
   output: '{ type: "number" }'
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: strictEqual
 vs:
   zod:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{typeof i==="number"&&i===i||e[0](i);return i}
+    expression: i=>{typeof i==="number"&&i==i||e[0](i);return i}
     examples:
       validating-downcast:
         input: "5"

@@ -35,8 +35,8 @@ export const runBundleSize = async (): Promise<BundleRow[]> => {
   const fileBytes = (descriptor as unknown as { FileDescriptorProto: { encode: (v: unknown) => { finish: () => Uint8Array } } }).FileDescriptorProto.encode(file).finish();
   const b64 = Buffer.from(fileBytes).toString("base64");
   const entries: Record<string, string> = {
-    "sury (encode+decode)": `import * as S from "sury"; const M = S.schema(${suryFields}); export const d = S.decoder(S.protobuf, M); export const e = S.decoder(M, S.protobuf);`,
-    "sury (decode only)": `import * as S from "sury"; const M = S.schema(${suryFields}); export const d = S.decoder(S.protobuf, M);`,
+    "sury (encode+decode)": `import * as S from "sury"; const M = S.schema(${suryFields}); export const d = S.decodeOrThrow(S.protobuf, M); export const e = S.decodeOrThrow(M, S.protobuf);`,
+    "sury (decode only)": `import * as S from "sury"; const M = S.schema(${suryFields}); export const d = S.decodeOrThrow(S.protobuf, M);`,
     "protobufjs reflect": `import protobuf from "protobufjs"; const T = protobuf.parse(${JSON.stringify(src)}).root.lookupType("M"); export const d = (b) => T.decode(b); export const e = (v) => T.encode(v).finish();`,
     "protobufjs static (encode+decode)": `import { M } from "./b-static.mjs"; export const d = (b) => M.decode(b); export const e = (v) => M.encode(v).finish();`,
     "protobufjs static (decode only)": `import { M } from "./b-static.mjs"; export const d = (b) => M.decode(b);`,

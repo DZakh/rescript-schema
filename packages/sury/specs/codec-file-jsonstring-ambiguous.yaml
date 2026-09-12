@@ -9,11 +9,13 @@ jsonSchema:
   output: '{ type: "string", contentMediaType: "application/json" }'
   openapi-3.0:
     output: '{ type: "string", format: "binary" }'
+isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable
 operations:
   parse:
-    creationError: 'SuryError: Ambiguous conversion from File to JSON string. Use S.to(from, to, "unpack" | "pack")'
+    creationError: 'SuryError: Ambiguous File -> JSON string. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'
   decode: eq-to-parse
-  encode: eq-to-parse
+  encode:
+    creationError: 'SuryError: Ambiguous JSON string -> File. Should the bytes be packed or unpacked? Choose with S.to and "pack" or "unpack"'

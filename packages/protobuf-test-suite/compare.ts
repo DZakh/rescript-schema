@@ -30,7 +30,7 @@ export const runCompare = async (opsPerCell = 3e6): Promise<CompareRow[]> => {
   };
   const rows: CompareRow[] = [];
   for (const work of WORKLOADS) {
-    const bytes = S.decoder(suryMessage(work.fields), S.protobuf)(work.value);
+    const bytes = S.decodeOrThrow(suryMessage(work.fields), S.protobuf)(work.value);
     const n = Math.max(20000, Math.round(opsPerCell / (bytes.length + 20)));
     for (const library of libraries) {
       const codec = await library.codec(work, bytes);

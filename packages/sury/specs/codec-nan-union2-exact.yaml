@@ -7,6 +7,9 @@ ts:
 jsonSchema:
   input: Expected JSON, received NaN
   output: Expected JSON, received NaN | string
+isEqual:
+  input: alwaysEqual
+  output: (a,b)=>a===b||(a!=a?b!=b:typeof b==="string"&&a===b)
 vs:
   zod:
     _skip: not-applicable
@@ -22,4 +25,4 @@ operations:
         error: Expected NaN, received 1
   decode: eq-to-parse
   encode:
-    creationError: "SuryError: Invalid operation: can't convert NaN | string to NaN — NaN has the same type as the target and the others don't. Use S.to to say what you mean, or S.never to mark a variant unreachable"
+    creationError: "SuryError: Ambiguous NaN | string -> NaN. Should string be decoded or ignored? Choose with S.to for string -> NaN, or S.never -> string"

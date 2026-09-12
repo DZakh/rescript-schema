@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: Expected JSON, received File.size <= 5
   output: Expected JSON, received File.size <= 5
+isEqual: strictEqual
 vs:
   zod: z.file().max(5)
 operations:

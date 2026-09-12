@@ -57,8 +57,8 @@ const bundleRow = (name: string): number => {
 
 const scoreWorkload = (work: Workload): WorkloadScore => {
   const schema = suryMessage(work.fields);
-  const encode = S.decoder(schema, S.protobuf);
-  const decode = S.decoder(S.protobuf, schema);
+  const encode = S.decodeOrThrow(schema, S.protobuf);
+  const decode = S.decodeOrThrow(S.protobuf, schema);
   const value = work.value;
   const bytes = encode(value);
   const pbjsType = protobufjsType(work.fields);

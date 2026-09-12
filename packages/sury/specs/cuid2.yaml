@@ -7,6 +7,7 @@ ts:
 jsonSchema:
   input: '{ type: "string", pattern: "^[a-z][0-9a-z]*$" }'
   output: '{ type: "string", pattern: "^[a-z][0-9a-z]*$" }'
+isEqual: strictEqual
 vs:
   zod: z.cuid2()
 operations:
@@ -22,6 +23,9 @@ operations:
       digit-first:
         input: '"9abc"'
         error: Expected cuid2, received "9abc"
+        divergence:
+          reason: z.cuid2() takes any lowercase alphanumeric string; S.cuid2 requires a letter first
+          zod: '"9abc"'
       uppercase:
         input: '"TZ4A98"'
         error: Expected cuid2, received "TZ4A98"

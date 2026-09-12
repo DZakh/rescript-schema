@@ -5,8 +5,12 @@ ts:
   output: string | bigint
   instantiations: 5506
 jsonSchema:
-  input: Expected JSON, received unknown
+  input: "{}"
+  fromInputType: JSON
   output: Expected JSON, received bigint | string
+isEqual:
+  input: (a,b)=>a===b||e[0](a,b)
+  output: strictEqual
 vs:
   zod:
     _skip: not-applicable
