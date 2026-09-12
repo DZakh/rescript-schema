@@ -29,6 +29,8 @@ npm install sury
 
 **API Reference:** [TypeScript](https://github.com/DZakh/sury/blob/main/docs/js-usage.md) | [ReScript](https://github.com/DZakh/sury/blob/main/docs/rescript-usage.md) | [ReScript PPX](https://github.com/DZakh/sury/blob/main/packages/sury-ppx/README.md)
 
+**Benchmarks:** [Schema](https://github.com/DZakh/sury/blob/main/docs/benchmarks/schema.md) | [JSON Encoding](https://github.com/DZakh/sury/blob/main/docs/benchmarks/jsonString.md) | [JSON Schema](https://github.com/DZakh/sury/blob/main/docs/benchmarks/jsonSchema.md) | [Protobuf](https://github.com/DZakh/sury/blob/main/docs/benchmarks/protobuf.md)
+
 ## Sponsors
 
 Sury's sponsors, who make the time to build it possible:
@@ -353,6 +355,8 @@ And the types stay readable. Hovering the event schema from [Why Sury](#why-sury
 ### Size & speed
 
 Measured with [this repo's comparison benchmark](https://github.com/DZakh/sury/tree/main/packages/e2e/src/benchmark) against `sury@11.0.0`, `zod@4.4.3`, `typebox@0.34.52`, `valibot@1.4.2`, `arktype@2.2.3`.
+
+The table below is a snapshot. [Benchmarks: Schema](https://github.com/DZakh/sury/blob/main/docs/benchmarks/schema.md) is regenerated on every push to main, and carries the bundle sizes, the feature probes and the Standard Schema conformance beside these numbers.
 
 |                                 | Sury           | Zod          | TypeBox                        | Valibot      | ArkType        |
 | ------------------------------- | -------------- | ------------ | ------------------------------ | ------------ | -------------- |

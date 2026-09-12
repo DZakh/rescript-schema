@@ -61,6 +61,10 @@
       "entry": ["cli.ts"],
       "project": ["**/*.ts"]
     },
+    "packages/benchmarks": {
+      "entry": ["cli.ts"],
+      "project": ["**/*.ts"]
+    },
     "packages/e2e": {
       "entry": ["src/**/*.bench.ts", "vitest.config.mjs"],
       "project": ["src/**/*.ts"],

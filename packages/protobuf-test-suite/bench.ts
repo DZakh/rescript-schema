@@ -312,14 +312,15 @@ const versionOf = (name: string, entry: string): string => {
   }
 };
 
+export const benchVersions = (): string[] => [
+  `sury ${versionOf("sury", "sury")}`,
+  `protobufjs ${versionOf("protobufjs", "protobufjs")}`,
+  `protobuf-es ${versionOf("@bufbuild/protobuf", "@bufbuild/protobuf")}`,
+  `pbf ${versionOf("pbf", "pbf")}`,
+];
+
 export const benchProvenance = (): string =>
-  [
-    `node ${process.version} · ${process.platform} ${process.arch}`,
-    `sury ${versionOf("sury", "sury")}`,
-    `protobufjs ${versionOf("protobufjs", "protobufjs")}`,
-    `protobuf-es ${versionOf("@bufbuild/protobuf", "@bufbuild/protobuf")}`,
-    `pbf ${versionOf("pbf", "pbf")}`,
-  ].join(" · ");
+  [`node ${process.version} · ${process.platform} ${process.arch}`, ...benchVersions()].join(" · ");
 
 export const formatBench = (rows: BenchRow[]): string => {
   const lines: string[] = [benchProvenance(), ""];
