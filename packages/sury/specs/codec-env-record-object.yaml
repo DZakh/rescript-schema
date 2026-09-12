@@ -1,11 +1,12 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: "S.record(S.env).with(S.to, S.schema({ PORT: S.port, DEBUG: S.boolean, NAME: S.optional(S.string) }))"
-  input: "{ [x: string]: string; }"
+  input: "{ [x: string]: string | undefined; }"
   output: "{ PORT: number; DEBUG: boolean; NAME?: string | undefined; }"
-  instantiations: 7000
+  instantiations: 7021
 jsonSchema:
   input: '{ type: "object", additionalProperties: { type: "string" } }'
+  fromInputType: "{ [key: string]: string; }"
   output: '{ type: "object", properties: { PORT: { type: "integer", minimum: 0, maximum: 65535 }, DEBUG: { type: "boolean" }, NAME: { type: "string" } }, required: ["PORT", "DEBUG"] }'
 isEqual:
   input: (a,b)=>{if(a===b)return true;let n=0;for(const k in a){if(!(k in b)||!(a[k]===b[k]))return false;n++}for(const k in b)n--;return !n}
@@ -15,7 +16,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[6](i);for(let v0 in i){try{let v1=i[v0];typeof v1==="string"||e[0](v1);}catch(v2){v2.path=[v0,...v2.path];throw v2}}let v3=i.PORT,v5=i.DEBUG,v7=i.NAME;if(v3!==void 0){let v4=+v3;v4==v4&&(v4||v3.trim())||e[2](v3);v4>=0&&v4<65536&&v4%1==0||e[1](v4);v3=v4;}else{e[3](v3)}if(v5!==void 0){let v6;(v6=v5==="true")||v5==="false"||e[4](v5);v5=v6;}else{e[5](v5)}if(v7!==void 0){v7=v7||void 0;}return {PORT:v3,DEBUG:v5,NAME:v7}}
+    expression: i=>{typeof i==="object"&&i&&!Array.isArray(i)||e[6](i);for(let v0 in i){try{let v1=i[v0];(typeof v1==="string"||v1===void 0)||e[0](v1);}catch(v2){v2.path=[v0,...v2.path];throw v2}}let v3=i.PORT,v5=i.DEBUG,v7=i.NAME;if(v3!==void 0){let v4=+v3;v4==v4&&(v4||v3.trim())||e[2](v3);v4>=0&&v4<65536&&v4%1==0||e[1](v4);v3=v4;}else{e[3](v3)}if(v5!==void 0){let v6;(v6=v5==="true")||v5==="false"||e[4](v5);v5=v6;}else{e[5](v5)}if(v7!==void 0){v7=v7||void 0;}return {PORT:v3,DEBUG:v5,NAME:v7}}
     examples:
       valid:
         input: '{ PORT: "8080", DEBUG: "true", NAME: "Ann" }'

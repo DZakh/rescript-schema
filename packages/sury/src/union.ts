@@ -591,7 +591,7 @@ const unionDiscriminator = (schema: Internal): UnionDiscriminator | undefined =>
 // the pair ambiguous nor converts (never `"undefined"` text), and the value is
 // rejected - `S.optional(X)` meets a single T as X -> T. A place for it:
 // `unknown`, a nullish type, a union, a recursive ref (`S.json` among them),
-// an env var (`""` is the unset one) or a JSON document string - the same test
+// an env var (unset, or `""`) or a JSON document string - the same test
 // composites.ts makes for an optional field encoded into a dict. Compared on
 // the side the other schema meets: output under rule 3, input under rule 2. A
 // list that would empty is kept whole: two literals, not a wrapper.
@@ -772,7 +772,9 @@ const unionAnalyze = (
           : d !== U
             ? 1
             : 2,
-      k: tag & 8192 ? s.class : s.type,
+      // An env var is `string | undefined`, so it never shares a string
+      // group's `typeof` dispatch.
+      k: tag & 8192 ? s.class : s.format === "env" ? s.format : s.type,
       n: unionNarrowSchema(s),
       r: tag & (64 | 8192)
         ? 64 | 8192

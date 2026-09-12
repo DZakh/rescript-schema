@@ -1,11 +1,12 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: S.env.with(S.to, S.optional(S.string))
-  input: string
+  input: string | undefined
   output: string | undefined
-  instantiations: 4599
+  instantiations: 4583
 jsonSchema:
   input: '{ type: "string" }'
+  fromInputType: string
   output: Expected JSON, received string | undefined
 isEqual: strictEqual
 vs:
@@ -13,7 +14,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{typeof i==="string"||e[0](i);i=i||void 0;return i}
+    expression: i=>{(typeof i==="string"||i===void 0)||e[0](i);i=i||void 0;return i}
     examples:
       set:
         input: '"x"'
@@ -23,7 +24,7 @@ operations:
         output: undefined
       unset:
         input: undefined
-        error: Expected env, received undefined
+        output: undefined
       number:
         input: "1"
         error: Expected env, received 1
@@ -37,11 +38,11 @@ operations:
         input: '""'
         output: undefined
   encode:
-    expression: i=>{for(;;){if(typeof i==="string")break;if(i===void 0){i="";break}e[0](i)}return i}
+    expression: i=>{(typeof i==="string"||i===void 0)||e[0](i);return i}
     examples:
       set:
         input: '"x"'
         output: '"x"'
       absent:
         input: undefined
-        output: '""'
+        output: undefined

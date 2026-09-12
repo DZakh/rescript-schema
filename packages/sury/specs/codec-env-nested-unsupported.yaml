@@ -1,11 +1,12 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: "S.record(S.env).with(S.to, S.schema({ user: S.schema({ name: S.string }) }))"
-  input: "{ [x: string]: string; }"
+  input: "{ [x: string]: string | undefined; }"
   output: "{ user: { name: string; }; }"
-  instantiations: 6473
+  instantiations: 6531
 jsonSchema:
   input: '{ type: "object", additionalProperties: { type: "string" } }'
+  fromInputType: "{ [key: string]: string; }"
   output: '{ type: "object", properties: { user: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } }, required: ["user"] }'
 isEqual:
   input: (a,b)=>{if(a===b)return true;let n=0;for(const k in a){if(!(k in b)||!(a[k]===b[k]))return false;n++}for(const k in b)n--;return !n}

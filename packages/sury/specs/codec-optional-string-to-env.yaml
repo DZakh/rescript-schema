@@ -2,25 +2,26 @@
 ts:
   schema: S.optional(S.string).with(S.to, S.env)
   input: string | undefined
-  output: string
-  instantiations: 4529
+  output: string | undefined
+  instantiations: 4550
 jsonSchema:
   input: Expected JSON, received string | undefined
   output: '{ type: "string" }'
+  fromOutputType: string
 isEqual: strictEqual
 vs:
   zod:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{for(;;){if(typeof i==="string")break;if(i===void 0){i="";break}e[0](i)}return i}
+    expression: i=>{(typeof i==="string"||i===void 0)||e[0](i);return i}
     examples:
       set:
         input: '"x"'
         output: '"x"'
       unset:
         input: undefined
-        output: '""'
+        output: undefined
       number:
         input: "1"
         error: Expected string | undefined, received 1

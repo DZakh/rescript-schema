@@ -152,15 +152,15 @@ single source that can't hold the value is a widened type, not a decoding: the
 arm is dropped, so it neither makes the operation ambiguous nor is ever
 produced, and the reverse rejects the value. A string in particular never reads
 the text `"undefined"` as it. Only a carrier keeps the arm: `unknown`, `S.json`
-and a `S.jsonString` document (as `null`), `S.env` (as `""`), a recursive
-schema.
+and a `S.jsonString` document (as `null`), `S.env` (an unset var), a
+recursive schema.
 
 ```ts
 S.parseOrThrow(S.string.with(S.to, S.optional(S.number)))("undefined");
 // throws - Expected number, received "undefined"
 S.parseOrThrow(S.string.with(S.to, S.optional(S.string)))("abc"); // "abc" - the arm is unreachable
 S.parseOrThrow(S.json.with(S.to, S.optional(S.string)))(null); // undefined - JSON holds it
-S.parseOrThrow(S.env.with(S.to, S.optional(S.string)))(""); // undefined - an unset var
+S.parseOrThrow(S.env.with(S.to, S.optional(S.string)))(""); // undefined - `""` is an unset var
 ```
 
 ## Rule 3: union → non-union
@@ -212,8 +212,8 @@ S.parseOrThrow(schema)(undefined); // throws - Expected string, received undefin
 S.optional(S.number).with(S.to, S.string); // ✅ 12 -> "12", undefined rejected, never "undefined"
 S.optional(S.string).with(S.to, S.string); // ✅ string -> string, undefined rejected
 S.optional(S.string).with(S.to, S.json); // ✅ undefined -> null, JSON holds it
-S.optional(S.string).with(S.to, S.env); // ✅ undefined -> "", an unset var
-S.optional(S.env).with(S.to, S.string); // ✅ string -> string, undefined rejected
+S.optional(S.string).with(S.to, S.env); // ✅ undefined -> undefined, an unset var
+S.env.with(S.to, S.string.with(S.minLength, 0)); // ✅ string -> string, undefined rejected
 ```
 
 Only the arm is dropped, so a union another member leaves ambiguous is still

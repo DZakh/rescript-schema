@@ -1353,16 +1353,14 @@ S.decodeOrThrow(process.env, S.record(S.env), envSchema);
 // { PORT: "8080", DEBUG: "true" } => { PORT: 8080, DEBUG: true, NAME: null }
 ```
 
-A single var is the same coercion. `process.env.PORT` may be unset, so the
-source is `S.optional(S.env)`. Converting to `S.port` reads the string and
-rejects a missing var:
+A single var is the same coercion. `S.env` is `string | undefined`, the way
+`process.env.PORT` is typed: `undefined` is the unset var, and so is `""`.
 
 ```ts
-S.decodeOrThrow(process.env.PORT, S.optional(S.env), S.port);
+S.decodeOrThrow(process.env.PORT, S.env, S.port); // unset -> Expected port, received undefined
+S.decodeOrThrow(process.env.NAME, S.env, S.optional(S.string)); // unset or "" -> undefined
+S.decodeOrThrow(process.env.BIO, S.env, S.string.with(S.minLength, 0)); // unset -> failure, "" -> ""
 ```
-
-The other way round, `S.env.with(S.to, S.optional(S.string))` reads `""` as
-`undefined` and writes `undefined` back as `""`.
 
 A missing key or empty string on a record field is absent (`S.optional`) or
 null (`S.nullable`). A required `S.string` must choose `S.nonEmpty` or

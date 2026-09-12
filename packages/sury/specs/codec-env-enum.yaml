@@ -1,11 +1,12 @@
 # yaml-language-server: $schema=./spec.schema.json
 ts:
   schema: S.env.with(S.to, S.union(["development", "production"]))
-  input: string
+  input: string | undefined
   output: '"development" | "production"'
   instantiations: 4952
 jsonSchema:
   input: '{ type: "string" }'
+  fromInputType: string
   output: '{ enum: ["development", "production"] }'
 isEqual: strictEqual
 vs:
@@ -13,7 +14,7 @@ vs:
     _skip: not-applicable
 operations:
   parse:
-    expression: i=>{typeof i==="string"||e[1](i);(i==="development"||i==="production")||e[0](i);return i}
+    expression: i=>{(typeof i==="string"||i===void 0)||e[1](i);(i==="development"||i==="production")||e[0](i);return i}
     examples:
       development:
         input: '"development"'
