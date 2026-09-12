@@ -7,6 +7,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "n
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { divergences } from "./checkSchema";
 import { PKG_DIR, UPSTREAM_COMMIT, ensureUpstream, runnerBinary, runnerVersion } from "./upstream";
 
 if (fileURLToPath(import.meta.url) !== process.argv[1]) {
@@ -19,7 +20,9 @@ const FAILURE_LIST = join(PKG_DIR, "failing_tests.txt");
 const red = (s: string): string => (process.stderr.isTTY ? `\x1b[31m${s}\x1b[0m` : s);
 const green = (s: string): string => (process.stdout.isTTY ? `\x1b[32m${s}\x1b[0m` : s);
 
-const fail = (msg: string): never => {
+// Annotated on the binding, not just the arrow: TS only narrows past a `never`
+// call when the declaration says so, and `upstream()` below relies on it.
+const fail: (msg: string) => never = (msg) => {
   console.error(red(msg));
   process.exit(1);
 };
@@ -32,6 +35,7 @@ Commands:
   check    Run and compare against goldens/conformance.json (default).
   update   Rewrite the golden from the current run.
   report   Print the runner's full log, every failing test named.
+  schema   Diff testMessages.ts against the pinned .proto, field by field.
 
 The runner is Google's own C++ conformance_test_runner, from the
 protobuf-conformance npm package that bufbuild/protobuf-conformance also uses.
@@ -120,12 +124,37 @@ const testProgram = (outputDir: string): string => {
   return path;
 };
 
-const run = (): Run => {
-  if (ensureUpstream({ offlineOk: true }) === null) {
+const upstream = (): string => {
+  const dir = ensureUpstream({ offlineOk: true });
+  if (dir === null) {
     fail(
       `Could not fetch the pinned corpus (${UPSTREAM_COMMIT}). Needs network once; it is cached in .upstream afterwards.`
     );
   }
+  return dir;
+};
+
+// The fields testMessages.ts leaves undeclared on purpose, each because
+// S.protobuf cannot express it. Anything else missing is a corpus bump
+// outrunning the schema, which is the whole reason the commit is pinned.
+const UNDECLARED: Record<number, string> = {
+  27: "recursive_message: TestAllTypesProto3 itself; S.protobuf has no recursive messages",
+  304: "optional_struct: Struct/Value/ListValue are mutually recursive",
+  306: "optional_value: as above",
+  316: "repeated_value: as above",
+  317: "repeated_list_value: as above",
+  324: "repeated_struct: as above",
+};
+
+const checkSchema = (): string[] => {
+  const found = divergences(upstream());
+  return found
+    .filter((d) => !(d.detail === "not declared" && d.number in UNDECLARED))
+    .map((d) => `  ${d.name} = ${d.number}: ${d.detail}`);
+};
+
+const run = (): Run => {
+  upstream();
   const outputDir = join(PKG_DIR, "output_dir");
   mkdirSync(outputDir, { recursive: true });
   if (!existsSync(FAILURE_LIST)) writeFileSync(FAILURE_LIST, "");
@@ -189,6 +218,22 @@ if (args.includes("--help") || args.includes("-h")) {
   process.exit(0);
 }
 const cmd = args[0] ?? "check";
+
+if (cmd === "schema") {
+  const drift = checkSchema();
+  if (drift.length) fail(`testMessages.ts has drifted from the pinned .proto\n\n${drift.join("\n")}`);
+  console.log(green(`testMessages.ts matches the pinned .proto${
+    Object.keys(UNDECLARED).length ? `, bar ${Object.keys(UNDECLARED).length} fields it cannot express` : ""
+  }`));
+  process.exit(0);
+}
+
+// Every run checks it: a field the corpus added or retyped would otherwise
+// show up only as a case failing for a reason nobody could see.
+const drift = checkSchema();
+if (drift.length) {
+  fail(`testMessages.ts has drifted from the pinned .proto\n\n${drift.join("\n")}`);
+}
 
 const result = run();
 const score = toScore(result);

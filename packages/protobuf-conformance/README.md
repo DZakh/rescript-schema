@@ -8,6 +8,7 @@ against `S.protobuf` and holds the score to a committed golden.
 pnpm protobuf:conformance          # check against goldens/ (what CI runs)
 pnpm protobuf:conformance update   # re-baseline after a change
 pnpm protobuf:conformance report   # the runner's full log, every failure named
+pnpm protobuf:conformance schema   # diff testMessages.ts against the pinned .proto
 ```
 
 ## What this is, and what the other suite is
@@ -32,8 +33,12 @@ Two pinned sources, and the split is not obvious:
 - **The corpus.** `conformance-ref.json` pins a commit of
   [bufbuild/protobuf-conformance](https://github.com/bufbuild/protobuf-conformance)
   (Apache-2.0), fetched into a gitignored `.upstream/`. Its `proto/` is what
-  `testMessages.ts` is written against. `runner.ts` follows the harness that
-  repo gives each implementation in `impl/*/runner.ts`.
+  `testMessages.ts` is written against, and every run diffs the two field
+  number by field number, so a bump that adds a field or retypes one says
+  which rather than leaving a case to fail for reasons nobody can see. The six
+  fields the schema cannot express are listed in `cli.ts` with the reason.
+  `runner.ts` follows the harness that repo gives each implementation in
+  `impl/*/runner.ts`.
 - **The runner.** Google's C++ binary, from the `protobuf-conformance` npm
   package, pinned exactly - the same package bufbuild's repo depends on. The
   test cases live inside that binary rather than in any file, so its version is

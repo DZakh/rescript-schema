@@ -1,7 +1,8 @@
 // google/protobuf/test_messages_proto3.proto as Sury schemas - the message
 // every binary conformance case is about. Written against the `.proto` in the
-// pinned upstream checkout (see upstream.ts); `pnpm conformance check-schema`
-// diffs this against that file so a corpus bump cannot silently outrun it.
+// pinned upstream checkout (see upstream.ts). Every run diffs this against
+// that file, field number by field number - `pnpm protobuf:conformance schema`
+// on its own - so a corpus bump cannot silently outrun it.
 //
 // Field names are the proto's own, not camelCase: the conformance runner only
 // ever compares bytes, and keeping the wire names makes a failure readable

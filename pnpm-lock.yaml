@@ -71,6 +71,9 @@ importers:
       protobuf-conformance:
         specifier: 33.6.0
         version: 33.6.0
+      protocol-buffers-schema:
+        specifier: ^3.6.1
+        version: 3.6.1
       tsx:
         specifier: 4.22.4
         version: 4.22.4
