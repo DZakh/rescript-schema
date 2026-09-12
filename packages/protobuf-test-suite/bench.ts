@@ -3,7 +3,9 @@
 // codegen, protobuf-es (@bufbuild/protobuf) and pbf (Mapbox). Each one is
 // driven the way its README shows, with a copying finish where the library
 // offers a choice, so nothing here is a benchmark-only fast path.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createFileRegistry, fromBinary, toBinary, type DescMessage } from "@bufbuild/protobuf";
 import { FileDescriptorSetSchema } from "@bufbuild/protobuf/wkt";
@@ -276,8 +278,51 @@ export const runBench = async (samples = 7): Promise<BenchRow[]> => {
   return rows;
 };
 
+// A table without the versions it was measured on is a claim nobody can
+// reproduce, so the run states them rather than leaving them to whoever copies
+// the numbers into a doc. Read off the installed packages, not a hand-kept
+// list: `@bufbuild/protobuf` and `pbf` do not export their package.json, so
+// each is resolved from a subpath the package does export.
+const versionOf = (name: string, entry: string): string => {
+  const require_ = createRequire(import.meta.url);
+  // The package.json subpath where the package exports it - sury does, and
+  // its "." export is import-only, so `require.resolve` cannot reach it.
+  try {
+    return (JSON.parse(readFileSync(require_.resolve(`${name}/package.json`), "utf8")) as {
+      version?: string;
+    }).version ?? "?";
+  } catch {
+    // Otherwise walk up from any subpath it does export until the manifest
+    // that names it.
+    try {
+      let dir = path.dirname(require_.resolve(entry));
+      for (;;) {
+        const candidate = path.join(dir, "package.json");
+        if (existsSync(candidate)) {
+          const pkg = JSON.parse(readFileSync(candidate, "utf8")) as { name?: string; version?: string };
+          if (pkg.name === name) return pkg.version ?? "?";
+        }
+        const up = path.dirname(dir);
+        if (up === dir) return "?";
+        dir = up;
+      }
+    } catch {
+      return "?";
+    }
+  }
+};
+
+export const benchProvenance = (): string =>
+  [
+    `node ${process.version} · ${process.platform} ${process.arch}`,
+    `sury ${versionOf("sury", "sury")}`,
+    `protobufjs ${versionOf("protobufjs", "protobufjs")}`,
+    `protobuf-es ${versionOf("@bufbuild/protobuf", "@bufbuild/protobuf")}`,
+    `pbf ${versionOf("pbf", "pbf")}`,
+  ].join(" · ");
+
 export const formatBench = (rows: BenchRow[]): string => {
-  const lines: string[] = [];
+  const lines: string[] = [benchProvenance(), ""];
   for (const row of rows) {
     lines.push(`${row.id} (${row.bytes} bytes)`);
     const bestEncode = Math.min(...row.cells.map((c) => c.encodeNs));

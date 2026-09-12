@@ -1528,6 +1528,63 @@ A schema that can't be a message — a field without a number, two fields
 sharing one, an optional repeated field — is rejected when the operation is
 built, naming the field.
 
+#### Speed
+
+One run of `pnpm protobuf:compliance bench`, best of 7 samples, each library
+driven the way its README shows. The harness is in
+[`packages/protobuf-test-suite`](https://github.com/DZakh/sury/tree/main/packages/protobuf-test-suite);
+`bench.ts` holds the five message shapes and their values, so nothing here is a
+number without a shape behind it.
+
+```
+node v22.22.2 · linux x64 · sury 11.0.0-rc.3 · protobufjs 8.8.0 · protobuf-es 2.14.1 · pbf 5.1.2
+
+tiny (3 bytes)
+  sury                 encode      50 ns  1.00x   decode      18 ns  1.00x
+  protobufjs reflect   encode     218 ns  4.34x   decode      37 ns  2.04x
+  protobufjs static    encode     193 ns  3.84x   decode      39 ns  2.16x
+  protobuf-es          encode     771 ns  15.35x   decode     319 ns  17.55x
+  pbf                  encode     569 ns  11.33x   decode      89 ns  4.91x
+typical (31 bytes)
+  sury                 encode     197 ns  1.00x   decode     227 ns  1.00x
+  protobufjs reflect   encode     561 ns  2.85x   decode     316 ns  1.39x
+  protobufjs static    encode     510 ns  2.59x   decode     266 ns  1.17x
+  protobuf-es          encode     786 ns  4.00x   decode    1277 ns  5.62x
+  pbf                  encode    1167 ns  5.94x   decode     488 ns  2.15x
+large (1416 bytes)
+  sury                 encode    1987 ns  1.00x   decode    2704 ns  1.00x
+  protobufjs reflect   encode    3487 ns  1.75x   decode    3164 ns  1.17x
+  protobufjs static    encode    3506 ns  1.76x   decode    3201 ns  1.18x
+  protobuf-es          encode    7764 ns  3.91x   decode    4619 ns  1.71x
+  pbf                  encode    7193 ns  3.62x   decode    3242 ns  1.20x
+common (79 bytes)
+  sury                 encode     633 ns  1.00x   decode     398 ns  1.00x
+  protobufjs reflect   encode    1682 ns  2.66x   decode     569 ns  1.43x
+  protobufjs static    encode    1666 ns  2.63x   decode     638 ns  1.61x
+  protobuf-es          encode    2133 ns  3.37x   decode    1746 ns  4.39x
+  pbf                  encode    1327 ns  2.09x   decode     600 ns  1.51x
+tile (3028 bytes)
+  sury                 encode   17258 ns  1.00x   decode   14150 ns  1.04x
+  protobufjs reflect   encode   34175 ns  1.99x   decode   22589 ns  1.66x
+  protobufjs static    encode   35667 ns  2.07x   decode   17946 ns  1.32x
+  protobuf-es          encode   52329 ns  3.04x   decode   37684 ns  2.78x
+  pbf                  encode   17214 ns  1.00x   decode   13579 ns  1.00x
+```
+
+The shapes: **tiny** is one `uint32`. **typical** is an id, a name, a bool, a
+repeated string, an optional double and optional bytes. **large** is a 1 KiB
+string beside 256 packed `sint32`. **common** is protobuf.js's own
+`bench/cases/common` message, three levels of nesting. **tile** is a Mapbox
+vector tile: packed geometry dominates.
+
+Read it as a shape, not as a score. Encode is where the compiled writer pays
+off and the ratios hold across runs. Decode is closer, and on **tile** pbf is
+the one to beat - it leads decode and matches encode, because a tile is almost
+entirely packed varints and that is what pbf is for. Sury's own `tile` decode
+is the least stable number here, moving between roughly 13 and 19 µs run to
+run; everything else lands within a few percent. Run the command on your own
+machine and your own message before you plan around any of it.
+
 `S.protobuf` passes the binary families of the official conformance suite
 that apply to it and round-trips against protobuf.js; the corpus lives in
 [`packages/protobuf-test-suite`](https://github.com/DZakh/sury/tree/main/packages/protobuf-test-suite). Not covered:

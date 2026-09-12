@@ -56,6 +56,10 @@ not in the public API.
 `check` fails on drift in either direction. An improvement lands its golden
 update in the same PR.
 
+One `bench` run is published, with its versions and the message shapes, under
+[Speed in the JS guide](../../docs/js-usage.md#speed). Re-run it there when the
+numbers move enough to mislead.
+
 `bench` runs Sury against every codec a JS project would reach for —
 protobufjs reflection and `pbjs` static codegen, protobuf-es
 (`@bufbuild/protobuf`) and pbf — on five workloads (tiny, typical, large,
