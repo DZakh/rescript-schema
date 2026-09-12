@@ -1324,7 +1324,7 @@ let envSchema = S.schema(s => {
   name: s.field("NAME", S.null(S.string)),
 })
 
-env->S.parseOrThrow(~to=S.dict(S.env)->S.to(envSchema))
+env->S.convertOrThrow(~from=S.dict(S.env), ~to=envSchema)
 ```
 
 A single var is the same coercion. `env->Dict.get("PORT")` may be `None`, so
@@ -1332,7 +1332,7 @@ the source is `S.option(S.env)`. Converting to `S.port` reads the string and
 rejects a missing var:
 
 ```rescript
-env->Dict.get("PORT")->S.parseOrThrow(~to=S.option(S.env)->S.to(S.port))
+env->Dict.get("PORT")->S.convertOrThrow(~from=S.option(S.env), ~to=S.port)
 ```
 
 A missing key or empty string on a record field is absent (`S.option`) or null
