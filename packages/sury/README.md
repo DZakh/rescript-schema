@@ -21,13 +21,15 @@ await S.encodeAsPromiseOrReject(signupsFileSchema)(signups);
 // => a File, from the same declaration - input and return strictly typed
 ```
 
-Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.env`, `S.urlSearchParams`, `S.queryString`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.file` and `S.blob`. Coming next: `S.request`, `S.response`, `S.protobuf`, `S.capnp`, `S.rkyv`, `S.toon`.
+Wires today: `S.json`, `S.jsonString`, `S.formData`, `S.env`, `S.urlSearchParams`, `S.queryString`, `S.base64`, `S.base64url`, `S.uint8Array`, `S.protobuf`, `S.file` and `S.blob`. Coming next: `S.request`, `S.response`, `S.capnp`, `S.rkyv`, `S.toon`.
 
 ```sh
 npm install sury
 ```
 
 **API Reference:** [TypeScript](https://github.com/DZakh/sury/blob/main/docs/js-usage.md) | [ReScript](https://github.com/DZakh/sury/blob/main/docs/rescript-usage.md) | [ReScript PPX](https://github.com/DZakh/sury/blob/main/packages/sury-ppx/README.md)
+
+**Benchmarks:** [Schema](https://github.com/DZakh/sury/blob/main/docs/benchmarks/schema.md) | [JSON Encoding](https://github.com/DZakh/sury/blob/main/docs/benchmarks/jsonString.md) | [JSON Schema](https://github.com/DZakh/sury/blob/main/docs/benchmarks/jsonSchema.md) | [Protobuf](https://github.com/DZakh/sury/blob/main/docs/benchmarks/protobuf.md)
 
 ## Sponsors
 
@@ -257,6 +259,26 @@ S.encodeOrThrow(signup)(value);
 // => a FormData with one append per field, ready for fetch(url, { body })
 ```
 
+Protocol Buffers need no `.proto` file and no code generation step. Number the fields, name `S.protobuf` as the other side, and the same schema still parses, infers types and converts to JSON Schema:
+
+```ts
+const userSchema = S.schema({
+  id: S.int32.with(S.protobufField, 1),
+  name: S.string.with(S.protobufField, 2),
+  tags: S.array(S.string).with(S.protobufField, 3),
+}).with(S.meta, { name: "User" });
+
+S.encodeOrThrow(userSchema, S.protobuf, { id: 150, name: "Ada", tags: ["ml"] });
+// => Uint8Array [8, 150, 1, 18, 3, 65, 100, 97, 26, 2, 109, 108]
+
+S.toProtoOrThrow(userSchema, { package: "acme.v1" }); // hand the other side its .proto
+// => message User {
+//      int32 id = 1;
+//      string name = 2;
+//      repeated string tags = 3;
+//    }
+```
+
 ### The code a schema turns into
 
 Here's what `parseEvent` from above actually runs - a function specialized for this exact shape: the union dispatches on the discriminant, the `bigint` coercion is inlined as a bare `BigInt()` call, your `nonEmpty` message is a plain length check, and `S.jsonString` -> union -> fields fuse into one pass:
@@ -353,6 +375,8 @@ And the types stay readable. Hovering the event schema from [Why Sury](#why-sury
 ### Size & speed
 
 Measured with [this repo's comparison benchmark](https://github.com/DZakh/sury/tree/main/packages/e2e/src/benchmark) against `sury@11.0.0`, `zod@4.4.3`, `typebox@0.34.52`, `valibot@1.4.2`, `arktype@2.2.3`.
+
+The table below is a snapshot. [Benchmarks: Schema](https://github.com/DZakh/sury/blob/main/docs/benchmarks/schema.md) is regenerated on every push to main, and carries the bundle sizes, the feature probes and the Standard Schema conformance beside these numbers.
 
 |                                 | Sury           | Zod          | TypeBox                        | Valibot      | ArkType        |
 | ------------------------------- | -------------- | ------------ | ------------------------------ | ------------ | -------------- |
