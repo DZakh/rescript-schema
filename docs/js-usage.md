@@ -1488,9 +1488,10 @@ S.schema({
 });
 ```
 
-**Oneofs** are optional fields that share a `oneof` name. Decoding a member
-clears the others, so at most one is set. A member keeps explicit presence, so
-its zero value is written:
+**Oneofs** are optional fields that share a `oneof` name. At most one is ever
+set: decoding a member clears the others, and encoding a value with two of them
+set is refused rather than written, since a reader would take the second and
+drop the first. A member keeps explicit presence, so its zero value is written:
 
 ```ts
 S.schema({

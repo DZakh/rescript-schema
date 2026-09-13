@@ -1043,6 +1043,10 @@ const checkedNumber = (value: unknown, min: number, max: number, type: string): 
   return value;
 };
 
+const oneofConflict = (name: string): never => {
+  throw Error(`protobuf oneof "${name}" has more than one member set`);
+};
+
 const checkedBigint = (value: unknown, min: bigint, max: bigint, type: string): bigint => {
   if (typeof value !== "bigint" || value < min || value > max) throw Error(`invalid ${type}`);
   return value;
@@ -1159,8 +1163,36 @@ const encodeBody = (
   read: Read,
   num: string,
   big: string,
+  conflict: string,
 ): string => {
   const body: string[] = [];
+  // proto3 lets at most one member of a oneof be set, and decode enforces it
+  // by clearing the siblings. Encode is handed a value the schema cannot
+  // constrain - every member is an independent optional property - so it
+  // checks here rather than writing two members of one oneof, which is a
+  // message no reader can read back: the second member wins and the first is
+  // gone. `o` carries one bit per oneof; the first member of a group has
+  // nothing to collide with and the last has no later member to tell.
+  const first = new Map<string, Field>();
+  const last = new Map<string, Field>();
+  for (const field of msg.fields) {
+    if (field.oneof === U) continue;
+    if (!first.has(field.oneof)) first.set(field.oneof, field);
+    last.set(field.oneof, field);
+  }
+  const bits = new Map<string, number>();
+  first.forEach((field, name) => {
+    if (field !== last.get(name)) bits.set(name, 1 << bits.size);
+  });
+  const guard = (field: Field): string => {
+    const name = field.oneof;
+    const bit = name === U ? U : bits.get(name);
+    if (bit === U) return "";
+    // One group needs no mask: no other bit can be set.
+    const test = bits.size > 1 ? `o&${bit}` : "o";
+    return (first.get(name!) === field ? "" : `${test}&&${conflict}(${JSON.stringify(name)});`) +
+      (last.get(name!) === field ? "" : `o|=${bit};`);
+  };
   for (let idx = 0; idx < msg.fields.length; idx++) {
     const field = msg.fields[idx]!;
     const tag = field.number * 8 + field.wire;
@@ -1189,12 +1221,12 @@ const encodeBody = (
       }
       body.push(`v=${src};n=v.length;if(n){${loop}}`);
     } else if (field.type === "message") {
-      body.push(`v=${src};if(v!=null){${writeTag(tag)};h=w.begin();${fns.get(field.message!)!}(w,v);w.end(h)}`);
+      body.push(`v=${src};if(v!=null){${guard(field)}${writeTag(tag)};h=w.begin();${fns.get(field.message!)!}(w,v);w.end(h)}`);
     } else {
-      body.push(`v=${src};if(${fieldLive(field, numeric)}){${writeTag(tag)};${writeCall(field.type, "v", num, big)}}`);
+      body.push(`v=${src};if(${fieldLive(field, numeric)}){${guard(field)}${writeTag(tag)};${writeCall(field.type, "v", num, big)}}`);
     }
   }
-  return body.join(";");
+  return (bits.size ? "o=0;" : "") + body.join(";");
 };
 
 const nameMessages = (message: Message, fns: Map<Message, string>): void => {
@@ -1213,10 +1245,10 @@ const compileEncoders = (root: Message, fns: Map<Message, string>): Record<strin
   let src = "";
   fns.forEach((name, msg) => {
     if (msg === root) return;
-    src += `function ${name}(w,value){var v,j,n,s,h,a,k,g,c;${encodeBody(msg, fns, (key) => ({ expr: readKey("value", key), numeric: false }), "num", "big")}}`;
+    src += `function ${name}(w,value){var v,j,n,s,h,a,k,g,c,o;${encodeBody(msg, fns, (key) => ({ expr: readKey("value", key), numeric: false }), "num", "big", "oneof")}}`;
   });
   const names = [...fns.values()].filter((name) => name !== fns.get(root));
-  return new Function("num", "big", `${src}return {${names.join(",")}}`)(checkedNumber, checkedBigint);
+  return new Function("num", "big", "oneof", `${src}return {${names.join(",")}}`)(checkedNumber, checkedBigint, oneofConflict);
 };
 
 // A nested field seen twice merges: the second decode starts from the
@@ -1360,11 +1392,11 @@ const protobufDecoder = (input: Val): Val => {
       ? { expr: fv.i, numeric: fv.s.type === numberTag && fv.s.format !== U }
       : { expr: readKey(input.v(), key), numeric: false };
   };
-  const body = encodeBody(message, names, readRoot, B_embed(input, checkedNumber), B_embed(input, checkedBigint));
+  const body = encodeBody(message, names, readRoot, B_embed(input, checkedNumber), B_embed(input, checkedBigint), B_embed(input, oneofConflict));
   const outVar = B_varWithoutAllocation(input.g);
   const output = B_next(input, outVar, input.e, input.e);
   output.v = _var;
-  output.cp = `let ${outVar},w;${guarded(input, output, input.e, `w=${B_embedPure(input, scratchWriter)}.acquire();let v,j,n,s,h,a,k,g,c;${body};${outVar}=w.finish()`, "w&&(w.busy=false);")}`;
+  output.cp = `let ${outVar},w;${guarded(input, output, input.e, `w=${B_embedPure(input, scratchWriter)}.acquire();let v,j,n,s,h,a,k,g,c,o;${body};${outVar}=w.finish()`, "w&&(w.busy=false);")}`;
   output.io = true;
   return output;
 };

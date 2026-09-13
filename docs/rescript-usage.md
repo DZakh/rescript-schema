@@ -1554,7 +1554,8 @@ The rest of `S.protobufField` is protobuf's own vocabulary. `~key` is the K of
 a `map<K, V>` for an `S.dict` field, `string` unless you say otherwise;
 `~packed=false` writes a repeated scalar expanded, a tag per item, where the
 default packs them into one run (decoding accepts both); `~oneof` puts the
-field in a `oneof` block, and decoding a member clears the others.
+field in a `oneof` block, where at most one member is ever set: decoding one
+clears the others, and encoding a value with two of them set is refused.
 
 ```rescript
 S.dict(S.string)->S.protobufField(5, ~key=#int64)
