@@ -1479,7 +1479,7 @@ S.base64->S.to(S.string) // widens
 
 `S.protobuf` is the [Protocol Buffers](https://protobuf.dev) binary wire
 format. Number every field of a message with `S.protobufField`, convert to
-`S.protobuf`, and Sury compiles an encoder and a decoder for that message. No
+`S.protobuf`, and you have an encoder and a decoder for that message. No
 `.proto` file, no code generation step, and the schema still parses, infers
 types and converts to JSON Schema.
 
@@ -1487,14 +1487,14 @@ types and converts to JSON Schema.
 type address = {street: string}
 type user = {id: int, name: string, tags: array<string>, home: option<address>, kind: int}
 
-let addressSchema = S.schema(s => {street: s.matches(S.string->S.protobufField(~number=1))})
+let addressSchema = S.schema(s => {street: s.matches(S.string->S.protobufField(1))})
 
 let userSchema = S.schema(s => {
-  id: s.matches(S.int->S.protobufField(~number=1)),
-  name: s.matches(S.string->S.protobufField(~number=2)),
-  tags: s.matches(S.array(S.string)->S.protobufField(~number=3)),
-  home: s.matches(S.option(addressSchema)->S.protobufField(~number=4)),
-  kind: s.matches(S.enum([1, 2])->S.protobufField(~number=5, ~type_=S.Enum)),
+  id: s.matches(S.int->S.protobufField(1)),
+  name: s.matches(S.string->S.protobufField(2)),
+  tags: s.matches(S.array(S.string)->S.protobufField(3)),
+  home: s.matches(S.option(addressSchema)->S.protobufField(4)),
+  kind: s.matches(S.enum([1, 2])->S.protobufField(5, ~type_=#enum)),
 })->S.meta({name: "User"})
 
 let value = {id: 150, name: "Ada", tags: ["ml"], home: Some({street: "Main"}), kind: 2}
@@ -1525,7 +1525,7 @@ conversion: the message is the thing on the far side of it, and a *nested*
 message field has nowhere to put one.
 
 ```rescript
-S.object(s => {street: s.field("street", S.string->S.protobufField(~number=1))})
+S.object(s => {street: s.field("street", S.string->S.protobufField(1))})
 // as a field of another message, throws: field "home" is a message that
 // converts further with S.to, which a nested field can't
 ```
@@ -1544,10 +1544,10 @@ nested `message`, `S.array` is `repeated` and `S.dict` is a `map`. Pass
 ReScript type differ from the wire type - Sury converts through the schema.
 
 ```rescript
-S.string->S.protobufField(~number=1, ~type_=S.Uint32) // "150" <=> varint 150
-S.int->S.protobufField(~number=2, ~type_=S.Sint32) // zigzag
-S.bigint->S.protobufField(~number=3, ~type_=S.Fixed64)
-S.float->S.protobufField(~number=4, ~type_=S.Float)
+S.string->S.protobufField(1, ~type_=#uint32) // "150" <=> varint 150
+S.int->S.protobufField(2, ~type_=#sint32) // zigzag
+S.bigint->S.protobufField(3, ~type_=#fixed64)
+S.float->S.protobufField(4, ~type_=#float)
 ```
 
 The rest of `S.protobufField` is protobuf's own vocabulary. `~key` is the K of
@@ -1557,9 +1557,9 @@ default packs them into one run (decoding accepts both); `~oneof` puts the
 field in a `oneof` block, and decoding a member clears the others.
 
 ```rescript
-S.dict(S.string)->S.protobufField(~number=5, ~key=S.Int64)
-S.array(S.int)->S.protobufField(~number=6, ~packed=false)
-S.option(S.string)->S.protobufField(~number=7, ~oneof="choice")
+S.dict(S.string)->S.protobufField(5, ~key=#int64)
+S.array(S.int)->S.protobufField(6, ~packed=false)
+S.option(S.string)->S.protobufField(7, ~oneof="choice")
 ```
 
 #### Unknown fields

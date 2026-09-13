@@ -116,16 +116,6 @@ export type Schema<TInput = unknown, TOutput = TInput> = {
     // the same reason as the Codecs slots (see the Coder note below).
     codecs?: Coder<TOutput, TTargetInput> | Codecs<TOutput, TTargetInput> | "pack" | "unpack"
   ): Schema<TInput, TTargetOutput>;
-  // Object form only: a `number | ProtobufField` parameter here is tried by
-  // every `.with` call in a project and costs ~4800 instantiations each. The
-  // number form resolves through the literal `TArg1` overload below.
-  with(
-    protobufField: (
-      schema: Schema<unknown, unknown>,
-      field: number | ProtobufField
-    ) => Schema<unknown, unknown>,
-    field: ProtobufField
-  ): Schema<TInput, TOutput>;
   // `S.shape`, and any modifier whose callback decides the output type.
   // Naming the callback here is what types its parameter as `TOutput`. The
   // required third parameter excludes `S.optional`/`S.nullable`: a lazy

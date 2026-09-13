@@ -76,24 +76,28 @@ type stringFormat =
   | @as("queryString") QueryString
 type arrayFormat = | @as("compactColumns") CompactColumns
 
-type protobufType =
-  | @as("double") Double
-  | @as("float") Float
-  | @as("int32") Int32
-  | @as("int64") Int64
-  | @as("uint32") Uint32
-  | @as("uint64") Uint64
-  | @as("sint32") Sint32
-  | @as("sint64") Sint64
-  | @as("fixed32") Fixed32
-  | @as("fixed64") Fixed64
-  | @as("sfixed32") Sfixed32
-  | @as("sfixed64") Sfixed64
-  | @as("bool") Bool
-  | @as("string") String
-  | @as("bytes") Bytes
-  | @as("enum") Enum
-  | @as("message") Message
+// A closed polymorphic variant: the constructors are the wire type names, so
+// `#sint32` needs no `@as` to reach JS and does not collide with the `String`
+// and `Int32` that `tag` and `numberFormat` already spell.
+type protobufType = [
+  | #double
+  | #float
+  | #int32
+  | #int64
+  | #uint32
+  | #uint64
+  | #sint32
+  | #sint64
+  | #fixed32
+  | #fixed64
+  | #sfixed32
+  | #sfixed64
+  | #bool
+  | #string
+  | #bytes
+  | #enum
+  | #message
+]
 
 type format = | ...numberFormat | ...stringFormat | ...arrayFormat
 
@@ -621,7 +625,7 @@ type protobufFieldOptions = {
 }
 @module("sury")
 external protobufField_: (t<'value>, protobufFieldOptions) => t<'value> = "protobufField"
-let protobufField = (schema, ~number, ~type_=?, ~packed=?, ~key=?, ~oneof=?) =>
+let protobufField = (schema, number, ~type_=?, ~packed=?, ~key=?, ~oneof=?) =>
   protobufField_(schema, {number, ?type_, ?packed, ?key, ?oneof})
 
 // The public JS `refine` takes an options object; build it here from the

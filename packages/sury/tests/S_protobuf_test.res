@@ -1,8 +1,9 @@
 open Vitest
 
-// The ReScript binding's own surface: `protobufField` adapts five labelled
-// arguments into the JS options object, and each one has to arrive. The
-// codec itself is covered by S_protobuf_test.ts and the compliance suite.
+// The ReScript binding's own surface: `protobufField` adapts a positional
+// number and four labelled options into the JS options object, and each one
+// has to arrive. The codec itself is covered by S_protobuf_test.ts and the
+// compliance suite.
 
 type user = {
   id: int,
@@ -14,15 +15,15 @@ type user = {
 }
 
 let userSchema = S.object(s => {
-  id: s.field("id", S.int->S.protobufField(~number=1)),
-  name: s.field("name", S.string->S.protobufField(~number=2)),
-  tags: s.field("tags", S.array(S.string)->S.protobufField(~number=3)),
-  nums: s.field("nums", S.array(S.int)->S.protobufField(~number=4, ~packed=false)),
-  byId: s.field("byId", S.dict(S.string)->S.protobufField(~number=5, ~key=S.Int64)),
-  pick: s.field("pick", S.option(S.string)->S.protobufField(~number=6, ~oneof="choice")),
+  id: s.field("id", S.int->S.protobufField(1)),
+  name: s.field("name", S.string->S.protobufField(2)),
+  tags: s.field("tags", S.array(S.string)->S.protobufField(3)),
+  nums: s.field("nums", S.array(S.int)->S.protobufField(4, ~packed=false)),
+  byId: s.field("byId", S.dict(S.string)->S.protobufField(5, ~key=#int64)),
+  pick: s.field("pick", S.option(S.string)->S.protobufField(6, ~oneof="choice")),
 })
 
-test("protobufField passes every labelled argument through to the wire", t => {
+test("protobufField passes every argument through to the wire", t => {
   let value = {
     id: 150,
     name: "Ada",
@@ -37,9 +38,9 @@ test("protobufField passes every labelled argument through to the wire", t => {
   // `~packed=false` writes field 4 expanded, a tag per item, against one tag
   // and a length for the packed run. Three items is where that starts to
   // cost: at two the two forms are the same size.
-  let packedSchema = S.object(s => s.field("nums", S.array(S.int)->S.protobufField(~number=4)))
+  let packedSchema = S.object(s => s.field("nums", S.array(S.int)->S.protobufField(4)))
   let unpackedSchema = S.object(s =>
-    s.field("nums", S.array(S.int)->S.protobufField(~number=4, ~packed=false))
+    s.field("nums", S.array(S.int)->S.protobufField(4, ~packed=false))
   )
   let sizeOf = schema =>
     (([1, 2, 3]->S.convertOrThrow(~from=schema, ~to=S.protobuf))->Obj.magic)["byteLength"]
@@ -47,12 +48,12 @@ test("protobufField passes every labelled argument through to the wire", t => {
 })
 
 test("protobufField infers the wire type when type_ is left off", t => {
-  let inferred = S.string->S.protobufField(~number=1)
-  let stated = S.string->S.protobufField(~number=1, ~type_=S.String)
+  let inferred = S.string->S.protobufField(1)
+  let stated = S.string->S.protobufField(1, ~type_=#string)
   let of_ = schema => S.object(s => s.field("a", schema))->S.toProtoOrThrow(~name="M")
   t->Assert.deepEqual(of_(inferred), of_(stated))
   t->Assert.deepEqual(
-    of_(S.int->S.protobufField(~number=1, ~type_=S.Sint32)),
+    of_(S.int->S.protobufField(1, ~type_=#sint32)),
     `syntax = "proto3";\n\nmessage M {\n  sint32 a = 1;\n}\n`,
   )
 })
@@ -91,14 +92,14 @@ type guideUser = {
   kind: int,
 }
 
-let guideAddressSchema = S.schema(s => {street: s.matches(S.string->S.protobufField(~number=1))})
+let guideAddressSchema = S.schema(s => {street: s.matches(S.string->S.protobufField(1))})
 
 let guideUserSchema = S.schema(s => {
-  id: s.matches(S.int->S.protobufField(~number=1)),
-  name: s.matches(S.string->S.protobufField(~number=2)),
-  tags: s.matches(S.array(S.string)->S.protobufField(~number=3)),
-  home: s.matches(S.option(guideAddressSchema)->S.protobufField(~number=4)),
-  kind: s.matches(S.enum([1, 2])->S.protobufField(~number=5, ~type_=S.Enum)),
+  id: s.matches(S.int->S.protobufField(1)),
+  name: s.matches(S.string->S.protobufField(2)),
+  tags: s.matches(S.array(S.string)->S.protobufField(3)),
+  home: s.matches(S.option(guideAddressSchema)->S.protobufField(4)),
+  kind: s.matches(S.enum([1, 2])->S.protobufField(5, ~type_=#enum)),
 })->S.meta({name: "User"})
 
 test("the guide's message round-trips, hoists and parses from unknown", t => {
@@ -162,14 +163,14 @@ test("the guide's wire error and its S.object warning", t => {
   // `S.object` builds the record out of named JS fields, which is a `.to`, so
   // the message sits on the far side of a conversion a nested field can't take.
   let objectAddress = S.object(s => {
-    street: s.field("street", S.string->S.protobufField(~number=1)),
+    street: s.field("street", S.string->S.protobufField(1)),
   })
   let nested = S.schema(s => {
-    id: s.matches(S.int->S.protobufField(~number=1)),
-    name: s.matches(S.string->S.protobufField(~number=2)),
-    tags: s.matches(S.array(S.string)->S.protobufField(~number=3)),
-    home: s.matches(S.option(objectAddress)->S.protobufField(~number=4)),
-    kind: s.matches(S.enum([1, 2])->S.protobufField(~number=5, ~type_=S.Enum)),
+    id: s.matches(S.int->S.protobufField(1)),
+    name: s.matches(S.string->S.protobufField(2)),
+    tags: s.matches(S.array(S.string)->S.protobufField(3)),
+    home: s.matches(S.option(objectAddress)->S.protobufField(4)),
+    kind: s.matches(S.enum([1, 2])->S.protobufField(5, ~type_=#enum)),
   })
   t->Assert.throws(
     () => nested->S.toProtoOrThrow,

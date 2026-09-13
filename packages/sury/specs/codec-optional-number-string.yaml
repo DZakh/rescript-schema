@@ -3,7 +3,7 @@ ts:
   schema: S.optional(S.number).with(S.to, S.string)
   input: number | undefined
   output: string
-  instantiations: 4720
+  instantiations: 4587
 jsonSchema:
   input: '{ type: "number" }'
   fromInputType: number

@@ -259,6 +259,26 @@ S.encodeOrThrow(signup)(value);
 // => a FormData with one append per field, ready for fetch(url, { body })
 ```
 
+Protocol Buffers need no `.proto` file and no code generation step. Number the fields, name `S.protobuf` as the other side, and the same schema still parses, infers types and converts to JSON Schema:
+
+```ts
+const userSchema = S.schema({
+  id: S.int32.with(S.protobufField, 1),
+  name: S.string.with(S.protobufField, 2),
+  tags: S.array(S.string).with(S.protobufField, 3),
+}).with(S.meta, { name: "User" });
+
+S.encodeOrThrow(userSchema, S.protobuf, { id: 150, name: "Ada", tags: ["ml"] });
+// => Uint8Array [8, 150, 1, 18, 3, 65, 100, 97, 26, 2, 109, 108]
+
+S.toProtoOrThrow(userSchema, { package: "acme.v1" }); // hand the other side its .proto
+// => message User {
+//      int32 id = 1;
+//      string name = 2;
+//      repeated string tags = 3;
+//    }
+```
+
 ### The code a schema turns into
 
 Here's what `parseEvent` from above actually runs - a function specialized for this exact shape: the union dispatches on the discriminant, the `bigint` coercion is inlined as a bare `BigInt()` call, your `nonEmpty` message is a plain length check, and `S.jsonString` -> union -> fields fuse into one pass:

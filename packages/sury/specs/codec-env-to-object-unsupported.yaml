@@ -3,7 +3,7 @@ ts:
   schema: "S.env.with(S.to, S.schema({ PORT: S.port }))"
   input: string | undefined
   output: "{ PORT: number; }"
-  instantiations: 5579
+  instantiations: 5446
 jsonSchema:
   input: '{ type: "string" }'
   fromInputType: string

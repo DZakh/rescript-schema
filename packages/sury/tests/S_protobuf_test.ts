@@ -466,12 +466,16 @@ test("protobufField rejects a repeated or map oneof member and a non-integer enu
   t.expect(() => S.optional(S.int32, 3).with(S.protobufField, { number: 1, oneof: "v" })).toThrow(
     "[Sury] S.protobufField requires a oneof member without a default",
   );
-  for (const bad of [S.union([1, 2.5, "x"]), S.optional(S.union([1, "x"])), S.union([1, 2 ** 40]), S.literal(2.5), S.literal("a"), S.literal(3), S.union([3]), S.string, S.boolean]) {
+  // Annotated: `.with` on a union-typed receiver resolves for no modifier, so
+  // the loop holds one schema type rather than a union of nine.
+  const badEnums: S.Schema<unknown, unknown>[] = [S.union([1, 2.5, "x"]), S.optional(S.union([1, "x"])), S.union([1, 2 ** 40]), S.literal(2.5), S.literal("a"), S.literal(3), S.union([3]), S.string, S.boolean];
+  for (const bad of badEnums) {
     t.expect(() => bad.with(S.protobufField, { number: 1, type: "enum" })).toThrow(
       "[Sury] S.protobufField requires an enum to be a number schema or a union of int32 literals",
     );
   }
-  for (const ok of [S.int32, S.integer, S.number, S.union([0, 1]), S.optional(S.union([0, 1]), 0)]) {
+  const okEnums: S.Schema<unknown, unknown>[] = [S.int32, S.integer, S.number, S.union([0, 1]), S.optional(S.union([0, 1]), 0)];
+  for (const ok of okEnums) {
     ok.with(S.protobufField, { number: 1, type: "enum" });
   }
 });

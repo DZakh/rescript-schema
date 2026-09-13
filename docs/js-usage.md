@@ -1414,9 +1414,9 @@ S.encodeOrThrow({ q: "hi", page: 2 }, search);
 `S.protobuf` is the [Protocol Buffers](https://protobuf.dev) binary wire
 format. Give every field of an object schema a field number with
 `S.protobufField`, name `S.protobuf` as the other side of the operation, and
-Sury compiles an encoder and a decoder specialized for that message: no
-`.proto` file, no code generation step, and the same schema still validates,
-infers types and converts to JSON Schema.
+you have an encoder and a decoder for that message: no `.proto` file, no code
+generation step, and the same schema still validates, infers types and
+converts to JSON Schema.
 
 ```ts
 const User = S.schema({
@@ -1499,12 +1499,12 @@ S.schema({
 });
 ```
 
-**Output memory.** An encoded message is a view over a buffer the encoder
-keeps writing into, the way a Node `Buffer` comes from a pool: `bytes.buffer`
-is larger than `bytes.byteLength` and `bytes.byteOffset` is not zero. Every
-consumer of a `Uint8Array` respects the view. To own the memory, to transfer
-it to a worker or hand an `ArrayBuffer` to an API that wants one, put
-`S.arrayBuffer` on the wire side of the pipeline; the conversion copies the
+**Output memory.** An encoded message is a view into a larger buffer, like a
+Node `Buffer`: `bytes.buffer` is bigger than `bytes.byteLength` and
+`bytes.byteOffset` is not zero. Every consumer of a `Uint8Array` respects the
+view, so this only matters if you reach for `bytes.buffer` yourself. To own the
+memory, to transfer it to a worker or hand an `ArrayBuffer` to an API that
+wants one, put `S.arrayBuffer` on the wire side; the conversion copies the
 message to size:
 
 ```ts
@@ -1614,14 +1614,13 @@ built, naming the field.
 is regenerated on every push to main and carries the numbers: bundle size and
 encode/decode timings against protobuf.js, protobuf-es and pbf, a feature table
 where every cell is a call actually run against that library, and the
-conformance scores. The short version: encoding is where the compiled writer
-pays off, at 2.5-4.6x protobuf.js on small and nested messages; decoding is
-closer; and on a Mapbox vector tile pbf is the one to beat, because a tile is
-almost entirely packed varints and that is what pbf is built for.
+conformance scores. The short version: against protobuf-es, encoding runs
+3.2-12.9x and decoding 1.8-10.5x, the widest gaps on the smallest messages; and
+on a Mapbox vector tile pbf is the one to beat, because a tile is almost
+entirely packed varints and that is what pbf is built for.
 
 `S.protobuf` passes **692 of the 698 binary proto3 cases** of Google's own
-`conformance_test_runner`, which generates its cases inside the binary rather
-than reading them from a file. The six are named with their reason in
+`conformance_test_runner`. The six are named with their reason in
 [`failing_tests.txt`](https://github.com/DZakh/sury/tree/main/packages/protobuf-conformance/failing_tests.txt):
 four need recursive messages, two need unknown fields to survive a round trip.
 ProtoJSON, text format and the proto2 message types are not attempted.
