@@ -483,11 +483,7 @@ type json = JSON.t
 @module("sury") external jsonStringWithSpace: int => t<jsonString> = "jsonStringWithSpace"
 @module("sury") external uint8Array: t<Uint8Array.t> = "uint8Array"
 @module("sury") external arrayBuffer: t<ArrayBuffer.t> = "arrayBuffer"
-/** The Protocol Buffers binary wire format.
-
-    Experimental in its first release, with `protobufField`, `toProtoOrThrow`
-    and `arrayBuffer`: the wire format is frozen by the spec, the API around
-    it is not and may change without a major version. */
+/** The Protocol Buffers binary wire format. */
 @module("sury") external protobuf: t<Uint8Array.t> = "protobuf"
 type protoOptions = {name?: string, package?: string}
 @module("sury") external toProtoOrThrow_: (t<'value>, protoOptions) => string = "toProtoOrThrow"

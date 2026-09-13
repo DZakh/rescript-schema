@@ -1410,19 +1410,12 @@ S.encodeOrThrow({ q: "hi", page: 2 }, search);
 
 ## Protocol Buffers
 
-> **Experimental.** The whole protobuf surface - `S.protobuf`,
-> `S.protobufField`, `S.toProtoOrThrow`, `S.arrayBuffer` and the field option
-> shape - ships experimental in its first release. The wire format is frozen
-> by the spec and the compliance suite holds it there; the API around it is
-> not, and may be renamed or reshaped without a major version. Pin an exact
-> version if that matters to you.
-
 `S.protobuf` is the [Protocol Buffers](https://protobuf.dev) binary wire
 format. Give every field of an object schema a field number with
-`S.protobufField`, wire the schema to `S.protobuf`, and Sury compiles an
-encoder and a decoder specialized for that message: no `.proto` file, no
-code generation step, and the same schema still validates, infers types and
-converts to JSON Schema.
+`S.protobufField`, name `S.protobuf` as the other side of the operation, and
+Sury compiles an encoder and a decoder specialized for that message: no
+`.proto` file, no code generation step, and the same schema still validates,
+infers types and converts to JSON Schema.
 
 ```ts
 const User = S.schema({
@@ -1432,12 +1425,21 @@ const User = S.schema({
   score: S.optional(S.number).with(S.protobufField, 4),
 });
 
-const encode = S.encodeOrThrow(S.protobuf.with(S.to, User));
+const encode = S.encodeOrThrow(User, S.protobuf);
 const decode = S.decodeOrThrow(S.protobuf, User);
 
 const bytes = encode({ id: 150, name: "Ada", tags: ["ml"] });
 // Uint8Array [8, 150, 1, 18, 3, 65, 100, 97, 26, 2, 109, 108]
 decode(bytes); // { id: 150, name: "Ada", tags: ["ml"] }
+```
+
+`S.protobuf.with(S.to, User)` is the same codec as a single schema, for when
+you need one value to hand somewhere - a framework that takes a schema, or a
+`parse` that starts from `unknown` and checks the bytes are a `Uint8Array`
+before reading them:
+
+```ts
+S.parseOrThrow(S.protobuf.with(S.to, User))(body);
 ```
 
 The wire type is inferred from the schema: `S.string` is `string`, `S.boolean`
@@ -1505,18 +1507,16 @@ it to a worker or hand an `ArrayBuffer` to an API that wants one, put
 message to size:
 
 ```ts
-const Wire = S.arrayBuffer.with(S.to, S.protobuf).with(S.to, User);
-S.encodeOrThrow(Wire)({ id: 150, name: "Ada", tags: [] }); // ArrayBuffer(12)
-S.decodeOrThrow(Wire)(buffer); // { id: 150, name: "Ada", tags: [] }
+const Wire = S.arrayBuffer.with(S.to, S.protobuf);
+
+S.encodeOrThrow(User, S.protobuf.with(S.to, S.arrayBuffer))(user); // ArrayBuffer(12)
+S.decodeOrThrow(Wire, User)(buffer); // { id: 150, name: "Ada", tags: [] }
 ```
 
-**Generating a `.proto`.** `S.toProtoOrThrow` prints the proto3 source for a message
-schema, so a Sury schema can be the source of truth other languages build
-from, and `buf breaking` can guard it in CI; with a `package` and camelCase
-keys it passes `buf lint`'s defaults too. A schema's `name`
-meta names its message; without one the field key does, and camelCase keys
-print snake_case, which generators map back to lowerCamel (an acronym
-flattens: `userID` comes back as `userId`). `description` becomes a comment
+**Generating a `.proto`.** `S.toProtoOrThrow` prints the proto3 source for a
+message schema, so a Sury schema can be the source of truth other languages
+build from, and `buf breaking` can guard it in CI. A schema's `name` meta names
+its message; without one the field key does. `description` becomes a comment
 and `deprecated` the option: meta a schema carried before `S.protobufField`
 numbered it belongs to the message or enum it declares, meta set after to the
 field.
@@ -1557,6 +1557,17 @@ The zero member prints as `KIND_UNSPECIFIED`, and an enum built from
 literals that lack `0` gets one prepended, since proto3 requires a zero member
 that the schema itself rejects.
 
+**Why the field names change case.** `homeAddress` prints as `home_address`
+because that is what proto3's style guide asks for and what `buf lint` checks
+by default. It changes nothing about the wire: a field is its number, never its
+name. Every generator turns `home_address` back into the name its own language
+would use, so the property you started from is the property you get back:
+`homeAddress` in TypeScript and in ProtoJSON, `HomeAddress` in Go,
+`home_address` in Python. The one case worth knowing is that an acronym
+flattens, so a `userID` key prints `user_id` and comes back as `userId`. Keys
+that are already snake_case are left alone; a key that is not a plain
+identifier is made into one.
+
 **Unknown fields** are skipped, the way every proto3 reader skips them: a
 field number the schema does not claim is stepped over whatever its wire type
 (varint, 64-bit, length-delimited, group or 32-bit), and so is a *known*
@@ -1596,70 +1607,23 @@ A schema that can't be a message, whether a field without a number, two fields
 sharing one or an optional repeated field, is rejected when the operation is
 built, naming the field.
 
-#### Speed
+#### Speed and correctness
 
-One run of `pnpm protobuf:compliance bench`, best of 7 samples, each library
-driven the way its README shows. The harness is in
-[`packages/protobuf-test-suite`](https://github.com/DZakh/sury/tree/main/packages/protobuf-test-suite);
-`bench.ts` holds the five message shapes and their values, so nothing here is a
-number without a shape behind it.
+[Benchmarks: Protobuf](https://github.com/DZakh/sury/blob/main/docs/benchmarks/protobuf.md)
+is regenerated on every push to main and carries the numbers: bundle size and
+encode/decode timings against protobuf.js, protobuf-es and pbf, a feature table
+where every cell is a call actually run against that library, and the
+conformance scores. The short version: encoding is where the compiled writer
+pays off, at 2.5-4.6x protobuf.js on small and nested messages; decoding is
+closer; and on a Mapbox vector tile pbf is the one to beat, because a tile is
+almost entirely packed varints and that is what pbf is built for.
 
-```
-node v22.22.2 · linux x64 · sury 11.0.0 · protobufjs 8.8.0 · protobuf-es 2.14.1 · pbf 5.1.2
-
-tiny (3 bytes)
-  sury                 encode      48 ns  1.00x   decode      21 ns  1.00x
-  protobufjs reflect   encode     222 ns  4.63x   decode      60 ns  2.92x
-  protobufjs static    encode     213 ns  4.45x   decode      39 ns  1.91x
-  protobuf-es          encode     759 ns  15.82x   decode     311 ns  15.08x
-  pbf                  encode     587 ns  12.24x   decode     167 ns  8.12x
-typical (31 bytes)
-  sury                 encode     179 ns  1.00x   decode     265 ns  1.00x
-  protobufjs reflect   encode     529 ns  2.95x   decode     310 ns  1.17x
-  protobufjs static    encode     520 ns  2.90x   decode     276 ns  1.04x
-  protobuf-es          encode     869 ns  4.85x   decode    1292 ns  4.88x
-  pbf                  encode    1302 ns  7.27x   decode     370 ns  1.40x
-large (1416 bytes)
-  sury                 encode    1981 ns  1.00x   decode    2856 ns  1.00x
-  protobufjs reflect   encode    3481 ns  1.76x   decode    3334 ns  1.17x
-  protobufjs static    encode    3504 ns  1.77x   decode    3219 ns  1.13x
-  protobuf-es          encode    7802 ns  3.94x   decode    4430 ns  1.55x
-  pbf                  encode    7226 ns  3.65x   decode    3010 ns  1.05x
-common (79 bytes)
-  sury                 encode     635 ns  1.00x   decode     409 ns  1.00x
-  protobufjs reflect   encode    1633 ns  2.57x   decode     554 ns  1.35x
-  protobufjs static    encode    1569 ns  2.47x   decode     614 ns  1.50x
-  protobuf-es          encode    2025 ns  3.19x   decode    1719 ns  4.20x
-  pbf                  encode    1286 ns  2.03x   decode     573 ns  1.40x
-tile (3028 bytes)
-  sury                 encode   17501 ns  1.03x   decode   13524 ns  1.00x
-  protobufjs reflect   encode   36540 ns  2.15x   decode   22753 ns  1.68x
-  protobufjs static    encode   36847 ns  2.17x   decode   18268 ns  1.35x
-  protobuf-es          encode   52486 ns  3.09x   decode   36110 ns  2.67x
-  pbf                  encode   16969 ns  1.00x   decode   13851 ns  1.02x
-```
-
-The shapes: **tiny** is one `uint32`. **typical** is an id, a name, a bool, a
-repeated string, an optional double and optional bytes. **large** is a 1 KiB
-string beside 256 packed `sint32`. **common** is protobuf.js's own
-`bench/cases/common` message, three levels of nesting. **tile** is a Mapbox
-vector tile: packed geometry dominates.
-
-Read it as a shape, not as a score. Encode is where the compiled writer pays
-off and the ratios hold across runs - 2.5-4.6x protobufjs on the small and
-nested shapes, 1.8x on the large one. Decode is closer, 1.0-2.9x, and on
-**tile** pbf is the one to beat: it matches decode and leads encode, because a
-tile is almost entirely packed varints and that is what pbf is for. Sury's own
-`tile` decode is the least stable number here, moving between roughly 13 and
-19 µs run to run; everything else lands within a few percent. Run the command on your own
-machine and your own message before you plan around any of it.
-
-`S.protobuf` runs against Google's own `conformance_test_runner`, which
-generates its cases inside the binary: **692 of the 698 binary proto3 cases**,
-with the six named and explained in
-[`packages/protobuf-conformance/failing_tests.txt`](https://github.com/DZakh/sury/tree/main/packages/protobuf-conformance/failing_tests.txt)
-- four need recursive messages, two need unknown fields to survive a round
-trip. ProtoJSON, text format and the proto2 message types are not attempted.
+`S.protobuf` passes **692 of the 698 binary proto3 cases** of Google's own
+`conformance_test_runner`, which generates its cases inside the binary rather
+than reading them from a file. The six are named with their reason in
+[`failing_tests.txt`](https://github.com/DZakh/sury/tree/main/packages/protobuf-conformance/failing_tests.txt):
+four need recursive messages, two need unknown fields to survive a round trip.
+ProtoJSON, text format and the proto2 message types are not attempted.
 
 Beside it, a corpus of our own in
 [`packages/protobuf-test-suite`](https://github.com/DZakh/sury/tree/main/packages/protobuf-test-suite),

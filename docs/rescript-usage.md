@@ -1477,13 +1477,6 @@ S.base64->S.to(S.string) // widens
 
 ### **Protocol Buffers**
 
-> **Experimental.** The whole protobuf surface - `S.protobuf`,
-> `S.protobufField`, `S.toProtoOrThrow`, `S.arrayBuffer` and the field option
-> shape - ships experimental in its first release. The wire format is frozen
-> by the spec and the compliance suite holds it there; the API around it is
-> not, and may be renamed or reshaped without a major version. Pin an exact
-> version if that matters to you.
-
 `S.protobuf` is the [Protocol Buffers](https://protobuf.dev) binary wire
 format. Number every field of a message with `S.protobufField`, convert to
 `S.protobuf`, and Sury compiles an encoder and a decoder for that message. No
@@ -1597,7 +1590,9 @@ enclosing message in front of it.
 The proto3 source describing the wire a message schema speaks, for the other
 side of the connection. A schema's `name` meta names the message, otherwise
 `~name` does, otherwise it is `Message`. camelCase field names print
-snake_case, which generators map back.
+snake_case, because that is proto3's style guide and what `buf lint` checks;
+the wire is unaffected, since a field is its number, and every generator turns
+the name back into the one its own language would use.
 
 ```rescript
 userSchema->S.toProtoOrThrow(~package="acme.v1")
@@ -1635,7 +1630,9 @@ object.
 
 See [Protocol Buffers in the JS guide](./js-usage.md#protocol-buffers) for the
 wire-level detail the two languages share, including what the conformance
-suite covers.
+suite covers, and
+[Benchmarks: Protobuf](https://github.com/DZakh/sury/blob/main/docs/benchmarks/protobuf.md)
+for the measured numbers.
 
 ### **`meta`**
 
