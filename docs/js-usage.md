@@ -1372,6 +1372,7 @@ A single var is the same coercion. `S.env` is `string | undefined`, the way
 S.decodeOrThrow(process.env.PORT, S.env, S.port); // unset -> Expected port, received undefined
 S.decodeOrThrow(process.env.NAME, S.env, S.optional(S.string)); // unset or "" -> undefined
 S.decodeOrThrow(process.env.BIO, S.env, S.string.with(S.minLength, 0)); // unset -> failure, "" -> ""
+S.decodeOrThrow(process.env.BIO, S.env, S.optional(S.string.with(S.minLength, 0))); // unset -> undefined, "" -> ""
 ```
 
 
