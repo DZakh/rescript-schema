@@ -26,6 +26,15 @@ operations:
       valid:
         input: new Uint8Array([8, 1, 18, 1, 120, 45, 0, 0, 128, 63])
         output: '{ id: 1, name: "x", tags: [], ratio: 1 }'
+      empty:
+        input: new Uint8Array([])
+        output: '{ id: 0, name: "", tags: [], ratio: 0 }'
+      not-a-uint8array:
+        input: new ArrayBuffer(4) as never
+        error: protobuf message is not a Uint8Array
+      array-of-bytes:
+        input: "[8, 1]"
+        error: protobuf message is not a Uint8Array
       truncated-length-delimited:
         input: new Uint8Array([8, 1, 18, 5, 104, 105])
         error: truncated protobuf message at name (field 2, wire type 2)

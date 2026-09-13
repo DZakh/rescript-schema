@@ -360,6 +360,11 @@ class Reader {
   // Same reentrancy rule as Writer.acquire: a decode started from inside
   // another gets its own reader. Released by the generated code.
   acquire(buf: Uint8Array): Reader {
+    // A decode skips validation, so anything can arrive here. Without this an
+    // input with no `length` (an `ArrayBuffer`, a plain object) would set the
+    // limit to `undefined`, leave the tag loop on the first test and hand back
+    // an all-defaults message no caller could tell from a genuinely empty one.
+    if (!(buf instanceof Uint8Array)) throw Error("protobuf message is not a Uint8Array");
     const reader = this.busy ? new Reader(buf) : this;
     reader.busy = true;
     reader.buf = buf;
